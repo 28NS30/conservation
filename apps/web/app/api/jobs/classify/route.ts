@@ -12,9 +12,30 @@ import { UNIDENTIFIED_PRECISION } from "@conservation/shared";
  */
 
 const MAX_ATTEMPTS = 5;
-const BATCH = 5;
+const BATCH = 3;
+
+/**
+ * How long a claimed job may sit in `running` before another run may take it.
+ *
+ * Without this, an interrupted run loses its batch permanently: the claim marks
+ * jobs `running`, and the claim query only ever looks for `queued` or `failed`,
+ * so anything already claimed is invisible to every future run. The reports stay
+ * `pending` and never reach the map, with nothing logging an error.
+ *
+ * It is not hypothetical. A Vercel Hobby function is killed at 60s, and a cold
+ * Modal container alone costs ~26s of that. A deploy mid-run does the same thing.
+ * Longer than any plausible run, short enough that a stuck job recovers quickly.
+ */
+const STALE_AFTER = "5 minutes";
 /** Only auto-assign a species when the model is confident; see apps/ml/evaluate.py. */
 const AUTO_ASSIGN_BANDS = new Set(["high"]);
+
+/**
+ * Vercel kills the function at this many seconds — 60 is the Hobby ceiling. The
+ * batch is sized so a cold Modal start plus its jobs fits comfortably inside it,
+ * and STALE_AFTER recovers the batch if it does not.
+ */
+export const maxDuration = 60;
 
 type Job = {
   job_id: string;
@@ -72,7 +93,16 @@ export async function POST(req: Request) {
     with claimed as (
       select j.id
         from classification_jobs j
-       where j.status in ('queued','failed')
+       where (
+               j.status in ('queued','failed')
+               -- Re-claim a lease abandoned by an interrupted run. attempts is
+               -- still incremented below, so a job that repeatedly kills the
+               -- worker gives up rather than looping forever. (No backticks in
+               -- here: this is inside a JS template literal and one would
+               -- silently truncate the query.)
+               or (j.status = 'running'
+                   and j.updated_at < now() - ${STALE_AFTER}::interval)
+             )
          and j.attempts < ${MAX_ATTEMPTS}
        order by j.created_at
        limit ${BATCH}
