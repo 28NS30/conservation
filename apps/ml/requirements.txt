@@ -1,0 +1,14 @@
+# Inference stack for species identification.
+#
+# Both models are permissively licensed:
+#   BioCLIP 2      MIT   ViT-L/14, TreeOfLife-200M (952k taxa), zero-shot
+#   MegaDetector 6 MIT   animal/person/vehicle detection, for cropping
+#
+# torch is the CPU/MPS build on macOS; Modal installs the CUDA build in its image.
+torch>=2.4
+torchvision>=0.19
+open_clip_torch>=2.24
+pillow>=10.3
+numpy>=1.26
+requests>=2.32
+psycopg[binary]>=3.2

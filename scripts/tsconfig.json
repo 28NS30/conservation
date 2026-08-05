@@ -1,0 +1,22 @@
+{
+  "//": "The importers and exporters run under tsx, which does no typechecking. Without this they were the only TypeScript in the repo nothing ever checked — and they are the code that talks to GBIF, TaiCOL and the database.",
+  "// note": "allowImportingTsExtensions is on because the scripts import each other as './db.ts', which is how tsx and Node's type stripping resolve them.",
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "allowImportingTsExtensions": true,
+    "types": ["node"],
+    "paths": {
+      "@conservation/shared": ["../packages/shared/src/index.ts"]
+    }
+  },
+  "include": ["*.ts"],
+  "exclude": ["node_modules"]
+}

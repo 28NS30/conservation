@@ -1,0 +1,25 @@
+{
+  "name": "@conservation/scripts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "migrate": "tsx migrate.ts",
+    "import:taicol": "tsx import-taicol.ts",
+    "import:gbif": "tsx import-gbif.ts",
+    "build:evalset": "tsx build-evalset.ts",
+    "make:fixture": "tsx make-test-fixture.ts",
+    "export:dwca": "tsx export-dwca.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "preflight": "tsx preflight.ts"
+  },
+  "dependencies": {
+    "@conservation/shared": "*",
+    "postgres": "^3.4.9"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "tsx": "^4.23.5",
+    "typescript": "^5.9.0"
+  }
+}

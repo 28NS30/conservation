@@ -1,0 +1,109 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+  # The app modules read these at import time. Tests never authenticate, so
+  # placeholders are fine — but they must be present.
+  NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
+  SUPABASE_SERVICE_ROLE_KEY: ci-placeholder
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        # Multi-arch PostGIS build; the official postgis/postgis has no arm64 tag.
+        image: imresamu/postgis:17-3.5
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Apply migrations
+        # The migrations are written to run on a vanilla PostGIS cluster as well as
+        # on Supabase — Supabase-only objects sit behind DO-block guards.
+        run: |
+          for f in supabase/migrations/*.sql; do
+            echo "--- $f"
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$f"
+          done
+
+      - name: Load test fixture
+        # A committed slice of real TaiCOL + TaiRON data. CI must not hit the live
+        # TaiCOL/GBIF APIs: one takes ~4 minutes, the other is intermittently slow.
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f supabase/seed-test.sql
+
+      - run: npx tsc --noEmit -p apps/web/tsconfig.json
+        name: Typecheck (web)
+
+      - run: npm run typecheck --workspace @conservation/scripts
+        # The importers and the DwC exporter run under tsx, which strips types
+        # without checking them. Nothing else in CI touches this code.
+        name: Typecheck (scripts)
+
+      - run: npm run lint --workspace @conservation/web
+        name: Lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Start server
+        run: |
+          npm run start --workspace @conservation/web &
+          npx wait-on http://localhost:3000 --timeout 90000
+
+      - name: Tests (privacy invariants, tile contract, shared logic)
+        run: npm test
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Offline submission end to end
+        # Runs against the production build, which is where the app registers the
+        # service worker for real. The spec also registers /sw.js itself, because
+        # components/ServiceWorker.tsx skips registration in dev unless
+        # NEXT_PUBLIC_SW_IN_DEV is set — without that, `navigator.serviceWorker.ready`
+        # just times out and the two offline-caching checks degrade into failures
+        # that look like product bugs.
+        run: npm run test:offline
+
+      - name: Every page renders in both locales
+        # Catches what HTTP-level checks cannot: next-intl renders a missing
+        # message as its own key path rather than throwing, so the page still
+        # returns 200 and looks healthy. That has slipped through three times.
+        run: npm run test:pages
+
+      - name: Map renders end to end
+        # MapLibre does all its work inside requestAnimationFrame, so only a real
+        # browser can prove the heatmap actually paints. This check is what caught
+        # Turbopack silently breaking MapLibre's Web Worker.
+        run: npm run test:map
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: map-render
+          path: apps/web/e2e/map-render.png
+          if-no-files-found: ignore

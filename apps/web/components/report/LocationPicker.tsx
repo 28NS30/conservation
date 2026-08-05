@@ -1,0 +1,119 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
+import type { Marker } from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
+import { createMap, type MapHandle } from "@/lib/map";
+import { isInTaiwanBounds, TAIWAN_CENTER } from "@conservation/shared";
+
+export type LatLng = { lat: number; lng: number };
+
+export default function LocationPicker({
+  value,
+  onChange,
+  maptilerKey,
+}: {
+  value: LatLng | null;
+  onChange: (v: LatLng) => void;
+  maptilerKey?: string;
+}) {
+  const t = useTranslations("report");
+  const container = useRef<HTMLDivElement>(null);
+  const handle = useRef<MapHandle | null>(null);
+  const marker = useRef<Marker | null>(null);
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  useEffect(() => {
+    if (!container.current || handle.current) return;
+    let cancelled = false;
+
+    void (async () => {
+      const h = await createMap(container.current!, {
+        maptilerKey,
+        center: value ? [value.lng, value.lat] : TAIWAN_CENTER,
+        zoom: value ? 14 : 7,
+        navigation: false,
+      });
+      if (cancelled) {
+        h.destroy();
+        return;
+      }
+      handle.current = h;
+
+      const m = new h.ml.Marker({ color: "#e11d48", draggable: true })
+        .setLngLat(value ? [value.lng, value.lat] : TAIWAN_CENTER)
+        .addTo(h.map);
+      m.on("dragend", () => {
+        const p = m.getLngLat();
+        onChangeRef.current({ lat: p.lat, lng: p.lng });
+      });
+      marker.current = m;
+
+      // Tapping the map is far easier than dragging a pin on a phone.
+      h.map.on("click", (e) => {
+        m.setLngLat(e.lngLat);
+        onChangeRef.current({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+      handle.current?.destroy();
+      handle.current = null;
+      marker.current = null;
+    };
+    // `value` is the initial centre only; later changes are handled by the effect
+    // below, which moves the existing marker instead of rebuilding the map.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [maptilerKey]);
+
+  // Keep the pin in sync when the value changes from outside (GPS, EXIF).
+  useEffect(() => {
+    if (!value || !marker.current || !handle.current) return;
+    marker.current.setLngLat([value.lng, value.lat]);
+    handle.current.map.easeTo({ center: [value.lng, value.lat], zoom: 14, duration: 400 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value?.lat, value?.lng]);
+
+  const outside = value && !isInTaiwanBounds(value.lng, value.lat);
+
+  return (
+    <div>
+      <div ref={container} className="h-56 w-full overflow-hidden rounded-lg sm:h-64" />
+      {value && (
+        <p className="mt-1.5 text-[11px] text-slate-400 tabular-nums">
+          {value.lat.toFixed(5)}, {value.lng.toFixed(5)}
+          {outside && (
+            <span className="ml-2 text-amber-400">⚠ {t("outsideTaiwan")}</span>
+          )}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Ask the browser for the current position. Resolves null if unavailable or denied. */
+export function useGeolocate() {
+  const [busy, setBusy] = useState(false);
+  const locate = () =>
+    new Promise<LatLng | null>((resolve) => {
+      if (!("geolocation" in navigator)) return resolve(null);
+      setBusy(true);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setBusy(false);
+          resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        },
+        () => {
+          setBusy(false);
+          resolve(null);
+        },
+        { enableHighAccuracy: true, timeout: 15_000, maximumAge: 30_000 },
+      );
+    });
+  return { locate, busy };
+}

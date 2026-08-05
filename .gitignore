@@ -1,0 +1,29 @@
+node_modules/
+.next/
+out/
+dist/
+.env
+.env.local
+*.log
+.DS_Store
+.turbo/
+data/cache/
+*.tsbuildinfo
+
+# Generated: 109 MB embedding matrix, downloaded eval images, DB dumps
+data/
+.backup/
+# Vendored at build time by `npm run sync:maplibre` (predev/prebuild)
+apps/web/public/maplibre/
+
+# Python virtualenv for apps/ml. Recreated with `python -m venv .venv` and
+# requirements.txt — it is machine-specific, ~1 GB, and contains a 322 MB torch
+# binary that GitHub rejects outright (100 MB per-file hard limit).
+.venv/
+__pycache__/
+*.pyc
+
+# Supabase CLI local state, not project source.
+supabase/.temp/
+supabase/.branches/
+

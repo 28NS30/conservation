@@ -1,0 +1,23 @@
+services:
+  db:
+    # imresamu/postgis is the multi-arch (incl. arm64/Apple Silicon) build of the
+    # official postgis image, from the same maintainer. postgis/postgis has no arm64 tag.
+    image: imresamu/postgis:17-3.5
+    container_name: conservation-db
+    environment:
+      POSTGRES_USER: conservation
+      POSTGRES_PASSWORD: conservation
+      POSTGRES_DB: conservation
+    ports:
+      # 55432 rather than 5432 to avoid colliding with a local Postgres install
+      - "55432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U conservation -d conservation"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  pgdata:
