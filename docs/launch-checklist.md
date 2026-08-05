@@ -44,15 +44,28 @@ region — closest to Taiwan, and latency here is user-visible on every map tile
 
 Save the database password it shows you; it is displayed once.
 
-From **Project Settings → Database** collect two connection strings:
+Connection strings live behind the **Connect** button in the top bar of the
+project, next to the project name — *not* under Project Settings, which is where
+they used to be. The modal has a tab per connection type.
 
-| | Where to find it | Used for |
-|---|---|---|
-| **Direct** (port 5432) | "Connection string → URI" | loading the database in step 3 |
-| **Transaction pooler** (port 6543) | "Connection pooling → Transaction" | the app itself |
+You need two of them, and they are not interchangeable:
 
-They are not interchangeable. Serverless functions exhaust a direct connection
-under load; the pooler cannot run the multi-statement session a data load needs.
+| | Host | Port | Username | Used for |
+|---|---|---|---|---|
+| **Direct** | `db.<ref>.supabase.co` | 5432 | `postgres` | loading the database, step 3 |
+| **Transaction pooler** | `...pooler.supabase.com` | 6543 | `postgres.<ref>` | the app — `DATABASE_URL` in Vercel |
+
+The differing username is the quickest way to tell which one you have copied.
+
+Serverless functions exhaust a direct connection under load, which is why the app
+uses the pooler. The transaction pooler in turn cannot run the multi-statement
+session a data load needs, which is why step 3 does not use it.
+
+**If the direct connection will not connect**, that is expected rather than
+broken: Supabase direct connections are IPv6-only unless you have the IPv4
+add-on, and most home networks are IPv4. Use the **Session pooler** (also port
+5432) for step 3 instead — it holds a session the way a direct connection does.
+The transaction pooler on 6543 is the one that genuinely cannot substitute.
 
 From **Project Settings → API** collect the project URL, the `anon` key and the
 `service_role` key.
@@ -73,7 +86,35 @@ npm run db:up                      # local database must be running
 ./scripts/dump-for-production.sh   # -> data/export/production.sql (~48 MB)
 ```
 
-Then, against the **direct** URL, in this order:
+### You need a `psql` client
+
+There is none on this machine's PATH. Either install one:
+
+```bash
+brew install libpq && brew link --force libpq
+```
+
+…or use the one already inside the local Postgres container, which is version
+17.6 and so exactly matches the dump. Every `psql` command below then becomes:
+
+```bash
+docker exec -i supabase_db_conservation psql "$PROD_DIRECT_URL" ...
+```
+
+with `-f -` and the file redirected in from outside, e.g.
+`docker exec -i supabase_db_conservation psql "$PROD_DIRECT_URL" -v ON_ERROR_STOP=1 -f - < data/export/production.sql`.
+
+### Check the connection before loading anything
+
+```bash
+psql "$PROD_DIRECT_URL" -c 'select version();'
+```
+
+If that hangs or reports "no route to host", it is the IPv6 issue from step 2 —
+switch to the **Session pooler** string and carry on. Everything below is
+unchanged.
+
+Then, against the **direct** (or session pooler) URL, in this order:
 
 ```bash
 export PROD_DIRECT_URL='postgresql://postgres:...@db.xxx.supabase.co:5432/postgres'

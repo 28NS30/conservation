@@ -66,6 +66,49 @@ async function main(): Promise<void> {
   check("suppressed reports are absent from the public view", supp.n === 0,
     supp.n ? `LEAK: ${supp.n} suppressed records are publicly visible` : "none, correct");
 
+  // The loaded rows already carry their obscured coordinate from the dump, so
+  // every check above passes whether or not the trigger that protects *new*
+  // submissions exists. Test it functionally, inside a transaction that is rolled
+  // back, because "the trigger row is present in pg_trigger" is a weaker claim
+  // than "a sensitive species actually comes out obscured".
+  const [trig] = await sql<{ n: number }[]>`
+    select count(*)::int as n from pg_trigger
+     where tgrelid = 'public.reports'::regclass and not tgisinternal`;
+  check("obscuring trigger exists on reports", trig.n > 0,
+    trig.n ? `${trig.n} trigger(s)` : "NEW reports would publish at their exact coordinate");
+
+  try {
+    const outcome = await sql.begin(async (tx) => {
+      const [taxon] = await tx<{ id: number }[]>`
+        select id from taxa where sensitivity = '座標不開放' and is_in_taiwan limit 1`;
+      if (!taxon) return { skipped: true as const };
+      const [r] = await tx<{ precision: string; moved: number }[]>`
+        insert into reports (category, location, location_public, observed_at, taxon_id, taxon_source, status, source)
+        values ('roadkill',
+                st_setsrid(st_makepoint(120.9, 23.8), 4326)::geography,
+                st_setsrid(st_makepoint(120.9, 23.8), 4326)::geography,
+                now(), ${taxon.id}, 'imported', 'published', 'user')
+        returning location_precision as precision,
+                  st_distance(location, location_public) as moved`;
+      await tx`rollback`.catch(() => {});
+      return { skipped: false as const, ...r };
+    }).catch((e) => ({ skipped: false as const, error: (e as Error).message }));
+
+    if ("error" in outcome) {
+      check("a sensitive species is actually obscured on insert", false, `test insert failed: ${outcome.error}`);
+    } else if (outcome.skipped) {
+      check("a sensitive species is actually obscured on insert", false, "no 座標不開放 taxon found to test with", false);
+    } else {
+      check("a sensitive species is actually obscured on insert",
+        outcome.precision === "suppressed",
+        outcome.precision === "suppressed"
+          ? "a 座標不開放 taxon came out suppressed, as it must"
+          : `LEAK: precision came back '${outcome.precision}' — new sensitive reports would publish at their true coordinate`);
+    }
+  } catch (e) {
+    check("a sensitive species is actually obscured on insert", false, `could not test: ${(e as Error).message}`);
+  }
+
   /* ---------------- classifier / database alignment ---------------- */
   // The landmine. taxa.id is a bigserial, and the embedding matrix baked into the
   // Modal volume stores those ids. If this database was built by re-running the

@@ -3,7 +3,7 @@
   "crons": [
     {
       "path": "/api/jobs/classify",
-      "schedule": "* * * * *"
+      "schedule": "0 3 * * *"
     },
     {
       "path": "/api/jobs/cleanup-orphans",
