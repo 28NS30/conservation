@@ -54,7 +54,7 @@ export default function QueueBanner() {
   if (items.length === 0) {
     if (justSent > 0) {
       return (
-        <p className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+        <p className="mb-4 rounded-lg border border-ember-500/30 bg-ember-500/10 px-3 py-2 text-xs text-emerald-200">
           {t("sentCount", { count: justSent })}
         </p>
       );

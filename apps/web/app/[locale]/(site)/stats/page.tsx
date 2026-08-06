@@ -26,24 +26,31 @@ export async function generateMetadata({
   return { title: t("title"), description: t("intro") };
 }
 
+/** One panel of the dashboard. `span` makes it take the full grid width. */
 function Section({
   title,
   hint,
+  span = false,
   children,
 }: {
   title: string;
   hint?: string;
+  span?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-white/10 bg-slate-900/50 p-4">
-      <h2 className="text-sm font-semibold text-slate-100">{title}</h2>
+    <section
+      className={`rounded-xl border border-parchment-200/10 bg-bark-900/50 p-5 ${
+        span ? "lg:col-span-2" : ""
+      }`}
+    >
+      <h2 className="text-sm font-semibold text-parchment-100">{title}</h2>
       {hint && (
-        <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500">
+        <p className="mt-1 text-[11px] leading-relaxed text-parchment-500">
           {hint}
         </p>
       )}
-      <div className="mt-3">{children}</div>
+      <div className="mt-4">{children}</div>
     </section>
   );
 }
@@ -58,7 +65,6 @@ export default async function StatsPage({
 
   const t = await getTranslations("statsPage");
   const tc = await getTranslations("categories");
-  const nav = await getTranslations("nav");
 
   // Independent aggregates, so issue them together rather than serially.
   const [ov, cats, months, years, species, spots] = await Promise.all([
@@ -80,17 +86,13 @@ export default async function StatsPage({
   const peak = months.indexOf(Math.max(...months));
 
   return (
-    <main className="mx-auto min-h-[100dvh] w-full max-w-2xl px-4 pb-16 pt-5">
-      <Link href="/" className="text-xs text-slate-400 hover:text-slate-200">
-        {nav("backToMap")}
-      </Link>
-
-      <h1 className="mt-3 text-xl font-semibold text-slate-50">{t("title")}</h1>
-      <p className="mt-0.5 text-xs leading-relaxed text-slate-400">
+    <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-12">
+      <h1 className="text-3xl font-semibold text-parchment-50">{t("title")}</h1>
+      <p className="mt-3 max-w-2xl text-sm leading-relaxed text-parchment-300">
         {t("intro")}
       </p>
 
-      <dl className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <dl className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           { k: "records", v: n(ov.reports) },
           { k: "species", v: n(ov.species) },
@@ -110,22 +112,28 @@ export default async function StatsPage({
         ].map((s) => (
           <div
             key={s.k}
-            className="rounded-lg border border-white/10 bg-slate-900/50 px-3 py-2.5"
+            className="rounded-lg border border-parchment-200/10 bg-bark-900/50 px-4 py-3.5"
           >
-            <dt className="text-[10px] text-slate-500">{t(`metric.${s.k}`)}</dt>
-            <dd className="text-base font-semibold tabular-nums text-slate-100">
+            <dt className="text-[11px] text-parchment-500">
+              {t(`metric.${s.k}`)}
+            </dt>
+            <dd className="mt-0.5 text-xl font-semibold tabular-nums text-parchment-100">
               {s.v}
             </dd>
           </div>
         ))}
       </dl>
 
-      <div className="mt-3 space-y-3">
+      {/* A dashboard, not a column. Every panel here is short and wide-ish, and
+          stacking them single-file made a 640px ribbon down a 1180px page with
+          six screens of scrolling. `items-start` keeps a short panel from being
+          stretched to match a tall one beside it. */}
+      <div className="mt-4 grid items-start gap-3 lg:grid-cols-2">
         {/* One category means one 100% bar, which tells the reader nothing. The
             seed corpus is entirely roadkill; this appears once people report
             other things. */}
         {cats.length > 1 && (
-          <Section title={t("byCategory")}>
+          <Section title={t("byCategory")} span>
             <Bars
               total={ov.reports}
               locale={locale}
@@ -145,7 +153,7 @@ export default async function StatsPage({
             highlight={peak}
             data={months.map((v, i) => ({ key: monthNames[i], n: v }))}
           />
-          <p className="mt-2 text-[11px] text-slate-500">
+          <p className="mt-2 text-[11px] text-parchment-500">
             {t("peakMonth", {
               month: new Intl.DateTimeFormat(locale, { month: "long" }).format(
                 new Date(Date.UTC(2021, peak, 1)),
@@ -175,13 +183,13 @@ export default async function StatsPage({
                 <li key={s.id}>
                   <Link
                     href={`/species/${speciesSlug(s)}`}
-                    className="flex items-center gap-3 rounded-lg px-2 py-1.5 transition hover:bg-white/5"
+                    className="flex items-center gap-3 rounded-lg px-2 py-1.5 transition hover:bg-parchment-50/5"
                   >
-                    <span className="w-5 shrink-0 text-right text-[11px] tabular-nums text-slate-600">
+                    <span className="w-5 shrink-0 text-right text-[11px] tabular-nums text-parchment-500">
                       {i + 1}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm text-slate-100">
+                      <span className="block truncate text-sm text-parchment-100">
                         {headline}
                         {s.protectedStatus && (
                           <span className="ml-1.5 rounded bg-amber-400/15 px-1 py-px text-[9px] text-amber-300">
@@ -195,16 +203,16 @@ export default async function StatsPage({
                         )}
                       </span>
                       {secondary && (
-                        <span className="block truncate text-[11px] italic text-slate-500">
+                        <span className="block truncate text-[11px] italic text-parchment-500">
                           {secondary}
                         </span>
                       )}
                     </span>
                     <span className="shrink-0 text-right">
-                      <span className="block text-sm tabular-nums text-slate-200">
+                      <span className="block text-sm tabular-nums text-parchment-200">
                         {n(s.reportCount)}
                       </span>
-                      <span className="block text-[10px] tabular-nums text-slate-600">
+                      <span className="block text-[10px] tabular-nums text-parchment-500">
                         {share.toFixed(1)}%
                       </span>
                     </span>
@@ -221,20 +229,23 @@ export default async function StatsPage({
               <li key={`${h.lng},${h.lat}`}>
                 <Link
                   href={{
-                    pathname: "/",
+                    // /map, not /: the full-screen map moved off the home page
+                    // when the landing page took it over, and this link was left
+                    // pointing at the marketing hero.
+                    pathname: "/map",
                     query: {
                       lng: h.lng.toFixed(4),
                       lat: h.lat.toFixed(4),
                       z: "11",
                     },
                   }}
-                  className="flex items-center gap-3 rounded-lg px-2 py-1.5 transition hover:bg-white/5"
+                  className="flex items-center gap-3 rounded-lg px-2 py-1.5 transition hover:bg-parchment-50/5"
                 >
-                  <span className="w-5 shrink-0 text-right text-[11px] tabular-nums text-slate-600">
+                  <span className="w-5 shrink-0 text-right text-[11px] tabular-nums text-parchment-500">
                     {i + 1}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm text-slate-100">
+                    <span className="block truncate text-sm text-parchment-100">
                       {h.topSpeciesZh || h.topSpeciesSci
                         ? t("dominatedBy", {
                             species:
@@ -245,17 +256,15 @@ export default async function StatsPage({
                           })
                         : t("mixedSpecies")}
                     </span>
-                    <span className="block text-[11px] tabular-nums text-slate-500">
+                    <span className="block text-[11px] tabular-nums text-parchment-500">
                       {h.lat.toFixed(3)}°N, {h.lng.toFixed(3)}°E
                     </span>
                   </span>
-                  <span className="shrink-0 text-right">
-                    <span className="block text-sm tabular-nums text-slate-200">
-                      {n(h.n)}
-                    </span>
-                    <span className="block text-[10px] text-slate-600">
-                      {t("perCell")}
-                    </span>
+                  {/* One line: stacked, the lone unit character read as a
+                      stray glyph floating under the count. */}
+                  <span className="shrink-0 whitespace-nowrap text-[10px] tabular-nums text-parchment-500">
+                    <span className="text-sm text-parchment-200">{n(h.n)}</span>{" "}
+                    {t("perCell")}
                   </span>
                 </Link>
               </li>
@@ -263,8 +272,8 @@ export default async function StatsPage({
           </ol>
         </Section>
 
-        <Section title={t("coverage")}>
-          <p className="text-xs leading-relaxed text-slate-400">
+        <Section title={t("coverage")} span>
+          <p className="text-xs leading-relaxed text-parchment-400">
             {t("coverageBody", {
               obscured: n(ov.obscured),
               total: n(ov.reports),
@@ -272,7 +281,7 @@ export default async function StatsPage({
           </p>
           <Link
             href="/about"
-            className="mt-2 inline-block text-xs text-emerald-400 hover:text-emerald-300"
+            className="mt-2 inline-block text-xs text-ember-400 hover:text-ember-400"
           >
             {t("howObscuringWorks")} →
           </Link>

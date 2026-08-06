@@ -20,7 +20,7 @@ export default function LanguageSwitcher({ className = "" }: { className?: strin
     <div className={`flex items-center gap-0.5 text-[11px] ${className}`}>
       {routing.locales.map((l, i) => (
         <span key={l} className="flex items-center gap-0.5">
-          {i > 0 && <span className="text-slate-600">/</span>}
+          {i > 0 && <span className="text-parchment-500">/</span>}
           <button
             type="button"
             lang={l}
@@ -28,8 +28,8 @@ export default function LanguageSwitcher({ className = "" }: { className?: strin
             onClick={() => router.replace(pathname, { locale: l })}
             className={
               l === locale
-                ? "font-medium text-slate-200"
-                : "text-slate-500 transition hover:text-slate-300"
+                ? "font-medium text-parchment-200"
+                : "text-parchment-500 transition hover:text-parchment-300"
             }
           >
             {LOCALE_LABELS[l]}

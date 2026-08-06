@@ -22,8 +22,10 @@ import { chromium } from "playwright";
 const BASE = process.env.TEST_BASE_URL ?? "http://localhost:3000";
 
 const PAGES = [
-  { path: "/", name: "map (zh-TW)", settle: 8000, layers: true },
-  { path: "/en", name: "map (en)", settle: 8000, layers: true },
+  { path: "/", name: "home (zh-TW)", settle: 9000 },
+  { path: "/en", name: "home (en)", settle: 9000 },
+  { path: "/map", name: "map (zh-TW)", settle: 9000, layers: true },
+  { path: "/en/map", name: "map (en)", settle: 9000, layers: true },
   { path: "/stats", name: "stats (zh-TW)" },
   { path: "/en/stats", name: "stats (en)" },
   { path: "/species", name: "species directory" },

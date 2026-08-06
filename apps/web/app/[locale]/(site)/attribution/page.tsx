@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { Link } from "@/i18n/navigation";
 import { asPublic } from "@/lib/db";
 
 export const revalidate = 3600;
@@ -32,7 +31,6 @@ export default async function AttributionPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("attribution");
-  const nav = await getTranslations("nav");
 
   const licenses = await asPublic(
     (tx) => tx<{ license: string | null; rightsHolder: string | null; n: number }[]>`
@@ -52,45 +50,42 @@ export default async function AttributionPage({
 
   return (
     <main className="mx-auto min-h-[100dvh] w-full max-w-2xl px-4 pb-16 pt-5">
-      <Link href="/" className="text-xs text-slate-400 hover:text-slate-200">
-        {nav("backToMap")}
-      </Link>
-      <h1 className="mt-3 text-xl font-semibold text-slate-50">{t("title")}</h1>
-      <p className="mt-2 text-sm leading-relaxed text-slate-400">{t("intro")}</p>
+      <h1 className="mt-3 text-xl font-semibold text-parchment-50">{t("title")}</h1>
+      <p className="mt-2 text-sm leading-relaxed text-parchment-400">{t("intro")}</p>
 
       <section className="mt-6">
-        <h2 className="text-xs font-medium uppercase tracking-wide text-slate-500">
+        <h2 className="text-xs font-medium uppercase tracking-wide text-parchment-500">
           {t("occurrenceData")}
         </h2>
-        <p className="mt-2 text-sm leading-relaxed text-slate-300">
+        <p className="mt-2 text-sm leading-relaxed text-parchment-300">
           {t.rich("gbifBody", {
             tairon: (c) => (
-              <a href="https://roadkill.tw" target="_blank" rel="noreferrer" className="text-emerald-400 underline-offset-2 hover:underline">{c}</a>
+              <a href="https://roadkill.tw" target="_blank" rel="noreferrer" className="text-ember-400 underline-offset-2 hover:underline">{c}</a>
             ),
             gbif: (c) => (
-              <a href="https://www.gbif.org/dataset/db09684b-0fd1-431e-b5fa-4c1532fbdb14" target="_blank" rel="noreferrer" className="text-emerald-400 underline-offset-2 hover:underline">{c}</a>
+              <a href="https://www.gbif.org/dataset/db09684b-0fd1-431e-b5fa-4c1532fbdb14" target="_blank" rel="noreferrer" className="text-ember-400 underline-offset-2 hover:underline">{c}</a>
             ),
           })}
         </p>
 
         {licenses.length > 0 && (
           <table className="mt-3 w-full text-left text-xs">
-            <thead className="text-slate-500">
+            <thead className="text-parchment-500">
               <tr>
                 <th className="py-1 font-medium">{t("licence")}</th>
                 <th className="py-1 font-medium">{t("rightsHolder")}</th>
                 <th className="py-1 text-right font-medium">{t("records")}</th>
               </tr>
             </thead>
-            <tbody className="text-slate-300">
+            <tbody className="text-parchment-300">
               {licenses.map((l, i) => (
-                <tr key={i} className="border-t border-white/5">
+                <tr key={i} className="border-t border-parchment-200/5">
                   <td className="py-1.5">{licenseName(l.license)}</td>
-                  <td className="py-1.5 text-slate-400">{l.rightsHolder ?? t("unspecified")}</td>
+                  <td className="py-1.5 text-parchment-400">{l.rightsHolder ?? t("unspecified")}</td>
                   <td className="py-1.5 text-right tabular-nums">{l.n.toLocaleString(locale)}</td>
                 </tr>
               ))}
-              <tr className="border-t border-white/10 font-medium">
+              <tr className="border-t border-parchment-200/10 font-medium">
                 <td className="py-1.5" colSpan={2}>{t("total")}</td>
                 <td className="py-1.5 text-right tabular-nums">{total.toLocaleString(locale)}</td>
               </tr>
@@ -100,29 +95,29 @@ export default async function AttributionPage({
       </section>
 
       <section className="mt-6">
-        <h2 className="text-xs font-medium uppercase tracking-wide text-slate-500">{t("checklist")}</h2>
-        <p className="mt-2 text-sm leading-relaxed text-slate-300">
+        <h2 className="text-xs font-medium uppercase tracking-wide text-parchment-500">{t("checklist")}</h2>
+        <p className="mt-2 text-sm leading-relaxed text-parchment-300">
           {t.rich("taicolBody", {
             taicol: (c) => (
-              <a href="https://taicol.tw" target="_blank" rel="noreferrer" className="text-emerald-400 underline-offset-2 hover:underline">{c}</a>
+              <a href="https://taicol.tw" target="_blank" rel="noreferrer" className="text-ember-400 underline-offset-2 hover:underline">{c}</a>
             ),
           })}
         </p>
       </section>
 
       <section className="mt-6">
-        <h2 className="text-xs font-medium uppercase tracking-wide text-slate-500">{t("basemap")}</h2>
-        <p className="mt-2 text-sm leading-relaxed text-slate-300">{t("basemapBody")}</p>
+        <h2 className="text-xs font-medium uppercase tracking-wide text-parchment-500">{t("basemap")}</h2>
+        <p className="mt-2 text-sm leading-relaxed text-parchment-300">{t("basemapBody")}</p>
       </section>
 
       <section className="mt-6">
-        <h2 className="text-xs font-medium uppercase tracking-wide text-slate-500">{t("models")}</h2>
-        <p className="mt-2 text-sm leading-relaxed text-slate-300">{t("modelsBody")}</p>
+        <h2 className="text-xs font-medium uppercase tracking-wide text-parchment-500">{t("models")}</h2>
+        <p className="mt-2 text-sm leading-relaxed text-parchment-300">{t("modelsBody")}</p>
       </section>
 
       <section className="mt-6">
-        <h2 className="text-xs font-medium uppercase tracking-wide text-slate-500">{t("ourData")}</h2>
-        <p className="mt-2 text-sm leading-relaxed text-slate-300">{t("ourDataBody")}</p>
+        <h2 className="text-xs font-medium uppercase tracking-wide text-parchment-500">{t("ourData")}</h2>
+        <p className="mt-2 text-sm leading-relaxed text-parchment-300">{t("ourDataBody")}</p>
       </section>
     </main>
   );

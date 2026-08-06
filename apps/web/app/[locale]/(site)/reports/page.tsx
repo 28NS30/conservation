@@ -69,7 +69,6 @@ export default async function ReportsListPage({
   const to = f.to ?? null;
 
   const t = await getTranslations("list");
-  const nav = await getTranslations("nav");
   const tc = await getTranslations("categories");
   const tp = await getTranslations("precision");
 
@@ -119,11 +118,8 @@ export default async function ReportsListPage({
 
   return (
     <main className="mx-auto min-h-[100dvh] w-full max-w-3xl px-4 pb-16 pt-5">
-      <Link href="/" className="text-xs text-slate-400 hover:text-slate-200">
-        {nav("backToMap")}
-      </Link>
-      <h1 className="mt-3 text-xl font-semibold text-slate-50">{t("title")}</h1>
-      <p className="mt-0.5 text-xs text-slate-400">{t("subtitle")}</p>
+      <h1 className="mt-3 text-xl font-semibold text-parchment-50">{t("title")}</h1>
+      <p className="mt-0.5 text-xs text-parchment-400">{t("subtitle")}</p>
 
       <nav aria-label={t("filterByCategory")} className="mt-4 flex flex-wrap gap-1.5">
         <Link
@@ -134,8 +130,8 @@ export default async function ReportsListPage({
           aria-current={!category ? "page" : undefined}
           className={`rounded-full border px-3 py-1.5 text-xs transition ${
             !category
-              ? "border-white/70 bg-white/90 font-medium text-slate-900"
-              : "border-white/15 bg-slate-900/70 text-slate-300 hover:bg-slate-800"
+              ? "border-parchment-200/70 bg-parchment-50/90 font-medium text-bark-950"
+              : "border-parchment-200/15 bg-bark-900/70 text-parchment-300 hover:bg-bark-800"
           }`}
         >
           {t("all")}
@@ -147,8 +143,8 @@ export default async function ReportsListPage({
             aria-current={category === k ? "page" : undefined}
             className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition ${
               category === k
-                ? "border-white/70 bg-white/90 font-medium text-slate-900"
-                : "border-white/15 bg-slate-900/70 text-slate-300 hover:bg-slate-800"
+                ? "border-parchment-200/70 bg-parchment-50/90 font-medium text-bark-950"
+                : "border-parchment-200/15 bg-bark-900/70 text-parchment-300 hover:bg-bark-800"
             }`}
           >
             <span className="h-2 w-2 rounded-full" style={{ background: CATEGORIES[k].color }} aria-hidden />
@@ -158,12 +154,12 @@ export default async function ReportsListPage({
       </nav>
 
       {visible.length === 0 ? (
-        <p className="mt-8 text-center text-sm text-slate-500">{t("empty")}</p>
+        <p className="mt-8 text-center text-sm text-parchment-500">{t("empty")}</p>
       ) : (
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left text-xs">
             <caption className="sr-only">{t("tableCaption")}</caption>
-            <thead className="text-slate-500">
+            <thead className="text-parchment-500">
               <tr>
                 <th scope="col" className="py-1.5 font-medium">{t("date")}</th>
                 <th scope="col" className="py-1.5 font-medium">{t("category")}</th>
@@ -173,26 +169,26 @@ export default async function ReportsListPage({
             </thead>
             <tbody>
               {visible.map((r) => (
-                <tr key={r.id} className="border-t border-white/5 align-top">
+                <tr key={r.id} className="border-t border-parchment-200/5 align-top">
                   <td className="py-1.5 whitespace-nowrap">
-                    <Link href={`/reports/${r.id}`} className="text-slate-300 hover:text-slate-100">
+                    <Link href={`/reports/${r.id}`} className="text-parchment-300 hover:text-parchment-100">
                       {new Date(r.observedAt).toLocaleDateString(locale, { timeZone: "Asia/Taipei" })}
                     </Link>
                   </td>
-                  <td className="py-1.5 text-slate-400">{tc(r.category)}</td>
+                  <td className="py-1.5 text-parchment-400">{tc(r.category)}</td>
                   <td className="py-1.5">
                     {r.taxonId && r.scientificName ? (
                       <Link
                         href={`/species/${speciesSlug({ id: r.taxonId, scientificName: r.scientificName })}`}
-                        className="text-slate-200 hover:text-emerald-300"
+                        className="text-parchment-200 hover:text-ember-400"
                       >
                         {zhFirst && r.commonNameZh ? r.commonNameZh : r.scientificName}
                       </Link>
                     ) : (
-                      <span className="text-slate-600">—</span>
+                      <span className="text-parchment-500">—</span>
                     )}
                   </td>
-                  <td className="py-1.5 tabular-nums text-slate-400">
+                  <td className="py-1.5 tabular-nums text-parchment-400">
                     {r.lat.toFixed(3)}, {r.lng.toFixed(3)}
                     {r.isObscured && (
                       <span className="ml-1.5 text-amber-400" title={tp(r.locationPrecision)}>
@@ -209,11 +205,11 @@ export default async function ReportsListPage({
 
       <nav aria-label={t("pagination")} className="mt-6 flex items-center justify-between text-xs">
         {page > 1 ? (
-          <Link href={qs(page - 1)} className="text-slate-300 hover:text-slate-100">← {t("previous")}</Link>
+          <Link href={qs(page - 1)} className="text-parchment-300 hover:text-parchment-100">← {t("previous")}</Link>
         ) : <span />}
-        <span className="text-slate-500">{t("pageN", { page })}</span>
+        <span className="text-parchment-500">{t("pageN", { page })}</span>
         {hasNext ? (
-          <Link href={qs(page + 1)} className="text-slate-300 hover:text-slate-100">{t("next")} →</Link>
+          <Link href={qs(page + 1)} className="text-parchment-300 hover:text-parchment-100">{t("next")} →</Link>
         ) : <span />}
       </nav>
     </main>

@@ -20,7 +20,7 @@ export default function Bars({
         return (
           <li key={r.key}>
             <div className="flex items-baseline justify-between gap-3 text-xs">
-              <span className="flex min-w-0 items-center gap-1.5 text-slate-300">
+              <span className="flex min-w-0 items-center gap-1.5 text-parchment-300">
                 <span
                   aria-hidden
                   className="size-2 shrink-0 rounded-full"
@@ -28,12 +28,12 @@ export default function Bars({
                 />
                 <span className="truncate">{r.label}</span>
               </span>
-              <span className="shrink-0 tabular-nums text-slate-400">
+              <span className="shrink-0 tabular-nums text-parchment-400">
                 {r.n.toLocaleString(locale)}
-                <span className="ml-1.5 text-slate-600">{pct.toFixed(1)}%</span>
+                <span className="ml-1.5 text-parchment-500">{pct.toFixed(1)}%</span>
               </span>
             </div>
-            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/5">
+            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-parchment-50/5">
               <div
                 className="h-full rounded-full"
                 // Sub-percent slices would otherwise render as nothing at all.

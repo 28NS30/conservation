@@ -103,5 +103,10 @@ export default function SpeciesMap({
     };
   }, [taxonId, mode, maptilerKey]);
 
-  return <div ref={container} className="h-64 w-full overflow-hidden rounded-lg sm:h-80" />;
+  return <div
+      ref={container}
+      // See LocationPicker: the container must be positioned or the canvas
+      // escapes to the viewport.
+      className="relative h-64 w-full overflow-hidden rounded-lg sm:h-80"
+    />;
 }

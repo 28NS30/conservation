@@ -16,8 +16,8 @@ export default function manifest(): MetadataRoute.Manifest {
       "台灣路殺、外來入侵種與環境通報的公開熱點地圖。A public heatmap of roadkill, invasive species and environmental reports across Taiwan.",
     start_url: "/",
     display: "standalone",
-    background_color: "#020617",
-    theme_color: "#020617",
+    background_color: "#0b1410",
+    theme_color: "#0b1410",
     icons: [
       { src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
     ],

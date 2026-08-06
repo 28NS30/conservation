@@ -88,8 +88,8 @@ export default function MapFilters({
           onClick={() => pickCategory(undefined)}
           className={`rounded-full border px-3 py-1.5 text-xs font-medium backdrop-blur transition ${
             !value.category
-              ? "border-white/70 bg-white/90 text-slate-900"
-              : "border-white/20 bg-slate-900/70 text-slate-200 hover:bg-slate-800/80"
+              ? "border-parchment-200/70 bg-parchment-50/90 text-bark-950"
+              : "border-parchment-200/20 bg-bark-900/70 text-parchment-200 hover:bg-bark-800/80"
           }`}
         >
           {t("map.all")}
@@ -100,8 +100,8 @@ export default function MapFilters({
             onClick={() => pickCategory(k)}
             className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium backdrop-blur transition ${
               value.category === k
-                ? "border-white/70 bg-white/90 text-slate-900"
-                : "border-white/20 bg-slate-900/70 text-slate-200 hover:bg-slate-800/80"
+                ? "border-parchment-200/70 bg-parchment-50/90 text-bark-950"
+                : "border-parchment-200/20 bg-bark-900/70 text-parchment-200 hover:bg-bark-800/80"
             }`}
           >
             <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: CATEGORIES[k].color }} />
@@ -120,7 +120,7 @@ export default function MapFilters({
                 setSpeciesQuery("");
                 onChange({ ...value, taxonId: undefined });
               }}
-              className="flex items-center gap-1.5 rounded-full border border-emerald-400/60 bg-emerald-400/15 px-3 py-1.5 text-xs text-emerald-200 backdrop-blur"
+              className="flex items-center gap-1.5 rounded-full border border-ember-400/60 bg-ember-400/15 px-3 py-1.5 text-xs text-emerald-200 backdrop-blur"
             >
               {chosen.commonNameZh ?? chosen.scientificName}
               <span aria-hidden>×</span>
@@ -136,7 +136,7 @@ export default function MapFilters({
               onFocus={() => setOpen(true)}
               placeholder={t("map.filterSpecies")}
               aria-label={t("map.filterSpecies")}
-              className="w-44 rounded-full border border-white/20 bg-slate-900/70 px-3 py-1.5 text-xs text-slate-200 backdrop-blur placeholder:text-slate-500"
+              className="w-44 rounded-full border border-parchment-200/20 bg-bark-900/70 px-3 py-1.5 text-xs text-parchment-200 backdrop-blur placeholder:text-parchment-500"
             />
           )}
 
@@ -158,7 +158,7 @@ export default function MapFilters({
           </p>
 
           {open && visibleHits.length > 0 && !chosen && (
-            <ul className="absolute z-20 mt-1 max-h-60 w-64 overflow-auto rounded-lg border border-white/15 bg-slate-900/95 py-1 backdrop-blur">
+            <ul className="absolute z-20 mt-1 max-h-60 w-64 overflow-auto rounded-lg border border-parchment-200/15 bg-bark-900/95 py-1 backdrop-blur">
               {visibleHits.map((h) => (
                 <li key={h.id}>
                   <button
@@ -167,15 +167,15 @@ export default function MapFilters({
                       setOpen(false);
                       onChange({ ...value, taxonId: h.id });
                     }}
-                    className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs hover:bg-slate-800"
+                    className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs hover:bg-bark-800"
                   >
                     <span className="min-w-0 truncate">
-                      <span className="text-slate-100">{h.commonNameZh ?? h.scientificName}</span>
+                      <span className="text-parchment-100">{h.commonNameZh ?? h.scientificName}</span>
                       {h.commonNameZh && (
-                        <span className="ml-1.5 italic text-slate-500">{h.scientificName}</span>
+                        <span className="ml-1.5 italic text-parchment-500">{h.scientificName}</span>
                       )}
                     </span>
-                    <span className="shrink-0 tabular-nums text-slate-500">{h.reportCount}</span>
+                    <span className="shrink-0 tabular-nums text-parchment-500">{h.reportCount}</span>
                   </button>
                 </li>
               ))}
@@ -184,7 +184,7 @@ export default function MapFilters({
         </div>
 
         {yearOptions.length > 1 && (
-          <div className="flex items-center gap-1 rounded-full border border-white/20 bg-slate-900/70 px-2.5 py-1 text-xs text-slate-300 backdrop-blur">
+          <div className="flex items-center gap-1 rounded-full border border-parchment-200/20 bg-bark-900/70 px-2.5 py-1 text-xs text-parchment-300 backdrop-blur">
             <select
               value={yearOf(value.from)}
               onChange={(e) => setYear("from", e.target.value)}
@@ -193,10 +193,10 @@ export default function MapFilters({
             >
               <option value="">{t("map.anyYear")}</option>
               {yearOptions.map((y) => (
-                <option key={y} value={y} className="bg-slate-900">{y}</option>
+                <option key={y} value={y} className="bg-bark-900">{y}</option>
               ))}
             </select>
-            <span className="text-slate-600">–</span>
+            <span className="text-parchment-500">–</span>
             <select
               value={yearOf(value.to)}
               onChange={(e) => setYear("to", e.target.value)}
@@ -205,7 +205,7 @@ export default function MapFilters({
             >
               <option value="">{t("map.anyYear")}</option>
               {yearOptions.map((y) => (
-                <option key={y} value={y} className="bg-slate-900">{y}</option>
+                <option key={y} value={y} className="bg-bark-900">{y}</option>
               ))}
             </select>
           </div>
@@ -218,7 +218,7 @@ export default function MapFilters({
               setSpeciesQuery("");
               onChange({});
             }}
-            className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-slate-400 backdrop-blur hover:bg-slate-800"
+            className="rounded-full border border-parchment-200/15 px-3 py-1.5 text-xs text-parchment-400 backdrop-blur hover:bg-bark-800"
           >
             {t("map.clearFilters")}
           </button>

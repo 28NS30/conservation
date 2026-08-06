@@ -83,9 +83,12 @@ export type MapHandle = {
  * Create a MapLibre map with the workarounds this project needs everywhere, so
  * they are fixed once rather than rediscovered per component.
  *
- *  1. The container must be sized with `h-full`, never `absolute inset-0`:
- *     maplibre-gl.css is unlayered and sets `.maplibregl-map { position: relative }`,
- *     which beats Tailwind 4's layered `.absolute` utility, collapsing it to 0px.
+ *  1. The container must be sized AND positioned: `relative h-full`. MapLibre 6
+ *     does not add a `.maplibregl-map` class to the element it is handed, so the
+ *     stock `.maplibregl-map { position: relative }` rule matches nothing at all.
+ *     The canvas it inserts is `position: absolute`, so a static container lets
+ *     it escape to the nearest positioned ancestor — or the viewport, where it
+ *     paints over the page header.
  *  2. MapLibre sizes itself once at construction and only watches *window*
  *     resizes, so in a flex layout it sticks at its 400x300 fallback.
  */
@@ -99,6 +102,15 @@ export async function createMap(
     maxZoom?: number;
     navigation?: boolean;
     bounded?: boolean;
+    /**
+     * Display-only: no panning, no zooming, no keyboard focus.
+     *
+     * For the home page hero, where the map is a live illustration rather than an
+     * instrument. Leaving it interactive there would hijack the page scroll the
+     * moment a reader's cursor crossed it, which is the single most irritating
+     * thing a full-bleed map can do.
+     */
+    static?: boolean;
     /** Runs once the style is ready for addSource/addLayer. Must be idempotent. */
     onReady?: (map: MLMap) => void;
   } = {},
@@ -110,17 +122,33 @@ export async function createMap(
     style: basemapStyle(opts.maptilerKey),
     center: opts.center ?? TAIWAN_CENTER,
     zoom: opts.zoom ?? 6.6,
-    ...(opts.bounded === false ? {} : { maxBounds: PADDED_TAIWAN_BOUNDS }),
+    // maxBounds keeps a browsing user from panning off to the Atlantic. It is
+    // actively harmful on a static hero: when the viewport is wider than the
+    // bounds — which it is at country zoom on a desktop — MapLibre silently
+    // overrides the requested centre to make the bounds fit, so the deliberate
+    // framing is thrown away. Nothing can pan a static map anyway.
+    ...(opts.bounded === false || opts.static
+      ? {}
+      : { maxBounds: PADDED_TAIWAN_BOUNDS }),
     minZoom: opts.minZoom ?? 5,
     maxZoom: opts.maxZoom ?? 18,
     attributionControl: { compact: true },
+    ...(opts.static
+      ? {
+          interactive: false,
+          // Belt and braces: `interactive:false` covers the handlers, but the
+          // canvas would still take tab focus and announce itself as an
+          // application to a screen reader.
+          attributionControl: { compact: true },
+        }
+      : {}),
   });
 
   map.on("error", (e) => {
     console.error("[maplibre]", (e as unknown as { error?: Error }).error ?? e);
   });
 
-  if (opts.navigation !== false) {
+  if (opts.navigation !== false && !opts.static) {
     map.addControl(new ml.NavigationControl({ showCompass: false }), "top-right");
   }
 

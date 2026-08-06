@@ -39,7 +39,7 @@ export default function SpeciesSearch({ initialQuery }: { initialQuery: string }
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder={t("searchPlaceholder")}
-        className="w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600"
+        className="w-full rounded-lg border border-parchment-200/15 bg-bark-900/70 px-3 py-2 text-sm text-parchment-100 placeholder:text-parchment-500"
       />
     </label>
   );

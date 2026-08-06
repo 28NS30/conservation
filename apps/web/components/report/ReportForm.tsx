@@ -168,13 +168,13 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
 
   if (phase === "done" && result) {
     return (
-      <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-5">
-        <h2 className="text-base font-semibold text-emerald-300">{t("thanks")}</h2>
-        <p className="mt-1 text-sm text-slate-300">{t("received")}</p>
-        <p className="mt-3 text-xs leading-relaxed text-slate-400">
+      <div className="rounded-xl border border-ember-500/30 bg-ember-500/10 p-5">
+        <h2 className="text-base font-semibold text-ember-400">{t("thanks")}</h2>
+        <p className="mt-1 text-sm text-parchment-300">{t("received")}</p>
+        <p className="mt-3 text-xs leading-relaxed text-parchment-400">
           {result.awaitingIdentification ? t("identifying") : t("published")}
         </p>
-        <a href={`/reports/${result.id}`} className="mt-4 inline-block text-xs text-emerald-300 underline">
+        <a href={`/reports/${result.id}`} className="mt-4 inline-block text-xs text-ember-400 underline">
           {t("viewReport")}
         </a>
       </div>
@@ -187,7 +187,7 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
     <div className="space-y-6">
       {/* Category */}
       <section>
-        <h2 className="mb-2 text-sm font-medium text-slate-200">{t("type")}</h2>
+        <h2 className="mb-2 text-sm font-medium text-parchment-200">{t("type")}</h2>
         <div className="flex flex-wrap gap-1.5">
           {CATEGORY_KEYS.map((k) => (
             <button
@@ -196,8 +196,8 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
               onClick={() => setCategory(k)}
               className={`flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-medium transition ${
                 category === k
-                  ? "border-white/70 bg-white/90 text-slate-900"
-                  : "border-white/15 bg-slate-900/70 text-slate-300 hover:bg-slate-800"
+                  ? "border-parchment-200/70 bg-parchment-50/90 text-bark-950"
+                  : "border-parchment-200/15 bg-bark-900/70 text-parchment-300 hover:bg-bark-800"
               }`}
             >
               <span className="h-2 w-2 rounded-full" style={{ background: CATEGORIES[k].color }} />
@@ -209,9 +209,9 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
 
       {/* Photos */}
       <section>
-        <h2 className="mb-2 text-sm font-medium text-slate-200">
+        <h2 className="mb-2 text-sm font-medium text-parchment-200">
           {t("photos")}{" "}
-          <span className="font-normal text-slate-500">
+          <span className="font-normal text-parchment-500">
             ({photos.length}/{MAX_PHOTOS})
           </span>
         </h2>
@@ -227,7 +227,7 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
                   URL.revokeObjectURL(p.previewUrl);
                   setPhotos((prev) => prev.filter((x) => x.id !== p.id));
                 }}
-                className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-slate-800 text-xs text-slate-200 ring-1 ring-white/20"
+                className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-bark-800 text-xs text-parchment-200 ring-1 ring-white/20"
                 aria-label={t("removePhoto")}
               >
                 ×
@@ -236,7 +236,7 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
           ))}
 
           {photos.length < MAX_PHOTOS && (
-            <label className="grid h-20 w-20 cursor-pointer place-items-center rounded-lg border border-dashed border-white/25 text-2xl text-slate-500 hover:border-white/40 hover:text-slate-300">
+            <label className="grid h-20 w-20 cursor-pointer place-items-center rounded-lg border border-dashed border-parchment-200/25 text-2xl text-parchment-500 hover:border-parchment-200/40 hover:text-parchment-300">
               +
               <input
                 type="file"
@@ -253,7 +253,7 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
           )}
         </div>
 
-        <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+        <p className="mt-2 text-[11px] leading-relaxed text-parchment-500">
           {preparing ? t("photoProcessing") : t("photoHelp")}
         </p>
 
@@ -265,7 +265,7 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
       {/* Location */}
       <section>
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-medium text-slate-200">{t("location")}</h2>
+          <h2 className="text-sm font-medium text-parchment-200">{t("location")}</h2>
           <button
             type="button"
             onClick={async () => {
@@ -277,7 +277,7 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
                 setError(t("tapToAdjust"));
               }
             }}
-            className="rounded-full border border-white/15 bg-slate-900/70 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800"
+            className="rounded-full border border-parchment-200/15 bg-bark-900/70 px-3 py-1.5 text-xs text-parchment-300 hover:bg-bark-800"
           >
             {locating ? t("locating") : t("useMyLocation")}
           </button>
@@ -305,13 +305,13 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
         )}
 
         <LocationPicker value={location} onChange={setLocation} maptilerKey={maptilerKey} />
-        <p className="mt-1.5 text-[11px] text-slate-500">{t("tapToAdjust")}</p>
+        <p className="mt-1.5 text-[11px] text-parchment-500">{t("tapToAdjust")}</p>
       </section>
 
       {/* Details */}
       <section className="space-y-3">
         <div>
-          <label htmlFor="observedAt" className="mb-1 block text-sm font-medium text-slate-200">
+          <label htmlFor="observedAt" className="mb-1 block text-sm font-medium text-parchment-200">
             {t("observedAt")}
           </label>
           <input
@@ -320,13 +320,13 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
             value={observedAt}
             max={toLocalInput(new Date())}
             onChange={(e) => setObservedAt(e.target.value)}
-            className="w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-sm text-slate-100"
+            className="w-full rounded-lg border border-parchment-200/15 bg-bark-900/70 px-3 py-2 text-sm text-parchment-100"
           />
         </div>
 
         <div>
-          <label htmlFor="notes" className="mb-1 block text-sm font-medium text-slate-200">
-            {t("notes")} <span className="font-normal text-slate-500">({t("optional")})</span>
+          <label htmlFor="notes" className="mb-1 block text-sm font-medium text-parchment-200">
+            {t("notes")} <span className="font-normal text-parchment-500">({t("optional")})</span>
           </label>
           <textarea
             id="notes"
@@ -334,13 +334,13 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
             maxLength={MAX_NOTES}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-sm text-slate-100"
+            className="w-full rounded-lg border border-parchment-200/15 bg-bark-900/70 px-3 py-2 text-sm text-parchment-100"
           />
         </div>
 
         <div>
-          <label htmlFor="email" className="mb-1 block text-sm font-medium text-slate-200">
-            {t("email")} <span className="font-normal text-slate-500">({t("optional")})</span>
+          <label htmlFor="email" className="mb-1 block text-sm font-medium text-parchment-200">
+            {t("email")} <span className="font-normal text-parchment-500">({t("optional")})</span>
           </label>
           <input
             id="email"
@@ -348,9 +348,9 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
-            className="w-full rounded-lg border border-white/15 bg-slate-900/70 px-3 py-2 text-sm text-slate-100"
+            className="w-full rounded-lg border border-parchment-200/15 bg-bark-900/70 px-3 py-2 text-sm text-parchment-100"
           />
-          <p className="mt-1 text-[11px] text-slate-500">{t("emailHelp")}</p>
+          <p className="mt-1 text-[11px] text-parchment-500">{t("emailHelp")}</p>
         </div>
       </section>
 
@@ -362,7 +362,7 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
         type="button"
         onClick={submit}
         disabled={phase === "submitting" || preparing || !location}
-        className="w-full rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-slate-950 transition disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+        className="w-full rounded-xl bg-ember-500 px-4 py-3 text-sm font-semibold text-bark-950 transition disabled:cursor-not-allowed disabled:bg-bark-700 disabled:text-parchment-400"
       >
         {phase === "submitting" ? t("submitting") : t("submit")}
       </button>

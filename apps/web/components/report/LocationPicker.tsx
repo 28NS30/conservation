@@ -83,9 +83,17 @@ export default function LocationPicker({
 
   return (
     <div>
-      <div ref={container} className="h-56 w-full overflow-hidden rounded-lg sm:h-64" />
+      <div
+        ref={container}
+        // `relative` is load-bearing, not cosmetic. MapLibre 6 does not add a
+        // `.maplibregl-map` class to the container it is given, so the stock
+        // `.maplibregl-map { position: relative }` rule matches nothing. The
+        // canvas inside is `position: absolute`, so without a positioned
+        // ancestor it escapes to the viewport and paints over the header.
+        className="relative h-56 w-full overflow-hidden rounded-lg sm:h-64"
+      />
       {value && (
-        <p className="mt-1.5 text-[11px] text-slate-400 tabular-nums">
+        <p className="mt-1.5 text-[11px] text-parchment-400 tabular-nums">
           {value.lat.toFixed(5)}, {value.lng.toFixed(5)}
           {outside && (
             <span className="ml-2 text-amber-400">⚠ {t("outsideTaiwan")}</span>

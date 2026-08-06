@@ -32,9 +32,9 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
   if (!userId) {
     return (
       <Shell>
-        <p className="text-sm text-slate-300">
+        <p className="text-sm text-parchment-300">
           {t("signInRequired")}{" "}
-          <Link href="/login" className="text-emerald-400 underline">
+          <Link href="/login" className="text-ember-400 underline">
             {t("signInPrompt")}
           </Link>
         </p>
@@ -45,11 +45,11 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
   if (role !== "moderator" && role !== "admin") {
     return (
       <Shell>
-        <p className="text-sm text-slate-300">
+        <p className="text-sm text-parchment-300">
           {t("moderatorsOnly")}
-          <span className="mt-2 block text-xs text-slate-500">
+          <span className="mt-2 block text-xs text-parchment-500">
             Grant yourself access with:
-            <code className="mt-1 block rounded bg-slate-900 px-2 py-1 font-mono text-[11px]">
+            <code className="mt-1 block rounded bg-bark-900 px-2 py-1 font-mono text-[11px]">
               update profiles set role = &apos;admin&apos; where id = &apos;{userId}&apos;;
             </code>
           </span>
@@ -82,12 +82,12 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
 
   return (
     <Shell>
-      <p className="mb-4 text-xs text-slate-400">
+      <p className="mb-4 text-xs text-parchment-400">
         {t("pendingCount", { count: withUrls.length })}
       </p>
 
       {withUrls.length === 0 ? (
-        <p className="rounded-lg border border-white/10 bg-slate-900/60 px-4 py-6 text-center text-sm text-slate-400">
+        <p className="rounded-lg border border-parchment-200/10 bg-bark-900/60 px-4 py-6 text-center text-sm text-parchment-400">
           {t("empty")}
         </p>
       ) : (
@@ -119,13 +119,9 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
 
 async function Shell({ children }: { children: React.ReactNode }) {
   const t = await getTranslations("admin");
-  const nav = await getTranslations("nav");
   return (
     <main className="mx-auto min-h-[100dvh] w-full max-w-3xl px-4 pb-16 pt-5">
-      <Link href="/" className="text-xs text-slate-400 hover:text-slate-200">
-        {nav("backToMap")}
-      </Link>
-      <h1 className="mb-4 mt-2 text-lg font-semibold text-slate-50">
+      <h1 className="mb-4 mt-2 text-lg font-semibold text-parchment-50">
         {t("heading")}
       </h1>
       {children}

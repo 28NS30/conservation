@@ -27,8 +27,8 @@ export default function StatusBadges(p: Props) {
     danger: "bg-rose-400/15 text-rose-300 ring-rose-400/25",
     warn: "bg-amber-400/15 text-amber-300 ring-amber-400/25",
     info: "bg-sky-400/15 text-sky-300 ring-sky-400/25",
-    good: "bg-emerald-400/15 text-emerald-300 ring-emerald-400/25",
-    muted: "bg-slate-400/10 text-slate-300 ring-slate-400/20",
+    good: "bg-ember-400/15 text-ember-400 ring-ember-400/25",
+    muted: "bg-parchment-400/10 text-parchment-300 ring-parchment-400/20",
   };
 
   if (p.protectedStatus) {

@@ -19,12 +19,50 @@ import {
   densityStepExpression,
   filterToQuery,
   TILE_AGGREGATION_MAX_ZOOM,
+  TAIWAN_BOUNDS,
   type Category,
   type MapFilter,
 } from "@conservation/shared";
 import { createMap, type MapHandle } from "@/lib/map";
 import MapFilters from "./MapFilters";
 import { Link } from "@/i18n/navigation";
+
+/**
+ * Frame the whole island for the hero, whatever shape the viewport is.
+ *
+ * Two arrangements. Side-by-side: the headline owns a column on the left and the
+ * island is inset past it. Stacked: the headline sits *over* the map, so the
+ * inset comes off the top and the island takes the lower part of the frame.
+ *
+ * The inset is derived from the hero's own layout rather than picked as a
+ * fraction of the width — a fraction only holds at the width it was eyeballed
+ * at, and at 768px a 44% inset ran the headline straight through the island.
+ * `fitBounds` does the rest, which is what makes this survive any aspect ratio;
+ * the fixed centre/zoom it replaced put half of Taiwan off a phone's right edge.
+ */
+const HERO_CONTAINER = 1152; // max-w-6xl
+const HERO_COLUMN = 576; // max-w-xl, the headline's own column
+
+function frameIsland(map: MLMap) {
+  const { width, height } = map.getCanvas().getBoundingClientRect();
+  const gutter = Math.max(24, (width - HERO_CONTAINER) / 2);
+  const clearOfHeadline = gutter + HERO_COLUMN + 32;
+
+  // Side by side only while what is left over is still wide enough to read as
+  // Taiwan rather than as a sliver. The 1024 floor is Tailwind's `lg`, and it
+  // has to stay in step with the `lg:` classes on the hero — the scrim runs
+  // sideways in one arrangement and downwards in the other, so a map that
+  // switched at a different width than the scrim would light the headline from
+  // the wrong direction.
+  const sideBySide = width >= 1024 && width - clearOfHeadline >= 300;
+
+  map.fitBounds(TAIWAN_BOUNDS, {
+    padding: sideBySide
+      ? { left: Math.round(clearOfHeadline), right: 24, top: 32, bottom: 56 }
+      : { left: 16, right: 16, top: Math.round(height * 0.3), bottom: 40 },
+    duration: 0,
+  });
+}
 
 /**
  * Two sources over the same endpoint, and this is what stops the map going blank
@@ -234,9 +272,18 @@ export default function HeatmapView({
   years,
   initialView,
   initialFilter,
+  presentation = false,
 }: {
   maptilerKey?: string;
   years: { first: number; last: number } | null;
+  /**
+   * Hero mode: the map as a live illustration rather than an instrument.
+   *
+   * Drops every piece of chrome — filters, legend, mode toggle, zoom buttons,
+   * scale bar, the skip link — and makes the canvas non-interactive so it cannot
+   * swallow the page scroll. The full instrument lives at /map, one click away.
+   */
+  presentation?: boolean;
   /** Validated server-side from the query string; see parseView() in page.tsx. */
   initialView?: { center: [number, number]; zoom: number } | null;
   /** Parsed server-side with mapFilterSchema, so it is already trustworthy. */
@@ -269,7 +316,12 @@ export default function HeatmapView({
   // The initial camera is read exactly once. Making it a dependency of the init
   // effect would mean a later navigation could yank the map away from wherever
   // the user has since panned to.
+  const cleanupRef = useRef<(() => void) | null>(null);
   const initialViewRef = useRef(initialView);
+  // Read once alongside the initial camera: whether this instance is chrome-less
+  // is fixed for its lifetime, and making it a dependency of the init effect
+  // would tear the map down and rebuild it.
+  const presentationRef = useRef(presentation);
 
   /* ---- init ---- */
   useEffect(() => {
@@ -286,6 +338,7 @@ export default function HeatmapView({
             }
           : { zoom: 6.6 }),
         maxZoom: 16,
+        static: presentationRef.current,
         onReady: addReportLayers,
       });
 
@@ -303,10 +356,21 @@ export default function HeatmapView({
         (window as unknown as { __map?: MLMap }).__map = map;
       }
 
-      map.addControl(
-        new ml.ScaleControl({ maxWidth: 120, unit: "metric" }),
-        "bottom-left",
-      );
+      if (!presentationRef.current) {
+        map.addControl(
+          new ml.ScaleControl({ maxWidth: 120, unit: "metric" }),
+          "bottom-left",
+        );
+      } else {
+        frameIsland(map);
+        // The hero is a full-bleed background, so its aspect ratio changes with
+        // every window resize. A fixed centre/zoom that framed the island beside
+        // the headline on a desktop pushed half of it off the right edge on a
+        // phone; re-fitting keeps the whole island in view at any shape.
+        const onResize = () => frameIsland(map);
+        map.on("resize", onResize);
+        cleanupRef.current = () => map.off("resize", onResize);
+      }
 
       // Idempotent: may be invoked more than once as the style settles.
       function addReportLayers(map: MLMap) {
@@ -456,7 +520,7 @@ export default function HeatmapView({
         new ml.Popup({ closeButton: true, maxWidth: "260px" })
           .setLngLat(e.lngLat)
           .setHTML(
-            `<div style="font:13px/1.5 system-ui;color:#0f172a">
+            `<div style="font:13px/1.5 system-ui;color:#0b1410">
                <div style="font-weight:600">${label}</div>
                <div style="color:#475569">${p.observed_on ?? ""}</div>
                ${obscured ? `<div style="margin-top:4px;color:#b45309">⚠ ${tr("map.blurred")}</div>` : ""}
@@ -482,7 +546,7 @@ export default function HeatmapView({
           new ml.Popup({ closeButton: true, maxWidth: "220px" })
             .setLngLat(e.lngLat)
             .setHTML(
-              `<div style="font:13px/1.5 system-ui;color:#0f172a">
+              `<div style="font:13px/1.5 system-ui;color:#0b1410">
                <div style="font-weight:600">${tr("map.cellCount", { count: n.toLocaleString() })}</div>
                <div style="color:#475569">${tr("map.cellSize", { km })}</div>
                <div style="margin-top:4px;color:#475569">${tr("map.zoomHint")}</div>
@@ -511,6 +575,8 @@ export default function HeatmapView({
 
     return () => {
       cancelled = true;
+      cleanupRef.current?.();
+      cleanupRef.current = null;
       handleRef.current?.destroy();
       handleRef.current = null;
       mapRef.current = null;
@@ -533,7 +599,11 @@ export default function HeatmapView({
       params.set("lng", c.lng.toFixed(4));
       params.set("lat", c.lat.toFixed(4));
       params.set("z", map.getZoom().toFixed(2));
-      window.history.replaceState(null, "", `${window.location.pathname}?${params}`);
+      window.history.replaceState(
+        null,
+        "",
+        `${window.location.pathname}?${params}`,
+      );
     };
 
     // Debounced: `moveend` fires once per gesture, but a wheel zoom is a rapid
@@ -609,105 +679,121 @@ export default function HeatmapView({
         Placed after the map it became the twelfth tab stop, behind the canvas,
         both zoom buttons and the attribution — which is no use to anyone.
       */}
-      <Link
-        href={{ pathname: "/reports", query: Object.fromEntries(new URLSearchParams(filterToQuery(filter))) }}
-        className="absolute left-3 top-3 z-30 -translate-y-16 rounded-full bg-white px-3 py-1.5 text-xs font-medium text-slate-900 transition focus:translate-y-0"
-      >
-        {t("list.viewAsList")}
-      </Link>
+      {!presentation && (
+        <Link
+          href={{
+            pathname: "/reports",
+            query: Object.fromEntries(
+              new URLSearchParams(filterToQuery(filter)),
+            ),
+          }}
+          className="absolute left-3 top-3 z-30 -translate-y-16 rounded-full bg-parchment-50 px-3 py-1.5 text-xs font-medium text-bark-950 transition focus:translate-y-0"
+        >
+          {t("list.viewAsList")}
+        </Link>
+      )}
       <div
         ref={container}
-        className="h-full w-full"
-        role="application"
-        aria-label={t("map.regionLabel")}
+        className="relative h-full w-full"
+        // In presentation mode this is decoration, not an application: it takes
+        // no input and offers nothing to announce. Labelling it would put a
+        // dead-end "application" region in the reader's path on the home page.
+        {...(presentation
+          ? { "aria-hidden": true }
+          : { role: "application", "aria-label": t("map.regionLabel") })}
       />
 
-      {/* Filters */}
-      <div className="pointer-events-none absolute left-0 right-0 top-0 p-3 sm:p-4">
-        <MapFilters value={filter} onChange={setFilter} years={years} />
-      </div>
+      {!presentation && (
+        <div className="pointer-events-none absolute left-0 right-0 top-0 p-3 sm:p-4">
+          <MapFilters value={filter} onChange={setFilter} years={years} />
+        </div>
+      )}
 
       {/* Mode toggle + legend */}
-      <div className="pointer-events-auto absolute bottom-16 right-3 sm:bottom-8 sm:right-4">
-        <div className="rounded-lg border border-white/15 bg-slate-900/80 px-3 py-2 text-[11px] text-slate-300 backdrop-blur">
-          <div
-            role="group"
-            aria-label={t("map.displayMode")}
-            className="mb-2 flex rounded-md border border-white/15 p-0.5"
-          >
-            {MODES.map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setMode(m)}
-                aria-pressed={mode === m}
-                className={`flex-1 rounded px-2 py-1 text-[11px] transition ${
-                  mode === m
-                    ? "bg-white/90 font-medium text-slate-900"
-                    : "text-slate-300 hover:bg-white/10"
-                }`}
-              >
-                {t(`map.mode.${m}`)}
-              </button>
-            ))}
-          </div>
+      {!presentation && (
+        <div className="pointer-events-auto absolute bottom-16 right-3 sm:bottom-8 sm:right-4">
+          <div className="rounded-lg border border-parchment-200/15 bg-bark-900/80 px-3 py-2 text-[11px] text-parchment-300 backdrop-blur">
+            <div
+              role="group"
+              aria-label={t("map.displayMode")}
+              className="mb-2 flex rounded-md border border-parchment-200/15 p-0.5"
+            >
+              {MODES.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMode(m)}
+                  aria-pressed={mode === m}
+                  className={`flex-1 rounded px-2 py-1 text-[11px] transition ${
+                    mode === m
+                      ? "bg-parchment-50/90 font-medium text-bark-950"
+                      : "text-parchment-300 hover:bg-parchment-50/10"
+                  }`}
+                >
+                  {t(`map.mode.${m}`)}
+                </button>
+              ))}
+            </div>
 
-          <div className="mb-1 font-medium text-slate-200">
-            {t("map.density")}
-          </div>
+            <div className="mb-1 font-medium text-parchment-200">
+              {t("map.density")}
+            </div>
 
-          {/* Swatches with real counts, not a gradient bar. The gradient was
-              unreadable by design: you could see that one area was hotter than
-              another but had no way to recover a number. In dots mode the same
-              classes are shown at their actual circle size, so the legend
-              explains both channels the symbol uses. */}
-          <ul className="space-y-0.5">
-            {DENSITY_CLASSES.map((c, i) => {
-              const max = densityClassMax(i);
-              const label =
-                max === null
-                  ? `${c.min}+`
-                  : c.min === max
-                    ? `${c.min}`
-                    : `${c.min}–${max}`;
-              return (
-                <li key={c.min} className="flex items-center gap-1.5">
-                  <span className="flex w-4 shrink-0 justify-center">
-                    <span
-                      aria-hidden
-                      className={
-                        mode === "dots" ? "rounded-full" : "rounded-[2px]"
-                      }
-                      style={
-                        mode === "dots"
-                          ? {
-                              background: c.color,
-                              // Same sqrt-of-count scale the map uses, so the
-                              // legend cannot imply a different relationship.
-                              width: `${Math.min(14, 3 + Math.sqrt(c.min) * 1.1).toFixed(1)}px`,
-                              height: `${Math.min(14, 3 + Math.sqrt(c.min) * 1.1).toFixed(1)}px`,
-                            }
-                          : {
-                              background: c.color,
-                              width: "10px",
-                              height: "10px",
-                            }
-                      }
-                    />
-                  </span>
-                  <span className="tabular-nums text-slate-400">{label}</span>
-                </li>
-              );
-            })}
-          </ul>
-          <div className="mt-1 border-t border-white/10 pt-1 text-[10px] text-slate-500">
-            {t("map.perCell")}
+            {/* Swatches with real counts, not a gradient bar. The gradient was
+                unreadable by design: you could see that one area was hotter than
+                another but had no way to recover a number. In dots mode the same
+                classes are shown at their actual circle size, so the legend
+                explains both channels the symbol uses. */}
+            <ul className="space-y-0.5">
+              {DENSITY_CLASSES.map((c, i) => {
+                const max = densityClassMax(i);
+                const label =
+                  max === null
+                    ? `${c.min}+`
+                    : c.min === max
+                      ? `${c.min}`
+                      : `${c.min}–${max}`;
+                return (
+                  <li key={c.min} className="flex items-center gap-1.5">
+                    <span className="flex w-4 shrink-0 justify-center">
+                      <span
+                        aria-hidden
+                        className={
+                          mode === "dots" ? "rounded-full" : "rounded-[2px]"
+                        }
+                        style={
+                          mode === "dots"
+                            ? {
+                                background: c.color,
+                                // Same sqrt-of-count scale the map uses, so the
+                                // legend cannot imply a different relationship.
+                                width: `${Math.min(14, 3 + Math.sqrt(c.min) * 1.1).toFixed(1)}px`,
+                                height: `${Math.min(14, 3 + Math.sqrt(c.min) * 1.1).toFixed(1)}px`,
+                              }
+                            : {
+                                background: c.color,
+                                width: "10px",
+                                height: "10px",
+                              }
+                        }
+                      />
+                    </span>
+                    <span className="tabular-nums text-parchment-400">
+                      {label}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="mt-1 border-t border-parchment-200/10 pt-1 text-[10px] text-parchment-500">
+              {t("map.perCell")}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {hint && (
-        <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-white/15 bg-slate-900/80 px-3 py-1.5 text-[11px] text-slate-300 backdrop-blur">
+      {hint && !presentation && (
+        <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-parchment-200/15 bg-bark-900/85 px-3 py-1.5 text-[11px] text-parchment-300 backdrop-blur">
           {hint}
         </div>
       )}

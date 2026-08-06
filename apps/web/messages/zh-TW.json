@@ -14,7 +14,8 @@
     "about": "關於",
     "attribution": "資料來源",
     "privacy": "隱私",
-    "stats": "統計"
+    "stats": "統計",
+    "map": "地圖"
   },
   "categories": {
     "roadkill": "路殺",
@@ -61,7 +62,9 @@
   "footer": {
     "dataSource": "資料來源",
     "checklist": "物種名錄",
-    "blurredCount": "{count} 筆敏感物種位置已模糊化"
+    "blurredCount": "{count} 筆敏感物種位置已模糊化",
+    "explore": "探索",
+    "about": "關於"
   },
   "report": {
     "heading": "新增通報",
@@ -283,5 +286,45 @@
     "coverage": "關於位置精確度",
     "coverageBody": "共 {total} 筆公開紀錄中，有 {obscured} 筆的座標經過模糊化處理，因為所屬物種在 TaiCOL 被標記為敏感。這些紀錄仍列入所有統計，只是地圖上的位置不是實際地點。",
     "howObscuringWorks": "了解模糊化機制"
+  },
+  "home": {
+    "eyebrow": "臺灣 · 公民科學",
+    "headline": "每一條被路殺的生命，都該被記錄。",
+    "sub": "台灣的道路每年奪走無數野生動物。我們把這些被忽略的死亡變成公開資料——任何人都能通報，AI 協助辨識物種，所有人都看得見熱點在哪裡。",
+    "ctaReport": "通報一筆",
+    "ctaMap": "查看完整地圖",
+    "mapHint": "點擊方格可查看該區通報數",
+    "statsRecords": "筆公開紀錄",
+    "statsSpecies": "個物種",
+    "statsYears": "年資料",
+    "whyTitle": "我們在記錄什麼",
+    "whyHeading": "三種被忽略的紀錄",
+    "whyLede": "路殺、外來種擴散、環境破壞——這些事天天發生在路邊，卻幾乎沒有人有系統地記下來。",
+    "whyRoadkill": "路殺",
+    "whyRoadkillBody": "道路把棲地切成碎片。石虎、穿山甲、食蟹獴——每年都有大量個體死在輪下，而多數從未被記錄。",
+    "whyInvasive": "外來入侵種",
+    "whyInvasiveBody": "綠鬣蜥、福壽螺、小花蔓澤蘭。愈早發現擴散的邊界，愈有機會處理。",
+    "whyHabitat": "污染與棲地破壞",
+    "whyHabitatBody": "非法棄置、水域污染、棲地開發。這些通報不需要辨識物種，但同樣需要被看見。",
+    "speciesTitle": "被記錄最多的物種",
+    "speciesHeading": "死在路上的，是誰？",
+    "speciesLede": "目前公開紀錄中被通報最多的物種。點進去可以看牠的分布、季節趨勢與保育狀態。",
+    "speciesLink": "瀏覽全部物種",
+    "howTitle": "怎麼運作",
+    "howHeading": "從一張照片，到一筆公開資料",
+    "how1": "拍照通報",
+    "how1Body": "在路邊用手機拍一張照，選位置送出。不需要註冊帳號。照片在上傳前就會移除 EXIF。",
+    "how2": "AI 協助辨識",
+    "how2Body": "開源模型 BioCLIP 2 在臺灣物種名錄的範圍內比對。有把握時直接標定物種，沒把握時交給人判斷。",
+    "how3": "公開地圖",
+    "how3Body": "所有通報彙整成公開熱點地圖與統計。保育類與敏感物種的座標會先模糊化再公開。",
+    "trustTitle": "為什麼有些位置是模糊的",
+    "trustBody": "公開保育類物種的精確座標，等於替盜獵者製作地圖。我們依臺灣物種名錄的敏感度分級自動模糊化，而且是由資料庫權限強制執行——網站讀取資料的角色根本沒有讀取真實座標的權限。",
+    "trustLink": "了解模糊化機制",
+    "openTitle": "資料是公開的",
+    "openBody": "種子資料來自路殺社經 GBIF 釋出的紀錄（CC BY 4.0），物種名錄來自 TaiCOL。我們也計畫依 Darwin Core 標準把自己的紀錄回饋給 GBIF。",
+    "openLink": "資料來源與授權",
+    "finalTitle": "看到了，就順手記一筆。",
+    "finalBody": "一分鐘、一張照片。你的紀錄會成為公開科學資料的一部分。"
   }
 }

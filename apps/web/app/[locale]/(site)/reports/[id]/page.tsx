@@ -85,16 +85,16 @@ export default async function ReportPage({ params }: { params: Promise<{ locale:
 
   return (
     <main className="mx-auto min-h-[100dvh] w-full max-w-xl px-4 pb-16 pt-5">
-      <Link href="/" className="text-xs text-slate-400 hover:text-slate-200">
+      <Link href="/" className="text-xs text-parchment-400 hover:text-parchment-200">
         {t("nav.backToMap")}
       </Link>
 
       <header className="mt-3 flex items-center gap-2">
         <span className="h-2.5 w-2.5 rounded-full" style={{ background: CATEGORIES[row.category].color }} />
-        <h1 className="text-lg font-semibold text-slate-50">{t(`categories.${row.category}`)}</h1>
+        <h1 className="text-lg font-semibold text-parchment-50">{t(`categories.${row.category}`)}</h1>
       </header>
 
-      <p className="mt-1 text-xs text-slate-400">
+      <p className="mt-1 text-xs text-parchment-400">
         {new Date(row.observed_at).toLocaleString(locale, { timeZone: "Asia/Taipei" })}
       </p>
 
@@ -109,24 +109,24 @@ export default async function ReportPage({ params }: { params: Promise<{ locale:
 
       <section className="mt-5 space-y-3 text-sm">
         <div>
-          <h2 className="text-xs font-medium uppercase tracking-wide text-slate-500">{t("detail.species")}</h2>
+          <h2 className="text-xs font-medium uppercase tracking-wide text-parchment-500">{t("detail.species")}</h2>
           {row.scientific_name ? (
-            <p className="mt-0.5 text-slate-100">
+            <p className="mt-0.5 text-parchment-100">
               {row.common_name_zh && <span className="mr-2">{row.common_name_zh}</span>}
-              <span className="italic text-slate-300">{row.scientific_name}</span>
+              <span className="italic text-parchment-300">{row.scientific_name}</span>
               {row.protected_status && (
                 <span className="ml-2 rounded bg-amber-400/15 px-1.5 py-0.5 text-[10px] text-amber-300">
                   {t("detail.protected", { level: row.protected_status })}
                 </span>
               )}
               {row.taxon_source === "ai" && (
-                <span className="ml-2 text-[10px] text-slate-500">
+                <span className="ml-2 text-[10px] text-parchment-500">
                   {t("detail.aiSuggested")}{row.ai_confidence != null && ` · ${Math.round(row.ai_confidence * 100)}%`}
                 </span>
               )}
             </p>
           ) : (
-            <p className="mt-0.5 text-slate-400">
+            <p className="mt-0.5 text-parchment-400">
               {row.verbatim_name ?? t("detail.notYetIdentified")}
             </p>
           )}
@@ -134,14 +134,14 @@ export default async function ReportPage({ params }: { params: Promise<{ locale:
 
         {row.notes && (
           <div>
-            <h2 className="text-xs font-medium uppercase tracking-wide text-slate-500">{t("detail.notes")}</h2>
-            <p className="mt-0.5 whitespace-pre-wrap text-slate-200">{row.notes}</p>
+            <h2 className="text-xs font-medium uppercase tracking-wide text-parchment-500">{t("detail.notes")}</h2>
+            <p className="mt-0.5 whitespace-pre-wrap text-parchment-200">{row.notes}</p>
           </div>
         )}
 
         <div>
-          <h2 className="text-xs font-medium uppercase tracking-wide text-slate-500">{t("detail.location")}</h2>
-          <p className="mt-0.5 tabular-nums text-slate-200">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-parchment-500">{t("detail.location")}</h2>
+          <p className="mt-0.5 tabular-nums text-parchment-200">
             {row.lat?.toFixed(4)}, {row.lng?.toFixed(4)}
           </p>
           {row.is_obscured && (
@@ -162,7 +162,7 @@ export default async function ReportPage({ params }: { params: Promise<{ locale:
 
       <section className="mt-5 space-y-3 text-sm">
         {row.source === "gbif" && (
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-parchment-500">
             {t("detail.source")}: GBIF{row.rights_holder && ` · ${row.rights_holder}`}
             {row.license && ` · ${row.license}`}
           </p>
