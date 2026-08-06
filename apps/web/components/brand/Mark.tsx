@@ -57,25 +57,30 @@ export default function Mark({
         fill="none"
       />
 
-      {/* Three rows of scales, each row offset half a scale so they interlock the
-          way real armour does. Lighter toward the top so the cluster has a light
-          source and does not read as flat pattern. */}
-      <g>
+      {/* Three rows of scales, each offset half a scale so they interlock the way
+          real armour does, and drawn back-to-front so each row overlaps the one
+          behind it. Lighter toward the front to give the cluster a light source.
+
+          The scales are pointed, not domed. Domes were the first attempt and at
+          any size they merged into a pile of eggs — it is the point and the dark
+          keyline between neighbours that make this read as armour. */}
+      <g className="stroke-bark-900" strokeWidth="1.1">
         {/* back row */}
         <path
-          d="M25 30 a7 7 0 0 1 14 0 v3 h-14 z"
+          d="M32 10.5 C40.5 15.25, 40.5 24.75, 32 29.5 C23.5 24.75, 23.5 15.25, 32 10.5 Z"
           className="fill-scale-500"
         />
         {/* middle row */}
         <path
-          d="M18 36 a7 7 0 0 1 14 0 v3 h-14 z M32 36 a7 7 0 0 1 14 0 v3 h-14 z"
+          d="M24 20.5 C32.5 25.25, 32.5 34.75, 24 39.5 C15.5 34.75, 15.5 25.25, 24 20.5 Z
+             M40 20.5 C48.5 25.25, 48.5 34.75, 40 39.5 C31.5 34.75, 31.5 25.25, 40 20.5 Z"
           className="fill-scale-400"
         />
         {/* front row */}
         <path
-          d="M11.5 42 a7 7 0 0 1 14 0 v3 h-14 z
-             M25.5 42 a7 7 0 0 1 14 0 v3 h-14 z
-             M39.5 42 a7 7 0 0 1 14 0 v3 h-14 z"
+          d="M16 30.5 C24.5 35.25, 24.5 44.75, 16 49.5 C7.5 44.75, 7.5 35.25, 16 30.5 Z
+             M32 30.5 C40.5 35.25, 40.5 44.75, 32 49.5 C23.5 44.75, 23.5 35.25, 32 30.5 Z
+             M48 30.5 C56.5 35.25, 56.5 44.75, 48 49.5 C39.5 44.75, 39.5 35.25, 48 30.5 Z"
           className="fill-scale-300"
         />
       </g>
