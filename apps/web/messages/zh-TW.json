@@ -57,7 +57,8 @@
       "bins": "方格",
       "dots": "圓點"
     },
-    "speciesResults": "{count, number} 個符合的物種"
+    "speciesResults": "{count, number} 個符合的物種",
+    "filters": "篩選"
   },
   "footer": {
     "dataSource": "資料來源",

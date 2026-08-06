@@ -75,8 +75,8 @@ export default async function SpeciesDirectory({
                 href={href}
                 className={`rounded-full border px-3 py-1.5 text-xs transition ${
                   on
-                    ? "border-parchment-200/70 bg-parchment-50/90 font-medium text-bark-950"
-                    : "border-parchment-200/15 bg-bark-900/70 text-parchment-300 hover:bg-bark-800"
+                    ? "border-ink-900 bg-ink-900 font-medium text-paper-50"
+                    : "border-ink-900/12 bg-paper-100/70 text-ink-600 hover:bg-paper-200"
                 }`}
               >
                 {t(`filter.${f}`)}
@@ -87,7 +87,7 @@ export default async function SpeciesDirectory({
       </PageHeader>
 
       {species.length === 0 ? (
-        <p className="mt-8 text-center text-sm text-parchment-500">
+        <p className="mt-8 text-center text-sm text-ink-500">
           {t("noMatches")}
         </p>
       ) : (
@@ -104,14 +104,14 @@ export default async function SpeciesDirectory({
               <li key={s.id}>
                 <Link
                   href={`/species/${speciesSlug(s)}`}
-                  className="flex h-full items-start justify-between gap-3 rounded-lg border border-parchment-200/10 bg-bark-900/50 px-4 py-3 transition hover:border-parchment-200/25 hover:bg-bark-900"
+                  className="flex h-full items-start justify-between gap-3 rounded-lg border border-ink-900/10 bg-paper-100 px-4 py-3 transition hover:border-ink-900/20 hover:bg-paper-100"
                 >
                   <span className="min-w-0">
-                    <span className="block truncate text-sm text-parchment-100">
+                    <span className="block truncate text-sm text-ink-800">
                       {headline}
                     </span>
                     {secondary && (
-                      <span className="block truncate text-xs italic text-parchment-500">
+                      <span className="block truncate text-xs italic text-ink-500">
                         {secondary}
                       </span>
                     )}
@@ -119,8 +119,8 @@ export default async function SpeciesDirectory({
                   </span>
                   {/* Number and unit on one line: stacked, the lone 筆 read as a
                       stray glyph floating under the count. */}
-                  <span className="shrink-0 whitespace-nowrap text-xs tabular-nums text-parchment-400">
-                    <span className="text-sm text-parchment-200">
+                  <span className="shrink-0 whitespace-nowrap text-xs tabular-nums text-ink-500">
+                    <span className="text-sm text-ink-700">
                       {s.reportCount.toLocaleString(locale)}
                     </span>{" "}
                     {t("recordsShort")}

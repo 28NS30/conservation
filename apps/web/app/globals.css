@@ -8,12 +8,44 @@
  * that shared nothing with the mark. Everything below comes from the badge so the
  * site and the logo read as one organisation.
  *
- * It stays DARK because the map demands it: the density scale runs
- * blue -> cyan -> green -> amber -> red and needs a dark ground to separate from.
- * But the darks are green-black, not blue-black. That one shift is what makes the
- * chrome feel like the badge rather than like a dashboard.
+ * TWO SURFACES, on purpose.
+ *
+ * Pages are light — warm paper and dark ink, both drawn from the badge's cream
+ * and forest green. The map stays dark, because the density scale runs blue ->
+ * cyan -> green -> amber -> red and needs a dark ground to separate from; on
+ * cream those colours wash out and the whole instrument loses its punch.
+ *
+ * So `paper`/`ink` are the page, and `bark`/`parchment` are the map and its
+ * chrome. Neither is a light-mode/dark-mode pair — they are two different
+ * materials, and a component belongs to one or the other.
  */
 @theme {
+  /* ---- pages ---- */
+
+  /* Paper. Warm off-white from the badge's cream, never pure white: #fff next
+     to these greens reads clinical and glares against the night map alongside
+     it. 200 is borders and dividers only — text never sits on it, which is why
+     it is allowed to fall under 4.5:1 with the quieter inks. */
+  --color-paper-50: #faf7f0;
+  --color-paper-100: #f3ece0;
+  --color-paper-200: #e7dcc9;
+
+  /* Ink. Forest green rather than grey, so the text belongs to the same family
+     as the mark. Measured against paper-50 and paper-100: 900 is 15.1 and 13.7,
+     600 is 6.9 and 6.3, 500 is 5.6 and 5.1 — all clear of WCAG AA. */
+  --color-ink-900: #16241c;
+  --color-ink-800: #22362b;
+  --color-ink-700: #2f4a3a;
+  --color-ink-600: #435b4c;
+  --color-ink-500: #51695b;
+
+  /* Accents that survive a light ground. ember-500 is 3.0:1 on paper and fails
+     as text; these are the steps that pass. */
+  --color-ember-700: #9a4e22;
+  --color-moss-700: #4a6835;
+
+  /* ---- the map, and its chrome ---- */
+
   /* Ground: deep forest. Warm enough to sit under parchment text without the
      blue cast the old #020617 had. */
   --color-bark-950: #0b1410;
@@ -71,8 +103,11 @@
 html,
 body {
   height: 100%;
-  background: var(--color-bark-950);
-  color: var(--color-parchment-100);
+  /* Paper is the default surface. The map supplies its own dark ground, so
+     nothing here needs to know about it — a page is light unless a component
+     paints over it. */
+  background: var(--color-paper-50);
+  color: var(--color-ink-600);
 }
 
 /*

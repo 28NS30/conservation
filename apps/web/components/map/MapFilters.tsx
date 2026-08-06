@@ -37,6 +37,7 @@ export default function MapFilters({
   const [hits, setHits] = useState<SpeciesHit[]>([]);
   const [chosen, setChosen] = useState<SpeciesHit | null>(null);
   const [open, setOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
 
   // Debounced: a short Chinese query is a sequential scan server-side (~18 ms),
@@ -91,70 +92,107 @@ export default function MapFilters({
   const yearOf = (iso?: string) => (iso ? iso.slice(0, 4) : "");
   const active = value.category || value.taxonId || value.from || value.to;
 
+  // How many filters are on, for the collapsed button's badge.
+  const activeCount =
+    (value.category ? 1 : 0) +
+    (value.taxonId ? 1 : 0) +
+    (value.from || value.to ? 1 : 0);
+
   return (
-    <div className="pointer-events-auto flex flex-col gap-1.5">
-      {/* Categories */}
-      <div className="flex flex-wrap gap-1.5">
-        <button
-          onClick={() => pickCategory(undefined)}
-          className={`rounded-full border px-3 py-1.5 text-xs font-medium backdrop-blur transition ${
-            !value.category
-              ? "border-parchment-200/70 bg-parchment-50/90 text-bark-950"
-              : "border-parchment-200/20 bg-bark-900/70 text-parchment-200 hover:bg-bark-800/80"
-          }`}
+    <div className="pointer-events-auto flex flex-col items-start gap-1.5">
+      {/* Collapsed by default. Seven category chips plus a search box plus two
+          year selects is a lot of furniture to lay over a map whose whole job is
+          to be looked at — and most visits never touch any of it. One button
+          that says what is filtered, opening the full set on demand. */}
+      <button
+        onClick={() => setPanelOpen((o) => !o)}
+        aria-expanded={panelOpen}
+        className={`flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-medium backdrop-blur transition ${
+          activeCount
+            ? "border-ember-400/60 bg-ember-500/20 text-parchment-50"
+            : "border-parchment-200/20 bg-bark-900/70 text-parchment-200 hover:bg-bark-800/80"
+        }`}
+      >
+        <svg
+          viewBox="0 0 16 16"
+          className="size-3.5"
+          aria-hidden
+          fill="currentColor"
         >
-          {t("map.all")}
-        </button>
-        {CATEGORY_KEYS.map((k) => (
-          <button
-            key={k}
-            onClick={() => pickCategory(k)}
-            className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium backdrop-blur transition ${
-              value.category === k
-                ? "border-parchment-200/70 bg-parchment-50/90 text-bark-950"
-                : "border-parchment-200/20 bg-bark-900/70 text-parchment-200 hover:bg-bark-800/80"
-            }`}
-          >
-            <span
-              className="h-2 w-2 shrink-0 rounded-full"
-              style={{ background: CATEGORIES[k].color }}
-            />
-            {t(`categories.${k}`)}
-          </button>
-        ))}
-      </div>
+          <path d="M1.5 3h13a.5.5 0 0 1 .38.82L10 9.7V14a.5.5 0 0 1-.76.43l-2.5-1.5A.5.5 0 0 1 6.5 12.5V9.7L1.12 3.82A.5.5 0 0 1 1.5 3Z" />
+        </svg>
+        {t("map.filters")}
+        {activeCount > 0 && (
+          <span className="rounded-full bg-ember-500 px-1.5 text-[10px] font-semibold text-bark-950">
+            {activeCount}
+          </span>
+        )}
+      </button>
 
-      {/* Species + years */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        <div ref={boxRef} className="relative">
-          {chosen ? (
+      {panelOpen && (
+        <div className="flex flex-col gap-1.5 rounded-xl border border-parchment-200/15 bg-bark-900/85 p-2.5 backdrop-blur">
+          {/* Categories */}
+          <div className="flex max-w-md flex-wrap gap-1.5">
             <button
-              onClick={() => {
-                setChosen(null);
-                setSpeciesQuery("");
-                onChange({ ...value, taxonId: undefined });
-              }}
-              className="flex items-center gap-1.5 rounded-full border border-ember-400/60 bg-ember-400/15 px-3 py-1.5 text-xs text-ember-400 backdrop-blur"
+              onClick={() => pickCategory(undefined)}
+              className={`rounded-full border px-3 py-1.5 text-xs font-medium backdrop-blur transition ${
+                !value.category
+                  ? "border-parchment-200/70 bg-parchment-50/90 text-bark-950"
+                  : "border-parchment-200/20 bg-bark-900/70 text-parchment-200 hover:bg-bark-800/80"
+              }`}
             >
-              {chosen.commonNameZh ?? chosen.scientificName}
-              <span aria-hidden>×</span>
+              {t("map.all")}
             </button>
-          ) : (
-            <input
-              type="search"
-              value={speciesQuery}
-              onChange={(e) => {
-                setSpeciesQuery(e.target.value);
-                setOpen(true);
-              }}
-              onFocus={() => setOpen(true)}
-              placeholder={t("map.filterSpecies")}
-              aria-label={t("map.filterSpecies")}
-              className="w-44 rounded-full border border-parchment-200/20 bg-bark-900/70 px-3 py-1.5 text-xs text-parchment-200 backdrop-blur placeholder:text-parchment-500"
-            />
-          )}
+            {CATEGORY_KEYS.map((k) => (
+              <button
+                key={k}
+                onClick={() => pickCategory(k)}
+                className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium backdrop-blur transition ${
+                  value.category === k
+                    ? "border-parchment-200/70 bg-parchment-50/90 text-bark-950"
+                    : "border-parchment-200/20 bg-bark-900/70 text-parchment-200 hover:bg-bark-800/80"
+                }`}
+              >
+                <span
+                  className="h-2 w-2 shrink-0 rounded-full"
+                  style={{ background: CATEGORIES[k].color }}
+                />
+                {t(`categories.${k}`)}
+              </button>
+            ))}
+          </div>
 
-          {/*
+          {/* Species + years */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <div ref={boxRef} className="relative">
+              {chosen ? (
+                <button
+                  onClick={() => {
+                    setChosen(null);
+                    setSpeciesQuery("");
+                    onChange({ ...value, taxonId: undefined });
+                  }}
+                  className="flex items-center gap-1.5 rounded-full border border-ember-400/60 bg-ember-400/15 px-3 py-1.5 text-xs text-ember-400 backdrop-blur"
+                >
+                  {chosen.commonNameZh ?? chosen.scientificName}
+                  <span aria-hidden>×</span>
+                </button>
+              ) : (
+                <input
+                  type="search"
+                  value={speciesQuery}
+                  onChange={(e) => {
+                    setSpeciesQuery(e.target.value);
+                    setOpen(true);
+                  }}
+                  onFocus={() => setOpen(true)}
+                  placeholder={t("map.filterSpecies")}
+                  aria-label={t("map.filterSpecies")}
+                  className="w-44 rounded-full border border-parchment-200/20 bg-bark-900/70 px-3 py-1.5 text-xs text-parchment-200 backdrop-blur placeholder:text-parchment-500"
+                />
+              )}
+
+              {/*
             Deliberately a plain list of buttons rather than an ARIA combobox.
             Tab reaches each suggestion and Enter selects it, which works today;
             a half-built combobox (role without aria-activedescendant and arrow-key
@@ -165,89 +203,91 @@ export default function MapFilters({
             users see the list drop down, screen reader users got nothing. Hence
             the live region.
           */}
-          <p aria-live="polite" className="sr-only">
-            {open && !chosen && speciesQuery.trim()
-              ? t("map.speciesResults", { count: visibleHits.length })
-              : ""}
-          </p>
+              <p aria-live="polite" className="sr-only">
+                {open && !chosen && speciesQuery.trim()
+                  ? t("map.speciesResults", { count: visibleHits.length })
+                  : ""}
+              </p>
 
-          {open && visibleHits.length > 0 && !chosen && (
-            <ul className="absolute z-20 mt-1 max-h-60 w-64 overflow-auto rounded-lg border border-parchment-200/15 bg-bark-900/95 py-1 backdrop-blur">
-              {visibleHits.map((h) => (
-                <li key={h.id}>
-                  <button
-                    onClick={() => {
-                      setChosen(h);
-                      setOpen(false);
-                      onChange({ ...value, taxonId: h.id });
-                    }}
-                    className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs hover:bg-bark-800"
-                  >
-                    <span className="min-w-0 truncate">
-                      <span className="text-parchment-100">
-                        {h.commonNameZh ?? h.scientificName}
-                      </span>
-                      {h.commonNameZh && (
-                        <span className="ml-1.5 italic text-parchment-500">
-                          {h.scientificName}
+              {open && visibleHits.length > 0 && !chosen && (
+                <ul className="absolute z-20 mt-1 max-h-60 w-64 overflow-auto rounded-lg border border-parchment-200/15 bg-bark-900/95 py-1 backdrop-blur">
+                  {visibleHits.map((h) => (
+                    <li key={h.id}>
+                      <button
+                        onClick={() => {
+                          setChosen(h);
+                          setOpen(false);
+                          onChange({ ...value, taxonId: h.id });
+                        }}
+                        className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs hover:bg-bark-800"
+                      >
+                        <span className="min-w-0 truncate">
+                          <span className="text-parchment-100">
+                            {h.commonNameZh ?? h.scientificName}
+                          </span>
+                          {h.commonNameZh && (
+                            <span className="ml-1.5 italic text-parchment-500">
+                              {h.scientificName}
+                            </span>
+                          )}
                         </span>
-                      )}
-                    </span>
-                    <span className="shrink-0 tabular-nums text-parchment-500">
-                      {h.reportCount}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+                        <span className="shrink-0 tabular-nums text-parchment-500">
+                          {h.reportCount}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
 
-        {yearOptions.length > 1 && (
-          <div className="flex items-center gap-1 rounded-full border border-parchment-200/20 bg-bark-900/70 px-2.5 py-1 text-xs text-parchment-300 backdrop-blur">
-            <select
-              value={yearOf(value.from)}
-              onChange={(e) => setYear("from", e.target.value)}
-              aria-label={t("map.fromYear")}
-              className="bg-transparent text-xs"
-            >
-              <option value="">{t("map.anyYear")}</option>
-              {yearOptions.map((y) => (
-                <option key={y} value={y} className="bg-bark-900">
-                  {y}
-                </option>
-              ))}
-            </select>
-            <span className="text-parchment-500">–</span>
-            <select
-              value={yearOf(value.to)}
-              onChange={(e) => setYear("to", e.target.value)}
-              aria-label={t("map.toYear")}
-              className="bg-transparent text-xs"
-            >
-              <option value="">{t("map.anyYear")}</option>
-              {yearOptions.map((y) => (
-                <option key={y} value={y} className="bg-bark-900">
-                  {y}
-                </option>
-              ))}
-            </select>
+            {yearOptions.length > 1 && (
+              <div className="flex items-center gap-1 rounded-full border border-parchment-200/20 bg-bark-900/70 px-2.5 py-1 text-xs text-parchment-300 backdrop-blur">
+                <select
+                  value={yearOf(value.from)}
+                  onChange={(e) => setYear("from", e.target.value)}
+                  aria-label={t("map.fromYear")}
+                  className="bg-transparent text-xs"
+                >
+                  <option value="">{t("map.anyYear")}</option>
+                  {yearOptions.map((y) => (
+                    <option key={y} value={y} className="bg-bark-900">
+                      {y}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-parchment-500">–</span>
+                <select
+                  value={yearOf(value.to)}
+                  onChange={(e) => setYear("to", e.target.value)}
+                  aria-label={t("map.toYear")}
+                  className="bg-transparent text-xs"
+                >
+                  <option value="">{t("map.anyYear")}</option>
+                  {yearOptions.map((y) => (
+                    <option key={y} value={y} className="bg-bark-900">
+                      {y}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {active && (
+              <button
+                onClick={() => {
+                  setChosen(null);
+                  setSpeciesQuery("");
+                  onChange({});
+                }}
+                className="rounded-full border border-parchment-200/15 px-3 py-1.5 text-xs text-parchment-400 backdrop-blur hover:bg-bark-800"
+              >
+                {t("map.clearFilters")}
+              </button>
+            )}
           </div>
-        )}
-
-        {active && (
-          <button
-            onClick={() => {
-              setChosen(null);
-              setSpeciesQuery("");
-              onChange({});
-            }}
-            className="rounded-full border border-parchment-200/15 px-3 py-1.5 text-xs text-parchment-400 backdrop-blur hover:bg-bark-800"
-          >
-            {t("map.clearFilters")}
-          </button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

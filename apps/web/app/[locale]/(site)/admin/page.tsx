@@ -37,9 +37,9 @@ export default async function AdminPage({
   if (!userId) {
     return (
       <Shell>
-        <p className="text-sm text-parchment-300">
+        <p className="text-sm text-ink-600">
           {t("signInRequired")}{" "}
-          <Link href="/login" className="text-ember-400 underline">
+          <Link href="/login" className="text-ember-700 underline">
             {t("signInPrompt")}
           </Link>
         </p>
@@ -50,11 +50,11 @@ export default async function AdminPage({
   if (role !== "moderator" && role !== "admin") {
     return (
       <Shell>
-        <p className="text-sm text-parchment-300">
+        <p className="text-sm text-ink-600">
           {t("moderatorsOnly")}
-          <span className="mt-2 block text-xs text-parchment-500">
+          <span className="mt-2 block text-xs text-ink-500">
             Grant yourself access with:
-            <code className="mt-1 block rounded bg-bark-900 px-2 py-1 font-mono text-[11px]">
+            <code className="mt-1 block rounded bg-paper-100 px-2 py-1 font-mono text-[11px]">
               update profiles set role = &apos;admin&apos; where id = &apos;
               {userId}&apos;;
             </code>
@@ -90,12 +90,12 @@ export default async function AdminPage({
 
   return (
     <Shell>
-      <p className="mb-4 text-xs text-parchment-400">
+      <p className="mb-4 text-xs text-ink-500">
         {t("pendingCount", { count: withUrls.length })}
       </p>
 
       {withUrls.length === 0 ? (
-        <p className="rounded-lg border border-parchment-200/10 bg-bark-900/60 px-4 py-6 text-center text-sm text-parchment-400">
+        <p className="rounded-lg border border-ink-900/10 bg-paper-100 px-4 py-6 text-center text-sm text-ink-500">
           {t("empty")}
         </p>
       ) : (

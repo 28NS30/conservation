@@ -8,7 +8,7 @@ import {
   densityStepExpression,
   SPECIES_DENSITY_CLASSES,
   TAIWAN_CENTER,
-  TAIWAN_BOUNDS,
+  TAIWAN_MAIN_BOUNDS,
   TILE_AGGREGATION_MAX_ZOOM,
 } from "@conservation/shared";
 
@@ -61,7 +61,7 @@ export default function SpeciesMap({
       // the east coast off. Fitting the bounds lets MapLibre do the arithmetic
       // for whatever width it is actually given.
       const fit = () =>
-        handle.map.fitBounds(TAIWAN_BOUNDS, { padding: 12, duration: 0 });
+        handle.map.fitBounds(TAIWAN_MAIN_BOUNDS, { padding: 12, duration: 0 });
       fit();
       handle.map.on("resize", fit);
 

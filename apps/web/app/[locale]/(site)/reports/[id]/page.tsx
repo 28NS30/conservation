@@ -101,7 +101,7 @@ export default async function ReportPage({
     <main className="mx-auto w-full max-w-xl px-6 pb-24 pt-12">
       <Link
         href="/map"
-        className="text-xs text-parchment-400 hover:text-parchment-200"
+        className="text-xs text-ink-500 hover:text-ink-700"
       >
         {t("nav.backToMap")}
       </Link>
@@ -111,12 +111,12 @@ export default async function ReportPage({
           className="h-2.5 w-2.5 rounded-full"
           style={{ background: CATEGORIES[row.category].color }}
         />
-        <h1 className="text-lg font-semibold text-parchment-50">
+        <h1 className="text-lg font-semibold text-ink-900">
           {t(`categories.${row.category}`)}
         </h1>
       </header>
 
-      <p className="mt-1 text-xs text-parchment-400">
+      <p className="mt-1 text-xs text-ink-500">
         {new Date(row.observed_at).toLocaleString(locale, {
           timeZone: "Asia/Taipei",
         })}
@@ -138,24 +138,24 @@ export default async function ReportPage({
 
       <section className="mt-5 space-y-3 text-sm">
         <div>
-          <h2 className="text-base font-semibold text-parchment-50">
+          <h2 className="text-base font-semibold text-ink-900">
             {t("detail.species")}
           </h2>
           {row.scientific_name ? (
-            <p className="mt-0.5 text-parchment-100">
+            <p className="mt-0.5 text-ink-800">
               {row.common_name_zh && (
                 <span className="mr-2">{row.common_name_zh}</span>
               )}
-              <span className="italic text-parchment-300">
+              <span className="italic text-ink-600">
                 {row.scientific_name}
               </span>
               {row.protected_status && (
-                <span className="ml-2 rounded bg-amber-400/15 px-1.5 py-0.5 text-[10px] text-amber-300">
+                <span className="ml-2 rounded bg-amber-400/15 px-1.5 py-0.5 text-[10px] text-amber-700">
                   {t("detail.protected", { level: row.protected_status })}
                 </span>
               )}
               {row.taxon_source === "ai" && (
-                <span className="ml-2 text-[10px] text-parchment-500">
+                <span className="ml-2 text-[10px] text-ink-500">
                   {t("detail.aiSuggested")}
                   {row.ai_confidence != null &&
                     ` · ${Math.round(row.ai_confidence * 100)}%`}
@@ -163,7 +163,7 @@ export default async function ReportPage({
               )}
             </p>
           ) : (
-            <p className="mt-0.5 text-parchment-400">
+            <p className="mt-0.5 text-ink-500">
               {row.verbatim_name ?? t("detail.notYetIdentified")}
             </p>
           )}
@@ -171,20 +171,20 @@ export default async function ReportPage({
 
         {row.notes && (
           <div>
-            <h2 className="text-base font-semibold text-parchment-50">
+            <h2 className="text-base font-semibold text-ink-900">
               {t("detail.notes")}
             </h2>
-            <p className="mt-0.5 whitespace-pre-wrap text-parchment-200">
+            <p className="mt-0.5 whitespace-pre-wrap text-ink-700">
               {row.notes}
             </p>
           </div>
         )}
 
         <div>
-          <h2 className="text-base font-semibold text-parchment-50">
+          <h2 className="text-base font-semibold text-ink-900">
             {t("detail.location")}
           </h2>
-          <p className="mt-0.5 tabular-nums text-parchment-200">
+          <p className="mt-0.5 tabular-nums text-ink-700">
             {row.lat?.toFixed(4)}, {row.lng?.toFixed(4)}
           </p>
           {row.lat != null && row.lng != null && (
@@ -198,7 +198,7 @@ export default async function ReportPage({
             />
           )}
           {row.is_obscured && (
-            <p className="mt-1 rounded-lg border border-amber-500/25 bg-amber-500/10 px-2.5 py-1.5 text-[11px] leading-relaxed text-amber-200">
+            <p className="mt-1 rounded-lg border border-amber-700/30 bg-amber-600/10 px-2.5 py-1.5 text-[11px] leading-relaxed text-amber-800">
               {t("detail.blurredNotice", {
                 precision: t(`precision.${row.location_precision}`),
               })}
@@ -216,7 +216,7 @@ export default async function ReportPage({
 
       <section className="mt-5 space-y-3 text-sm">
         {row.source === "gbif" && (
-          <p className="text-[11px] text-parchment-500">
+          <p className="text-[11px] text-ink-500">
             {t("detail.source")}: GBIF
             {row.rights_holder && ` · ${row.rights_holder}`}
             {row.license && (
@@ -226,7 +226,7 @@ export default async function ReportPage({
                   href={row.license}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-ember-400 transition hover:text-ember-300"
+                  className="text-ember-700 transition hover:underline"
                 >
                   {licenseLabel(row.license)}
                 </a>

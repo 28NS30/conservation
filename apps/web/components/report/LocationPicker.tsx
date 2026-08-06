@@ -7,7 +7,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { createMap, type MapHandle } from "@/lib/map";
 import {
   isInTaiwanBounds,
-  TAIWAN_BOUNDS,
+  TAIWAN_MAIN_BOUNDS,
   TAIWAN_CENTER,
 } from "@conservation/shared";
 
@@ -56,7 +56,7 @@ export default function LocationPicker({
       // location exists the effect below takes over and zooms in.
       if (!value) {
         const fit = () =>
-          h.map.fitBounds(TAIWAN_BOUNDS, { padding: 12, duration: 0 });
+          h.map.fitBounds(TAIWAN_MAIN_BOUNDS, { padding: 12, duration: 0 });
         fit();
         h.map.on("resize", fit);
       }
@@ -117,7 +117,7 @@ export default function LocationPicker({
         <p className="mt-1.5 text-[11px] text-parchment-400 tabular-nums">
           {value.lat.toFixed(5)}, {value.lng.toFixed(5)}
           {outside && (
-            <span className="ml-2 text-amber-400">⚠ {t("outsideTaiwan")}</span>
+            <span className="ml-2 text-amber-700">⚠ {t("outsideTaiwan")}</span>
           )}
         </p>
       )}

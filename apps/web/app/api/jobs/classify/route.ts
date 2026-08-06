@@ -37,6 +37,21 @@ const AUTO_ASSIGN_BANDS = new Set(["high"]);
  */
 export const maxDuration = 60;
 
+/**
+ * Stop starting new jobs after this many milliseconds and return normally.
+ *
+ * Being killed at 60s is not a neutral failure. Vercel answers a timed-out
+ * function with an HTML error page, and cron-job.org aborts anything that large
+ * with "output too large" — so the run looks like a broken endpoint rather than
+ * a slow one, and the actual cause is invisible. A cold Modal container alone
+ * costs ~26s, so three jobs can exceed the ceiling on a cold start.
+ *
+ * 45s leaves room for the job in flight to finish and for the response to be
+ * written. Anything not started is handed straight back to the queue below, so
+ * the next run picks it up immediately rather than waiting out STALE_AFTER.
+ */
+const TIME_BUDGET_MS = 45_000;
+
 type Job = {
   job_id: string;
   report_id: string;
@@ -69,10 +84,14 @@ function authorised(req: Request): boolean {
  * client-side downscale, so inlining them is cheap — and it means a report photo
  * never needs a publicly reachable URL at all.
  */
-async function callModel(imageBase64: string, category: string): Promise<MlResult> {
+async function callModel(
+  imageBase64: string,
+  category: string,
+): Promise<MlResult> {
   const url = process.env.ML_ENDPOINT_URL;
   const token = process.env.ML_ENDPOINT_TOKEN;
-  if (!url || !token) throw new Error("ML_ENDPOINT_URL / ML_ENDPOINT_TOKEN not configured");
+  if (!url || !token)
+    throw new Error("ML_ENDPOINT_URL / ML_ENDPOINT_TOKEN not configured");
 
   const res = await fetch(url, {
     method: "POST",
@@ -80,12 +99,16 @@ async function callModel(imageBase64: string, category: string): Promise<MlResul
     body: JSON.stringify({ token, imageBase64, category }),
     signal: AbortSignal.timeout(120_000), // generous: covers a Modal cold start
   });
-  if (!res.ok) throw new Error(`model endpoint ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok)
+    throw new Error(
+      `model endpoint ${res.status}: ${(await res.text()).slice(0, 200)}`,
+    );
   return (await res.json()) as MlResult;
 }
 
 export async function POST(req: Request) {
-  if (!authorised(req)) return Response.json({ error: "unauthorized" }, { status: 401 });
+  if (!authorised(req))
+    return Response.json({ error: "unauthorized" }, { status: 401 });
 
   // Claim a batch. `skip locked` lets overlapping cron runs make progress instead
   // of blocking on each other.
@@ -121,8 +144,15 @@ export async function POST(req: Request) {
 
   let succeeded = 0;
   let failed = 0;
+  const startedAt = Date.now();
+  const deferred: string[] = [];
 
   for (const job of jobs) {
+    // Check before starting, not after: a job begun at 44s still has to finish.
+    if (Date.now() - startedAt > TIME_BUDGET_MS) {
+      deferred.push(job.job_id);
+      continue;
+    }
     try {
       if (!job.storage_path) throw new Error("report has no photo");
 
@@ -209,5 +239,21 @@ export async function POST(req: Request) {
     }
   }
 
-  return Response.json({ claimed: jobs.length, processed: succeeded, failed });
+  // Hand back what we never started, so it is picked up on the next run instead
+  // of sitting `running` until the stale-lease sweep notices in five minutes.
+  if (deferred.length > 0) {
+    await sql`
+      update classification_jobs
+         set status = 'queued', attempts = attempts - 1
+       where id = any(${deferred}::bigint[])`;
+  }
+
+  // Deliberately small. This is read by a cron service, not a human, and a large
+  // body is what made a timeout look like a broken endpoint.
+  return Response.json({
+    claimed: jobs.length,
+    processed: succeeded,
+    failed,
+    deferred: deferred.length,
+  });
 }

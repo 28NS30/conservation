@@ -39,11 +39,11 @@ export default function Wordmark({
         {/* The wide tracking is doing real work: at these sizes Hanzi set solid
             look like a dense block, and opening them up is what makes the name
             read as a mark rather than as a line of body text. */}
-        <span className={`block font-medium text-parchment-50 ${zh}`}>
+        <span className={`block font-medium text-ink-900 ${zh}`}>
           生態守望計畫
         </span>
         <span
-          className={`mt-1 block font-medium uppercase tracking-[0.3em] text-parchment-400 ${latin}`}
+          className={`mt-1 block font-medium uppercase tracking-[0.3em] text-ink-500 ${latin}`}
         >
           Project Ecowatch
         </span>

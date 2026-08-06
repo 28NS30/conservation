@@ -59,7 +59,7 @@ export default function QueueBanner() {
   if (items.length === 0) {
     if (justSent > 0) {
       return (
-        <p className="mb-4 rounded-lg border border-ember-500/30 bg-ember-500/10 px-3 py-2 text-xs text-ember-400">
+        <p className="mb-4 rounded-lg border border-ember-500/30 bg-ember-500/10 px-3 py-2 text-xs text-ember-700">
           {t("sentCount", { count: justSent })}
         </p>
       );
@@ -68,9 +68,9 @@ export default function QueueBanner() {
   }
 
   return (
-    <section className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5">
+    <section className="mb-4 rounded-lg border border-amber-500/30 bg-amber-600/10 px-3 py-2.5">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-medium text-amber-200">
+        <p className="text-xs font-medium text-amber-800">
           {t("waiting", { count: items.length })}
         </p>
         <button
@@ -82,29 +82,29 @@ export default function QueueBanner() {
             await refresh();
             setBusy(false);
           }}
-          className="shrink-0 rounded bg-amber-400/20 px-2.5 py-1 text-[11px] font-medium text-amber-100 disabled:opacity-50"
+          className="shrink-0 rounded bg-amber-600/15 px-2.5 py-1 text-[11px] font-medium text-amber-900 disabled:opacity-50"
         >
           {busy ? t("sending") : t("sendNow")}
         </button>
       </div>
 
-      <p className="mt-1 text-[11px] leading-relaxed text-amber-200/70">
+      <p className="mt-1 text-[11px] leading-relaxed text-amber-800/70">
         {t("explain")}
       </p>
       {stale && (
-        <p className="mt-1 text-[11px] text-amber-300">{t("staleWarning")}</p>
+        <p className="mt-1 text-[11px] text-amber-700">{t("staleWarning")}</p>
       )}
 
       <ul className="mt-2 space-y-1">
         {items.map((i) => (
           <li
             key={i.id}
-            className="flex items-center justify-between gap-3 text-[11px] text-amber-200/80"
+            className="flex items-center justify-between gap-3 text-[11px] text-amber-800/80"
           >
             <span className="truncate">
               {new Date(i.createdAt).toLocaleString()}
               {i.lastError && (
-                <span className="ml-2 text-rose-300">{i.lastError}</span>
+                <span className="ml-2 text-rose-700">{i.lastError}</span>
               )}
             </span>
             <button
@@ -113,7 +113,7 @@ export default function QueueBanner() {
                 await removeQueued(i.id);
                 await refresh();
               }}
-              className="shrink-0 text-amber-300/60 hover:text-rose-300"
+              className="shrink-0 text-amber-700/70 hover:text-rose-700"
             >
               {t("discard")}
             </button>

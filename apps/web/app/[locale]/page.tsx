@@ -8,7 +8,7 @@ import { speciesSlug } from "@/lib/species";
 import HeatmapView from "@/components/map/HeatmapView";
 import SiteHeader from "@/components/site/SiteHeader";
 import SiteFooter from "@/components/site/SiteFooter";
-import Mark from "@/components/brand/Mark";
+import Badge from "@/components/brand/Badge";
 
 export const revalidate = 300;
 
@@ -72,52 +72,41 @@ export default async function HomePage({
     s.earliest && s.latest ? Number(s.latest) - Number(s.earliest) + 1 : null;
 
   return (
-    <main className="bg-bark-950">
+    <main className="bg-paper-50">
       <SiteHeader />
 
       {/* ---------------- hero ---------------- */}
-      <section className="relative h-[92vh] min-h-[560px] w-full overflow-hidden">
-        {/* The live map, not an image of one. Someone landing here is already
-            looking at the real thing. */}
-        <div className="absolute inset-0">
-          <HeatmapView
-            // Presentation mode frames the island itself against the viewport
-            // (see frameIsland), so there is no fixed centre to pass here.
-            presentation
-            maptilerKey={process.env.NEXT_PUBLIC_MAPTILER_KEY || undefined}
-            years={
-              s.earliest && s.latest
-                ? { first: Number(s.earliest), last: Number(s.latest) }
-                : null
-            }
-          />
-        </div>
+      {/*
+        Two columns on a wide screen: the words on paper, the map in its own
+        dark panel beside them.
 
-        {/* Scrim: the headline has to stay legible over whatever the map is
-            showing, and the map has to stay visibly alive underneath — a flat
-            overlay would kill it. Which direction the gradient runs depends on
-            where the island is: beside the headline on a wide screen, so it
-            falls off to the right; behind it on a phone, so it falls downward. */}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-bark-950 via-bark-950/80 to-transparent lg:bg-gradient-to-r lg:via-bark-950/85 lg:to-bark-950/10" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-bark-950 to-transparent" />
+        The map used to span the full width with the text laid over it. That put
+        a large piece of mainland China on screen for a reason that is purely
+        geometric — fitting a tall island into a wide short frame leaves a lot of
+        horizontal slack, and what fills it is Fujian. Giving the map a column
+        roughly the island's own proportions removes the slack, so the mainland
+        falls outside the frame without any masking.
 
-        {/* Top-aligned while the island occupies the lower part of the frame;
-            vertically centred once it moves off to the side. `lg` is where
-            frameIsland switches arrangements — the two must agree. */}
-        <div className="pointer-events-none absolute inset-0 flex items-start pt-32 lg:items-center lg:pt-0">
-          <div className="mx-auto w-full max-w-6xl px-6 sm:px-8">
+        It also lets the two materials meet at a hard edge instead of blending.
+        A paper gradient drawn across the map desaturated the whole density scale
+        to grey, which is the one thing its dark ground exists to prevent.
+      */}
+      <section className="relative w-full overflow-hidden bg-paper-50">
+        <div className="mx-auto grid max-w-7xl items-stretch gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
+          {/* Words */}
+          <div className="order-2 flex items-center px-6 py-14 sm:px-10 lg:order-1 lg:py-24">
             <div className="max-w-xl">
-              <p className="text-[11px] font-medium uppercase tracking-[0.28em] text-ember-400">
+              <p className="text-[11px] font-medium uppercase tracking-[0.28em] text-ember-700">
                 {t("eyebrow")}
               </p>
-              <h1 className="mt-4 text-4xl font-semibold leading-[1.15] text-parchment-50 sm:text-5xl">
+              <h1 className="mt-4 text-4xl font-semibold leading-[1.15] text-ink-900 sm:text-5xl">
                 {t("headline")}
               </h1>
-              <p className="mt-5 max-w-lg text-sm leading-relaxed text-parchment-200 sm:text-base">
+              <p className="mt-5 max-w-lg text-sm leading-relaxed text-ink-600 sm:text-base">
                 {t("sub")}
               </p>
 
-              <div className="pointer-events-auto mt-8 flex flex-wrap items-center gap-3">
+              <div className="mt-8 flex flex-wrap items-center gap-3">
                 <Link
                   href="/report"
                   className="rounded-full bg-ember-500 px-6 py-3 text-sm font-semibold text-bark-950 transition hover:bg-ember-400"
@@ -126,19 +115,33 @@ export default async function HomePage({
                 </Link>
                 <Link
                   href="/map"
-                  className="rounded-full border border-parchment-200/25 px-6 py-3 text-sm font-medium text-parchment-100 transition hover:border-parchment-200/50 hover:bg-parchment-50/5"
+                  className="rounded-full border border-ink-900/25 px-6 py-3 text-sm font-medium text-ink-800 transition hover:bg-ink-900/5"
                 >
                   {t("ctaMap")} →
                 </Link>
               </div>
             </div>
           </div>
+
+          {/* The live map, not an image of one. Someone landing here is already
+              looking at the real thing. */}
+          <div className="order-1 relative h-[52vh] min-h-[380px] bg-bark-950 lg:order-2 lg:h-auto lg:min-h-[660px]">
+            <HeatmapView
+              presentation
+              maptilerKey={process.env.NEXT_PUBLIC_MAPTILER_KEY || undefined}
+              years={
+                s.earliest && s.latest
+                  ? { first: Number(s.earliest), last: Number(s.latest) }
+                  : null
+              }
+            />
+          </div>
         </div>
       </section>
 
       {/* ---------------- the numbers ---------------- */}
-      <section className="border-y border-parchment-200/10 bg-bark-900">
-        <dl className="mx-auto grid max-w-5xl grid-cols-1 divide-y divide-parchment-200/10 px-6 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+      <section className="border-y border-ink-900/10 bg-paper-100">
+        <dl className="mx-auto grid max-w-5xl grid-cols-1 divide-y divide-ink-900/10 px-6 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
           {[
             { v: n(s.reports), k: t("statsRecords") },
             { v: n(s.species), k: t("statsSpecies") },
@@ -147,12 +150,10 @@ export default async function HomePage({
             <div key={x.k} className="px-2 py-8 text-center">
               <dt className="sr-only">{x.k}</dt>
               <dd>
-                <span className="block text-4xl font-semibold tabular-nums text-parchment-50">
+                <span className="block text-4xl font-semibold tabular-nums text-ink-900">
                   {x.v}
                 </span>
-                <span className="mt-1 block text-xs text-parchment-400">
-                  {x.k}
-                </span>
+                <span className="mt-1 block text-xs text-ink-500">{x.k}</span>
               </dd>
             </div>
           ))}
@@ -191,17 +192,17 @@ export default async function HomePage({
           ].map((x) => (
             <article
               key={x.c}
-              className="flex flex-col rounded-xl border border-parchment-200/10 bg-bark-900 p-6"
+              className="flex flex-col rounded-xl border border-ink-900/10 bg-paper-100 p-6"
             >
               <span
                 aria-hidden
                 className="block size-2.5 rounded-full"
                 style={{ background: CATEGORIES[x.c].color }}
               />
-              <h3 className="mt-4 text-base font-semibold text-parchment-50">
+              <h3 className="mt-4 text-base font-semibold text-ink-900">
                 {x.h}
               </h3>
-              <p className="mt-2 flex-1 text-sm leading-relaxed text-parchment-300">
+              <p className="mt-2 flex-1 text-sm leading-relaxed text-ink-600">
                 {x.b}
               </p>
               {/* The count turns each card from a claim into evidence — but
@@ -209,10 +210,8 @@ export default async function HomePage({
                   and printing "0 records" under the other two would advertise
                   an empty site rather than a young one. */}
               {x.n > 0 && (
-                <p className="mt-5 border-t border-parchment-200/10 pt-3 text-xs tabular-nums text-parchment-400">
-                  <span className="font-semibold text-parchment-100">
-                    {n(x.n)}
-                  </span>{" "}
+                <p className="mt-5 border-t border-ink-900/10 pt-3 text-xs tabular-nums text-ink-500">
+                  <span className="font-semibold text-ink-800">{n(x.n)}</span>{" "}
                   {t("statsRecords")}
                 </p>
               )}
@@ -234,18 +233,18 @@ export default async function HomePage({
               <li key={sp.id}>
                 <Link
                   href={`/species/${speciesSlug(sp)}`}
-                  className="group flex items-baseline gap-3 rounded-lg px-3 py-2.5 -mx-3 transition hover:bg-parchment-50/5"
+                  className="group flex items-baseline gap-3 rounded-lg px-3 py-2.5 -mx-3 transition hover:bg-ink-900/5"
                 >
-                  <span className="w-4 shrink-0 text-xs tabular-nums text-parchment-500">
+                  <span className="w-4 shrink-0 text-xs tabular-nums text-ink-500">
                     {i + 1}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-baseline gap-x-2">
-                      <span className="truncate text-sm font-medium text-parchment-50 group-hover:text-ember-400">
+                      <span className="truncate text-sm font-medium text-ink-900 group-hover:text-ember-700">
                         {sp.commonNameZh ?? sp.scientificName}
                       </span>
                       {sp.commonNameZh && (
-                        <span className="truncate text-[11px] italic text-parchment-500">
+                        <span className="truncate text-[11px] italic text-ink-500">
                           {sp.scientificName}
                         </span>
                       )}
@@ -254,17 +253,17 @@ export default async function HomePage({
                         species has many times the records of the eighth. */}
                     <span
                       aria-hidden
-                      className="mt-1.5 block h-1 overflow-hidden rounded-full bg-parchment-50/5"
+                      className="mt-1.5 block h-1 overflow-hidden rounded-full bg-ink-900/5"
                     >
                       <span
-                        className="block h-full rounded-full bg-moss-400/70"
+                        className="block h-full rounded-full bg-moss-700/70"
                         style={{
                           width: `${Math.max(2, (sp.reportCount / speciesMax) * 100)}%`,
                         }}
                       />
                     </span>
                   </span>
-                  <span className="shrink-0 text-xs tabular-nums text-parchment-400">
+                  <span className="shrink-0 text-xs tabular-nums text-ink-500">
                     {n(sp.reportCount)}
                   </span>
                 </Link>
@@ -273,7 +272,7 @@ export default async function HomePage({
           </ol>
           <Link
             href="/species"
-            className="mt-8 inline-block text-sm text-ember-400 transition hover:text-ember-300"
+            className="mt-8 inline-block text-sm text-ember-700 transition hover:underline"
           >
             {t("speciesLink")} →
           </Link>
@@ -297,13 +296,13 @@ export default async function HomePage({
               { h: t("how3"), b: t("how3Body") },
             ].map((x, i) => (
               <li key={x.h}>
-                <span className="flex size-8 items-center justify-center rounded-full border border-ember-500/40 bg-bark-950 text-xs font-semibold text-ember-400">
+                <span className="flex size-8 items-center justify-center rounded-full border border-ember-700/40 bg-paper-50 text-xs font-semibold text-ember-700">
                   {i + 1}
                 </span>
-                <h3 className="mt-5 text-base font-semibold text-parchment-50">
+                <h3 className="mt-5 text-base font-semibold text-ink-900">
                   {x.h}
                 </h3>
-                <p className="mt-2 text-sm leading-relaxed text-parchment-300">
+                <p className="mt-2 text-sm leading-relaxed text-ink-600">
                   {x.b}
                 </p>
               </li>
@@ -331,15 +330,15 @@ export default async function HomePage({
           ].map((x) => (
             <div
               key={x.h}
-              className="flex flex-col rounded-xl border border-parchment-200/10 bg-bark-950/60 p-7"
+              className="flex flex-col rounded-xl border border-ink-900/10 bg-paper-50/70 p-7"
             >
-              <h2 className="text-lg font-semibold text-parchment-50">{x.h}</h2>
-              <p className="mt-3 flex-1 text-sm leading-relaxed text-parchment-300">
+              <h2 className="text-lg font-semibold text-ink-900">{x.h}</h2>
+              <p className="mt-3 flex-1 text-sm leading-relaxed text-ink-600">
                 {x.b}
               </p>
               <Link
                 href={x.href}
-                className="mt-5 text-sm text-ember-400 transition hover:text-ember-300"
+                className="mt-5 text-sm text-ember-700 transition hover:underline"
               >
                 {x.link} →
               </Link>
@@ -349,13 +348,13 @@ export default async function HomePage({
       </Section>
 
       {/* ---------------- closing call ---------------- */}
-      <section className="border-t border-parchment-200/10 bg-bark-900">
+      <section className="border-t border-ink-900/10 bg-paper-100">
         <div className="mx-auto flex max-w-5xl flex-col items-center gap-6 px-6 py-20 text-center">
-          <Mark className="size-14" />
-          <h2 className="max-w-lg text-2xl font-semibold leading-snug text-parchment-50">
+          <Badge size={96} />
+          <h2 className="max-w-lg text-2xl font-semibold leading-snug text-ink-900">
             {t("finalTitle")}
           </h2>
-          <p className="max-w-md text-sm leading-relaxed text-parchment-300">
+          <p className="max-w-md text-sm leading-relaxed text-ink-600">
             {t("finalBody")}
           </p>
           <Link
@@ -400,7 +399,7 @@ function Section({
     <section
       className={
         tone === "raised"
-          ? "border-y border-parchment-200/10 bg-bark-900/40"
+          ? "border-y border-ink-900/10 bg-paper-100/60"
           : undefined
       }
     >
@@ -408,17 +407,17 @@ function Section({
         {(eyebrow || title) && (
           <div className="mb-10 max-w-2xl">
             {eyebrow && (
-              <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-ember-400/80">
+              <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-ember-700/80">
                 {eyebrow}
               </p>
             )}
             {title && (
-              <h2 className="mt-3 text-2xl font-semibold leading-snug text-parchment-50 sm:text-3xl">
+              <h2 className="mt-3 text-2xl font-semibold leading-snug text-ink-900 sm:text-3xl">
                 {title}
               </h2>
             )}
             {lede && (
-              <p className="mt-4 text-sm leading-relaxed text-parchment-300 sm:text-base">
+              <p className="mt-4 text-sm leading-relaxed text-ink-600 sm:text-base">
                 {lede}
               </p>
             )}

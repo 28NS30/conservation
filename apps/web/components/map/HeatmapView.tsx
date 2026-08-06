@@ -19,7 +19,7 @@ import {
   densityStepExpression,
   filterToQuery,
   TILE_AGGREGATION_MAX_ZOOM,
-  TAIWAN_BOUNDS,
+  TAIWAN_MAIN_BOUNDS,
   type Category,
   type MapFilter,
 } from "@conservation/shared";
@@ -28,38 +28,30 @@ import MapFilters from "./MapFilters";
 import { Link } from "@/i18n/navigation";
 
 /**
- * Frame the whole island for the hero, whatever shape the viewport is.
+ * Frame the island inside whatever container the map has been given.
  *
- * Two arrangements. Side-by-side: the headline owns a column on the left and the
- * island is inset past it. Stacked: the headline sits *over* the map, so the
- * inset comes off the top and the island takes the lower part of the frame.
+ * Simple even padding now, because the hero gives the map its own column rather
+ * than laying the headline over it. The previous version had to compute an inset
+ * past the headline, and every value it derived was a guess that held at one
+ * width — at 768px a 44% inset ran the text straight through the island.
  *
- * The inset is derived from the hero's own layout rather than picked as a
- * fraction of the width — a fraction only holds at the width it was eyeballed
- * at, and at 768px a 44% inset ran the headline straight through the island.
- * `fitBounds` does the rest, which is what makes this survive any aspect ratio;
- * the fixed centre/zoom it replaced put half of Taiwan off a phone's right edge.
+ * Fits TAIWAN_MAIN_BOUNDS, not TAIWAN_BOUNDS: the latter reaches west to Kinmen
+ * and Matsu against the Fujian coast, so fitting it always drags mainland China
+ * into frame.
  */
-const HERO_CONTAINER = 1152; // max-w-6xl
-const HERO_COLUMN = 576; // max-w-xl, the headline's own column
-
 function frameIsland(map: MLMap) {
-  const { width, height } = map.getCanvas().getBoundingClientRect();
-  const gutter = Math.max(24, (width - HERO_CONTAINER) / 2);
-  const clearOfHeadline = gutter + HERO_COLUMN + 32;
-
-  // Side by side only while what is left over is still wide enough to read as
-  // Taiwan rather than as a sliver. The 1024 floor is Tailwind's `lg`, and it
-  // has to stay in step with the `lg:` classes on the hero — the scrim runs
-  // sideways in one arrangement and downwards in the other, so a map that
-  // switched at a different width than the scrim would light the headline from
-  // the wrong direction.
-  const sideBySide = width >= 1024 && width - clearOfHeadline >= 300;
-
-  map.fitBounds(TAIWAN_BOUNDS, {
-    padding: sideBySide
-      ? { left: Math.round(clearOfHeadline), right: 24, top: 32, bottom: 56 }
-      : { left: 16, right: 16, top: Math.round(height * 0.3), bottom: 40 },
+  // Asymmetric on purpose. Taiwan is much taller than it is wide, so any
+  // container wider than that ratio has horizontal slack — and everything west
+  // of the island is Fujian. Weighting the padding to the right shifts the
+  // window east, so the slack is filled with the Pacific instead of the
+  // mainland, at every container shape.
+  // Proportional, not fixed. The slack scales with the container, so a constant
+  // 150px that cleared the mainland in the hero's narrow column left Quanzhou
+  // and Xiamen on screen across a 1180px map. About 0.6 degrees of strait
+  // separates Taiwan's west coast from Fujian, which is the only budget there is.
+  const { width } = map.getCanvas().getBoundingClientRect();
+  map.fitBounds(TAIWAN_MAIN_BOUNDS, {
+    padding: { top: 8, bottom: 8, left: 0, right: Math.round(width * 0.42) },
     duration: 0,
   });
 }
@@ -338,6 +330,11 @@ export default function HeatmapView({
             }
           : { zoom: 6.6 }),
         maxZoom: 16,
+        // Unclamped at construction. maxBounds overrides a requested camera
+        // whenever the viewport is wider than the bounds, which silently threw
+        // away the framing below — the map looked identical no matter what
+        // padding it was given. The limit is re-applied after the fit instead.
+        bounded: false,
         static: presentationRef.current,
         onReady: addReportLayers,
       });
@@ -369,15 +366,31 @@ export default function HeatmapView({
           new ml.ScaleControl({ maxWidth: 120, unit: "metric" }),
           "bottom-left",
         );
-      } else {
+      }
+
+      // Frame the island whenever no explicit view was asked for. That covers
+      // the hero, and a first visit to /map — the fixed zoom it used before left
+      // a large piece of Fujian on screen, and this map is about Taiwan. A
+      // shared URL carrying lng/lat/z is honoured instead, and panning still
+      // reaches Kinmen and Matsu, which do carry records.
+      if (presentationRef.current || !initialViewRef.current) {
         frameIsland(map);
-        // The hero is a full-bleed background, so its aspect ratio changes with
-        // every window resize. A fixed centre/zoom that framed the island beside
-        // the headline on a desktop pushed half of it off the right edge on a
-        // phone; re-fitting keeps the whole island in view at any shape.
-        const onResize = () => frameIsland(map);
-        map.on("resize", onResize);
-        cleanupRef.current = () => map.off("resize", onResize);
+      }
+
+      // No maxBounds. It is not a pan limit so much as a camera override:
+      // whenever the viewport is wider than the bounds — which it is at country
+      // zoom — MapLibre forces the view to fit them, and it does so even when
+      // applied after the fact. Measured, it snapped the west edge to 117.5,
+      // which is Fujian. minZoom still stops anyone zooming out to the globe,
+      // and the default view is now the island.
+
+      // Re-fit on resize only for the hero, which is a full-bleed background and
+      // changes shape with the window. Doing it on the interactive map would
+      // yank a browsing user back to the island the moment they resized.
+      if (presentationRef.current) {
+        const onResizeFit = () => frameIsland(map);
+        map.on("resize", onResizeFit);
+        cleanupRef.current = () => map.off("resize", onResizeFit);
       }
 
       // Idempotent: may be invoked more than once as the style settles.

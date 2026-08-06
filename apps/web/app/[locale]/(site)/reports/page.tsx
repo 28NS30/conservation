@@ -134,8 +134,8 @@ export default async function ReportsListPage({
           aria-current={!category ? "page" : undefined}
           className={`rounded-full border px-3 py-1.5 text-xs transition ${
             !category
-              ? "border-parchment-200/70 bg-parchment-50/90 font-medium text-bark-950"
-              : "border-parchment-200/15 bg-bark-900/70 text-parchment-300 hover:bg-bark-800"
+              ? "border-ink-900 bg-ink-900 font-medium text-paper-50"
+              : "border-ink-900/12 bg-paper-100/70 text-ink-600 hover:bg-paper-200"
           }`}
         >
           {t("all")}
@@ -147,8 +147,8 @@ export default async function ReportsListPage({
             aria-current={category === k ? "page" : undefined}
             className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition ${
               category === k
-                ? "border-parchment-200/70 bg-parchment-50/90 font-medium text-bark-950"
-                : "border-parchment-200/15 bg-bark-900/70 text-parchment-300 hover:bg-bark-800"
+                ? "border-ink-900 bg-ink-900 font-medium text-paper-50"
+                : "border-ink-900/12 bg-paper-100/70 text-ink-600 hover:bg-paper-200"
             }`}
           >
             <span
@@ -162,14 +162,12 @@ export default async function ReportsListPage({
       </nav>
 
       {visible.length === 0 ? (
-        <p className="mt-8 text-center text-sm text-parchment-500">
-          {t("empty")}
-        </p>
+        <p className="mt-8 text-center text-sm text-ink-500">{t("empty")}</p>
       ) : (
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left text-xs">
             <caption className="sr-only">{t("tableCaption")}</caption>
-            <thead className="text-parchment-500">
+            <thead className="text-ink-500">
               <tr>
                 <th scope="col" className="py-1.5 font-medium">
                   {t("date")}
@@ -187,42 +185,37 @@ export default async function ReportsListPage({
             </thead>
             <tbody>
               {visible.map((r) => (
-                <tr
-                  key={r.id}
-                  className="border-t border-parchment-200/5 align-top"
-                >
+                <tr key={r.id} className="border-t border-ink-900/10 align-top">
                   <td className="py-1.5 whitespace-nowrap">
                     <Link
                       href={`/reports/${r.id}`}
-                      className="text-parchment-300 hover:text-parchment-100"
+                      className="text-ink-600 hover:text-ink-800"
                     >
                       {new Date(r.observedAt).toLocaleDateString(locale, {
                         timeZone: "Asia/Taipei",
                       })}
                     </Link>
                   </td>
-                  <td className="py-1.5 text-parchment-400">
-                    {tc(r.category)}
-                  </td>
+                  <td className="py-1.5 text-ink-500">{tc(r.category)}</td>
                   <td className="py-1.5">
                     {r.taxonId && r.scientificName ? (
                       <Link
                         href={`/species/${speciesSlug({ id: r.taxonId, scientificName: r.scientificName })}`}
-                        className="text-parchment-200 hover:text-ember-400"
+                        className="text-ink-700 hover:text-ember-700"
                       >
                         {zhFirst && r.commonNameZh
                           ? r.commonNameZh
                           : r.scientificName}
                       </Link>
                     ) : (
-                      <span className="text-parchment-500">—</span>
+                      <span className="text-ink-500">—</span>
                     )}
                   </td>
-                  <td className="py-1.5 tabular-nums text-parchment-400">
+                  <td className="py-1.5 tabular-nums text-ink-500">
                     {r.lat.toFixed(3)}, {r.lng.toFixed(3)}
                     {r.isObscured && (
                       <span
-                        className="ml-1.5 text-amber-400"
+                        className="ml-1.5 text-amber-700"
                         title={tp(r.locationPrecision)}
                       >
                         ≈
@@ -246,8 +239,8 @@ export default async function ReportsListPage({
           version of the map. Shown only when a row on this page actually is
           obscured, so it never explains a mark that is not there. */}
       {rows.some((r) => r.isObscured) && (
-        <p className="mt-3 text-[11px] leading-relaxed text-parchment-500">
-          <span className="text-amber-400">≈</span> {t("obscuredLegend")}
+        <p className="mt-3 text-[11px] leading-relaxed text-ink-500">
+          <span className="text-amber-700">≈</span> {t("obscuredLegend")}
         </p>
       )}
 
@@ -256,21 +249,15 @@ export default async function ReportsListPage({
         className="mt-6 flex items-center justify-between text-xs"
       >
         {page > 1 ? (
-          <Link
-            href={qs(page - 1)}
-            className="text-parchment-300 hover:text-parchment-100"
-          >
+          <Link href={qs(page - 1)} className="text-ink-600 hover:text-ink-800">
             ← {t("previous")}
           </Link>
         ) : (
           <span />
         )}
-        <span className="text-parchment-500">{t("pageN", { page })}</span>
+        <span className="text-ink-500">{t("pageN", { page })}</span>
         {hasNext ? (
-          <Link
-            href={qs(page + 1)}
-            className="text-parchment-300 hover:text-parchment-100"
-          >
+          <Link href={qs(page + 1)} className="text-ink-600 hover:text-ink-800">
             {t("next")} →
           </Link>
         ) : (

@@ -39,10 +39,10 @@ export default async function SiteHeader({
     <header
       className={
         app
-          ? "z-20 flex shrink-0 flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-parchment-200/10 bg-bark-900/95 px-4 py-2.5 backdrop-blur"
+          ? "z-20 flex shrink-0 flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-ink-900/10 bg-paper-100/95 px-4 py-2.5 backdrop-blur"
           : overlay
             ? "absolute inset-x-0 top-0 z-20"
-            : "sticky top-0 z-20 border-b border-parchment-200/10 bg-bark-950/90 backdrop-blur"
+            : "sticky top-0 z-20 border-b border-ink-900/10 bg-paper-50/90 backdrop-blur"
       }
     >
       <div
@@ -74,7 +74,7 @@ export default async function SiteHeader({
               <Link
                 key={l.href}
                 href={l.href}
-                className="text-xs text-parchment-300 transition hover:text-parchment-50"
+                className="text-xs text-ink-600 transition hover:text-ink-900"
               >
                 {l.label}
               </Link>
@@ -99,13 +99,13 @@ export default async function SiteHeader({
           and needs no menu button, no JS, and no focus trap. The map's own
           header stays single-row: there, vertical space is the instrument. */}
       {!app && (
-        <div className="flex items-center justify-between gap-4 border-t border-parchment-200/10 px-5 py-2 sm:hidden">
+        <div className="flex items-center justify-between gap-4 border-t border-ink-900/10 px-5 py-2 sm:hidden">
           <nav className="flex items-center gap-5">
             {nav.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
-                className="text-xs text-parchment-300 transition hover:text-parchment-50"
+                className="text-xs text-ink-600 transition hover:text-ink-900"
               >
                 {l.label}
               </Link>
@@ -121,10 +121,10 @@ export default async function SiteHeader({
 function Stat({ value, label }: { value: string; label: string }) {
   return (
     <div className="leading-tight">
-      <div className="text-sm font-semibold tabular-nums text-parchment-50">
+      <div className="text-sm font-semibold tabular-nums text-ink-900">
         {value}
       </div>
-      <div className="text-[10px] text-parchment-400">{label}</div>
+      <div className="text-[10px] text-ink-500">{label}</div>
     </div>
   );
 }

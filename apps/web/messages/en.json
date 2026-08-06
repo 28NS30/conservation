@@ -57,7 +57,8 @@
       "bins": "Grid",
       "dots": "Dots"
     },
-    "speciesResults": "{count, number} matching species"
+    "speciesResults": "{count, number} matching species",
+    "filters": "Filters"
   },
   "footer": {
     "dataSource": "Data",

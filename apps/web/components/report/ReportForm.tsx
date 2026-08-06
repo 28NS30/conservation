@@ -177,11 +177,11 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
 
   if (phase === "queued") {
     return (
-      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-5">
-        <h2 className="text-base font-semibold text-amber-200">
+      <div className="rounded-xl border border-amber-500/30 bg-amber-600/10 p-5">
+        <h2 className="text-base font-semibold text-amber-800">
           {tOffline("queuedTitle")}
         </h2>
-        <p className="mt-2 text-xs leading-relaxed text-amber-200/80">
+        <p className="mt-2 text-xs leading-relaxed text-amber-800/80">
           {tOffline("queuedBody")}
         </p>
       </div>
@@ -191,16 +191,16 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
   if (phase === "done" && result) {
     return (
       <div className="rounded-xl border border-ember-500/30 bg-ember-500/10 p-5">
-        <h2 className="text-base font-semibold text-ember-400">
+        <h2 className="text-base font-semibold text-ember-700">
           {t("thanks")}
         </h2>
-        <p className="mt-1 text-sm text-parchment-300">{t("received")}</p>
-        <p className="mt-3 text-xs leading-relaxed text-parchment-400">
+        <p className="mt-1 text-sm text-ink-600">{t("received")}</p>
+        <p className="mt-3 text-xs leading-relaxed text-ink-500">
           {result.awaitingIdentification ? t("identifying") : t("published")}
         </p>
         <a
           href={`/reports/${result.id}`}
-          className="mt-4 inline-block text-xs text-ember-400 underline"
+          className="mt-4 inline-block text-xs text-ember-700 underline"
         >
           {t("viewReport")}
         </a>
@@ -215,9 +215,7 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
     <div className="space-y-6">
       {/* Category */}
       <section>
-        <h2 className="mb-2 text-sm font-medium text-parchment-200">
-          {t("type")}
-        </h2>
+        <h2 className="mb-2 text-sm font-medium text-ink-700">{t("type")}</h2>
         <div className="flex flex-wrap gap-1.5">
           {CATEGORY_KEYS.map((k) => (
             <button
@@ -226,8 +224,8 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
               onClick={() => setCategory(k)}
               className={`flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-medium transition ${
                 category === k
-                  ? "border-parchment-200/70 bg-parchment-50/90 text-bark-950"
-                  : "border-parchment-200/15 bg-bark-900/70 text-parchment-300 hover:bg-bark-800"
+                  ? "border-ink-900/40 bg-ink-900 text-bark-950"
+                  : "border-ink-900/12 bg-paper-100/70 text-ink-600 hover:bg-paper-200"
               }`}
             >
               <span
@@ -242,9 +240,9 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
 
       {/* Photos */}
       <section>
-        <h2 className="mb-2 text-sm font-medium text-parchment-200">
+        <h2 className="mb-2 text-sm font-medium text-ink-700">
           {t("photos")}{" "}
-          <span className="font-normal text-parchment-500">
+          <span className="font-normal text-ink-500">
             ({photos.length}/{MAX_PHOTOS})
           </span>
         </h2>
@@ -264,7 +262,7 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
                   URL.revokeObjectURL(p.previewUrl);
                   setPhotos((prev) => prev.filter((x) => x.id !== p.id));
                 }}
-                className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-bark-800 text-xs text-parchment-200 ring-1 ring-white/20"
+                className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-paper-200 text-xs text-ink-700 ring-1 ring-white/20"
                 aria-label={t("removePhoto")}
               >
                 ×
@@ -277,7 +275,7 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
             // itself is `hidden`, so focusing it shows nothing at all, and the
             // only visible affordance is this label. Tabbing to the photo picker
             // used to give no indication whatsoever.
-            <label className="grid h-20 w-20 cursor-pointer place-items-center rounded-lg border border-dashed border-parchment-200/25 text-2xl text-parchment-500 hover:border-parchment-200/40 hover:text-parchment-300 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ember-400">
+            <label className="grid h-20 w-20 cursor-pointer place-items-center rounded-lg border border-dashed border-ink-900/20 text-2xl text-ink-500 hover:border-ink-900/30 hover:text-ink-600 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ember-400">
               +
               <input
                 type="file"
@@ -299,12 +297,12 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
           )}
         </div>
 
-        <p className="mt-2 text-[11px] leading-relaxed text-parchment-500">
+        <p className="mt-2 text-[11px] leading-relaxed text-ink-500">
           {preparing ? t("photoProcessing") : t("photoHelp")}
         </p>
 
         {heldForReview && (
-          <p className="mt-2 text-[11px] text-amber-400">
+          <p className="mt-2 text-[11px] text-amber-700">
             {t("noPhotoWarning")}
           </p>
         )}
@@ -313,9 +311,7 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
       {/* Location */}
       <section>
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-medium text-parchment-200">
-            {t("location")}
-          </h2>
+          <h2 className="text-sm font-medium text-ink-700">{t("location")}</h2>
           <button
             type="button"
             onClick={async () => {
@@ -327,7 +323,7 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
                 setError(t("tapToAdjust"));
               }
             }}
-            className="rounded-full border border-parchment-200/15 bg-bark-900/70 px-3 py-1.5 text-xs text-parchment-300 hover:bg-bark-800"
+            className="rounded-full border border-ink-900/12 bg-paper-100/70 px-3 py-1.5 text-xs text-ink-600 hover:bg-paper-200"
           >
             {locating ? t("locating") : t("useMyLocation")}
           </button>
@@ -363,9 +359,7 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
           onChange={setLocation}
           maptilerKey={maptilerKey}
         />
-        <p className="mt-1.5 text-[11px] text-parchment-500">
-          {t("tapToAdjust")}
-        </p>
+        <p className="mt-1.5 text-[11px] text-ink-500">{t("tapToAdjust")}</p>
       </section>
 
       {/* Details */}
@@ -373,7 +367,7 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
         <div>
           <label
             htmlFor="observedAt"
-            className="mb-1 block text-sm font-medium text-parchment-200"
+            className="mb-1 block text-sm font-medium text-ink-700"
           >
             {t("observedAt")}
           </label>
@@ -383,19 +377,17 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
             value={observedAt}
             max={toLocalInput(new Date())}
             onChange={(e) => setObservedAt(e.target.value)}
-            className="w-full rounded-lg border border-parchment-200/15 bg-bark-900/70 px-3 py-2 text-sm text-parchment-100"
+            className="w-full rounded-lg border border-ink-900/12 bg-paper-100/70 px-3 py-2 text-sm text-ink-800"
           />
         </div>
 
         <div>
           <label
             htmlFor="notes"
-            className="mb-1 block text-sm font-medium text-parchment-200"
+            className="mb-1 block text-sm font-medium text-ink-700"
           >
             {t("notes")}{" "}
-            <span className="font-normal text-parchment-500">
-              ({t("optional")})
-            </span>
+            <span className="font-normal text-ink-500">({t("optional")})</span>
           </label>
           <textarea
             id="notes"
@@ -403,19 +395,17 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
             maxLength={MAX_NOTES}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="w-full rounded-lg border border-parchment-200/15 bg-bark-900/70 px-3 py-2 text-sm text-parchment-100"
+            className="w-full rounded-lg border border-ink-900/12 bg-paper-100/70 px-3 py-2 text-sm text-ink-800"
           />
         </div>
 
         <div>
           <label
             htmlFor="email"
-            className="mb-1 block text-sm font-medium text-parchment-200"
+            className="mb-1 block text-sm font-medium text-ink-700"
           >
             {t("email")}{" "}
-            <span className="font-normal text-parchment-500">
-              ({t("optional")})
-            </span>
+            <span className="font-normal text-ink-500">({t("optional")})</span>
           </label>
           <input
             id="email"
@@ -423,16 +413,14 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
-            className="w-full rounded-lg border border-parchment-200/15 bg-bark-900/70 px-3 py-2 text-sm text-parchment-100"
+            className="w-full rounded-lg border border-ink-900/12 bg-paper-100/70 px-3 py-2 text-sm text-ink-800"
           />
-          <p className="mt-1 text-[11px] text-parchment-500">
-            {t("emailHelp")}
-          </p>
+          <p className="mt-1 text-[11px] text-ink-500">{t("emailHelp")}</p>
         </div>
       </section>
 
       {error && (
-        <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
+        <p className="rounded-lg border border-rose-700/30 bg-rose-600/10 px-3 py-2 text-xs text-rose-700">
           {error}
         </p>
       )}
@@ -450,7 +438,7 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
           !location ||
           (turnstileEnabled && !turnstileToken)
         }
-        className="w-full rounded-xl bg-ember-500 px-4 py-3 text-sm font-semibold text-bark-950 transition disabled:cursor-not-allowed disabled:bg-bark-700 disabled:text-parchment-300"
+        className="w-full rounded-xl bg-ember-500 px-4 py-3 text-sm font-semibold text-bark-950 transition disabled:cursor-not-allowed disabled:bg-paper-200 disabled:text-ink-600"
       >
         {phase === "submitting" ? t("submitting") : t("submit")}
       </button>

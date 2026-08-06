@@ -16,22 +16,22 @@ export default function MonthlyChart({ counts }: { counts: number[] }) {
 
   return (
     <figure>
-      <figcaption className="text-xs font-medium uppercase tracking-wide text-parchment-500">
+      <figcaption className="text-xs font-medium uppercase tracking-wide text-ink-500">
         {t("seasonality")}
       </figcaption>
       <div className="mt-2 flex items-end gap-1" role="img" aria-label={t("seasonality")}>
         {counts.map((n, i) => (
           <div key={i} className="flex flex-1 flex-col items-center gap-1">
             <div
-              className="w-full rounded-sm bg-moss-400/70"
+              className="w-full rounded-sm bg-moss-700/70"
               style={{ height: `${Math.max(2, (n / max) * 56)}px` }}
               title={`${i + 1}: ${n}`}
             />
-            <span className="text-[9px] tabular-nums text-parchment-500">{i + 1}</span>
+            <span className="text-[9px] tabular-nums text-ink-500">{i + 1}</span>
           </div>
         ))}
       </div>
-      <p className="mt-1.5 text-[11px] text-parchment-500">
+      <p className="mt-1.5 text-[11px] text-ink-500">
         {t("seasonalityHint", { total, peak: counts.indexOf(max) + 1 })}
       </p>
     </figure>

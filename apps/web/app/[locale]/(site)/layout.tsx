@@ -14,7 +14,7 @@ import SiteFooter from "@/components/site/SiteFooter";
  */
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-[100dvh] flex-col bg-bark-950">
+    <div className="flex min-h-[100dvh] flex-col bg-paper-50">
       <SiteHeader variant="page" />
       <div className="flex-1">{children}</div>
       <SiteFooter />

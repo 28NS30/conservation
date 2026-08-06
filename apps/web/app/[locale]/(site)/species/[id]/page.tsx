@@ -133,7 +133,7 @@ export default async function SpeciesPage({
     <main className="mx-auto w-full max-w-3xl px-6 pb-24 pt-10">
       <Link
         href="/species"
-        className="text-xs text-parchment-400 hover:text-parchment-200"
+        className="text-xs text-ink-500 hover:text-ink-700"
       >
         {nav("backToSpecies")}
       </Link>
@@ -141,21 +141,21 @@ export default async function SpeciesPage({
       {/* The species name is this page's title, so it is set like one — the rest
           of the site moved to a 3xl h1 and this was left at 20px. */}
       <header className="mt-5">
-        <h1 className="text-3xl font-semibold leading-tight text-parchment-50">
+        <h1 className="text-3xl font-semibold leading-tight text-ink-900">
           {headline}
         </h1>
         {secondary && (
-          <p className="mt-2 text-base text-parchment-300">
+          <p className="mt-2 text-base text-ink-600">
             <span className="italic">{secondary}</span>
             {s.nameAuthor && (
-              <span className="ml-1.5 not-italic text-parchment-500">
+              <span className="ml-1.5 not-italic text-ink-500">
                 {s.nameAuthor}
               </span>
             )}
           </p>
         )}
         {s.altNamesZh && s.altNamesZh.length > 0 && (
-          <p className="mt-1 text-xs text-parchment-500">
+          <p className="mt-1 text-xs text-ink-500">
             {t("alsoKnownAs")}: {s.altNamesZh.join("、")}
           </p>
         )}
@@ -165,11 +165,11 @@ export default async function SpeciesPage({
       {lineage.length > 0 && (
         <nav
           aria-label={t("taxonomy")}
-          className="mt-4 text-[11px] text-parchment-500"
+          className="mt-4 text-[11px] text-ink-500"
         >
           {lineage.join(" › ")}
           {habitats.length > 0 && (
-            <span className="ml-2 text-parchment-500">
+            <span className="ml-2 text-ink-500">
               · {habitats.join(" / ")}
             </span>
           )}
@@ -177,17 +177,17 @@ export default async function SpeciesPage({
       )}
 
       <section className="mt-8">
-        <h2 className="text-lg font-semibold text-parchment-50">
+        <h2 className="text-lg font-semibold text-ink-900">
           {t("records")}
         </h2>
 
         {withheld ? (
-          <p className="mt-2 rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2.5 text-[12px] leading-relaxed text-amber-200">
+          <p className="mt-2 rounded-lg border border-amber-700/30 bg-amber-600/10 px-3 py-2.5 text-[12px] leading-relaxed text-amber-800">
             {t("coordinatesWithheld")}
           </p>
         ) : s.reportCount === 0 ? (
-          <div className="mt-2 rounded-lg border border-parchment-200/10 bg-bark-900/50 px-3 py-4 text-center">
-            <p className="text-sm text-parchment-400">{t("noRecords")}</p>
+          <div className="mt-2 rounded-lg border border-ink-900/10 bg-paper-100 px-3 py-4 text-center">
+            <p className="text-sm text-ink-500">{t("noRecords")}</p>
             <Link
               href="/report"
               className="mt-3 inline-block rounded-full bg-ember-500 px-3.5 py-1.5 text-xs font-semibold text-bark-950 hover:bg-ember-400"
@@ -197,10 +197,10 @@ export default async function SpeciesPage({
           </div>
         ) : (
           <>
-            <p className="mt-1 text-sm text-parchment-300">
+            <p className="mt-1 text-sm text-ink-600">
               {t("recordCount", { count: s.reportCount })}
               {s.firstSeen && s.lastSeen && (
-                <span className="ml-2 text-parchment-500">
+                <span className="ml-2 text-ink-500">
                   {new Date(s.firstSeen).getFullYear()}–
                   {new Date(s.lastSeen).getFullYear()}
                 </span>
@@ -216,7 +216,7 @@ export default async function SpeciesPage({
             </div>
 
             {s.sensitivity && (
-              <p className="mt-2 text-[11px] leading-relaxed text-amber-300/80">
+              <p className="mt-2 text-[11px] leading-relaxed text-amber-700/80">
                 {t("blurredNotice")}
               </p>
             )}
@@ -226,20 +226,20 @@ export default async function SpeciesPage({
                 {records.map((r) => (
                   <li
                     key={r.id}
-                    className="flex items-center justify-between gap-3 rounded border border-parchment-200/10 px-2.5 py-1.5"
+                    className="flex items-center justify-between gap-3 rounded border border-ink-900/10 px-2.5 py-1.5"
                   >
                     <Link
                       href={`/reports/${r.id}`}
-                      className="text-parchment-300 hover:text-parchment-100"
+                      className="text-ink-600 hover:text-ink-800"
                     >
                       {new Date(r.observedAt).toLocaleDateString(locale, {
                         timeZone: "Asia/Taipei",
                       })}
                     </Link>
-                    <span className="tabular-nums text-parchment-500">
+                    <span className="tabular-nums text-ink-500">
                       {r.lat.toFixed(3)}, {r.lng.toFixed(3)}
                       {r.isObscured && (
-                        <span className="ml-1.5 text-amber-400">≈</span>
+                        <span className="ml-1.5 text-amber-700">≈</span>
                       )}
                     </span>
                   </li>
@@ -259,7 +259,7 @@ export default async function SpeciesPage({
       {!withheld && s.reportCount > 0 && (
         <Link
           href="/report"
-          className="mt-6 inline-block rounded-full border border-parchment-200/15 px-3.5 py-1.5 text-xs text-parchment-300 hover:bg-bark-800"
+          className="mt-6 inline-block rounded-full border border-ink-900/12 px-3.5 py-1.5 text-xs text-ink-600 hover:bg-paper-200"
         >
           + {t("seenOne")}
         </Link>

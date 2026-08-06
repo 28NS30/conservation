@@ -18,10 +18,10 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
 
   return (
     <main className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col items-center justify-center px-4 text-center">
-      <h1 className="text-lg font-semibold text-parchment-100">{t("title")}</h1>
-      <p className="mt-2 text-sm text-parchment-400">{t("body")}</p>
+      <h1 className="text-lg font-semibold text-ink-800">{t("title")}</h1>
+      <p className="mt-2 text-sm text-ink-500">{t("body")}</p>
       {error.digest && (
-        <p className="mt-2 font-mono text-[11px] text-parchment-500">{error.digest}</p>
+        <p className="mt-2 font-mono text-[11px] text-ink-500">{error.digest}</p>
       )}
       <div className="mt-5 flex gap-2">
         <button
@@ -33,7 +33,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
         </button>
         <Link
           href="/"
-          className="rounded-full border border-parchment-200/15 px-4 py-1.5 text-xs text-parchment-300 hover:bg-bark-800"
+          className="rounded-full border border-ink-900/12 px-4 py-1.5 text-xs text-ink-600 hover:bg-paper-200"
         >
           {t("backHome")}
         </Link>

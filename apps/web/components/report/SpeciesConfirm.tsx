@@ -32,7 +32,9 @@ export default function SpeciesConfirm({
 
   return (
     <section className="mt-5">
-      <h2 className="text-xs font-medium uppercase tracking-wide text-parchment-500">{t("suggestions")}</h2>
+      <h2 className="text-xs font-medium uppercase tracking-wide text-ink-500">
+        {t("suggestions")}
+      </h2>
 
       <ul className="mt-1.5 space-y-1">
         {suggestions.map((s) => {
@@ -56,16 +58,20 @@ export default function SpeciesConfirm({
                 className={`flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left text-sm transition ${
                   active
                     ? "border-ember-500/50 bg-ember-500/10"
-                    : "border-parchment-200/10 bg-bark-900/50"
-                } ${canEdit ? "hover:border-parchment-200/30" : "cursor-default"}`}
+                    : "border-ink-900/10 bg-paper-100"
+                } ${canEdit ? "hover:border-ink-900/25" : "cursor-default"}`}
               >
                 <span className="min-w-0">
-                  {s.commonNameZh && <span className="mr-2 text-parchment-100">{s.commonNameZh}</span>}
-                  <span className="italic text-parchment-400">{s.scientificName}</span>
+                  {s.commonNameZh && (
+                    <span className="mr-2 text-ink-800">{s.commonNameZh}</span>
+                  )}
+                  <span className="italic text-ink-500">
+                    {s.scientificName}
+                  </span>
                 </span>
-                <span className="shrink-0 tabular-nums text-xs text-parchment-500">
+                <span className="shrink-0 tabular-nums text-xs text-ink-500">
                   {Math.round(s.score * 100)}%
-                  {active && <span className="ml-2 text-ember-400">✓</span>}
+                  {active && <span className="ml-2 text-ember-700">✓</span>}
                 </span>
               </button>
             </li>
@@ -73,9 +79,9 @@ export default function SpeciesConfirm({
         })}
       </ul>
 
-      {error && <p className="mt-2 text-[11px] text-rose-400">{error}</p>}
+      {error && <p className="mt-2 text-[11px] text-rose-700">{error}</p>}
 
-      <p className="mt-2 text-[11px] text-parchment-500">
+      <p className="mt-2 text-[11px] text-ink-500">
         {canEdit ? t("pickCorrect") : t("confirmedBy")}
       </p>
     </section>

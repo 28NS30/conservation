@@ -41,13 +41,13 @@ function Section({
 }) {
   return (
     <section
-      className={`rounded-xl border border-parchment-200/10 bg-bark-900/50 p-5 ${
+      className={`rounded-xl border border-ink-900/10 bg-paper-100 p-5 ${
         span ? "lg:col-span-2" : ""
       }`}
     >
-      <h2 className="text-sm font-semibold text-parchment-100">{title}</h2>
+      <h2 className="text-sm font-semibold text-ink-800">{title}</h2>
       {hint && (
-        <p className="mt-1 text-[11px] leading-relaxed text-parchment-500">
+        <p className="mt-1 text-[11px] leading-relaxed text-ink-500">
           {hint}
         </p>
       )}
@@ -110,12 +110,12 @@ export default async function StatsPage({
         ].map((s) => (
           <div
             key={s.k}
-            className="rounded-lg border border-parchment-200/10 bg-bark-900/50 px-4 py-3.5"
+            className="rounded-lg border border-ink-900/10 bg-paper-100 px-4 py-3.5"
           >
-            <dt className="text-[11px] text-parchment-500">
+            <dt className="text-[11px] text-ink-500">
               {t(`metric.${s.k}`)}
             </dt>
-            <dd className="mt-0.5 text-xl font-semibold tabular-nums text-parchment-100">
+            <dd className="mt-0.5 text-xl font-semibold tabular-nums text-ink-800">
               {s.v}
             </dd>
           </div>
@@ -151,7 +151,7 @@ export default async function StatsPage({
             highlight={peak}
             data={months.map((v, i) => ({ key: monthNames[i], n: v }))}
           />
-          <p className="mt-2 text-[11px] text-parchment-500">
+          <p className="mt-2 text-[11px] text-ink-500">
             {t("peakMonth", {
               month: new Intl.DateTimeFormat(locale, { month: "long" }).format(
                 new Date(Date.UTC(2021, peak, 1)),
@@ -181,36 +181,36 @@ export default async function StatsPage({
                 <li key={s.id}>
                   <Link
                     href={`/species/${speciesSlug(s)}`}
-                    className="flex items-center gap-3 rounded-lg px-2 py-1.5 transition hover:bg-parchment-50/5"
+                    className="flex items-center gap-3 rounded-lg px-2 py-1.5 transition hover:bg-ink-900/5"
                   >
-                    <span className="w-5 shrink-0 text-right text-[11px] tabular-nums text-parchment-500">
+                    <span className="w-5 shrink-0 text-right text-[11px] tabular-nums text-ink-500">
                       {i + 1}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm text-parchment-100">
+                      <span className="block truncate text-sm text-ink-800">
                         {headline}
                         {s.protectedStatus && (
-                          <span className="ml-1.5 rounded bg-amber-400/15 px-1 py-px text-[9px] text-amber-300">
+                          <span className="ml-1.5 rounded bg-amber-400/15 px-1 py-px text-[9px] text-amber-700">
                             {t("protected")}
                           </span>
                         )}
                         {s.isInvasive && (
-                          <span className="ml-1.5 rounded bg-rose-400/15 px-1 py-px text-[9px] text-rose-300">
+                          <span className="ml-1.5 rounded bg-rose-400/15 px-1 py-px text-[9px] text-rose-700">
                             {t("invasive")}
                           </span>
                         )}
                       </span>
                       {secondary && (
-                        <span className="block truncate text-[11px] italic text-parchment-500">
+                        <span className="block truncate text-[11px] italic text-ink-500">
                           {secondary}
                         </span>
                       )}
                     </span>
                     <span className="shrink-0 text-right">
-                      <span className="block text-sm tabular-nums text-parchment-200">
+                      <span className="block text-sm tabular-nums text-ink-700">
                         {n(s.reportCount)}
                       </span>
-                      <span className="block text-[10px] tabular-nums text-parchment-500">
+                      <span className="block text-[10px] tabular-nums text-ink-500">
                         {share.toFixed(1)}%
                       </span>
                     </span>
@@ -237,13 +237,13 @@ export default async function StatsPage({
                       z: "11",
                     },
                   }}
-                  className="flex items-center gap-3 rounded-lg px-2 py-1.5 transition hover:bg-parchment-50/5"
+                  className="flex items-center gap-3 rounded-lg px-2 py-1.5 transition hover:bg-ink-900/5"
                 >
-                  <span className="w-5 shrink-0 text-right text-[11px] tabular-nums text-parchment-500">
+                  <span className="w-5 shrink-0 text-right text-[11px] tabular-nums text-ink-500">
                     {i + 1}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm text-parchment-100">
+                    <span className="block truncate text-sm text-ink-800">
                       {h.topSpeciesZh || h.topSpeciesSci
                         ? t("dominatedBy", {
                             species:
@@ -254,14 +254,14 @@ export default async function StatsPage({
                           })
                         : t("mixedSpecies")}
                     </span>
-                    <span className="block text-[11px] tabular-nums text-parchment-500">
+                    <span className="block text-[11px] tabular-nums text-ink-500">
                       {h.lat.toFixed(3)}°N, {h.lng.toFixed(3)}°E
                     </span>
                   </span>
                   {/* One line: stacked, the lone unit character read as a
                       stray glyph floating under the count. */}
-                  <span className="shrink-0 whitespace-nowrap text-[10px] tabular-nums text-parchment-500">
-                    <span className="text-sm text-parchment-200">{n(h.n)}</span>{" "}
+                  <span className="shrink-0 whitespace-nowrap text-[10px] tabular-nums text-ink-500">
+                    <span className="text-sm text-ink-700">{n(h.n)}</span>{" "}
                     {t("perCell")}
                   </span>
                 </Link>
@@ -271,7 +271,7 @@ export default async function StatsPage({
         </Section>
 
         <Section title={t("coverage")} span>
-          <p className="text-xs leading-relaxed text-parchment-400">
+          <p className="text-xs leading-relaxed text-ink-500">
             {t("coverageBody", {
               obscured: n(ov.obscured),
               total: n(ov.reports),
@@ -279,7 +279,7 @@ export default async function StatsPage({
           </p>
           <Link
             href="/about"
-            className="mt-2 inline-block text-xs text-ember-400 transition hover:text-ember-300"
+            className="mt-2 inline-block text-xs text-ember-700 transition hover:underline"
           >
             {t("howObscuringWorks")} →
           </Link>

@@ -36,14 +36,14 @@ export default function Columns({
           >
             <div
               className={`w-full rounded-sm transition-colors ${
-                i === highlight ? "bg-ember-400" : "bg-moss-400/70"
+                i === highlight ? "bg-ember-400" : "bg-moss-700/70"
               }`}
               // Always at least 2px: a zero-height bar reads as missing data
               // rather than as a genuine zero.
               style={{ height: `${Math.max(2, (d.n / max) * height)}px` }}
               title={`${d.key}: ${d.n.toLocaleString()}`}
             />
-            <span className="truncate text-[9px] tabular-nums text-parchment-500">
+            <span className="truncate text-[9px] tabular-nums text-ink-500">
               {d.key}
             </span>
           </div>

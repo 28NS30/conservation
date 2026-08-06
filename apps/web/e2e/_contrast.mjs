@@ -42,6 +42,9 @@ for (const path of PAGES) {
       });
       return 0.2126 * r + 0.7152 * g + 0.0722 * bb;
     };
+    // 0.75, not 0.85: the map's legend and mode toggle sit on bg-bark-900/80, and
+    // skipping those made the audit measure their text against the light page
+    // behind them and report three failures that were not real.
     // Resolve through a canvas: computed styles come back as lab()/oklab() for
     // any colour Tailwind built with an opacity modifier, and pulling three
     // numbers out of those with a regex yields nonsense — which is exactly how
@@ -65,7 +68,7 @@ for (const path of PAGES) {
     const bgOf = (el) => {
       for (let n = el; n; n = n.parentElement) {
         const bg = getComputedStyle(n).backgroundColor;
-        if (bg && bg !== "transparent" && alphaOf(bg) > 0.85) return parse(bg);
+        if (bg && bg !== "transparent" && alphaOf(bg) >= 0.75) return parse(bg);
       }
       return [11, 20, 16];
     };

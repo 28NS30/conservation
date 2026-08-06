@@ -36,7 +36,7 @@ export default function LoginPage() {
       <PageHeader title={t("heading")} lede={t("explain")} />
 
       {sent ? (
-        <p className="rounded-lg border border-ember-500/30 bg-ember-500/10 px-3 py-3 text-sm text-ember-400">
+        <p className="rounded-lg border border-ember-500/30 bg-ember-500/10 px-3 py-3 text-sm text-ember-700">
           {t("sent")}
         </p>
       ) : (
@@ -46,14 +46,14 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
-            className="w-full rounded-lg border border-parchment-200/15 bg-bark-900/70 px-3 py-2 text-sm text-parchment-100"
+            className="w-full rounded-lg border border-ink-900/12 bg-paper-100/70 px-3 py-2 text-sm text-ink-800"
           />
-          {error && <p className="text-xs text-rose-400">{error}</p>}
+          {error && <p className="text-xs text-rose-700">{error}</p>}
           <button
             type="button"
             onClick={send}
             disabled={busy || !email.includes("@")}
-            className="w-full rounded-lg bg-ember-500 px-4 py-2.5 text-sm font-semibold text-bark-950 disabled:bg-bark-700 disabled:text-parchment-300"
+            className="w-full rounded-lg bg-ember-500 px-4 py-2.5 text-sm font-semibold text-bark-950 disabled:bg-paper-200 disabled:text-ink-600"
           >
             {busy ? t("sending") : t("send")}
           </button>

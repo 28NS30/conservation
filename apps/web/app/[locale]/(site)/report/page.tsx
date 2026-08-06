@@ -33,7 +33,7 @@ export default async function ReportPage({
         maptilerKey={process.env.NEXT_PUBLIC_MAPTILER_KEY || undefined}
       />
 
-      <p className="mt-8 text-[11px] leading-relaxed text-parchment-500">
+      <p className="mt-8 text-[11px] leading-relaxed text-ink-500">
         {t("privacyNote")}
       </p>
     </main>

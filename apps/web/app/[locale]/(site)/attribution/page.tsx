@@ -54,17 +54,17 @@ export default async function AttributionPage({
       <PageHeader title={t("title")} lede={t("intro")} />
 
       <section className="mt-10">
-        <h2 className="text-lg font-semibold text-parchment-50">
+        <h2 className="text-lg font-semibold text-ink-900">
           {t("occurrenceData")}
         </h2>
-        <p className="mt-2 text-sm leading-relaxed text-parchment-300">
+        <p className="mt-2 text-sm leading-relaxed text-ink-600">
           {t.rich("gbifBody", {
             tairon: (c) => (
               <a
                 href="https://roadkill.tw"
                 target="_blank"
                 rel="noreferrer"
-                className="text-ember-400 underline-offset-2 hover:underline"
+                className="text-ember-700 underline-offset-2 hover:underline"
               >
                 {c}
               </a>
@@ -74,7 +74,7 @@ export default async function AttributionPage({
                 href="https://www.gbif.org/dataset/db09684b-0fd1-431e-b5fa-4c1532fbdb14"
                 target="_blank"
                 rel="noreferrer"
-                className="text-ember-400 underline-offset-2 hover:underline"
+                className="text-ember-700 underline-offset-2 hover:underline"
               >
                 {c}
               </a>
@@ -84,18 +84,18 @@ export default async function AttributionPage({
 
         {licenses.length > 0 && (
           <table className="mt-3 w-full text-left text-xs">
-            <thead className="text-parchment-500">
+            <thead className="text-ink-500">
               <tr>
                 <th className="py-1 font-medium">{t("licence")}</th>
                 <th className="py-1 font-medium">{t("rightsHolder")}</th>
                 <th className="py-1 text-right font-medium">{t("records")}</th>
               </tr>
             </thead>
-            <tbody className="text-parchment-300">
+            <tbody className="text-ink-600">
               {licenses.map((l, i) => (
-                <tr key={i} className="border-t border-parchment-200/5">
+                <tr key={i} className="border-t border-ink-900/10">
                   <td className="py-1.5">{licenseName(l.license)}</td>
-                  <td className="py-1.5 text-parchment-400">
+                  <td className="py-1.5 text-ink-500">
                     {l.rightsHolder ?? t("unspecified")}
                   </td>
                   <td className="py-1.5 text-right tabular-nums">
@@ -103,7 +103,7 @@ export default async function AttributionPage({
                   </td>
                 </tr>
               ))}
-              <tr className="border-t border-parchment-200/10 font-medium">
+              <tr className="border-t border-ink-900/10 font-medium">
                 <td className="py-1.5" colSpan={2}>
                   {t("total")}
                 </td>
@@ -117,17 +117,17 @@ export default async function AttributionPage({
       </section>
 
       <section className="mt-10">
-        <h2 className="text-lg font-semibold text-parchment-50">
+        <h2 className="text-lg font-semibold text-ink-900">
           {t("checklist")}
         </h2>
-        <p className="mt-2 text-sm leading-relaxed text-parchment-300">
+        <p className="mt-2 text-sm leading-relaxed text-ink-600">
           {t.rich("taicolBody", {
             taicol: (c) => (
               <a
                 href="https://taicol.tw"
                 target="_blank"
                 rel="noreferrer"
-                className="text-ember-400 underline-offset-2 hover:underline"
+                className="text-ember-700 underline-offset-2 hover:underline"
               >
                 {c}
               </a>
@@ -137,28 +137,28 @@ export default async function AttributionPage({
       </section>
 
       <section className="mt-10">
-        <h2 className="text-lg font-semibold text-parchment-50">
+        <h2 className="text-lg font-semibold text-ink-900">
           {t("basemap")}
         </h2>
-        <p className="mt-2 text-sm leading-relaxed text-parchment-300">
+        <p className="mt-2 text-sm leading-relaxed text-ink-600">
           {t("basemapBody")}
         </p>
       </section>
 
       <section className="mt-10">
-        <h2 className="text-lg font-semibold text-parchment-50">
+        <h2 className="text-lg font-semibold text-ink-900">
           {t("models")}
         </h2>
-        <p className="mt-2 text-sm leading-relaxed text-parchment-300">
+        <p className="mt-2 text-sm leading-relaxed text-ink-600">
           {t("modelsBody")}
         </p>
       </section>
 
       <section className="mt-10">
-        <h2 className="text-lg font-semibold text-parchment-50">
+        <h2 className="text-lg font-semibold text-ink-900">
           {t("ourData")}
         </h2>
-        <p className="mt-2 text-sm leading-relaxed text-parchment-300">
+        <p className="mt-2 text-sm leading-relaxed text-ink-600">
           {t("ourDataBody")}
         </p>
       </section>

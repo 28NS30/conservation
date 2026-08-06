@@ -21,9 +21,9 @@ export default function PageHeader({
 }) {
   return (
     <header className="mb-8">
-      <h1 className="text-3xl font-semibold text-parchment-50">{title}</h1>
+      <h1 className="text-3xl font-semibold text-ink-900">{title}</h1>
       {lede && (
-        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-parchment-300">
+        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-600">
           {lede}
         </p>
       )}
@@ -49,9 +49,9 @@ export function ProseSection({
   return (
     <section className="mt-10">
       {title && (
-        <h2 className="text-lg font-semibold text-parchment-50">{title}</h2>
+        <h2 className="text-lg font-semibold text-ink-900">{title}</h2>
       )}
-      <div className="mt-3 text-sm leading-relaxed text-parchment-300">
+      <div className="mt-3 text-sm leading-relaxed text-ink-600">
         {children}
       </div>
     </section>

@@ -2,7 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { publishReport, rejectReport } from "@/app/[locale]/(site)/admin/actions";
+import {
+  publishReport,
+  rejectReport,
+} from "@/app/[locale]/(site)/admin/actions";
 
 export default function ModerationRow(props: {
   id: string;
@@ -24,8 +27,9 @@ export default function ModerationRow(props: {
 
   if (done) {
     return (
-      <li className="rounded-lg border border-parchment-200/10 bg-bark-900/40 px-4 py-2 text-xs text-parchment-500">
-        {done === "published" ? t("published") : t("rejected")} · {props.id.slice(0, 8)}
+      <li className="rounded-lg border border-ink-900/10 bg-paper-100/60 px-4 py-2 text-xs text-ink-500">
+        {done === "published" ? t("published") : t("rejected")} ·{" "}
+        {props.id.slice(0, 8)}
       </li>
     );
   }
@@ -42,29 +46,36 @@ export default function ModerationRow(props: {
     });
 
   return (
-    <li className="rounded-xl border border-parchment-200/10 bg-bark-900/60 p-3">
+    <li className="rounded-xl border border-ink-900/10 bg-paper-100 p-3">
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        <span className="h-2 w-2 rounded-full" style={{ background: props.categoryColor }} />
-        <span className="font-medium text-parchment-100">{props.categoryLabel}</span>
-        <span className="text-parchment-500">
-          {new Date(props.observedAt).toLocaleString(locale, { timeZone: "Asia/Taipei" })}
+        <span
+          className="h-2 w-2 rounded-full"
+          style={{ background: props.categoryColor }}
+        />
+        <span className="font-medium text-ink-800">{props.categoryLabel}</span>
+        <span className="text-ink-500">
+          {new Date(props.observedAt).toLocaleString(locale, {
+            timeZone: "Asia/Taipei",
+          })}
         </span>
         {props.flaggedReason && (
-          <span className="rounded bg-amber-400/15 px-1.5 py-0.5 text-[10px] text-amber-300">
+          <span className="rounded bg-amber-400/15 px-1.5 py-0.5 text-[10px] text-amber-700">
             {props.flaggedReason}
           </span>
         )}
       </div>
 
       {props.speciesLabel && (
-        <p className="mt-1 text-xs text-parchment-300">{props.speciesLabel}</p>
+        <p className="mt-1 text-xs text-ink-600">{props.speciesLabel}</p>
       )}
-      {props.notes && <p className="mt-1 text-xs text-parchment-400">{props.notes}</p>}
+      {props.notes && (
+        <p className="mt-1 text-xs text-ink-500">{props.notes}</p>
+      )}
 
-      <p className="mt-1 text-[11px] tabular-nums text-parchment-500">
+      <p className="mt-1 text-[11px] tabular-nums text-ink-500">
         {props.lat.toFixed(5)}, {props.lng.toFixed(5)}{" "}
         <a
-          className="underline hover:text-parchment-300"
+          className="underline hover:text-ink-600"
           href={`https://www.google.com/maps?q=${props.lat},${props.lng}`}
           target="_blank"
           rel="noreferrer"
@@ -77,12 +88,17 @@ export default function ModerationRow(props: {
         <div className="mt-2 flex gap-2">
           {props.photoUrls.map((u) => (
             // eslint-disable-next-line @next/next/no-img-element
-            <img key={u} src={u} alt="" className="h-24 w-24 rounded-lg object-cover" />
+            <img
+              key={u}
+              src={u}
+              alt=""
+              className="h-24 w-24 rounded-lg object-cover"
+            />
           ))}
         </div>
       )}
 
-      {error && <p className="mt-2 text-[11px] text-rose-400">{error}</p>}
+      {error && <p className="mt-2 text-[11px] text-rose-700">{error}</p>}
 
       <div className="mt-3 flex gap-2">
         <button
@@ -100,7 +116,7 @@ export default function ModerationRow(props: {
             const reason = prompt(t("rejectReason")) ?? "";
             if (reason) act(() => rejectReport(props.id, reason), "rejected");
           }}
-          className="rounded-lg border border-parchment-200/15 px-3 py-1.5 text-xs text-parchment-300 disabled:opacity-50"
+          className="rounded-lg border border-ink-900/12 px-3 py-1.5 text-xs text-ink-600 disabled:opacity-50"
         >
           {t("reject")}
         </button>

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
-import Mark from "@/components/brand/Mark";
+import Badge from "@/components/brand/Badge";
 
 export async function generateMetadata({
   params,
@@ -47,12 +47,12 @@ export default async function AboutPage({
 
   return (
     <main className="mx-auto w-full max-w-2xl px-6 pb-24 pt-14 sm:pt-20">
-      <header className="border-b border-parchment-200/10 pb-10">
-        <Mark className="size-16" />
-        <h1 className="mt-6 text-3xl font-semibold leading-tight text-parchment-50">
+      <header className="border-b border-ink-900/10 pb-10">
+        <Badge size={112} priority />
+        <h1 className="mt-6 text-3xl font-semibold leading-tight text-ink-900">
           {t("title")}
         </h1>
-        <p className="mt-4 text-base leading-relaxed text-parchment-200">
+        <p className="mt-4 text-base leading-relaxed text-ink-700">
           {site("description")}
         </p>
       </header>
@@ -62,14 +62,12 @@ export default async function AboutPage({
       ))}
 
       {/* The trust centrepiece. Everything else here is context for it. */}
-      <section className="mt-12 rounded-xl border border-parchment-200/15 bg-bark-900 p-7">
-        <h2 className="text-lg font-semibold text-parchment-50">
-          {t("howTitle")}
-        </h2>
-        <p className="mt-3 text-sm leading-relaxed text-parchment-200">
+      <section className="mt-12 rounded-xl border border-ink-900/12 bg-paper-100 p-7">
+        <h2 className="text-lg font-semibold text-ink-900">{t("howTitle")}</h2>
+        <p className="mt-3 text-sm leading-relaxed text-ink-700">
           {t("howBody")}
         </p>
-        <p className="mt-4 border-l-2 border-ember-500/40 pl-4 text-sm leading-relaxed text-parchment-300">
+        <p className="mt-4 border-l-2 border-ember-700/40 pl-4 text-sm leading-relaxed text-ink-600">
           {t("howDetail")}
         </p>
       </section>
@@ -78,7 +76,7 @@ export default async function AboutPage({
         <Block key={heading} title={t(heading)} body={t(body)} />
       ))}
 
-      <div className="mt-14 flex flex-wrap items-center gap-3 border-t border-parchment-200/10 pt-8">
+      <div className="mt-14 flex flex-wrap items-center gap-3 border-t border-ink-900/10 pt-8">
         <Link
           href="/report"
           className="rounded-full bg-ember-500 px-5 py-2.5 text-sm font-semibold text-bark-950 transition hover:bg-ember-400"
@@ -87,13 +85,13 @@ export default async function AboutPage({
         </Link>
         <Link
           href="/attribution"
-          className="rounded-full border border-parchment-200/25 px-5 py-2.5 text-sm text-parchment-100 transition hover:border-parchment-200/50 hover:bg-parchment-50/5"
+          className="rounded-full border border-ink-900/20 px-5 py-2.5 text-sm text-ink-800 transition hover:border-ink-900/35 hover:bg-ink-900/5"
         >
           {nav("attribution")}
         </Link>
         <Link
           href="/privacy"
-          className="rounded-full border border-parchment-200/25 px-5 py-2.5 text-sm text-parchment-100 transition hover:border-parchment-200/50 hover:bg-parchment-50/5"
+          className="rounded-full border border-ink-900/20 px-5 py-2.5 text-sm text-ink-800 transition hover:border-ink-900/35 hover:bg-ink-900/5"
         >
           {nav("privacy")}
         </Link>
@@ -105,8 +103,8 @@ export default async function AboutPage({
 function Block({ title, body }: { title: string; body: string }) {
   return (
     <section className="mt-12">
-      <h2 className="text-lg font-semibold text-parchment-50">{title}</h2>
-      <p className="mt-3 text-sm leading-relaxed text-parchment-300">{body}</p>
+      <h2 className="text-lg font-semibold text-ink-900">{title}</h2>
+      <p className="mt-3 text-sm leading-relaxed text-ink-600">{body}</p>
     </section>
   );
 }
