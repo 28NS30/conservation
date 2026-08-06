@@ -4,6 +4,7 @@ import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { routing } from "@/i18n/routing";
 import ServiceWorker from "@/components/ServiceWorker";
+import { Analytics } from "@vercel/analytics/next";
 import "../globals.css";
 
 export function generateStaticParams() {
@@ -46,6 +47,13 @@ export default async function LocaleLayout({
           <ServiceWorker />
           {children}
         </NextIntlClientProvider>
+        {/* Page-view counts only. Cookieless and with no cross-site identifier,
+            which is what keeps the promise /privacy already makes — no
+            advertising or tracking cookies. It is here rather than omitted
+            because without it "does the landing page lead to a report" is
+            unanswerable even after launch, and that is the question the design
+            exists to get right. */}
+        <Analytics />
       </body>
     </html>
   );

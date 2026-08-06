@@ -3,10 +3,12 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 
 const envPath = join(process.cwd(), "..", "..", ".env");
-if (existsSync(envPath) && !process.env.DATABASE_URL) process.loadEnvFile(envPath);
+if (existsSync(envPath) && !process.env.DATABASE_URL)
+  process.loadEnvFile(envPath);
 
 const url = process.env.DATABASE_URL;
-if (!url) throw new Error("DATABASE_URL is not set — copy .env.example to .env");
+if (!url)
+  throw new Error("DATABASE_URL is not set — copy .env.example to .env");
 
 /**
  * Single pooled client, cached on globalThis so Next's dev hot-reload doesn't
@@ -22,22 +24,28 @@ const g = globalThis as unknown as { __sql?: postgres.Sql };
 export const sql =
   g.__sql ??
   postgres(url, {
+    // Per process, not per build. `next build` prerenders ~834 species pages
+    // across 9 workers, so this is really up to 72 concurrent connections — it
+    // exhausted a local Postgres (max_connections 100) once the dev server's own
+    // 32 were also open. Supabase's transaction pooler absorbs that comfortably,
+    // but if a production build ever fails with SQLSTATE 53300 rather than an
+    // auth error, this number is why.
     max: 8,
     idle_timeout: 20,
     connect_timeout: 10,
     prepare: false,
-  // taxa.id and friends are bigserial. postgres.js returns int8 as a *string* by
-  // default to avoid precision loss — safe, but it silently breaks `===` against
-  // numbers in JS and JSON round-trips. Our ids are far below 2^53, so parse them
-  // as numbers and keep the type annotations honest.
-  types: {
-    bigint: {
-      to: 20,
-      from: [20],
-      serialize: (v: number | string | bigint) => String(v),
-      parse: (v: string) => Number(v),
+    // taxa.id and friends are bigserial. postgres.js returns int8 as a *string* by
+    // default to avoid precision loss — safe, but it silently breaks `===` against
+    // numbers in JS and JSON round-trips. Our ids are far below 2^53, so parse them
+    // as numbers and keep the type annotations honest.
+    types: {
+      bigint: {
+        to: 20,
+        from: [20],
+        serialize: (v: number | string | bigint) => String(v),
+        parse: (v: string) => Number(v),
+      },
     },
-  },
     onnotice: () => {},
   });
 

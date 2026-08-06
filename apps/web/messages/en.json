@@ -239,6 +239,8 @@
     "retentionBody": "Reports are kept indefinitely, because their scientific value comes from accumulating over time. If you want your report or contact email removed, get in touch.",
     "thirdPartyTitle": "Third-party services",
     "thirdPartyBody": "The site uses Supabase (database and file storage), Vercel (hosting), CARTO and OpenStreetMap (basemap), and Modal (AI inference). Photos are sent to the inference service for species identification.",
+    "analyticsTitle": "Usage statistics",
+    "analyticsBody": "We count page views through Vercel Analytics, to see how many people find the reporting page. It sets no cookies, creates no cross-site identifier, and records nothing that identifies a person — what we see is “the home page was viewed N times”, not who viewed it.",
     "cookiesTitle": "Cookies",
     "cookiesBody": "Only an essential session cookie, and only if you choose to sign in. No advertising or tracking cookies are used."
   },

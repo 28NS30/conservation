@@ -32,6 +32,7 @@ export default async function PrivacyPage({
     ["locationTitle", "locationBody"],
     ["retentionTitle", "retentionBody"],
     ["thirdPartyTitle", "thirdPartyBody"],
+    ["analyticsTitle", "analyticsBody"],
     ["cookiesTitle", "cookiesBody"],
   ] as const;
 

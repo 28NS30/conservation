@@ -239,6 +239,8 @@
     "retentionBody": "通報紀錄會長期保存，因為其科學價值來自長期累積。若您希望移除自己的通報或聯絡信箱，請與我們聯繫。",
     "thirdPartyTitle": "第三方服務",
     "thirdPartyBody": "本站使用 Supabase（資料庫與檔案儲存）、Vercel（網站主機）、CARTO 與 OpenStreetMap（底圖），以及 Modal（AI 辨識運算）。照片會傳送至辨識服務進行物種判斷。",
+    "analyticsTitle": "使用統計",
+    "analyticsBody": "我們透過 Vercel Analytics 計算各頁面的瀏覽次數，用來了解有多少人找到通報頁面。它不使用 cookie、不建立跨網站識別碼，也不記錄可辨識個人的資料——我們看到的是「首頁被看了幾次」，而不是誰看的。",
     "cookiesTitle": "Cookie",
     "cookiesBody": "僅在您選擇登入時使用必要的登入 cookie。本站不使用廣告或追蹤 cookie。"
   },
