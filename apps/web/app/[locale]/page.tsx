@@ -104,7 +104,7 @@ export default async function HomePage({
         {/* Top-aligned while the island occupies the lower part of the frame;
             vertically centred once it moves off to the side. `lg` is where
             frameIsland switches arrangements — the two must agree. */}
-        <div className="pointer-events-none absolute inset-0 flex items-start pt-24 lg:items-center lg:pt-0">
+        <div className="pointer-events-none absolute inset-0 flex items-start pt-32 lg:items-center lg:pt-0">
           <div className="mx-auto w-full max-w-6xl px-6 sm:px-8">
             <div className="max-w-xl">
               <p className="text-[11px] font-medium uppercase tracking-[0.28em] text-ember-400">

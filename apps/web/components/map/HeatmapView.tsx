@@ -678,6 +678,12 @@ export default function HeatmapView({
         equivalent *without* first traversing a canvas the reader cannot use.
         Placed after the map it became the twelfth tab stop, behind the canvas,
         both zoom buttons and the attribution — which is no use to anyone.
+
+        `sr-only`, not a negative translate. Hiding it with `-translate-y-16`
+        assumed the offset moved it off the top of the screen, but this element's
+        containing block starts *below* the site header, so it translated up into
+        the header instead — where it sat permanently visible over the wordmark,
+        at both desktop and phone widths.
       */}
       {!presentation && (
         <Link
@@ -687,7 +693,11 @@ export default function HeatmapView({
               new URLSearchParams(filterToQuery(filter)),
             ),
           }}
-          className="absolute left-3 top-3 z-30 -translate-y-16 rounded-full bg-parchment-50 px-3 py-1.5 text-xs font-medium text-bark-950 transition focus:translate-y-0"
+          // Every visual utility sits behind `focus:`. Left unqualified they
+          // fight `sr-only` — padding overrides its `padding: 0` and leaves a
+          // 24x12 phantom box in the layout even though the clip stops it
+          // painting.
+          className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-30 focus:rounded-full focus:bg-parchment-50 focus:px-3 focus:py-1.5 focus:text-xs focus:font-medium focus:text-bark-950"
         >
           {t("list.viewAsList")}
         </Link>

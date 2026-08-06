@@ -41,15 +41,17 @@ export default async function SiteHeader({
         app
           ? "z-20 flex shrink-0 flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-parchment-200/10 bg-bark-900/95 px-4 py-2.5 backdrop-blur"
           : overlay
-            ? "absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-6 px-5 py-4 sm:px-8"
+            ? "absolute inset-x-0 top-0 z-20"
             : "sticky top-0 z-20 border-b border-parchment-200/10 bg-bark-950/90 backdrop-blur"
       }
     >
       <div
         className={
-          overlay || app
+          app
             ? "contents"
-            : "mx-auto flex w-full max-w-5xl items-center justify-between gap-6 px-6 py-3"
+            : overlay
+              ? "flex items-center justify-between gap-6 px-5 py-4 sm:px-8"
+              : "mx-auto flex w-full max-w-5xl items-center justify-between gap-6 px-6 py-3"
         }
       >
         <Link href="/" className="shrink-0" aria-label={t("site.title")}>
@@ -89,6 +91,29 @@ export default async function SiteHeader({
           </Link>
         </div>
       </div>
+
+      {/* Phone navigation.
+          The links above are hidden below `sm`, where the wordmark and the
+          report button already fill a 390px row — which left the whole site
+          reachable only from the footer. A second row costs one line of height
+          and needs no menu button, no JS, and no focus trap. The map's own
+          header stays single-row: there, vertical space is the instrument. */}
+      {!app && (
+        <div className="flex items-center justify-between gap-4 border-t border-parchment-200/10 px-5 py-2 sm:hidden">
+          <nav className="flex items-center gap-5">
+            {nav.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                className="text-xs text-parchment-300 transition hover:text-parchment-50"
+              >
+                {l.label}
+              </Link>
+            ))}
+          </nav>
+          <LanguageSwitcher />
+        </div>
+      )}
     </header>
   );
 }
