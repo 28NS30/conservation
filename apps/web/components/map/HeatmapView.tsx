@@ -713,15 +713,19 @@ export default function HeatmapView({
           : { role: "application", "aria-label": t("map.regionLabel") })}
       />
 
+      {/* pr leaves room for the zoom control in the top-right corner: at phone
+          width the chip row wrapped straight under the +/- buttons. (Comment
+          outside the && — as its first child it parses as an object literal.) */}
       {!presentation && (
-        <div className="pointer-events-none absolute left-0 right-0 top-0 p-3 sm:p-4">
+        <div className="pointer-events-none absolute left-0 right-0 top-0 p-3 pr-14 sm:p-4 sm:pr-16">
           <MapFilters value={filter} onChange={setFilter} years={years} />
         </div>
       )}
 
-      {/* Mode toggle + legend */}
+      {/* Mode toggle + legend. Kept clear of the attribution bar, which is
+          bottom-right and had been cutting the legend's caption off. */}
       {!presentation && (
-        <div className="pointer-events-auto absolute bottom-16 right-3 sm:bottom-8 sm:right-4">
+        <div className="pointer-events-auto absolute bottom-16 right-3 sm:bottom-12 sm:right-4">
           <div className="rounded-lg border border-parchment-200/15 bg-bark-900/80 px-3 py-2 text-[11px] text-parchment-300 backdrop-blur">
             <div
               role="group"
