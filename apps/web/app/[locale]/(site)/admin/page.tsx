@@ -1,4 +1,5 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import PageHeader from "@/components/site/PageHeader";
 import { Link } from "@/i18n/navigation";
 import { sql } from "@/lib/db";
 import { currentRole } from "@/lib/auth";
@@ -128,9 +129,7 @@ async function Shell({ children }: { children: React.ReactNode }) {
   const t = await getTranslations("admin");
   return (
     <main className="mx-auto w-full max-w-3xl px-6 pb-24 pt-12">
-      <h1 className="mb-4 mt-2 text-lg font-semibold text-parchment-50">
-        {t("heading")}
-      </h1>
+      <PageHeader title={t("heading")} />
       {children}
     </main>
   );
