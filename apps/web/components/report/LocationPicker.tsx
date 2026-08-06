@@ -5,7 +5,11 @@ import { useTranslations } from "next-intl";
 import type { Marker } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { createMap, type MapHandle } from "@/lib/map";
-import { isInTaiwanBounds, TAIWAN_CENTER } from "@conservation/shared";
+import {
+  isInTaiwanBounds,
+  TAIWAN_BOUNDS,
+  TAIWAN_CENTER,
+} from "@conservation/shared";
 
 export type LatLng = { lat: number; lng: number };
 
@@ -37,12 +41,25 @@ export default function LocationPicker({
         center: value ? [value.lng, value.lat] : TAIWAN_CENTER,
         zoom: value ? 14 : 7,
         navigation: false,
+        // fitBounds below needs the camera free; maxBounds would override it.
+        bounded: false,
       });
       if (cancelled) {
         h.destroy();
         return;
       }
       handle.current = h;
+
+      // Until a location is picked, show the whole island. At a fixed zoom the
+      // east coast fell off the right edge of the column, so anyone reporting
+      // from Hualien or Taitung had to pan before they could tap. Once a
+      // location exists the effect below takes over and zooms in.
+      if (!value) {
+        const fit = () =>
+          h.map.fitBounds(TAIWAN_BOUNDS, { padding: 12, duration: 0 });
+        fit();
+        h.map.on("resize", fit);
+      }
 
       const m = new h.ml.Marker({ color: "#e11d48", draggable: true })
         .setLngLat(value ? [value.lng, value.lat] : TAIWAN_CENTER)
@@ -75,7 +92,11 @@ export default function LocationPicker({
   useEffect(() => {
     if (!value || !marker.current || !handle.current) return;
     marker.current.setLngLat([value.lng, value.lat]);
-    handle.current.map.easeTo({ center: [value.lng, value.lat], zoom: 14, duration: 400 });
+    handle.current.map.easeTo({
+      center: [value.lng, value.lat],
+      zoom: 14,
+      duration: 400,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value?.lat, value?.lng]);
 

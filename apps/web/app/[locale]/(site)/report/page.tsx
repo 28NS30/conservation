@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import PageHeader from "@/components/site/PageHeader";
 import ReportForm from "@/components/report/ReportForm";
 import QueueBanner from "@/components/report/QueueBanner";
 
@@ -24,12 +25,7 @@ export default async function ReportPage({
 
   return (
     <main className="mx-auto w-full max-w-xl px-6 pb-24 pt-12">
-      <header className="mb-6">
-        <h1 className="mt-2 text-lg font-semibold text-parchment-50">
-          {t("heading")}
-        </h1>
-        <p className="text-xs text-parchment-400">{t("subheading")}</p>
-      </header>
+      <PageHeader title={t("heading")} lede={t("subheading")} />
 
       <QueueBanner />
 
