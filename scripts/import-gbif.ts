@@ -41,7 +41,59 @@ type Occurrence = {
   datasetKey?: string;
 };
 
-type SearchPage = { count: number; results: Occurrence[]; endOfRecords: boolean };
+type SearchPage = {
+  count: number;
+  results: Occurrence[];
+  endOfRecords: boolean;
+};
+
+/**
+ * Who to credit, for a dataset that does not credit itself per record.
+ *
+ * CC BY requires attribution by name, but GBIF's occurrence search only carries
+ * `rightsHolder` when the publisher chose to set it on each occurrence — and
+ * TaiRON, the dataset this project is seeded from, does not. The result was
+ * 46,402 CC BY records stored with a null rights holder, which /attribution
+ * faithfully rendered as "unspecified".
+ *
+ * Attribution for GBIF-mediated data belongs at the dataset level anyway, so
+ * resolve the dataset's publishing organisation once and use it as the fallback.
+ * Cached per run: two extra requests per dataset, not per page.
+ */
+const rightsHolderCache = new Map<string, string | null>();
+
+async function datasetRightsHolder(datasetKey: string): Promise<string | null> {
+  const cached = rightsHolderCache.get(datasetKey);
+  if (cached !== undefined) return cached;
+
+  let holder: string | null = null;
+  try {
+    const ds = await fetchJson<{
+      rights?: string;
+      publishingOrganizationKey?: string;
+    }>(`https://api.gbif.org/v1/dataset/${datasetKey}`);
+
+    // An explicit `rights` statement outranks the organisation name.
+    if (ds.rights?.trim()) {
+      holder = ds.rights.trim();
+    } else if (ds.publishingOrganizationKey) {
+      const org = await fetchJson<{ title?: string }>(
+        `https://api.gbif.org/v1/organization/${ds.publishingOrganizationKey}`,
+      );
+      holder = org.title?.trim() || null;
+    }
+  } catch (err) {
+    // Never fail an import over attribution metadata — the licence URL is still
+    // stored per record, and 0007 shows a backfill is straightforward.
+    console.warn(
+      `  ! could not resolve rights holder for ${datasetKey}: ${err}`,
+    );
+  }
+
+  rightsHolderCache.set(datasetKey, holder);
+  if (holder) console.log(`  attribution: ${datasetKey} → ${holder}`);
+  return holder;
+}
 
 type Row = {
   category: string;
@@ -83,39 +135,71 @@ async function loadTaxonIndex(): Promise<Map<string, number>> {
 const failedOffsets: number[] = [];
 
 const stats = {
-  fetched: 0, inserted: 0,
-  skippedNoCoord: 0, skippedOutOfBounds: 0, skippedFuzzy: 0, skippedNoDate: 0, skippedNoId: 0,
-  matchedTaxon: 0, unmatchedTaxon: 0,
+  fetched: 0,
+  inserted: 0,
+  skippedNoCoord: 0,
+  skippedOutOfBounds: 0,
+  skippedFuzzy: 0,
+  skippedNoDate: 0,
+  skippedNoId: 0,
+  matchedTaxon: 0,
+  unmatchedTaxon: 0,
 };
 
-function toRow(o: Occurrence, category: string, taxonIdx: Map<string, number>): Row | null {
-  const lat = o.decimalLatitude, lng = o.decimalLongitude;
-  if (typeof lat !== "number" || typeof lng !== "number") { stats.skippedNoCoord++; return null; }
-  if (!isInTaiwanBounds(lng, lat)) { stats.skippedOutOfBounds++; return null; }
+function toRow(
+  o: Occurrence,
+  category: string,
+  taxonIdx: Map<string, number>,
+  fallbackRightsHolder: string | null,
+): Row | null {
+  const lat = o.decimalLatitude,
+    lng = o.decimalLongitude;
+  if (typeof lat !== "number" || typeof lng !== "number") {
+    stats.skippedNoCoord++;
+    return null;
+  }
+  if (!isInTaiwanBounds(lng, lat)) {
+    stats.skippedOutOfBounds++;
+    return null;
+  }
 
   const unc = o.coordinateUncertaintyInMeters;
   // Only reject when uncertainty is actually reported; most TaiRON rows omit it.
-  if (typeof unc === "number" && unc > MAX_UNCERTAINTY_M) { stats.skippedFuzzy++; return null; }
+  if (typeof unc === "number" && unc > MAX_UNCERTAINTY_M) {
+    stats.skippedFuzzy++;
+    return null;
+  }
 
   const observed = parseObserved(o);
-  if (!observed) { stats.skippedNoDate++; return null; }
+  if (!observed) {
+    stats.skippedNoDate++;
+    return null;
+  }
 
-  const sourceId = o.occurrenceID ?? (o.gbifID != null ? String(o.gbifID) : undefined);
-  if (!sourceId) { stats.skippedNoId++; return null; }
+  const sourceId =
+    o.occurrenceID ?? (o.gbifID != null ? String(o.gbifID) : undefined);
+  if (!sourceId) {
+    stats.skippedNoId++;
+    return null;
+  }
 
   const name = (o.species ?? o.scientificName ?? "").trim();
   const taxonId = name ? (taxonIdx.get(name.toLowerCase()) ?? null) : null;
-  if (taxonId) stats.matchedTaxon++; else if (name) stats.unmatchedTaxon++;
+  if (taxonId) stats.matchedTaxon++;
+  else if (name) stats.unmatchedTaxon++;
 
   return {
-    category, lng, lat,
+    category,
+    lng,
+    lat,
     observed_at: observed,
     taxon_id: taxonId,
     verbatim_name: taxonId ? null : name || null,
     // Namespace by dataset: occurrenceID is only unique within a dataset.
     source_id: `${o.datasetKey ?? "gbif"}:${sourceId}`,
     license: o.license ?? null,
-    rights_holder: o.rightsHolder ?? null,
+    // Per-occurrence first; the dataset's publisher when the record is silent.
+    rights_holder: o.rightsHolder ?? fallbackRightsHolder,
   };
 }
 
@@ -161,16 +245,27 @@ async function resumeOffset(sourcePrefix: string): Promise<number> {
 }
 
 async function importQuery(
-  label: string, params: string, category: string, cap: number,
-  taxonIdx: Map<string, number>, startOffset: number,
+  label: string,
+  params: string,
+  category: string,
+  cap: number,
+  taxonIdx: Map<string, number>,
+  startOffset: number,
 ) {
   const base = `${API}?${params}&hasCoordinate=true&hasGeospatialIssue=false&limit=${PAGE}`;
   const first = await fetchJson<SearchPage>(`${base}&offset=${startOffset}`);
   const total = Math.min(first.count, cap, MAX_OFFSET);
-  console.log(`\n${label}: ${first.count.toLocaleString()} records available, importing up to ${total.toLocaleString()}`);
-  if (startOffset > 0) console.log(`  resuming at offset ${startOffset.toLocaleString()} (use --restart to start over)`);
+  console.log(
+    `\n${label}: ${first.count.toLocaleString()} records available, importing up to ${total.toLocaleString()}`,
+  );
+  if (startOffset > 0)
+    console.log(
+      `  resuming at offset ${startOffset.toLocaleString()} (use --restart to start over)`,
+    );
   if (first.count > MAX_OFFSET && cap > MAX_OFFSET) {
-    console.log(`  note: GBIF caps paging at ${MAX_OFFSET.toLocaleString()}; use the async Download API for the full set.`);
+    console.log(
+      `  note: GBIF caps paging at ${MAX_OFFSET.toLocaleString()}; use the async Download API for the full set.`,
+    );
   }
 
   // A single failed page must not abandon a 150-page run. Record it, carry on,
@@ -191,7 +286,14 @@ async function importQuery(
     }
 
     stats.fetched += page.results.length;
-    const rows = page.results.map((o) => toRow(o, category, taxonIdx)).filter((r): r is Row => r !== null);
+    const rows: Row[] = [];
+    for (const o of page.results) {
+      const fallback = o.datasetKey
+        ? await datasetRightsHolder(o.datasetKey)
+        : null;
+      const row = toRow(o, category, taxonIdx, fallback);
+      if (row) rows.push(row);
+    }
     stats.inserted += await insertBatch(rows);
     progress(Math.min(offset + PAGE, total), total, label);
 
@@ -210,7 +312,9 @@ async function main() {
 
   const taxonIdx = await loadTaxonIndex();
   if (taxonIdx.size === 0) {
-    console.error("`taxa` is empty — run `npm run import:taicol` first so records can be matched to species.");
+    console.error(
+      "`taxa` is empty — run `npm run import:taicol` first so records can be matched to species.",
+    );
     process.exit(1);
   }
   console.log(`Taxon index: ${taxonIdx.size.toLocaleString()} names`);
@@ -223,7 +327,12 @@ async function main() {
     explicitOffset ?? (restart ? 0 : await resumeOffset(TAIRON_DATASET));
 
   await importQuery(
-    "TaiRON roadkill", `datasetKey=${TAIRON_DATASET}`, "roadkill", cap, taxonIdx, roadkillStart,
+    "TaiRON roadkill",
+    `datasetKey=${TAIRON_DATASET}`,
+    "roadkill",
+    cap,
+    taxonIdx,
+    roadkillStart,
   );
 
   if (all) {
@@ -263,7 +372,9 @@ async function main() {
     select count(*) filter (where is_obscured)                          as obscured,
            count(*) filter (where location_precision = 'suppressed')    as suppressed
       from reports`;
-  console.log(`  obscured for sensitivity: ${Number(p.obscured).toLocaleString()} (${Number(p.suppressed).toLocaleString()} fully withheld)\n`);
+  console.log(
+    `  obscured for sensitivity: ${Number(p.obscured).toLocaleString()} (${Number(p.suppressed).toLocaleString()} fully withheld)\n`,
+  );
 
   await sql.end();
 }
