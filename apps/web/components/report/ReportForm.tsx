@@ -14,7 +14,6 @@ import { browserSupabase, PHOTO_BUCKET } from "@/lib/supabase/client";
 import { enqueue } from "@/lib/offline/queue";
 import LocationPicker, { useGeolocate, type LatLng } from "./LocationPicker";
 
-
 type Photo = PreparedPhoto & { previewUrl: string; id: string };
 type Phase = "editing" | "submitting" | "done" | "queued" | "error";
 
@@ -35,7 +34,10 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
   const [email, setEmail] = useState("");
   const [phase, setPhase] = useState<Phase>("editing");
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ id: string; awaitingIdentification: boolean } | null>(null);
+  const [result, setResult] = useState<{
+    id: string;
+    awaitingIdentification: boolean;
+  } | null>(null);
   const [exifOffer, setExifOffer] = useState<LatLng | null>(null);
   const [preparing, setPreparing] = useState(false);
 
@@ -91,12 +93,17 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ count: photos.length }),
         });
-        if (!signRes.ok) throw new Error(`upload signing failed (${signRes.status})`);
-        const { uploads } = (await signRes.json()) as { uploads: { path: string; token: string }[] };
+        if (!signRes.ok)
+          throw new Error(`upload signing failed (${signRes.status})`);
+        const { uploads } = (await signRes.json()) as {
+          uploads: { path: string; token: string }[];
+        };
 
         const storage = browserSupabase().storage.from(PHOTO_BUCKET);
         await Promise.all(
-          uploads.map((u, i) => storage.uploadToSignedUrl(u.path, u.token, photos[i].blob)),
+          uploads.map((u, i) =>
+            storage.uploadToSignedUrl(u.path, u.token, photos[i].blob),
+          ),
         );
         paths = uploads.map((u) => u.path);
       }
@@ -117,15 +124,20 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? `submission failed (${res.status})`);
+      if (!res.ok)
+        throw new Error(data.error ?? `submission failed (${res.status})`);
 
-      setResult({ id: data.id, awaitingIdentification: data.awaitingIdentification });
+      setResult({
+        id: data.id,
+        awaitingIdentification: data.awaitingIdentification,
+      });
       setPhase("done");
     } catch (e) {
       // Network failure (or an outright offline browser) means the report is not
       // lost — it goes to the queue and is sent when connectivity returns. Any
       // other failure is a real rejection and should be shown as one.
-      const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+      const offline =
+        typeof navigator !== "undefined" && navigator.onLine === false;
       const networkish = offline || e instanceof TypeError;
 
       if (networkish) {
@@ -160,8 +172,12 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
   if (phase === "queued") {
     return (
       <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-5">
-        <h2 className="text-base font-semibold text-amber-200">{tOffline("queuedTitle")}</h2>
-        <p className="mt-2 text-xs leading-relaxed text-amber-200/80">{tOffline("queuedBody")}</p>
+        <h2 className="text-base font-semibold text-amber-200">
+          {tOffline("queuedTitle")}
+        </h2>
+        <p className="mt-2 text-xs leading-relaxed text-amber-200/80">
+          {tOffline("queuedBody")}
+        </p>
       </div>
     );
   }
@@ -169,25 +185,33 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
   if (phase === "done" && result) {
     return (
       <div className="rounded-xl border border-ember-500/30 bg-ember-500/10 p-5">
-        <h2 className="text-base font-semibold text-ember-400">{t("thanks")}</h2>
+        <h2 className="text-base font-semibold text-ember-400">
+          {t("thanks")}
+        </h2>
         <p className="mt-1 text-sm text-parchment-300">{t("received")}</p>
         <p className="mt-3 text-xs leading-relaxed text-parchment-400">
           {result.awaitingIdentification ? t("identifying") : t("published")}
         </p>
-        <a href={`/reports/${result.id}`} className="mt-4 inline-block text-xs text-ember-400 underline">
+        <a
+          href={`/reports/${result.id}`}
+          className="mt-4 inline-block text-xs text-ember-400 underline"
+        >
           {t("viewReport")}
         </a>
       </div>
     );
   }
 
-  const heldForReview = CATEGORIES[category].classifiable && photos.length === 0;
+  const heldForReview =
+    CATEGORIES[category].classifiable && photos.length === 0;
 
   return (
     <div className="space-y-6">
       {/* Category */}
       <section>
-        <h2 className="mb-2 text-sm font-medium text-parchment-200">{t("type")}</h2>
+        <h2 className="mb-2 text-sm font-medium text-parchment-200">
+          {t("type")}
+        </h2>
         <div className="flex flex-wrap gap-1.5">
           {CATEGORY_KEYS.map((k) => (
             <button
@@ -200,7 +224,10 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
                   : "border-parchment-200/15 bg-bark-900/70 text-parchment-300 hover:bg-bark-800"
               }`}
             >
-              <span className="h-2 w-2 rounded-full" style={{ background: CATEGORIES[k].color }} />
+              <span
+                className="h-2 w-2 rounded-full"
+                style={{ background: CATEGORIES[k].color }}
+              />
               {tc(k)}
             </button>
           ))}
@@ -220,7 +247,11 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
           {photos.map((p) => (
             <div key={p.id} className="relative">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={p.previewUrl} alt="" className="h-20 w-20 rounded-lg object-cover" />
+              <img
+                src={p.previewUrl}
+                alt=""
+                className="h-20 w-20 rounded-lg object-cover"
+              />
               <button
                 type="button"
                 onClick={() => {
@@ -236,14 +267,23 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
           ))}
 
           {photos.length < MAX_PHOTOS && (
-            <label className="grid h-20 w-20 cursor-pointer place-items-center rounded-lg border border-dashed border-parchment-200/25 text-2xl text-parchment-500 hover:border-parchment-200/40 hover:text-parchment-300">
+            // focus-within is what makes this reachable by keyboard: the input
+            // itself is `hidden`, so focusing it shows nothing at all, and the
+            // only visible affordance is this label. Tabbing to the photo picker
+            // used to give no indication whatsoever.
+            <label className="grid h-20 w-20 cursor-pointer place-items-center rounded-lg border border-dashed border-parchment-200/25 text-2xl text-parchment-500 hover:border-parchment-200/40 hover:text-parchment-300 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ember-400">
               +
               <input
                 type="file"
                 accept="image/*"
                 capture="environment"
                 multiple
-                className="hidden"
+                // sr-only, not hidden. `hidden` is display:none, and a
+                // display:none input is not focusable at all — the photo picker
+                // could not be reached by keyboard, and the focus-within ring on
+                // the label above could never fire because nothing inside it was
+                // ever focused. sr-only keeps it invisible but in the tab order.
+                className="sr-only"
                 onChange={(e) => {
                   void addFiles(e.target.files);
                   e.target.value = "";
@@ -258,14 +298,18 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
         </p>
 
         {heldForReview && (
-          <p className="mt-2 text-[11px] text-amber-400">{t("noPhotoWarning")}</p>
+          <p className="mt-2 text-[11px] text-amber-400">
+            {t("noPhotoWarning")}
+          </p>
         )}
       </section>
 
       {/* Location */}
       <section>
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-medium text-parchment-200">{t("location")}</h2>
+          <h2 className="text-sm font-medium text-parchment-200">
+            {t("location")}
+          </h2>
           <button
             type="button"
             onClick={async () => {
@@ -297,21 +341,34 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
               >
                 {t("exifUse")}
               </button>
-              <button type="button" className="px-1 text-sky-300/70" onClick={() => setExifOffer(null)}>
+              <button
+                type="button"
+                className="px-1 text-sky-300/70"
+                onClick={() => setExifOffer(null)}
+              >
                 {t("exifSkip")}
               </button>
             </span>
           </div>
         )}
 
-        <LocationPicker value={location} onChange={setLocation} maptilerKey={maptilerKey} />
-        <p className="mt-1.5 text-[11px] text-parchment-500">{t("tapToAdjust")}</p>
+        <LocationPicker
+          value={location}
+          onChange={setLocation}
+          maptilerKey={maptilerKey}
+        />
+        <p className="mt-1.5 text-[11px] text-parchment-500">
+          {t("tapToAdjust")}
+        </p>
       </section>
 
       {/* Details */}
       <section className="space-y-3">
         <div>
-          <label htmlFor="observedAt" className="mb-1 block text-sm font-medium text-parchment-200">
+          <label
+            htmlFor="observedAt"
+            className="mb-1 block text-sm font-medium text-parchment-200"
+          >
             {t("observedAt")}
           </label>
           <input
@@ -325,8 +382,14 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
         </div>
 
         <div>
-          <label htmlFor="notes" className="mb-1 block text-sm font-medium text-parchment-200">
-            {t("notes")} <span className="font-normal text-parchment-500">({t("optional")})</span>
+          <label
+            htmlFor="notes"
+            className="mb-1 block text-sm font-medium text-parchment-200"
+          >
+            {t("notes")}{" "}
+            <span className="font-normal text-parchment-500">
+              ({t("optional")})
+            </span>
           </label>
           <textarea
             id="notes"
@@ -339,8 +402,14 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
         </div>
 
         <div>
-          <label htmlFor="email" className="mb-1 block text-sm font-medium text-parchment-200">
-            {t("email")} <span className="font-normal text-parchment-500">({t("optional")})</span>
+          <label
+            htmlFor="email"
+            className="mb-1 block text-sm font-medium text-parchment-200"
+          >
+            {t("email")}{" "}
+            <span className="font-normal text-parchment-500">
+              ({t("optional")})
+            </span>
           </label>
           <input
             id="email"
@@ -350,12 +419,16 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
             placeholder="you@example.com"
             className="w-full rounded-lg border border-parchment-200/15 bg-bark-900/70 px-3 py-2 text-sm text-parchment-100"
           />
-          <p className="mt-1 text-[11px] text-parchment-500">{t("emailHelp")}</p>
+          <p className="mt-1 text-[11px] text-parchment-500">
+            {t("emailHelp")}
+          </p>
         </div>
       </section>
 
       {error && (
-        <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">{error}</p>
+        <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
+          {error}
+        </p>
       )}
 
       <button

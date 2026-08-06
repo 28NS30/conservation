@@ -209,7 +209,7 @@ export default function MapFilters({
               value={yearOf(value.from)}
               onChange={(e) => setYear("from", e.target.value)}
               aria-label={t("map.fromYear")}
-              className="bg-transparent text-xs outline-none"
+              className="bg-transparent text-xs"
             >
               <option value="">{t("map.anyYear")}</option>
               {yearOptions.map((y) => (
@@ -223,7 +223,7 @@ export default function MapFilters({
               value={yearOf(value.to)}
               onChange={(e) => setYear("to", e.target.value)}
               aria-label={t("map.toYear")}
-              className="bg-transparent text-xs outline-none"
+              className="bg-transparent text-xs"
             >
               <option value="">{t("map.anyYear")}</option>
               {yearOptions.map((y) => (

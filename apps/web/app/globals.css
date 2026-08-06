@@ -86,6 +86,29 @@ body {
   font-feature-settings: "palt" 1;
 }
 
+/* Keyboard focus, in the brand accent.
+   The site had no focus styling of its own and relied on browser defaults,
+   which mostly worked — but the year <select>s on the map set outline-none
+   outright, and the report form's inputs showed nothing a keyboard user could
+   see. :focus-visible rather than :focus, so a mouse click does not leave a
+   ring behind on every button. */
+:focus-visible {
+  outline: 2px solid var(--color-ember-400);
+  outline-offset: 2px;
+}
+
+/* Date and time inputs need plain :focus as well. Tabbing into one moves focus
+   to a segment inside its shadow DOM (the year spinner, say), so the outer
+   input never matches :focus-visible even though it is the focused control —
+   the observed-time field on /report showed no ring at all to a keyboard user
+   while every other field did. */
+input[type="datetime-local"]:focus,
+input[type="date"]:focus,
+input[type="time"]:focus {
+  outline: 2px solid var(--color-ember-400);
+  outline-offset: 2px;
+}
+
 /* MapLibre popups default to a light card; keep them legible on the dark theme. */
 .maplibregl-popup-content {
   border-radius: 10px;
