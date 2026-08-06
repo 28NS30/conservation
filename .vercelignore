@@ -1,0 +1,29 @@
+# What `vercel deploy` must not upload.
+#
+# Git-based deploys clone the repo and are already covered by .gitignore, but a
+# CLI deploy uploads the working directory as it is — which here meant 629 MB of
+# embeddings and a 1.2 GB Python virtualenv, and failed outright on Vercel's
+# 100 MB per-file limit.
+#
+# Only apps/web, packages/shared and scripts are npm workspaces; nothing below
+# is needed to build the site.
+
+# Model artefacts. taxa_embeddings_v1.npy alone is over the per-file limit, and
+# it belongs to Modal, not to the web build.
+data/
+
+# The ML service. Python, and its virtualenv, neither of which Vercel runs.
+apps/ml/
+
+# Local database state.
+supabase/.temp/
+supabase/.branches/
+
+# Build output and local noise — Vercel builds its own.
+.next/
+**/.next/
+*.log
+apps/web/e2e/shots/
+
+# The Vercel CLI's own link directory, which can contain pulled env files.
+.vercel/
