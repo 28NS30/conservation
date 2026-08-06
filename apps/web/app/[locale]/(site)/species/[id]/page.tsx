@@ -25,15 +25,33 @@ const LIST_MAX_RECORDS = 5;
  * content that is mostly "no reports yet".
  */
 export async function generateStaticParams() {
-  const rows = await asPublic(
-    (tx) => tx<{ id: number; scientific_name: string }[]>`
-      select t.id, t.scientific_name
-        from taxa t join species_report_stats s on s.taxon_id = t.id
-       order by s.report_count desc limit 400`,
-  );
-  return rows.map((r) => ({
-    id: speciesSlug({ id: r.id, scientificName: r.scientific_name }),
-  }));
+  try {
+    const rows = await asPublic(
+      (tx) => tx<{ id: number; scientific_name: string }[]>`
+        select t.id, t.scientific_name
+          from taxa t join species_report_stats s on s.taxon_id = t.id
+         order by s.report_count desc limit 400`,
+    );
+    return rows.map((r) => ({
+      id: speciesSlug({ id: r.id, scientificName: r.scientific_name }),
+    }));
+  } catch (e) {
+    // Prerendering is an optimisation, not a correctness requirement: every one
+    // of these pages already renders on demand, which is how the other ~65,850
+    // taxa work. Letting an unreachable database abort the whole build meant a
+    // wrong password — or a Supabase maintenance window — blocked deploying
+    // anything at all, including the fix for the password.
+    //
+    // Loud on purpose. A deploy that silently stops prerendering 400 pages is a
+    // performance regression nobody would notice otherwise, and the runtime
+    // health of the database is checked separately by /api/health and
+    // `npm run verify:deploy`.
+    console.error(
+      "[build] species prerendering skipped — database unreachable:",
+      (e as Error).message,
+    );
+    return [];
+  }
 }
 
 export async function generateMetadata({
