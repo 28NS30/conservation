@@ -38,7 +38,13 @@
   --color-scale-500: #8a6a45;
 
   /* The two dots on the badge — the only saturated colour in the mark, so the
-     only thing on the page that should shout. Primary actions, nothing else. */
+     only thing on the page that should shout. Primary actions, nothing else.
+
+     300 is the light end, and exists because links set in ember-400 had nowhere
+     to go on hover: `hover:text-ember-300` was being written against a token
+     that did not exist, so it compiled to nothing and the hover was silently
+     dead. Every other ramp here carries a lighter step; this one was missing it. */
+  --color-ember-300: #eda471;
   --color-ember-400: #e08a4f;
   --color-ember-500: #cf7238;
   --color-ember-600: #b25c28;

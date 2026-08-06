@@ -31,12 +31,16 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mx-auto min-h-[100dvh] w-full max-w-sm px-4 pt-16">
-      <h1 className="mb-1 mt-3 text-lg font-semibold text-parchment-50">{t("heading")}</h1>
+    <main className="mx-auto w-full max-w-sm px-4 pt-16">
+      <h1 className="mb-1 mt-3 text-lg font-semibold text-parchment-50">
+        {t("heading")}
+      </h1>
       <p className="mb-6 text-xs text-parchment-400">{t("explain")}</p>
 
       {sent ? (
-        <p className="rounded-lg border border-ember-500/30 bg-ember-500/10 px-3 py-3 text-sm text-emerald-200">{t("sent")}</p>
+        <p className="rounded-lg border border-ember-500/30 bg-ember-500/10 px-3 py-3 text-sm text-ember-400">
+          {t("sent")}
+        </p>
       ) : (
         <div className="space-y-3">
           <input

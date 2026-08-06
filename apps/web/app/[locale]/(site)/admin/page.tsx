@@ -22,7 +22,11 @@ type Pending = {
   photo_paths: string[] | null;
 };
 
-export default async function AdminPage({ params }: { params: Promise<{ locale: string }> }) {
+export default async function AdminPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("admin");
@@ -50,7 +54,8 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
           <span className="mt-2 block text-xs text-parchment-500">
             Grant yourself access with:
             <code className="mt-1 block rounded bg-bark-900 px-2 py-1 font-mono text-[11px]">
-              update profiles set role = &apos;admin&apos; where id = &apos;{userId}&apos;;
+              update profiles set role = &apos;admin&apos; where id = &apos;
+              {userId}&apos;;
             </code>
           </span>
         </p>
@@ -75,7 +80,9 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
     rows.map(async (r) => ({
       ...r,
       photoUrls: (
-        await Promise.all((r.photo_paths ?? []).map((p) => signedPhotoUrl(p, 900)))
+        await Promise.all(
+          (r.photo_paths ?? []).map((p) => signedPhotoUrl(p, 900)),
+        )
       ).filter((u): u is string => !!u),
     })),
   );
@@ -120,7 +127,7 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
 async function Shell({ children }: { children: React.ReactNode }) {
   const t = await getTranslations("admin");
   return (
-    <main className="mx-auto min-h-[100dvh] w-full max-w-3xl px-4 pb-16 pt-5">
+    <main className="mx-auto w-full max-w-3xl px-6 pb-24 pt-12">
       <h1 className="mb-4 mt-2 text-lg font-semibold text-parchment-50">
         {t("heading")}
       </h1>

@@ -279,7 +279,7 @@ export default async function StatsPage({
           </p>
           <Link
             href="/about"
-            className="mt-2 inline-block text-xs text-ember-400 hover:text-ember-400"
+            className="mt-2 inline-block text-xs text-ember-400 transition hover:text-ember-300"
           >
             {t("howObscuringWorks")} →
           </Link>

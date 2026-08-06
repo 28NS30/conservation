@@ -2,7 +2,12 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import { listQueued, removeQueued, requestPersistence, type QueuedReport } from "@/lib/offline/queue";
+import {
+  listQueued,
+  removeQueued,
+  requestPersistence,
+  type QueuedReport,
+} from "@/lib/offline/queue";
 import { flushQueue, startFlushTriggers } from "@/lib/offline/flush";
 
 /**
@@ -54,7 +59,7 @@ export default function QueueBanner() {
   if (items.length === 0) {
     if (justSent > 0) {
       return (
-        <p className="mb-4 rounded-lg border border-ember-500/30 bg-ember-500/10 px-3 py-2 text-xs text-emerald-200">
+        <p className="mb-4 rounded-lg border border-ember-500/30 bg-ember-500/10 px-3 py-2 text-xs text-ember-400">
           {t("sentCount", { count: justSent })}
         </p>
       );
@@ -83,15 +88,24 @@ export default function QueueBanner() {
         </button>
       </div>
 
-      <p className="mt-1 text-[11px] leading-relaxed text-amber-200/70">{t("explain")}</p>
-      {stale && <p className="mt-1 text-[11px] text-amber-300">{t("staleWarning")}</p>}
+      <p className="mt-1 text-[11px] leading-relaxed text-amber-200/70">
+        {t("explain")}
+      </p>
+      {stale && (
+        <p className="mt-1 text-[11px] text-amber-300">{t("staleWarning")}</p>
+      )}
 
       <ul className="mt-2 space-y-1">
         {items.map((i) => (
-          <li key={i.id} className="flex items-center justify-between gap-3 text-[11px] text-amber-200/80">
+          <li
+            key={i.id}
+            className="flex items-center justify-between gap-3 text-[11px] text-amber-200/80"
+          >
             <span className="truncate">
               {new Date(i.createdAt).toLocaleString()}
-              {i.lastError && <span className="ml-2 text-rose-300">{i.lastError}</span>}
+              {i.lastError && (
+                <span className="ml-2 text-rose-300">{i.lastError}</span>
+              )}
             </span>
             <button
               type="button"

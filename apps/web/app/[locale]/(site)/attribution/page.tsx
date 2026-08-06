@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import PageHeader from "@/components/site/PageHeader";
+import { licenseLabel } from "@/lib/license";
 import { asPublic } from "@/lib/db";
 
 export const revalidate = 3600;
@@ -45,11 +46,8 @@ export default async function AttributionPage({
   );
 
   const total = licenses.reduce((a, b) => a + b.n, 0);
-  const licenseName = (url: string | null) => {
-    if (!url) return t("unspecified");
-    const m = /licenses\/([a-z-]+)\/([0-9.]+)/.exec(url);
-    return m ? `CC ${m[1].toUpperCase()} ${m[2]}` : url;
-  };
+  const licenseName = (url: string | null) =>
+    licenseLabel(url) ?? t("unspecified");
 
   return (
     <main className="mx-auto w-full max-w-2xl px-6 pb-24 pt-12">

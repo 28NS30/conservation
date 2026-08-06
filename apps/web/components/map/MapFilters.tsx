@@ -2,7 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { CATEGORIES, CATEGORY_KEYS, type Category, type MapFilter } from "@conservation/shared";
+import {
+  CATEGORIES,
+  CATEGORY_KEYS,
+  type Category,
+  type MapFilter,
+} from "@conservation/shared";
 
 type SpeciesHit = {
   id: number;
@@ -41,7 +46,9 @@ export default function MapFilters({
     if (q.length < 1) return;
     const id = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/species/search?q=${encodeURIComponent(q)}&filter=recorded`);
+        const res = await fetch(
+          `/api/species/search?q=${encodeURIComponent(q)}&filter=recorded`,
+        );
         if (res.ok) setHits((await res.json()).results ?? []);
       } catch {
         /* offline or aborted — leave the previous results */
@@ -52,7 +59,8 @@ export default function MapFilters({
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
-      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+      if (boxRef.current && !boxRef.current.contains(e.target as Node))
+        setOpen(false);
     };
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
@@ -66,7 +74,10 @@ export default function MapFilters({
     onChange({ ...value, category: value.category === c ? undefined : c });
 
   const yearOptions = years
-    ? Array.from({ length: years.last - years.first + 1 }, (_, i) => years.first + i)
+    ? Array.from(
+        { length: years.last - years.first + 1 },
+        (_, i) => years.first + i,
+      )
     : [];
 
   const setYear = (which: "from" | "to", year: string) => {
@@ -104,7 +115,10 @@ export default function MapFilters({
                 : "border-parchment-200/20 bg-bark-900/70 text-parchment-200 hover:bg-bark-800/80"
             }`}
           >
-            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: CATEGORIES[k].color }} />
+            <span
+              className="h-2 w-2 shrink-0 rounded-full"
+              style={{ background: CATEGORIES[k].color }}
+            />
             {t(`categories.${k}`)}
           </button>
         ))}
@@ -120,7 +134,7 @@ export default function MapFilters({
                 setSpeciesQuery("");
                 onChange({ ...value, taxonId: undefined });
               }}
-              className="flex items-center gap-1.5 rounded-full border border-ember-400/60 bg-ember-400/15 px-3 py-1.5 text-xs text-emerald-200 backdrop-blur"
+              className="flex items-center gap-1.5 rounded-full border border-ember-400/60 bg-ember-400/15 px-3 py-1.5 text-xs text-ember-400 backdrop-blur"
             >
               {chosen.commonNameZh ?? chosen.scientificName}
               <span aria-hidden>×</span>
@@ -170,12 +184,18 @@ export default function MapFilters({
                     className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs hover:bg-bark-800"
                   >
                     <span className="min-w-0 truncate">
-                      <span className="text-parchment-100">{h.commonNameZh ?? h.scientificName}</span>
+                      <span className="text-parchment-100">
+                        {h.commonNameZh ?? h.scientificName}
+                      </span>
                       {h.commonNameZh && (
-                        <span className="ml-1.5 italic text-parchment-500">{h.scientificName}</span>
+                        <span className="ml-1.5 italic text-parchment-500">
+                          {h.scientificName}
+                        </span>
                       )}
                     </span>
-                    <span className="shrink-0 tabular-nums text-parchment-500">{h.reportCount}</span>
+                    <span className="shrink-0 tabular-nums text-parchment-500">
+                      {h.reportCount}
+                    </span>
                   </button>
                 </li>
               ))}
@@ -193,7 +213,9 @@ export default function MapFilters({
             >
               <option value="">{t("map.anyYear")}</option>
               {yearOptions.map((y) => (
-                <option key={y} value={y} className="bg-bark-900">{y}</option>
+                <option key={y} value={y} className="bg-bark-900">
+                  {y}
+                </option>
               ))}
             </select>
             <span className="text-parchment-500">–</span>
@@ -205,7 +227,9 @@ export default function MapFilters({
             >
               <option value="">{t("map.anyYear")}</option>
               {yearOptions.map((y) => (
-                <option key={y} value={y} className="bg-bark-900">{y}</option>
+                <option key={y} value={y} className="bg-bark-900">
+                  {y}
+                </option>
               ))}
             </select>
           </div>
