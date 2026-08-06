@@ -30,3 +30,6 @@ supabase/.branches/
 
 # Design-review screenshots (apps/web/e2e/_shots.mjs)
 apps/web/e2e/shots/
+
+# Vercel CLI project link (org/project ids, and pulled env files)
+.vercel
