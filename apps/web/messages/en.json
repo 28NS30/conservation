@@ -57,7 +57,7 @@
       "bins": "Grid",
       "dots": "Dots"
     },
-    "speciesResults": "{count} matching species"
+    "speciesResults": "{count, number} matching species"
   },
   "footer": {
     "dataSource": "Data",
@@ -115,7 +115,7 @@
   "admin": {
     "heading": "Moderation queue",
     "moderatorsOnly": "Moderators only.",
-    "pendingCount": "{count} pending review",
+    "pendingCount": "{count, number} pending review",
     "empty": "Nothing waiting.",
     "view": "View",
     "publish": "Publish",
@@ -141,14 +141,14 @@
     "noMatches": "No matching species.",
     "records": "Records",
     "recordsShort": "records",
-    "recordCount": "{count} records",
+    "recordCount": "{count, number} records",
     "noRecords": "No reports for this species yet.",
     "beFirst": "Be the first to report one",
     "seenOne": "Seen one? Report it",
     "alsoKnownAs": "Also known as",
     "taxonomy": "Taxonomy",
     "seasonality": "By month",
-    "seasonalityHint": "{total} records; peak in month {peak}.",
+    "seasonalityHint": "{total, number} records; peak in month {peak}.",
     "protectedLevel": "Protected {level}",
     "endemic": "Endemic",
     "invasive": "Invasive",
@@ -157,7 +157,7 @@
     "sensitive": "Sensitive",
     "blurredNotice": "This is a sensitive or protected species, so all locations shown are blurred.",
     "coordinatesWithheld": "Under the Taiwan species checklist's sensitivity rating, coordinates for this species are not published, so no records are shown on the map.",
-    "metaDescription": "Reports and distribution of {name} in Taiwan ({count} records).",
+    "metaDescription": "Reports and distribution of {name} in Taiwan ({count, number} records).",
     "habitat": {
       "terrestrial": "Terrestrial",
       "freshwater": "Freshwater",

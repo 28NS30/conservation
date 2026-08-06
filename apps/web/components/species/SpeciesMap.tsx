@@ -8,6 +8,7 @@ import {
   densityStepExpression,
   SPECIES_DENSITY_CLASSES,
   TAIWAN_CENTER,
+  TAIWAN_BOUNDS,
   TILE_AGGREGATION_MAX_ZOOM,
 } from "@conservation/shared";
 
@@ -45,10 +46,24 @@ export default function SpeciesMap({
         center: TAIWAN_CENTER,
         zoom: 6.2,
         navigation: false,
+        // maxBounds fights the fitBounds below: when the container is wider than
+        // the bounds — which this one is on a desktop, being a short wide panel —
+        // MapLibre overrides the requested camera to make the bounds fit, and the
+        // island came out cropped at the bottom. Same clamp that broke the hero.
+        bounded: false,
         onReady: addLayers,
       });
       if (cancelled) return handle.destroy();
       handleRef.current = handle;
+
+      // A fixed centre and zoom frames the island for one container shape only.
+      // This map is as wide as its column, so on a phone the same zoom 6.2 cut
+      // the east coast off. Fitting the bounds lets MapLibre do the arithmetic
+      // for whatever width it is actually given.
+      const fit = () =>
+        handle.map.fitBounds(TAIWAN_BOUNDS, { padding: 12, duration: 0 });
+      fit();
+      handle.map.on("resize", fit);
 
       function addLayers(map: MapHandle["map"]) {
         if (map.getSource(SOURCE_ID)) return;
@@ -56,7 +71,12 @@ export default function SpeciesMap({
         // Built by concatenation, not new URL(): the URL spec percent-encodes
         // `{` and `}`, which stops MapLibre substituting the tile placeholders.
         const tiles = `${window.location.origin}/api/tiles/{z}/{x}/{y}?taxonId=${taxonId}`;
-        map.addSource(SOURCE_ID, { type: "vector", tiles: [tiles], minzoom: 0, maxzoom: 16 });
+        map.addSource(SOURCE_ID, {
+          type: "vector",
+          tiles: [tiles],
+          minzoom: 0,
+          maxzoom: 16,
+        });
 
         if (mode === "heat") {
           map.addLayer({
@@ -85,7 +105,15 @@ export default function SpeciesMap({
             source: SOURCE_ID,
             "source-layer": "reports",
             paint: {
-              "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 4, 10, 7],
+              "circle-radius": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                5,
+                4,
+                10,
+                7,
+              ],
               "circle-color": "#34d399",
               "circle-stroke-width": 1,
               "circle-stroke-color": "rgba(255,255,255,0.7)",
@@ -103,10 +131,12 @@ export default function SpeciesMap({
     };
   }, [taxonId, mode, maptilerKey]);
 
-  return <div
+  return (
+    <div
       ref={container}
       // See LocationPicker: the container must be positioned or the canvas
       // escapes to the viewport.
       className="relative h-64 w-full overflow-hidden rounded-lg sm:h-80"
-    />;
+    />
+  );
 }

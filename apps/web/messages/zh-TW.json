@@ -57,7 +57,7 @@
       "bins": "方格",
       "dots": "圓點"
     },
-    "speciesResults": "{count} 個符合的物種"
+    "speciesResults": "{count, number} 個符合的物種"
   },
   "footer": {
     "dataSource": "資料來源",
@@ -115,7 +115,7 @@
   "admin": {
     "heading": "審核佇列",
     "moderatorsOnly": "此頁面僅限審核人員。",
-    "pendingCount": "{count} 筆待審核",
+    "pendingCount": "{count, number} 筆待審核",
     "empty": "目前沒有待審核的通報。",
     "view": "檢視",
     "publish": "發布",
@@ -141,14 +141,14 @@
     "noMatches": "找不到符合的物種。",
     "records": "通報紀錄",
     "recordsShort": "筆",
-    "recordCount": "{count} 筆通報紀錄",
+    "recordCount": "{count, number} 筆通報紀錄",
     "noRecords": "目前還沒有這個物種的通報。",
     "beFirst": "成為第一筆通報",
     "seenOne": "我也看到了，通報一筆",
     "alsoKnownAs": "也稱作",
     "taxonomy": "分類",
     "seasonality": "月份分布",
-    "seasonalityHint": "共 {total} 筆，{peak} 月最多。",
+    "seasonalityHint": "共 {total, number} 筆，{peak} 月最多。",
     "protectedLevel": "保育 {level}",
     "endemic": "特有種",
     "invasive": "入侵種",
@@ -157,7 +157,7 @@
     "sensitive": "敏感物種",
     "blurredNotice": "此物種屬敏感或保育類，地圖上的位置皆已模糊化。",
     "coordinatesWithheld": "依據臺灣物種名錄的敏感度分級，此物種的座標不予公開，因此地圖上不會顯示任何紀錄。",
-    "metaDescription": "{name} 在台灣的通報紀錄與分布（{count} 筆）。",
+    "metaDescription": "{name} 在台灣的通報紀錄與分布（{count, number} 筆）。",
     "habitat": {
       "terrestrial": "陸域",
       "freshwater": "淡水",

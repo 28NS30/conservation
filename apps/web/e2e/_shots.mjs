@@ -19,12 +19,18 @@ import { join } from "node:path";
 
 const SP = process.env.SHOTS_DIR ?? join(import.meta.dirname, "shots");
 mkdirSync(SP, { recursive: true });
+// Waits are generous on every page carrying a map. MapLibre has to fetch its
+// worker, build a style and pull vector tiles before anything paints, and after
+// a dev-server restart the route compiles first — a 7s wait photographed a blank
+// canvas and looked exactly like a layout regression. Better slow than lying.
+const MAP_WAIT = 15000;
 const PAGES = [
-  ["/", "home", 9000],
-  ["/map", "map", 9000],
+  ["/", "home", MAP_WAIT],
+  ["/map", "map", MAP_WAIT],
+  ["/report", "report", MAP_WAIT],
+  ["/species/28758-duttaphrynus-melanostictus", "detail", MAP_WAIT],
   ["/stats", "stats", 3500],
   ["/species", "species", 3000],
-  ["/report", "report", 6000],
   ["/about", "about", 2500],
   ["/reports", "reports", 3000],
   ["/attribution", "attribution", 2000],

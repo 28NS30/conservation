@@ -47,7 +47,10 @@ export async function generateMetadata({
   const s = await getSpecies(taxonId);
   if (!s) return {};
   const t = await getTranslations({ locale, namespace: "species" });
-  const name = locale.startsWith("zh") && s.commonNameZh ? s.commonNameZh : s.scientificName;
+  const name =
+    locale.startsWith("zh") && s.commonNameZh
+      ? s.commonNameZh
+      : s.scientificName;
   return {
     title: name,
     description: t("metaDescription", { name, count: s.reportCount }),
@@ -70,16 +73,21 @@ export default async function SpeciesPage({
 
   // Canonicalise `/species/32116` to `/species/32116-prionailurus-bengalensis`.
   const canonical = speciesSlug(s);
-  if (id !== canonical) redirect(`/${locale}/species/${canonical}`.replace("/zh-TW/", "/"));
+  if (id !== canonical)
+    redirect(`/${locale}/species/${canonical}`.replace("/zh-TW/", "/"));
 
   const t = await getTranslations("species");
   const nav = await getTranslations("nav");
 
   const zhFirst = locale.startsWith("zh");
-  const headline = zhFirst && s.commonNameZh ? s.commonNameZh : s.scientificName;
-  const secondary = zhFirst && s.commonNameZh ? s.scientificName : s.commonNameZh;
+  const headline =
+    zhFirst && s.commonNameZh ? s.commonNameZh : s.scientificName;
+  const secondary =
+    zhFirst && s.commonNameZh ? s.scientificName : s.commonNameZh;
 
-  const lineage = [s.kingdom, s.phylum, s.class, s.order, s.family].filter(Boolean) as string[];
+  const lineage = [s.kingdom, s.phylum, s.class, s.order, s.family].filter(
+    Boolean,
+  ) as string[];
   const habitats = (
     [
       [s.isTerrestrial, "terrestrial"],
@@ -96,23 +104,36 @@ export default async function SpeciesPage({
   // misleading "no reports yet" — it reveals nothing a poacher can use, since
   // TaiCOL already publishes which species occur in Taiwan.
   const withheld = s.sensitivity === "座標不開放";
-  const counts = s.reportCount >= HEATMAP_MIN_RECORDS ? await monthlyCounts(s.id) : null;
-  const records = !withheld && s.reportCount > 0 && s.reportCount <= LIST_MAX_RECORDS
-    ? await recentRecords(s.id)
-    : [];
+  const counts =
+    s.reportCount >= HEATMAP_MIN_RECORDS ? await monthlyCounts(s.id) : null;
+  const records =
+    !withheld && s.reportCount > 0 && s.reportCount <= LIST_MAX_RECORDS
+      ? await recentRecords(s.id)
+      : [];
 
   return (
-    <main className="mx-auto min-h-[100dvh] w-full max-w-2xl px-4 pb-16 pt-5">
-      <Link href="/species" className="text-xs text-parchment-400 hover:text-parchment-200">
+    <main className="mx-auto w-full max-w-3xl px-6 pb-24 pt-10">
+      <Link
+        href="/species"
+        className="text-xs text-parchment-400 hover:text-parchment-200"
+      >
         {nav("backToSpecies")}
       </Link>
 
-      <header className="mt-3">
-        <h1 className="text-xl font-semibold text-parchment-50">{headline}</h1>
+      {/* The species name is this page's title, so it is set like one — the rest
+          of the site moved to a 3xl h1 and this was left at 20px. */}
+      <header className="mt-5">
+        <h1 className="text-3xl font-semibold leading-tight text-parchment-50">
+          {headline}
+        </h1>
         {secondary && (
-          <p className="mt-0.5 text-sm text-parchment-400">
+          <p className="mt-2 text-base text-parchment-300">
             <span className="italic">{secondary}</span>
-            {s.nameAuthor && <span className="ml-1.5 not-italic text-parchment-500">{s.nameAuthor}</span>}
+            {s.nameAuthor && (
+              <span className="ml-1.5 not-italic text-parchment-500">
+                {s.nameAuthor}
+              </span>
+            )}
           </p>
         )}
         {s.altNamesZh && s.altNamesZh.length > 0 && (
@@ -124,14 +145,21 @@ export default async function SpeciesPage({
       </header>
 
       {lineage.length > 0 && (
-        <nav aria-label={t("taxonomy")} className="mt-4 text-[11px] text-parchment-500">
+        <nav
+          aria-label={t("taxonomy")}
+          className="mt-4 text-[11px] text-parchment-500"
+        >
           {lineage.join(" › ")}
-          {habitats.length > 0 && <span className="ml-2 text-parchment-500">· {habitats.join(" / ")}</span>}
+          {habitats.length > 0 && (
+            <span className="ml-2 text-parchment-500">
+              · {habitats.join(" / ")}
+            </span>
+          )}
         </nav>
       )}
 
-      <section className="mt-6">
-        <h2 className="text-xs font-medium uppercase tracking-wide text-parchment-500">
+      <section className="mt-8">
+        <h2 className="text-lg font-semibold text-parchment-50">
           {t("records")}
         </h2>
 
@@ -155,7 +183,8 @@ export default async function SpeciesPage({
               {t("recordCount", { count: s.reportCount })}
               {s.firstSeen && s.lastSeen && (
                 <span className="ml-2 text-parchment-500">
-                  {new Date(s.firstSeen).getFullYear()}–{new Date(s.lastSeen).getFullYear()}
+                  {new Date(s.firstSeen).getFullYear()}–
+                  {new Date(s.lastSeen).getFullYear()}
                 </span>
               )}
             </p>
@@ -177,13 +206,23 @@ export default async function SpeciesPage({
             {records.length > 0 && (
               <ul className="mt-3 space-y-1 text-xs">
                 {records.map((r) => (
-                  <li key={r.id} className="flex items-center justify-between gap-3 rounded border border-parchment-200/10 px-2.5 py-1.5">
-                    <Link href={`/reports/${r.id}`} className="text-parchment-300 hover:text-parchment-100">
-                      {new Date(r.observedAt).toLocaleDateString(locale, { timeZone: "Asia/Taipei" })}
+                  <li
+                    key={r.id}
+                    className="flex items-center justify-between gap-3 rounded border border-parchment-200/10 px-2.5 py-1.5"
+                  >
+                    <Link
+                      href={`/reports/${r.id}`}
+                      className="text-parchment-300 hover:text-parchment-100"
+                    >
+                      {new Date(r.observedAt).toLocaleDateString(locale, {
+                        timeZone: "Asia/Taipei",
+                      })}
                     </Link>
                     <span className="tabular-nums text-parchment-500">
                       {r.lat.toFixed(3)}, {r.lng.toFixed(3)}
-                      {r.isObscured && <span className="ml-1.5 text-amber-400">≈</span>}
+                      {r.isObscured && (
+                        <span className="ml-1.5 text-amber-400">≈</span>
+                      )}
                     </span>
                   </li>
                 ))}
