@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import Turnstile, { turnstileEnabled } from "./Turnstile";
+import { useTranslations, useLocale } from "next-intl";
 import {
   CATEGORIES,
   CATEGORY_KEYS,
@@ -24,6 +25,7 @@ function toLocalInput(d: Date) {
 
 export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
   const t = useTranslations("report");
+  const locale = useLocale();
   const tOffline = useTranslations("offline");
   const tc = useTranslations("categories");
   const [category, setCategory] = useState<Category>("roadkill");
@@ -40,6 +42,9 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
   } | null>(null);
   const [exifOffer, setExifOffer] = useState<LatLng | null>(null);
   const [preparing, setPreparing] = useState(false);
+  // null until the challenge is solved. Only meaningful when a site key is
+  // configured; without one no widget renders and the server does not ask.
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   // Generated once per form instance so a double-tap cannot create two reports.
   // When a submission is queued this same value becomes the queue item's id, so
@@ -120,6 +125,7 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
           contactEmail: email.trim() || undefined,
           photoPaths: paths,
           clientNonce: nonce.current,
+          turnstileToken: turnstileToken ?? undefined,
         }),
       });
 
@@ -431,10 +437,19 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
         </p>
       )}
 
+      {/* Directly above the button it gates, so it reads as part of submitting
+          rather than as an unexplained box. Renders nothing without a site key. */}
+      <Turnstile onToken={setTurnstileToken} locale={locale} />
+
       <button
         type="button"
         onClick={submit}
-        disabled={phase === "submitting" || preparing || !location}
+        disabled={
+          phase === "submitting" ||
+          preparing ||
+          !location ||
+          (turnstileEnabled && !turnstileToken)
+        }
         className="w-full rounded-xl bg-ember-500 px-4 py-3 text-sm font-semibold text-bark-950 transition disabled:cursor-not-allowed disabled:bg-bark-700 disabled:text-parchment-300"
       >
         {phase === "submitting" ? t("submitting") : t("submit")}
