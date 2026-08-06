@@ -257,7 +257,8 @@
     "previous": "Previous",
     "next": "Next",
     "pageN": "Page {page}",
-    "viewAsList": "View as list"
+    "viewAsList": "View as list",
+    "obscuredLegend": "Coordinates with this mark belong to protected or sensitive species, and are published only after being generalised."
   },
   "statsPage": {
     "title": "Statistics",

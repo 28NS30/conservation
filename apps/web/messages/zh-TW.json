@@ -257,7 +257,8 @@
     "previous": "上一頁",
     "next": "下一頁",
     "pageN": "第 {page} 頁",
-    "viewAsList": "以列表檢視"
+    "viewAsList": "以列表檢視",
+    "obscuredLegend": "此標記的座標屬於保育類或敏感物種，已模糊化後才公開。"
   },
   "statsPage": {
     "title": "資料統計",

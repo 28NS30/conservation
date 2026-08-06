@@ -240,6 +240,17 @@ export default async function ReportsListPage({
         </div>
       )}
 
+      {/* The ≈ already carries a title and an sr-only label, so a screen reader
+          hears what it means — but a sighted user who does not hover just sees an
+          unexplained symbol, on the page whose entire job is being the readable
+          version of the map. Shown only when a row on this page actually is
+          obscured, so it never explains a mark that is not there. */}
+      {rows.some((r) => r.isObscured) && (
+        <p className="mt-3 text-[11px] leading-relaxed text-parchment-500">
+          <span className="text-amber-400">≈</span> {t("obscuredLegend")}
+        </p>
+      )}
+
       <nav
         aria-label={t("pagination")}
         className="mt-6 flex items-center justify-between text-xs"
