@@ -137,11 +137,34 @@ check("no high-precision coordinates in home HTML", !leaky);
 
 const reportPage = await get("/report");
 const reportHtml = reportPage.status === 200 ? await reportPage.text() : "";
+/*
+ * Turnstile renders from an effect, so the served HTML for /report never
+ * mentions it — grepping that HTML reported "no bot protection" against a
+ * deployment where the challenge was demonstrably working. The site key is
+ * inlined into a client chunk at build time, which is checkable without a
+ * browser.
+ */
+let turnstileWired = false;
+{
+  const chunks = [...reportHtml.matchAll(/\/_next\/static\/[^"']+\.js/g)]
+    .map((m) => m[0])
+    .slice(0, 40);
+  for (const c of chunks) {
+    const js = await fetch(BASE + c)
+      .then((r) => r.text())
+      .catch(() => "");
+    if (/challenges\.cloudflare\.com|0x4AAAA/i.test(js)) {
+      turnstileWired = true;
+      break;
+    }
+  }
+}
+
 check(
-  "Turnstile widget present on /report",
-  /turnstile|cf-turnstile|challenges\.cloudflare\.com/i.test(reportHtml),
-  /turnstile/i.test(reportHtml)
-    ? ""
+  "Turnstile is wired into /report",
+  turnstileWired,
+  turnstileWired
+    ? "site key present in the client bundle"
     : "no bot protection — do not launch publicly",
 );
 
