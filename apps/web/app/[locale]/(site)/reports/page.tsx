@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import PageHeader from "@/components/site/PageHeader";
 import { Link } from "@/i18n/navigation";
 import { asPublic } from "@/lib/db";
 import {
@@ -117,15 +118,18 @@ export default async function ReportsListPage({
   const qs = (p: number) => withFilter({ page: String(p) });
 
   return (
-    <main className="mx-auto min-h-[100dvh] w-full max-w-3xl px-4 pb-16 pt-5">
-      <h1 className="mt-3 text-xl font-semibold text-parchment-50">{t("title")}</h1>
-      <p className="mt-0.5 text-xs text-parchment-400">{t("subtitle")}</p>
+    <main className="mx-auto w-full max-w-4xl px-6 pb-24 pt-12">
+      <PageHeader title={t("title")} lede={t("subtitle")} />
 
-      <nav aria-label={t("filterByCategory")} className="mt-4 flex flex-wrap gap-1.5">
+      <nav
+        aria-label={t("filterByCategory")}
+        className="mt-4 flex flex-wrap gap-1.5"
+      >
         <Link
           href={
-            withFilter({}).replace(/([?&])category=[^&]*&?/, "$1").replace(/[?&]$/, "") ||
-            "/reports"
+            withFilter({})
+              .replace(/([?&])category=[^&]*&?/, "$1")
+              .replace(/[?&]$/, "") || "/reports"
           }
           aria-current={!category ? "page" : undefined}
           className={`rounded-full border px-3 py-1.5 text-xs transition ${
@@ -147,42 +151,68 @@ export default async function ReportsListPage({
                 : "border-parchment-200/15 bg-bark-900/70 text-parchment-300 hover:bg-bark-800"
             }`}
           >
-            <span className="h-2 w-2 rounded-full" style={{ background: CATEGORIES[k].color }} aria-hidden />
+            <span
+              className="h-2 w-2 rounded-full"
+              style={{ background: CATEGORIES[k].color }}
+              aria-hidden
+            />
             {tc(k)}
           </Link>
         ))}
       </nav>
 
       {visible.length === 0 ? (
-        <p className="mt-8 text-center text-sm text-parchment-500">{t("empty")}</p>
+        <p className="mt-8 text-center text-sm text-parchment-500">
+          {t("empty")}
+        </p>
       ) : (
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left text-xs">
             <caption className="sr-only">{t("tableCaption")}</caption>
             <thead className="text-parchment-500">
               <tr>
-                <th scope="col" className="py-1.5 font-medium">{t("date")}</th>
-                <th scope="col" className="py-1.5 font-medium">{t("category")}</th>
-                <th scope="col" className="py-1.5 font-medium">{t("species")}</th>
-                <th scope="col" className="py-1.5 font-medium">{t("location")}</th>
+                <th scope="col" className="py-1.5 font-medium">
+                  {t("date")}
+                </th>
+                <th scope="col" className="py-1.5 font-medium">
+                  {t("category")}
+                </th>
+                <th scope="col" className="py-1.5 font-medium">
+                  {t("species")}
+                </th>
+                <th scope="col" className="py-1.5 font-medium">
+                  {t("location")}
+                </th>
               </tr>
             </thead>
             <tbody>
               {visible.map((r) => (
-                <tr key={r.id} className="border-t border-parchment-200/5 align-top">
+                <tr
+                  key={r.id}
+                  className="border-t border-parchment-200/5 align-top"
+                >
                   <td className="py-1.5 whitespace-nowrap">
-                    <Link href={`/reports/${r.id}`} className="text-parchment-300 hover:text-parchment-100">
-                      {new Date(r.observedAt).toLocaleDateString(locale, { timeZone: "Asia/Taipei" })}
+                    <Link
+                      href={`/reports/${r.id}`}
+                      className="text-parchment-300 hover:text-parchment-100"
+                    >
+                      {new Date(r.observedAt).toLocaleDateString(locale, {
+                        timeZone: "Asia/Taipei",
+                      })}
                     </Link>
                   </td>
-                  <td className="py-1.5 text-parchment-400">{tc(r.category)}</td>
+                  <td className="py-1.5 text-parchment-400">
+                    {tc(r.category)}
+                  </td>
                   <td className="py-1.5">
                     {r.taxonId && r.scientificName ? (
                       <Link
                         href={`/species/${speciesSlug({ id: r.taxonId, scientificName: r.scientificName })}`}
                         className="text-parchment-200 hover:text-ember-400"
                       >
-                        {zhFirst && r.commonNameZh ? r.commonNameZh : r.scientificName}
+                        {zhFirst && r.commonNameZh
+                          ? r.commonNameZh
+                          : r.scientificName}
                       </Link>
                     ) : (
                       <span className="text-parchment-500">—</span>
@@ -191,8 +221,15 @@ export default async function ReportsListPage({
                   <td className="py-1.5 tabular-nums text-parchment-400">
                     {r.lat.toFixed(3)}, {r.lng.toFixed(3)}
                     {r.isObscured && (
-                      <span className="ml-1.5 text-amber-400" title={tp(r.locationPrecision)}>
-                        ≈<span className="sr-only"> {tp(r.locationPrecision)}</span>
+                      <span
+                        className="ml-1.5 text-amber-400"
+                        title={tp(r.locationPrecision)}
+                      >
+                        ≈
+                        <span className="sr-only">
+                          {" "}
+                          {tp(r.locationPrecision)}
+                        </span>
                       </span>
                     )}
                   </td>
@@ -203,14 +240,31 @@ export default async function ReportsListPage({
         </div>
       )}
 
-      <nav aria-label={t("pagination")} className="mt-6 flex items-center justify-between text-xs">
+      <nav
+        aria-label={t("pagination")}
+        className="mt-6 flex items-center justify-between text-xs"
+      >
         {page > 1 ? (
-          <Link href={qs(page - 1)} className="text-parchment-300 hover:text-parchment-100">← {t("previous")}</Link>
-        ) : <span />}
+          <Link
+            href={qs(page - 1)}
+            className="text-parchment-300 hover:text-parchment-100"
+          >
+            ← {t("previous")}
+          </Link>
+        ) : (
+          <span />
+        )}
         <span className="text-parchment-500">{t("pageN", { page })}</span>
         {hasNext ? (
-          <Link href={qs(page + 1)} className="text-parchment-300 hover:text-parchment-100">{t("next")} →</Link>
-        ) : <span />}
+          <Link
+            href={qs(page + 1)}
+            className="text-parchment-300 hover:text-parchment-100"
+          >
+            {t("next")} →
+          </Link>
+        ) : (
+          <span />
+        )}
       </nav>
     </main>
   );

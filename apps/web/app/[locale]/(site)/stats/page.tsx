@@ -11,6 +11,7 @@ import {
   hotspots,
 } from "@/lib/stats";
 import { speciesSlug } from "@/lib/species";
+import PageHeader from "@/components/site/PageHeader";
 import Bars from "@/components/stats/Bars";
 import Columns from "@/components/stats/Columns";
 
@@ -87,12 +88,9 @@ export default async function StatsPage({
 
   return (
     <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-12">
-      <h1 className="text-3xl font-semibold text-parchment-50">{t("title")}</h1>
-      <p className="mt-3 max-w-2xl text-sm leading-relaxed text-parchment-300">
-        {t("intro")}
-      </p>
+      <PageHeader title={t("title")} lede={t("intro")} />
 
-      <dl className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           { k: "records", v: n(ov.reports) },
           { k: "species", v: n(ov.species) },

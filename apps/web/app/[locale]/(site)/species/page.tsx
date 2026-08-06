@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { listSpecies, speciesSlug } from "@/lib/species";
+import PageHeader from "@/components/site/PageHeader";
 import StatusBadges from "@/components/species/StatusBadges";
 import SpeciesSearch from "@/components/species/SpeciesSearch";
 
@@ -56,39 +57,34 @@ export default async function SpeciesDirectory({
 
   return (
     <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-12">
-      <h1 className="text-3xl font-semibold text-parchment-50">
-        {t("directory")}
-      </h1>
-      <p className="mt-3 max-w-2xl text-sm leading-relaxed text-parchment-300">
-        {t("directoryHint")}
-      </p>
+      <PageHeader title={t("directory")} lede={t("directoryHint")}>
+        <div className="mt-6 max-w-xl">
+          <SpeciesSearch initialQuery={q ?? ""} />
+        </div>
 
-      <div className="mt-6 max-w-xl">
-        <SpeciesSearch initialQuery={q ?? ""} />
-      </div>
-
-      <nav className="mt-4 flex flex-wrap gap-1.5">
-        {FILTERS.map((f) => {
-          const on = f === filter;
-          const href = {
-            pathname: "/species" as const,
-            query: { ...(q ? { q } : {}), filter: f },
-          };
-          return (
-            <Link
-              key={f}
-              href={href}
-              className={`rounded-full border px-3 py-1.5 text-xs transition ${
-                on
-                  ? "border-parchment-200/70 bg-parchment-50/90 font-medium text-bark-950"
-                  : "border-parchment-200/15 bg-bark-900/70 text-parchment-300 hover:bg-bark-800"
-              }`}
-            >
-              {t(`filter.${f}`)}
-            </Link>
-          );
-        })}
-      </nav>
+        <nav className="mt-4 flex flex-wrap gap-1.5">
+          {FILTERS.map((f) => {
+            const on = f === filter;
+            const href = {
+              pathname: "/species" as const,
+              query: { ...(q ? { q } : {}), filter: f },
+            };
+            return (
+              <Link
+                key={f}
+                href={href}
+                className={`rounded-full border px-3 py-1.5 text-xs transition ${
+                  on
+                    ? "border-parchment-200/70 bg-parchment-50/90 font-medium text-bark-950"
+                    : "border-parchment-200/15 bg-bark-900/70 text-parchment-300 hover:bg-bark-800"
+                }`}
+              >
+                {t(`filter.${f}`)}
+              </Link>
+            );
+          })}
+        </nav>
+      </PageHeader>
 
       {species.length === 0 ? (
         <p className="mt-8 text-center text-sm text-parchment-500">
