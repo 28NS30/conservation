@@ -1,6 +1,6 @@
 {
   "site": {
-    "title": "Taiwan Conservation Map",
+    "title": "Project EcoWatch",
     "tagline": "Roadkill · invasive species · environmental reports",
     "description": "A public heatmap of roadkill, invasive species and environmental reports across Taiwan."
   },
@@ -14,7 +14,8 @@
     "about": "About",
     "attribution": "Attribution",
     "privacy": "Privacy",
-    "stats": "Statistics"
+    "stats": "Statistics",
+    "map": "Map"
   },
   "categories": {
     "roadkill": "Roadkill",
@@ -56,12 +57,15 @@
       "bins": "Grid",
       "dots": "Dots"
     },
-    "speciesResults": "{count} matching species"
+    "speciesResults": "{count, number} matching species",
+    "filters": "Filters"
   },
   "footer": {
     "dataSource": "Data",
     "checklist": "Species checklist",
-    "blurredCount": "{count} sensitive locations blurred"
+    "blurredCount": "{count} sensitive locations blurred",
+    "explore": "Explore",
+    "about": "About"
   },
   "report": {
     "heading": "New report",
@@ -112,7 +116,7 @@
   "admin": {
     "heading": "Moderation queue",
     "moderatorsOnly": "Moderators only.",
-    "pendingCount": "{count} pending review",
+    "pendingCount": "{count, number} pending review",
     "empty": "Nothing waiting.",
     "view": "View",
     "publish": "Publish",
@@ -138,14 +142,14 @@
     "noMatches": "No matching species.",
     "records": "Records",
     "recordsShort": "records",
-    "recordCount": "{count} records",
+    "recordCount": "{count, number} records",
     "noRecords": "No reports for this species yet.",
     "beFirst": "Be the first to report one",
     "seenOne": "Seen one? Report it",
     "alsoKnownAs": "Also known as",
     "taxonomy": "Taxonomy",
     "seasonality": "By month",
-    "seasonalityHint": "{total} records; peak in month {peak}.",
+    "seasonalityHint": "{total, number} records; peak in month {peak}.",
     "protectedLevel": "Protected {level}",
     "endemic": "Endemic",
     "invasive": "Invasive",
@@ -154,7 +158,7 @@
     "sensitive": "Sensitive",
     "blurredNotice": "This is a sensitive or protected species, so all locations shown are blurred.",
     "coordinatesWithheld": "Under the Taiwan species checklist's sensitivity rating, coordinates for this species are not published, so no records are shown on the map.",
-    "metaDescription": "Reports and distribution of {name} in Taiwan ({count} records).",
+    "metaDescription": "Reports and distribution of {name} in Taiwan ({count, number} records).",
     "habitat": {
       "terrestrial": "Terrestrial",
       "freshwater": "Freshwater",
@@ -236,6 +240,8 @@
     "retentionBody": "Reports are kept indefinitely, because their scientific value comes from accumulating over time. If you want your report or contact email removed, get in touch.",
     "thirdPartyTitle": "Third-party services",
     "thirdPartyBody": "The site uses Supabase (database and file storage), Vercel (hosting), CARTO and OpenStreetMap (basemap), and Modal (AI inference). Photos are sent to the inference service for species identification.",
+    "analyticsTitle": "Usage statistics",
+    "analyticsBody": "We count page views through Vercel Analytics, to see how many people find the reporting page. It sets no cookies, creates no cross-site identifier, and records nothing that identifies a person — what we see is “the home page was viewed N times”, not who viewed it.",
     "cookiesTitle": "Cookies",
     "cookiesBody": "Only an essential session cookie, and only if you choose to sign in. No advertising or tracking cookies are used."
   },
@@ -254,7 +260,8 @@
     "previous": "Previous",
     "next": "Next",
     "pageN": "Page {page}",
-    "viewAsList": "View as list"
+    "viewAsList": "View as list",
+    "obscuredLegend": "Coordinates with this mark belong to protected or sensitive species, and are published only after being generalised."
   },
   "statsPage": {
     "title": "Statistics",
@@ -283,5 +290,45 @@
     "coverage": "About location precision",
     "coverageBody": "Of {total} published records, {obscured} have blurred coordinates because their species is flagged sensitive in TaiCOL. They are still counted in every statistic here; only their mapped position is approximate.",
     "howObscuringWorks": "How obscuring works"
+  },
+  "home": {
+    "eyebrow": "Taiwan · Citizen science",
+    "headline": "Every life lost on the road deserves a record.",
+    "sub": "Taiwan's roads kill countless wild animals every year. We turn those overlooked deaths into open data — anyone can report, a model helps identify the species, and everyone can see where the hotspots are.",
+    "ctaReport": "File a report",
+    "ctaMap": "Open the full map",
+    "mapHint": "Tap any cell for its report count",
+    "statsRecords": "public records",
+    "statsSpecies": "species",
+    "statsYears": "years of data",
+    "whyTitle": "What we record",
+    "whyHeading": "Three kinds of overlooked record",
+    "whyLede": "Roadkill, spreading invasives, damaged habitat — all of it happens by the roadside every day, and almost none of it is written down systematically.",
+    "whyRoadkill": "Roadkill",
+    "whyRoadkillBody": "Roads cut habitat into fragments. Leopard cats, pangolins, crab-eating mongooses — killed under wheels every year, and most are never recorded.",
+    "whyInvasive": "Invasive species",
+    "whyInvasiveBody": "Green iguanas, apple snails, mile-a-minute vine. The earlier the spreading edge is found, the more can be done about it.",
+    "whyHabitat": "Pollution and habitat loss",
+    "whyHabitatBody": "Illegal dumping, polluted water, cleared habitat. These reports need no species identification, but they still need to be seen.",
+    "speciesTitle": "Most-recorded species",
+    "speciesHeading": "Who is dying on the roads?",
+    "speciesLede": "The species reported most often in the public record. Open one to see its distribution, seasonal pattern and conservation status.",
+    "speciesLink": "Browse all species",
+    "howTitle": "How it works",
+    "howHeading": "From one photo to one public record",
+    "how1": "Photograph and report",
+    "how1Body": "One photo from the roadside, drop a pin, send. No account needed. EXIF is stripped in the browser before anything is uploaded.",
+    "how2": "A model helps identify it",
+    "how2Body": "BioCLIP 2, open source, matched against the Taiwan species checklist. Confident results are assigned; uncertain ones go to a human.",
+    "how3": "It goes on the public map",
+    "how3Body": "Every report feeds a public hotspot map and open statistics. Coordinates of protected and sensitive species are blurred before publication.",
+    "trustTitle": "Why some locations are blurred",
+    "trustBody": "Publishing exact coordinates for a protected species is drawing a map for poachers. We blur automatically according to the sensitivity rating in the Taiwan species checklist — and the database enforces it: the role the site reads with has no permission to see true coordinates at all.",
+    "trustLink": "How obscuring works",
+    "openTitle": "The data is open",
+    "openBody": "Seeded with records from TaiRON via GBIF (CC BY 4.0), with names from TaiCOL. We plan to contribute our own records back to GBIF as a Darwin Core Archive.",
+    "openLink": "Sources and licensing",
+    "finalTitle": "If you see one, take a minute.",
+    "finalBody": "One photo, one minute. Your record becomes part of the open scientific record."
   }
 }

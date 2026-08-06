@@ -37,11 +37,26 @@ async function main(): Promise<void> {
     where to_regclass('public.' || v) is null`;
   check("all views exist", views.missing.length === 0, views.missing.length ? `missing: ${views.missing}` : "3/3");
 
-  // 0006 is the newest migration; its absence means migrations were not all applied.
   const [band] = await sql<{ n: number }[]>`
     select count(*)::int as n from information_schema.columns
      where table_name = 'reports' and column_name = 'ai_band'`;
-  check("latest migration applied (0006 ai_band)", band.n === 1, band.n ? "present" : "reports.ai_band is missing");
+  check("migration 0006 applied (ai_band)", band.n === 1, band.n ? "present" : "reports.ai_band is missing");
+
+  // 0007, checked as the licence condition it exists to satisfy rather than as a
+  // schema fact — it adds no column, so a "does this column exist" probe cannot
+  // see it. CC BY *requires* attribution by name: a record published under it
+  // with no rights holder is a licence breach, not a cosmetic gap.
+  const [unattributed] = await sql<{ n: number }[]>`
+    select count(*)::int as n from reports
+     where license like '%creativecommons.org/licenses/by%'
+       and (rights_holder is null or rights_holder = '')`;
+  check(
+    "every CC BY record names its rights holder",
+    unattributed.n === 0,
+    unattributed.n === 0
+      ? "all attributed"
+      : `${unattributed.n} CC BY records have no rights_holder — apply migration 0007`,
+  );
 
   /* ---------------- the privacy boundary ---------------- */
   // This is the single most important line in the system. web_anon must be able

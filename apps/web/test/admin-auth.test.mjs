@@ -16,7 +16,7 @@ import { sql, BASE_URL } from "./helpers.mjs";
 
 after(() => sql.end());
 
-const ACTIONS_PATH = join(import.meta.dirname, "..", "app", "[locale]", "admin", "actions.ts");
+const ACTIONS_PATH = join(import.meta.dirname, "..", "app", "[locale]", "(site)", "admin", "actions.ts");
 const src = readFileSync(ACTIONS_PATH, "utf8");
 
 describe("admin server actions", () => {

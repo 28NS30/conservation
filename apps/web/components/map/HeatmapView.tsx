@@ -19,12 +19,42 @@ import {
   densityStepExpression,
   filterToQuery,
   TILE_AGGREGATION_MAX_ZOOM,
+  TAIWAN_MAIN_BOUNDS,
   type Category,
   type MapFilter,
 } from "@conservation/shared";
 import { createMap, type MapHandle } from "@/lib/map";
 import MapFilters from "./MapFilters";
 import { Link } from "@/i18n/navigation";
+
+/**
+ * Frame the island inside whatever container the map has been given.
+ *
+ * Simple even padding now, because the hero gives the map its own column rather
+ * than laying the headline over it. The previous version had to compute an inset
+ * past the headline, and every value it derived was a guess that held at one
+ * width — at 768px a 44% inset ran the text straight through the island.
+ *
+ * Fits TAIWAN_MAIN_BOUNDS, not TAIWAN_BOUNDS: the latter reaches west to Kinmen
+ * and Matsu against the Fujian coast, so fitting it always drags mainland China
+ * into frame.
+ */
+function frameIsland(map: MLMap) {
+  // Asymmetric on purpose. Taiwan is much taller than it is wide, so any
+  // container wider than that ratio has horizontal slack — and everything west
+  // of the island is Fujian. Weighting the padding to the right shifts the
+  // window east, so the slack is filled with the Pacific instead of the
+  // mainland, at every container shape.
+  // Proportional, not fixed. The slack scales with the container, so a constant
+  // 150px that cleared the mainland in the hero's narrow column left Quanzhou
+  // and Xiamen on screen across a 1180px map. About 0.6 degrees of strait
+  // separates Taiwan's west coast from Fujian, which is the only budget there is.
+  const { width } = map.getCanvas().getBoundingClientRect();
+  map.fitBounds(TAIWAN_MAIN_BOUNDS, {
+    padding: { top: 8, bottom: 8, left: 0, right: Math.round(width * 0.42) },
+    duration: 0,
+  });
+}
 
 /**
  * Two sources over the same endpoint, and this is what stops the map going blank
@@ -234,9 +264,18 @@ export default function HeatmapView({
   years,
   initialView,
   initialFilter,
+  presentation = false,
 }: {
   maptilerKey?: string;
   years: { first: number; last: number } | null;
+  /**
+   * Hero mode: the map as a live illustration rather than an instrument.
+   *
+   * Drops every piece of chrome — filters, legend, mode toggle, zoom buttons,
+   * scale bar, the skip link — and makes the canvas non-interactive so it cannot
+   * swallow the page scroll. The full instrument lives at /map, one click away.
+   */
+  presentation?: boolean;
   /** Validated server-side from the query string; see parseView() in page.tsx. */
   initialView?: { center: [number, number]; zoom: number } | null;
   /** Parsed server-side with mapFilterSchema, so it is already trustworthy. */
@@ -269,7 +308,12 @@ export default function HeatmapView({
   // The initial camera is read exactly once. Making it a dependency of the init
   // effect would mean a later navigation could yank the map away from wherever
   // the user has since panned to.
+  const cleanupRef = useRef<(() => void) | null>(null);
   const initialViewRef = useRef(initialView);
+  // Read once alongside the initial camera: whether this instance is chrome-less
+  // is fixed for its lifetime, and making it a dependency of the init effect
+  // would tear the map down and rebuild it.
+  const presentationRef = useRef(presentation);
 
   /* ---- init ---- */
   useEffect(() => {
@@ -286,6 +330,12 @@ export default function HeatmapView({
             }
           : { zoom: 6.6 }),
         maxZoom: 16,
+        // Unclamped at construction. maxBounds overrides a requested camera
+        // whenever the viewport is wider than the bounds, which silently threw
+        // away the framing below — the map looked identical no matter what
+        // padding it was given. The limit is re-applied after the fit instead.
+        bounded: false,
+        static: presentationRef.current,
         onReady: addReportLayers,
       });
 
@@ -299,14 +349,49 @@ export default function HeatmapView({
       handleRef.current = handle;
       mapRef.current = map;
 
-      if (process.env.NODE_ENV !== "production") {
+      // A handle for the end-to-end specs, which need to move the map
+      // deterministically. Exposed in dev, and in a build that opts in with
+      // NEXT_PUBLIC_E2E — CI serves `next start`, so a NODE_ENV check alone left
+      // window.__map undefined there and the page spec died on a raw TypeError.
+      // A real production build still exposes nothing.
+      if (
+        process.env.NODE_ENV !== "production" ||
+        process.env.NEXT_PUBLIC_E2E === "1"
+      ) {
         (window as unknown as { __map?: MLMap }).__map = map;
       }
 
-      map.addControl(
-        new ml.ScaleControl({ maxWidth: 120, unit: "metric" }),
-        "bottom-left",
-      );
+      if (!presentationRef.current) {
+        map.addControl(
+          new ml.ScaleControl({ maxWidth: 120, unit: "metric" }),
+          "bottom-left",
+        );
+      }
+
+      // Frame the island whenever no explicit view was asked for. That covers
+      // the hero, and a first visit to /map — the fixed zoom it used before left
+      // a large piece of Fujian on screen, and this map is about Taiwan. A
+      // shared URL carrying lng/lat/z is honoured instead, and panning still
+      // reaches Kinmen and Matsu, which do carry records.
+      if (presentationRef.current || !initialViewRef.current) {
+        frameIsland(map);
+      }
+
+      // No maxBounds. It is not a pan limit so much as a camera override:
+      // whenever the viewport is wider than the bounds — which it is at country
+      // zoom — MapLibre forces the view to fit them, and it does so even when
+      // applied after the fact. Measured, it snapped the west edge to 117.5,
+      // which is Fujian. minZoom still stops anyone zooming out to the globe,
+      // and the default view is now the island.
+
+      // Re-fit on resize only for the hero, which is a full-bleed background and
+      // changes shape with the window. Doing it on the interactive map would
+      // yank a browsing user back to the island the moment they resized.
+      if (presentationRef.current) {
+        const onResizeFit = () => frameIsland(map);
+        map.on("resize", onResizeFit);
+        cleanupRef.current = () => map.off("resize", onResizeFit);
+      }
 
       // Idempotent: may be invoked more than once as the style settles.
       function addReportLayers(map: MLMap) {
@@ -456,7 +541,7 @@ export default function HeatmapView({
         new ml.Popup({ closeButton: true, maxWidth: "260px" })
           .setLngLat(e.lngLat)
           .setHTML(
-            `<div style="font:13px/1.5 system-ui;color:#0f172a">
+            `<div style="font:13px/1.5 system-ui;color:#0b1410">
                <div style="font-weight:600">${label}</div>
                <div style="color:#475569">${p.observed_on ?? ""}</div>
                ${obscured ? `<div style="margin-top:4px;color:#b45309">⚠ ${tr("map.blurred")}</div>` : ""}
@@ -482,7 +567,7 @@ export default function HeatmapView({
           new ml.Popup({ closeButton: true, maxWidth: "220px" })
             .setLngLat(e.lngLat)
             .setHTML(
-              `<div style="font:13px/1.5 system-ui;color:#0f172a">
+              `<div style="font:13px/1.5 system-ui;color:#0b1410">
                <div style="font-weight:600">${tr("map.cellCount", { count: n.toLocaleString() })}</div>
                <div style="color:#475569">${tr("map.cellSize", { km })}</div>
                <div style="margin-top:4px;color:#475569">${tr("map.zoomHint")}</div>
@@ -511,6 +596,8 @@ export default function HeatmapView({
 
     return () => {
       cancelled = true;
+      cleanupRef.current?.();
+      cleanupRef.current = null;
       handleRef.current?.destroy();
       handleRef.current = null;
       mapRef.current = null;
@@ -533,7 +620,11 @@ export default function HeatmapView({
       params.set("lng", c.lng.toFixed(4));
       params.set("lat", c.lat.toFixed(4));
       params.set("z", map.getZoom().toFixed(2));
-      window.history.replaceState(null, "", `${window.location.pathname}?${params}`);
+      window.history.replaceState(
+        null,
+        "",
+        `${window.location.pathname}?${params}`,
+      );
     };
 
     // Debounced: `moveend` fires once per gesture, but a wheel zoom is a rapid
@@ -608,106 +699,136 @@ export default function HeatmapView({
         equivalent *without* first traversing a canvas the reader cannot use.
         Placed after the map it became the twelfth tab stop, behind the canvas,
         both zoom buttons and the attribution — which is no use to anyone.
+
+        `sr-only`, not a negative translate. Hiding it with `-translate-y-16`
+        assumed the offset moved it off the top of the screen, but this element's
+        containing block starts *below* the site header, so it translated up into
+        the header instead — where it sat permanently visible over the wordmark,
+        at both desktop and phone widths.
       */}
-      <Link
-        href={{ pathname: "/reports", query: Object.fromEntries(new URLSearchParams(filterToQuery(filter))) }}
-        className="absolute left-3 top-3 z-30 -translate-y-16 rounded-full bg-white px-3 py-1.5 text-xs font-medium text-slate-900 transition focus:translate-y-0"
-      >
-        {t("list.viewAsList")}
-      </Link>
+      {!presentation && (
+        <Link
+          href={{
+            pathname: "/reports",
+            query: Object.fromEntries(
+              new URLSearchParams(filterToQuery(filter)),
+            ),
+          }}
+          // Every visual utility sits behind `focus:`. Left unqualified they
+          // fight `sr-only` — padding overrides its `padding: 0` and leaves a
+          // 24x12 phantom box in the layout even though the clip stops it
+          // painting.
+          className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-30 focus:rounded-full focus:bg-parchment-50 focus:px-3 focus:py-1.5 focus:text-xs focus:font-medium focus:text-bark-950"
+        >
+          {t("list.viewAsList")}
+        </Link>
+      )}
       <div
         ref={container}
-        className="h-full w-full"
-        role="application"
-        aria-label={t("map.regionLabel")}
+        className="relative h-full w-full"
+        // In presentation mode this is decoration, not an application: it takes
+        // no input and offers nothing to announce. Labelling it would put a
+        // dead-end "application" region in the reader's path on the home page.
+        {...(presentation
+          ? { "aria-hidden": true }
+          : { role: "application", "aria-label": t("map.regionLabel") })}
       />
 
-      {/* Filters */}
-      <div className="pointer-events-none absolute left-0 right-0 top-0 p-3 sm:p-4">
-        <MapFilters value={filter} onChange={setFilter} years={years} />
-      </div>
+      {/* pr leaves room for the zoom control in the top-right corner: at phone
+          width the chip row wrapped straight under the +/- buttons. (Comment
+          outside the && — as its first child it parses as an object literal.) */}
+      {!presentation && (
+        <div className="pointer-events-none absolute left-0 right-0 top-0 p-3 pr-14 sm:p-4 sm:pr-16">
+          <MapFilters value={filter} onChange={setFilter} years={years} />
+        </div>
+      )}
 
-      {/* Mode toggle + legend */}
-      <div className="pointer-events-auto absolute bottom-16 right-3 sm:bottom-8 sm:right-4">
-        <div className="rounded-lg border border-white/15 bg-slate-900/80 px-3 py-2 text-[11px] text-slate-300 backdrop-blur">
-          <div
-            role="group"
-            aria-label={t("map.displayMode")}
-            className="mb-2 flex rounded-md border border-white/15 p-0.5"
-          >
-            {MODES.map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setMode(m)}
-                aria-pressed={mode === m}
-                className={`flex-1 rounded px-2 py-1 text-[11px] transition ${
-                  mode === m
-                    ? "bg-white/90 font-medium text-slate-900"
-                    : "text-slate-300 hover:bg-white/10"
-                }`}
-              >
-                {t(`map.mode.${m}`)}
-              </button>
-            ))}
-          </div>
+      {/* Mode toggle + legend. Kept clear of the attribution bar, which is
+          bottom-right and had been cutting the legend's caption off. */}
+      {!presentation && (
+        <div className="pointer-events-auto absolute bottom-16 right-3 sm:bottom-12 sm:right-4">
+          <div className="rounded-lg border border-parchment-200/15 bg-bark-900/80 px-3 py-2 text-[11px] text-parchment-300 backdrop-blur">
+            <div
+              role="group"
+              aria-label={t("map.displayMode")}
+              className="mb-2 flex rounded-md border border-parchment-200/15 p-0.5"
+            >
+              {MODES.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMode(m)}
+                  aria-pressed={mode === m}
+                  className={`flex-1 rounded px-2 py-1 text-[11px] transition ${
+                    mode === m
+                      ? "bg-parchment-50/90 font-medium text-bark-950"
+                      : "text-parchment-300 hover:bg-parchment-50/10"
+                  }`}
+                >
+                  {t(`map.mode.${m}`)}
+                </button>
+              ))}
+            </div>
 
-          <div className="mb-1 font-medium text-slate-200">
-            {t("map.density")}
-          </div>
+            <div className="mb-1 font-medium text-parchment-200">
+              {t("map.density")}
+            </div>
 
-          {/* Swatches with real counts, not a gradient bar. The gradient was
-              unreadable by design: you could see that one area was hotter than
-              another but had no way to recover a number. In dots mode the same
-              classes are shown at their actual circle size, so the legend
-              explains both channels the symbol uses. */}
-          <ul className="space-y-0.5">
-            {DENSITY_CLASSES.map((c, i) => {
-              const max = densityClassMax(i);
-              const label =
-                max === null
-                  ? `${c.min}+`
-                  : c.min === max
-                    ? `${c.min}`
-                    : `${c.min}–${max}`;
-              return (
-                <li key={c.min} className="flex items-center gap-1.5">
-                  <span className="flex w-4 shrink-0 justify-center">
-                    <span
-                      aria-hidden
-                      className={
-                        mode === "dots" ? "rounded-full" : "rounded-[2px]"
-                      }
-                      style={
-                        mode === "dots"
-                          ? {
-                              background: c.color,
-                              // Same sqrt-of-count scale the map uses, so the
-                              // legend cannot imply a different relationship.
-                              width: `${Math.min(14, 3 + Math.sqrt(c.min) * 1.1).toFixed(1)}px`,
-                              height: `${Math.min(14, 3 + Math.sqrt(c.min) * 1.1).toFixed(1)}px`,
-                            }
-                          : {
-                              background: c.color,
-                              width: "10px",
-                              height: "10px",
-                            }
-                      }
-                    />
-                  </span>
-                  <span className="tabular-nums text-slate-400">{label}</span>
-                </li>
-              );
-            })}
-          </ul>
-          <div className="mt-1 border-t border-white/10 pt-1 text-[10px] text-slate-500">
-            {t("map.perCell")}
+            {/* Swatches with real counts, not a gradient bar. The gradient was
+                unreadable by design: you could see that one area was hotter than
+                another but had no way to recover a number. In dots mode the same
+                classes are shown at their actual circle size, so the legend
+                explains both channels the symbol uses. */}
+            <ul className="space-y-0.5">
+              {DENSITY_CLASSES.map((c, i) => {
+                const max = densityClassMax(i);
+                const label =
+                  max === null
+                    ? `${c.min}+`
+                    : c.min === max
+                      ? `${c.min}`
+                      : `${c.min}–${max}`;
+                return (
+                  <li key={c.min} className="flex items-center gap-1.5">
+                    <span className="flex w-4 shrink-0 justify-center">
+                      <span
+                        aria-hidden
+                        className={
+                          mode === "dots" ? "rounded-full" : "rounded-[2px]"
+                        }
+                        style={
+                          mode === "dots"
+                            ? {
+                                background: c.color,
+                                // Same sqrt-of-count scale the map uses, so the
+                                // legend cannot imply a different relationship.
+                                width: `${Math.min(14, 3 + Math.sqrt(c.min) * 1.1).toFixed(1)}px`,
+                                height: `${Math.min(14, 3 + Math.sqrt(c.min) * 1.1).toFixed(1)}px`,
+                              }
+                            : {
+                                background: c.color,
+                                width: "10px",
+                                height: "10px",
+                              }
+                        }
+                      />
+                    </span>
+                    <span className="tabular-nums text-parchment-400">
+                      {label}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="mt-1 border-t border-parchment-200/10 pt-1 text-[10px] text-parchment-500">
+              {t("map.perCell")}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {hint && (
-        <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-white/15 bg-slate-900/80 px-3 py-1.5 text-[11px] text-slate-300 backdrop-blur">
+      {hint && !presentation && (
+        <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-parchment-200/15 bg-bark-900/85 px-3 py-1.5 text-[11px] text-parchment-300 backdrop-blur">
           {hint}
         </div>
       )}

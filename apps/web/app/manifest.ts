@@ -10,14 +10,14 @@ import type { MetadataRoute } from "next";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "生態通報地圖 · Taiwan Conservation Map",
-    short_name: "生態通報",
+    name: "生態守望計畫 · Project EcoWatch",
+    short_name: "生態守望",
     description:
       "台灣路殺、外來入侵種與環境通報的公開熱點地圖。A public heatmap of roadkill, invasive species and environmental reports across Taiwan.",
     start_url: "/",
     display: "standalone",
-    background_color: "#020617",
-    theme_color: "#020617",
+    background_color: "#0b1410",
+    theme_color: "#0b1410",
     icons: [
       { src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
     ],

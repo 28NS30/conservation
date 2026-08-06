@@ -1,12 +1,26 @@
+import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { sql } from "@/lib/db";
 import { Link } from "@/i18n/navigation";
-import { mapFilterSchema } from "@conservation/shared";
+import { CATEGORIES, type Category } from "@conservation/shared";
+import { categoryCounts, topSpecies } from "@/lib/stats";
+import { speciesSlug } from "@/lib/species";
 import HeatmapView from "@/components/map/HeatmapView";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
+import SiteHeader from "@/components/site/SiteHeader";
+import SiteFooter from "@/components/site/SiteFooter";
+import Badge from "@/components/brand/Badge";
 
-// Stats are cheap but not worth recomputing per request.
 export const revalidate = 300;
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "site" });
+  return { title: { absolute: t("title") }, description: t("description") };
+}
 
 type Stats = {
   reports: string;
@@ -18,138 +32,399 @@ type Stats = {
 
 async function getStats(): Promise<Stats> {
   const [row] = await sql<Stats[]>`
-    select count(*)::text                                            as reports,
-           count(distinct taxon_id)::text                            as species,
-           count(*) filter (where is_obscured)::text                 as obscured,
-           to_char(min(observed_at), 'YYYY')                         as earliest,
-           to_char(max(observed_at), 'YYYY')                         as latest
+    select count(*)::text                                as reports,
+           count(distinct taxon_id)::text                as species,
+           count(*) filter (where is_obscured)::text     as obscured,
+           to_char(min(observed_at), 'YYYY')             as earliest,
+           to_char(max(observed_at), 'YYYY')             as latest
       from reports_public`;
   return row;
 }
 
-function Stat({ value, label }: { value: string; label: string }) {
+/**
+ * The organisation's front door.
+ *
+ * The map is still the centre of gravity — it is the hero, live and interactive,
+ * not a screenshot — but this page has to do the job a bare map could not: say
+ * who this is, why roadkill is worth a database, and how someone helps. The
+ * full-screen instrument moved to /map, reachable from the hero and the nav.
+ */
+export default async function HomePage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  setRequestLocale(locale);
+
+  const t = await getTranslations("home");
+  const [s, cats, species] = await Promise.all([
+    getStats(),
+    categoryCounts(),
+    topSpecies(8),
+  ]);
+  const n = (v: string | number) => Number(v).toLocaleString(locale);
+  const byCategory = new Map<Category, number>(
+    cats.map((c) => [c.category, c.n]),
+  );
+  const speciesMax = species[0]?.reportCount ?? 1;
+  const years =
+    s.earliest && s.latest ? Number(s.latest) - Number(s.earliest) + 1 : null;
+
   return (
-    <div className="leading-tight">
-      <div className="text-sm font-semibold text-slate-100 tabular-nums sm:text-base">{value}</div>
-      <div className="text-[10px] text-slate-400">{label}</div>
-    </div>
+    <main className="bg-paper-50">
+      <SiteHeader />
+
+      {/* ---------------- hero ---------------- */}
+      {/*
+        Two columns on a wide screen: the words on paper, the map in its own
+        dark panel beside them.
+
+        The map used to span the full width with the text laid over it. That put
+        a large piece of mainland China on screen for a reason that is purely
+        geometric — fitting a tall island into a wide short frame leaves a lot of
+        horizontal slack, and what fills it is Fujian. Giving the map a column
+        roughly the island's own proportions removes the slack, so the mainland
+        falls outside the frame without any masking.
+
+        It also lets the two materials meet at a hard edge instead of blending.
+        A paper gradient drawn across the map desaturated the whole density scale
+        to grey, which is the one thing its dark ground exists to prevent.
+      */}
+      <section className="relative w-full overflow-hidden bg-paper-50">
+        <div className="mx-auto grid max-w-7xl items-stretch gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
+          {/* Words */}
+          <div className="order-2 flex items-center px-6 py-14 sm:px-10 lg:order-1 lg:py-24">
+            <div className="max-w-xl">
+              <p className="text-[11px] font-medium uppercase tracking-[0.28em] text-ember-700">
+                {t("eyebrow")}
+              </p>
+              <h1 className="mt-4 text-4xl font-semibold leading-[1.15] text-ink-900 sm:text-5xl">
+                {t("headline")}
+              </h1>
+              <p className="mt-5 max-w-lg text-sm leading-relaxed text-ink-600 sm:text-base">
+                {t("sub")}
+              </p>
+
+              <div className="mt-8 flex flex-wrap items-center gap-3">
+                <Link
+                  href="/report"
+                  className="rounded-full bg-ember-500 px-6 py-3 text-sm font-semibold text-bark-950 transition hover:bg-ember-400"
+                >
+                  {t("ctaReport")}
+                </Link>
+                <Link
+                  href="/map"
+                  className="rounded-full border border-ink-900/25 px-6 py-3 text-sm font-medium text-ink-800 transition hover:bg-ink-900/5"
+                >
+                  {t("ctaMap")} →
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* The live map, not an image of one. Someone landing here is already
+              looking at the real thing. */}
+          <div className="order-1 relative h-[52vh] min-h-[380px] bg-bark-950 lg:order-2 lg:h-auto lg:min-h-[660px]">
+            <HeatmapView
+              presentation
+              maptilerKey={process.env.NEXT_PUBLIC_MAPTILER_KEY || undefined}
+              years={
+                s.earliest && s.latest
+                  ? { first: Number(s.earliest), last: Number(s.latest) }
+                  : null
+              }
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ---------------- the numbers ---------------- */}
+      <section className="border-y border-ink-900/10 bg-paper-100">
+        <dl className="mx-auto grid max-w-5xl grid-cols-1 divide-y divide-ink-900/10 px-6 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+          {[
+            { v: n(s.reports), k: t("statsRecords") },
+            { v: n(s.species), k: t("statsSpecies") },
+            { v: years ? String(years) : "—", k: t("statsYears") },
+          ].map((x) => (
+            <div key={x.k} className="px-2 py-8 text-center">
+              <dt className="sr-only">{x.k}</dt>
+              <dd>
+                <span className="block text-4xl font-semibold tabular-nums text-ink-900">
+                  {x.v}
+                </span>
+                <span className="mt-1 block text-xs text-ink-500">{x.k}</span>
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      {/* ---------------- what we record ---------------- */}
+      <Section
+        eyebrow={t("whyTitle")}
+        title={t("whyHeading")}
+        lede={t("whyLede")}
+      >
+        <div className="grid gap-5 sm:grid-cols-3">
+          {[
+            {
+              c: "roadkill" as const,
+              h: t("whyRoadkill"),
+              b: t("whyRoadkillBody"),
+              n: byCategory.get("roadkill") ?? 0,
+            },
+            {
+              c: "invasive" as const,
+              h: t("whyInvasive"),
+              b: t("whyInvasiveBody"),
+              n: byCategory.get("invasive") ?? 0,
+            },
+            {
+              // One card covers both environmental categories, so it sums them.
+              c: "pollution" as const,
+              h: t("whyHabitat"),
+              b: t("whyHabitatBody"),
+              n:
+                (byCategory.get("pollution") ?? 0) +
+                (byCategory.get("habitat") ?? 0),
+            },
+          ].map((x) => (
+            <article
+              key={x.c}
+              className="flex flex-col rounded-xl border border-ink-900/10 bg-paper-100 p-6"
+            >
+              <span
+                aria-hidden
+                className="block size-2.5 rounded-full"
+                style={{ background: CATEGORIES[x.c].color }}
+              />
+              <h3 className="mt-4 text-base font-semibold text-ink-900">
+                {x.h}
+              </h3>
+              <p className="mt-2 flex-1 text-sm leading-relaxed text-ink-600">
+                {x.b}
+              </p>
+              {/* The count turns each card from a claim into evidence — but
+                  only when there is one. The seed corpus is entirely roadkill,
+                  and printing "0 records" under the other two would advertise
+                  an empty site rather than a young one. */}
+              {x.n > 0 && (
+                <p className="mt-5 border-t border-ink-900/10 pt-3 text-xs tabular-nums text-ink-500">
+                  <span className="font-semibold text-ink-800">{n(x.n)}</span>{" "}
+                  {t("statsRecords")}
+                </p>
+              )}
+            </article>
+          ))}
+        </div>
+      </Section>
+
+      {/* ---------------- who is being hit ---------------- */}
+      {species.length > 0 && (
+        <Section
+          eyebrow={t("speciesTitle")}
+          title={t("speciesHeading")}
+          lede={t("speciesLede")}
+          tone="raised"
+        >
+          <ol className="grid gap-x-10 gap-y-1 sm:grid-cols-2">
+            {species.map((sp, i) => (
+              <li key={sp.id}>
+                <Link
+                  href={`/species/${speciesSlug(sp)}`}
+                  className="group flex items-baseline gap-3 rounded-lg px-3 py-2.5 -mx-3 transition hover:bg-ink-900/5"
+                >
+                  <span className="w-4 shrink-0 text-xs tabular-nums text-ink-500">
+                    {i + 1}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-baseline gap-x-2">
+                      <span className="truncate text-sm font-medium text-ink-900 group-hover:text-ember-700">
+                        {sp.commonNameZh ?? sp.scientificName}
+                      </span>
+                      {sp.commonNameZh && (
+                        <span className="truncate text-[11px] italic text-ink-500">
+                          {sp.scientificName}
+                        </span>
+                      )}
+                    </span>
+                    {/* A bar makes the long tail legible at a glance: the top
+                        species has many times the records of the eighth. */}
+                    <span
+                      aria-hidden
+                      className="mt-1.5 block h-1 overflow-hidden rounded-full bg-ink-900/5"
+                    >
+                      <span
+                        className="block h-full rounded-full bg-moss-700/70"
+                        style={{
+                          width: `${Math.max(2, (sp.reportCount / speciesMax) * 100)}%`,
+                        }}
+                      />
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-xs tabular-nums text-ink-500">
+                    {n(sp.reportCount)}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ol>
+          <Link
+            href="/species"
+            className="mt-8 inline-block text-sm text-ember-700 transition hover:underline"
+          >
+            {t("speciesLink")} →
+          </Link>
+        </Section>
+      )}
+
+      {/* ---------------- how it works ---------------- */}
+      <Section eyebrow={t("howTitle")} title={t("howHeading")}>
+        {/* The rule runs behind the numbered markers and stops short of the
+            last one, so the three steps read as one sequence rather than three
+            unrelated columns. Hidden on mobile, where they stack. */}
+        <div className="relative">
+          <div
+            aria-hidden
+            className="absolute left-0 right-0 top-4 hidden h-px bg-gradient-to-r from-ember-500/30 via-ember-500/20 to-transparent sm:block"
+          />
+          <ol className="relative grid gap-8 sm:grid-cols-3 sm:gap-10">
+            {[
+              { h: t("how1"), b: t("how1Body") },
+              { h: t("how2"), b: t("how2Body") },
+              { h: t("how3"), b: t("how3Body") },
+            ].map((x, i) => (
+              <li key={x.h}>
+                <span className="flex size-8 items-center justify-center rounded-full border border-ember-700/40 bg-paper-50 text-xs font-semibold text-ember-700">
+                  {i + 1}
+                </span>
+                <h3 className="mt-5 text-base font-semibold text-ink-900">
+                  {x.h}
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-ink-600">
+                  {x.b}
+                </p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </Section>
+
+      {/* ---------------- trust ---------------- */}
+      <Section tone="raised">
+        <div className="grid gap-5 sm:grid-cols-2">
+          {[
+            {
+              h: t("trustTitle"),
+              b: t("trustBody"),
+              href: "/about" as const,
+              link: t("trustLink"),
+            },
+            {
+              h: t("openTitle"),
+              b: t("openBody"),
+              href: "/attribution" as const,
+              link: t("openLink"),
+            },
+          ].map((x) => (
+            <div
+              key={x.h}
+              className="flex flex-col rounded-xl border border-ink-900/10 bg-paper-50/70 p-7"
+            >
+              <h2 className="text-lg font-semibold text-ink-900">{x.h}</h2>
+              <p className="mt-3 flex-1 text-sm leading-relaxed text-ink-600">
+                {x.b}
+              </p>
+              <Link
+                href={x.href}
+                className="mt-5 text-sm text-ember-700 transition hover:underline"
+              >
+                {x.link} →
+              </Link>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      {/* ---------------- closing call ---------------- */}
+      <section className="border-t border-ink-900/10 bg-paper-100">
+        <div className="mx-auto flex max-w-5xl flex-col items-center gap-6 px-6 py-20 text-center">
+          <Badge size={96} />
+          <h2 className="max-w-lg text-2xl font-semibold leading-snug text-ink-900">
+            {t("finalTitle")}
+          </h2>
+          <p className="max-w-md text-sm leading-relaxed text-ink-600">
+            {t("finalBody")}
+          </p>
+          <Link
+            href="/report"
+            className="rounded-full bg-ember-500 px-7 py-3 text-sm font-semibold text-bark-950 transition hover:bg-ember-400"
+          >
+            {t("ctaReport")}
+          </Link>
+        </div>
+      </section>
+
+      <SiteFooter
+        obscured={Number(s.obscured) > 0 ? n(s.obscured) : undefined}
+      />
+    </main>
   );
 }
 
 /**
- * Deep-link target: `/?lng=120.4&lat=22.7&z=11`.
+ * One section rhythm for the whole page.
  *
- * Parsed here rather than in the client component so a bad or hostile query
- * string can never reach MapLibre — an out-of-range latitude throws inside
- * `jumpTo` and takes the whole map down with it.
+ * The eyebrow alone was doing the work of a heading before, in 12px tracked-out
+ * grey — so every band looked the same weight and the page read as one
+ * undifferentiated column of small text. The eyebrow now labels, the heading
+ * carries, and the lede says the one thing worth reading if you read nothing
+ * else. Alternating `tone` gives the scroll a beat.
  */
-function parseView(q: { lng?: string; lat?: string; z?: string }) {
-  const lng = Number(q.lng);
-  const lat = Number(q.lat);
-  if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null;
-  if (lng < -180 || lng > 180 || lat < -85 || lat > 85) return null;
-  const z = Number(q.z);
-  return { center: [lng, lat] as [number, number], zoom: Number.isFinite(z) ? Math.min(Math.max(z, 0), 16) : 11 };
-}
-
-export default async function Page({
-  params,
-  searchParams,
+function Section({
+  eyebrow,
+  title,
+  lede,
+  tone = "flat",
+  children,
 }: {
-  params: Promise<{ locale: string }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  eyebrow?: string;
+  title?: string;
+  lede?: string;
+  tone?: "flat" | "raised";
+  children: React.ReactNode;
 }) {
-  const { locale } = await params;
-  setRequestLocale(locale);
-  const sp = await searchParams;
-  const view = parseView(sp as { lng?: string; lat?: string; z?: string });
-  // Filters travel in the URL too, so a shared link carries what the sender was
-  // actually looking at rather than just where. Parsed with the same schema the
-  // tile endpoint uses, so an unknown or malformed filter is dropped rather than
-  // handed to the client.
-  const parsedFilter = mapFilterSchema.safeParse(sp);
-  const initialFilter = parsedFilter.success ? parsedFilter.data : {};
-
-  const t = await getTranslations();
-  const s = await getStats();
-  const n = (v: string) => Number(v).toLocaleString(locale);
-
   return (
-    // 100dvh rather than an h-full chain from <html>: it does not depend on every
-    // ancestor declaring a height, and it tracks mobile browser chrome collapsing,
-    // which matters because reports get filed one-handed at the roadside.
-    <main className="flex h-[100dvh] flex-col">
-      <header className="z-10 flex shrink-0 flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-white/10 bg-slate-950/90 px-4 py-2.5 backdrop-blur">
-        <div className="leading-tight">
-          <h1 className="text-sm font-semibold text-slate-50 sm:text-base">{t("site.title")}</h1>
-          <p className="text-[11px] text-slate-500">{t("site.tagline")}</p>
-        </div>
-
-        <div className="flex items-center gap-4 sm:gap-5">
-          <Stat value={n(s.reports)} label={t("stats.records")} />
-          <Stat value={n(s.species)} label={t("stats.species")} />
-          {s.earliest && s.latest && (
-            <Stat value={`${s.earliest}–${s.latest}`} label={t("stats.range")} />
-          )}
-          <Link
-            href="/species"
-            className="hidden text-xs text-slate-400 transition hover:text-slate-200 sm:block"
-          >
-            {t("nav.species")}
-          </Link>
-          <Link
-            href="/stats"
-            className="hidden text-xs text-slate-400 transition hover:text-slate-200 sm:block"
-          >
-            {t("nav.stats")}
-          </Link>
-          <LanguageSwitcher className="hidden sm:flex" />
-          <Link
-            href="/report"
-            className="rounded-full bg-emerald-500 px-3.5 py-1.5 text-xs font-semibold text-slate-950 transition hover:bg-emerald-400"
-          >
-            + {t("nav.report")}
-          </Link>
-        </div>
-      </header>
-
-      <div className="relative min-h-0 flex-1">
-        <HeatmapView
-          maptilerKey={process.env.NEXT_PUBLIC_MAPTILER_KEY || undefined}
-          initialView={view}
-          initialFilter={initialFilter}
-          years={
-            s.earliest && s.latest
-              ? { first: Number(s.earliest), last: Number(s.latest) }
-              : null
-          }
-        />
+    <section
+      className={
+        tone === "raised"
+          ? "border-y border-ink-900/10 bg-paper-100/60"
+          : undefined
+      }
+    >
+      <div className="mx-auto max-w-5xl px-6 py-20 sm:py-24">
+        {(eyebrow || title) && (
+          <div className="mb-10 max-w-2xl">
+            {eyebrow && (
+              <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-ember-700/80">
+                {eyebrow}
+              </p>
+            )}
+            {title && (
+              <h2 className="mt-3 text-2xl font-semibold leading-snug text-ink-900 sm:text-3xl">
+                {title}
+              </h2>
+            )}
+            {lede && (
+              <p className="mt-4 text-sm leading-relaxed text-ink-600 sm:text-base">
+                {lede}
+              </p>
+            )}
+          </div>
+        )}
+        {children}
       </div>
-
-      <footer className="z-10 flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-white/10 bg-slate-950/90 px-4 py-1.5 text-[10px] text-slate-500">
-        <span>
-          {t("footer.dataSource")}:{" "}
-          <a className="text-slate-400 underline-offset-2 hover:underline" href="https://roadkill.tw" target="_blank" rel="noreferrer">
-            TaiRON
-          </a>{" "}
-          via{" "}
-          <a className="text-slate-400 underline-offset-2 hover:underline" href="https://www.gbif.org" target="_blank" rel="noreferrer">
-            GBIF
-          </a>{" "}
-          (CC BY 4.0) · {t("footer.checklist")}{" "}
-          <a className="text-slate-400 underline-offset-2 hover:underline" href="https://taicol.tw" target="_blank" rel="noreferrer">
-            TaiCOL
-          </a>
-          {Number(s.obscured) > 0 && <> · {t("footer.blurredCount", { count: n(s.obscured) })}</>}
-        </span>
-        <span className="flex items-center gap-3">
-          <Link href="/stats" className="hover:text-slate-300 sm:hidden">{t("nav.stats")}</Link>
-          <Link href="/about" className="hover:text-slate-300">{t("nav.about")}</Link>
-          <Link href="/attribution" className="hover:text-slate-300">{t("nav.attribution")}</Link>
-          <Link href="/privacy" className="hover:text-slate-300">{t("nav.privacy")}</Link>
-          <LanguageSwitcher className="sm:hidden" />
-        </span>
-      </footer>
-    </main>
+    </section>
   );
 }

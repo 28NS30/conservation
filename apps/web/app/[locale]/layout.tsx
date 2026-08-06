@@ -4,6 +4,7 @@ import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { routing } from "@/i18n/routing";
 import ServiceWorker from "@/components/ServiceWorker";
+import { Analytics } from "@vercel/analytics/next";
 import "../globals.css";
 
 export function generateStaticParams() {
@@ -17,7 +18,13 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "site" });
-  return { title: t("title"), description: t("description") };
+  return {
+    // Inner pages set a bare page title ("關於本站"); the template is what puts
+    // the project's name behind it in the tab and in a shared link. The home
+    // page opts out with `title: { absolute }` so it is not named twice.
+    title: { default: t("title"), template: `%s · ${t("title")}` },
+    description: t("description"),
+  };
 }
 
 export default async function LocaleLayout({
@@ -40,6 +47,18 @@ export default async function LocaleLayout({
           <ServiceWorker />
           {children}
         </NextIntlClientProvider>
+        {/* Page-view counts only. Cookieless and with no cross-site identifier,
+            which is what keeps the promise /privacy already makes — no
+            advertising or tracking cookies. It is here rather than omitted
+            because without it "does the landing page lead to a report" is
+            unanswerable even after launch, and that is the question the design
+            exists to get right.
+
+            Only on Vercel: the script lives at /_vercel/insights/script.js,
+            which the platform serves and nothing else does. Under `next start`
+            anywhere else — including CI — it 404s on every page, which failed
+            all thirteen page renders and looked like a site-wide breakage. */}
+        {process.env.VERCEL && <Analytics />}
       </body>
     </html>
   );

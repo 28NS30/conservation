@@ -40,6 +40,20 @@ export const TAIWAN_BOUNDS: [[number, number], [number, number]] = [
   [122.5, 26.5],
 ];
 
+/**
+ * The main island alone, for FRAMING a map — never for validating a coordinate.
+ *
+ * TAIWAN_BOUNDS reaches to 118.0E to include Kinmen and Matsu, which sit against
+ * the Fujian coast. Framing to that envelope therefore always puts a large piece
+ * of mainland China on screen, which is not what this map is about. Fitting to
+ * the main island instead pushes the mainland out of frame at every viewport
+ * size, and the outlying islands remain reachable by panning.
+ */
+export const TAIWAN_MAIN_BOUNDS: [[number, number], [number, number]] = [
+  [119.9, 21.7],
+  [122.2, 25.4],
+];
+
 /** Main island centre, a sensible default view. */
 export const TAIWAN_CENTER: [number, number] = [120.98, 23.7];
 
@@ -215,7 +229,13 @@ export const SPECIES_DENSITY_CLASSES = [
   { min: 2, color: "#0891b2" },
   { min: 5, color: "#10b981" },
   { min: 15, color: "#eab308" },
-  { min: 40, color: "#f97316" },
+  // #dc2626 rather than the orange this used to be. Simulated for dichromacy,
+  // yellow-vs-orange was the one pair in either ramp that came close to
+  // collapsing: ΔE 13.2 under deuteranopia, against a ~12 legibility floor, on
+  // the two classes that mean "common here" and "hotspot". Red separates them at
+  // 33.7, and matches the top class of DENSITY_CLASSES, so both maps agree on
+  // what the most intense colour means.
+  { min: 40, color: "#dc2626" },
 ] as const;
 
 /** Inclusive upper bound of a class, or null for the open-ended top class. */

@@ -13,16 +13,30 @@ const BASE = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
  * invasive species, which are the ones people search for.
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const species = await asPublic(
-    (tx) => tx<{ id: number; scientific_name: string; updated: Date | null }[]>`
-      select t.id, t.scientific_name, greatest(t.updated_at, s.last_seen) as updated
-        from taxa t
-        left join species_report_stats s on s.taxon_id = t.id
-       where s.taxon_id is not null
-          or t.protected_status is not null
-          or t.is_invasive
-       limit 5000`,
-  );
+  // A sitemap missing its species entries is a worse sitemap; a build that dies
+  // because the database blinked is a worse deploy. See generateStaticParams in
+  // species/[id] for the same trade-off.
+  let species: { id: number; scientific_name: string; updated: Date | null }[] =
+    [];
+  try {
+    species = await asPublic(
+      (tx) => tx<
+        { id: number; scientific_name: string; updated: Date | null }[]
+      >`
+        select t.id, t.scientific_name, greatest(t.updated_at, s.last_seen) as updated
+          from taxa t
+          left join species_report_stats s on s.taxon_id = t.id
+         where s.taxon_id is not null
+            or t.protected_status is not null
+            or t.is_invasive
+         limit 5000`,
+    );
+  } catch (e) {
+    console.error(
+      "[build] sitemap species entries skipped — database unreachable:",
+      (e as Error).message,
+    );
+  }
 
   const staticPaths = ["", "/species", "/report"];
   const entries: MetadataRoute.Sitemap = [];
@@ -30,7 +44,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   for (const locale of routing.locales) {
     const prefix = locale === routing.defaultLocale ? "" : `/${locale}`;
     for (const p of staticPaths) {
-      entries.push({ url: `${BASE}${prefix}${p || "/"}`, changeFrequency: "daily", priority: p ? 0.7 : 1 });
+      entries.push({
+        url: `${BASE}${prefix}${p || "/"}`,
+        changeFrequency: "daily",
+        priority: p ? 0.7 : 1,
+      });
     }
     for (const s of species) {
       entries.push({

@@ -67,6 +67,11 @@ jobs:
         name: Lint
 
       - name: Build
+        # NEXT_PUBLIC_E2E exposes window.__map so the page spec can move the map
+        # deterministically. It is inlined at build time, so it is present only in
+        # this build and never in a deployed one.
+        env:
+          NEXT_PUBLIC_E2E: "1"
         run: npm run build
 
       - name: Start server

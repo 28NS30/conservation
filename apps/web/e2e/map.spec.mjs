@@ -11,7 +11,9 @@
  */
 import { chromium } from "playwright";
 
-const URL_ = process.env.MAP_URL ?? "http://localhost:3000";
+// /map, not /: the home page hero runs the same component in presentation
+// mode, which deliberately has no chrome, so it cannot stand in for the tool.
+const URL_ = process.env.MAP_URL ?? "http://localhost:3000/map";
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
