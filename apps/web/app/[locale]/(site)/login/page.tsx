@@ -55,7 +55,7 @@ export default function LoginPage() {
             type="button"
             onClick={send}
             disabled={busy || !email.includes("@")}
-            className="w-full rounded-lg bg-ember-500 px-4 py-2.5 text-sm font-semibold text-bark-950 disabled:bg-bark-700 disabled:text-parchment-400"
+            className="w-full rounded-lg bg-ember-500 px-4 py-2.5 text-sm font-semibold text-bark-950 disabled:bg-bark-700 disabled:text-parchment-300"
           >
             {busy ? t("sending") : t("send")}
           </button>

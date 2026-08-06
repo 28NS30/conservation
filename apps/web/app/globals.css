@@ -30,7 +30,11 @@
   --color-parchment-200: #d8cbb0;
   --color-parchment-300: #b8ab94;
   --color-parchment-400: #9d9179;
-  --color-parchment-500: #7d7462;
+  /* Lightened from #7d7462, which measured 4.05:1 on bark-950 and 3.80:1 on
+     bark-900 — under WCAG AA's 4.5:1 for normal text, and this is the token
+     every muted caption, rank number and separator uses. Now 4.93 / 4.61.
+     Still the quietest step; the gap to parchment-400 (6.03) survives. */
+  --color-parchment-500: #8b8270;
 
   /* Pangolin scales. Warmth on surfaces and borders. */
   --color-scale-300: #c9a882;

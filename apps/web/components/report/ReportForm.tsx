@@ -362,7 +362,7 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
         type="button"
         onClick={submit}
         disabled={phase === "submitting" || preparing || !location}
-        className="w-full rounded-xl bg-ember-500 px-4 py-3 text-sm font-semibold text-bark-950 transition disabled:cursor-not-allowed disabled:bg-bark-700 disabled:text-parchment-400"
+        className="w-full rounded-xl bg-ember-500 px-4 py-3 text-sm font-semibold text-bark-950 transition disabled:cursor-not-allowed disabled:bg-bark-700 disabled:text-parchment-300"
       >
         {phase === "submitting" ? t("submitting") : t("submit")}
       </button>
