@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import PageHeader from "@/components/site/PageHeader";
 import { browserSupabase } from "@/lib/supabase/client";
 
 /**
@@ -32,10 +33,7 @@ export default function LoginPage() {
 
   return (
     <main className="mx-auto w-full max-w-sm px-4 pt-16">
-      <h1 className="mb-1 mt-3 text-lg font-semibold text-parchment-50">
-        {t("heading")}
-      </h1>
-      <p className="mb-6 text-xs text-parchment-400">{t("explain")}</p>
+      <PageHeader title={t("heading")} lede={t("explain")} />
 
       {sent ? (
         <p className="rounded-lg border border-ember-500/30 bg-ember-500/10 px-3 py-3 text-sm text-ember-400">
