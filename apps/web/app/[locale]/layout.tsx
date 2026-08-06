@@ -17,7 +17,13 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "site" });
-  return { title: t("title"), description: t("description") };
+  return {
+    // Inner pages set a bare page title ("關於本站"); the template is what puts
+    // the project's name behind it in the tab and in a shared link. The home
+    // page opts out with `title: { absolute }` so it is not named twice.
+    title: { default: t("title"), template: `%s · ${t("title")}` },
+    description: t("description"),
+  };
 }
 
 export default async function LocaleLayout({

@@ -10,8 +10,8 @@ import type { MetadataRoute } from "next";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "生態通報地圖 · Taiwan Conservation Map",
-    short_name: "生態通報",
+    name: "生態守望計畫 · Project EcoWatch",
+    short_name: "生態守望",
     description:
       "台灣路殺、外來入侵種與環境通報的公開熱點地圖。A public heatmap of roadkill, invasive species and environmental reports across Taiwan.",
     start_url: "/",

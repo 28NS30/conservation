@@ -8,10 +8,12 @@ import Mark from "./Mark";
  * collaborators. Reversing that would be a quiet statement about who the site is
  * for.
  *
- * NAMING: the badge says 生態守望計畫 / PROJECT ECOWATCH; the old header said
- * 生態通報地圖 ("ecological reporting map"). Those are an organisation and a
- * product respectively, so both survive — the org names the site, the map keeps
- * its descriptive name where it is actually describing the map.
+ * NAMING: the project is 生態守望計畫 / Project EcoWatch, after the badge. It
+ * used to be 生態通報地圖 ("ecological reporting map") in metadata while the
+ * header already said this, so the two disagreed. The descriptive phrase now
+ * lives in site.tagline and site.description, where it describes rather than
+ * names — a name that means "reporting map" could not follow the organisation
+ * past roadkill.
  */
 export default function Wordmark({
   size = "md",
