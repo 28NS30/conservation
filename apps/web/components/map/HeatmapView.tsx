@@ -352,7 +352,15 @@ export default function HeatmapView({
       handleRef.current = handle;
       mapRef.current = map;
 
-      if (process.env.NODE_ENV !== "production") {
+      // A handle for the end-to-end specs, which need to move the map
+      // deterministically. Exposed in dev, and in a build that opts in with
+      // NEXT_PUBLIC_E2E — CI serves `next start`, so a NODE_ENV check alone left
+      // window.__map undefined there and the page spec died on a raw TypeError.
+      // A real production build still exposes nothing.
+      if (
+        process.env.NODE_ENV !== "production" ||
+        process.env.NEXT_PUBLIC_E2E === "1"
+      ) {
         (window as unknown as { __map?: MLMap }).__map = map;
       }
 

@@ -52,8 +52,13 @@ export default async function LocaleLayout({
             advertising or tracking cookies. It is here rather than omitted
             because without it "does the landing page lead to a report" is
             unanswerable even after launch, and that is the question the design
-            exists to get right. */}
-        <Analytics />
+            exists to get right.
+
+            Only on Vercel: the script lives at /_vercel/insights/script.js,
+            which the platform serves and nothing else does. Under `next start`
+            anywhere else — including CI — it 404s on every page, which failed
+            all thirteen page renders and looked like a site-wide breakage. */}
+        {process.env.VERCEL && <Analytics />}
       </body>
     </html>
   );
