@@ -48,6 +48,22 @@ insert into taxa (id,taicol_id,scientific_name,common_name_zh,rank,kingdom,phylu
   (104427,'t0104427','Rathouisiidae','拉索蛞蝓科','Family','Animalia','Mollusca','Gastropoda','Systellommatophora','Rathouisiidae',true,false,'invasive',true,NULL,NULL,NULL),
   (104431,'t0104431','Rathouisia','拉索蛞蝓','Genus','Animalia','Mollusca','Gastropoda','Systellommatophora','Rathouisiidae',false,false,'invasive',true,NULL,NULL,NULL);
 
+-- Alternative Chinese names, exactly as TaiCOL carries them.
+--
+-- Kept out of the insert above only to avoid widening every row. They are not
+-- decoration: 石虎 is what a Taiwanese person calls the leopard cat, not 豹貓,
+-- so a directory that cannot find it by that name is broken for the species
+-- this project most exists to protect. species.test.mjs asserts exactly that,
+-- and could never pass here while this column was NULL for every fixture row.
+update taxa set alt_names_zh = array['石虎','華南豹貓','山貓','金錢貓','錢貓']
+ where scientific_name = 'Prionailurus bengalensis';
+update taxa set alt_names_zh = array['癩蝦蟆']
+ where scientific_name = 'Duttaphrynus melanostictus';
+update taxa set alt_names_zh = array['箕作氏攀蜥','斯氏攀蜥']
+ where scientific_name = 'Diploderma swinhonis';
+update taxa set alt_names_zh = array['錦蛇','黑眉曙蛇','黃長蟲','臺灣黑眉錦蛇']
+ where scientific_name = 'Elaphe taeniura';
+
 select setval(pg_get_serial_sequence('taxa','id'), (select max(id) from taxa));
 
 insert into reports (id, category, location, location_public, observed_at, taxon_id,
