@@ -61,10 +61,13 @@ export default function SpeciesMap({
   // Falls back rather than showing an empty map when the shared preference is
   // heat and this species is too sparse for it.
   const mode: MapMode = stored === "heat" && !allowHeat ? "dots" : stored;
+  // Read by the async map-creation effect below, which resolves after this
+  // render. Kept up to date in the effect rather than assigned here: writing a
+  // ref during render is what "Cannot access refs during render" is about.
   const modeRef = useRef(mode);
-  modeRef.current = mode;
 
   useEffect(() => {
+    modeRef.current = mode;
     const map = handleRef.current?.map;
     if (map) applyMode(map, mode);
   }, [mode]);
