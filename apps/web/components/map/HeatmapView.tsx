@@ -28,32 +28,102 @@ import MapFilters from "./MapFilters";
 import { Link } from "@/i18n/navigation";
 
 /**
+ * Hide everything west of the Taiwan Strait, on the hero only.
+ *
+ * The hero has to clear a 400px panel on its left, which forces the window
+ * roughly 2.5 degrees west — and what is 2.5 degrees west of Taiwan is Fujian.
+ * That is not a framing problem with a framing solution: no padding satisfies
+ * both "island clear of the panel" and "no mainland", because the two pull in
+ * opposite directions.
+ *
+ * So the mainland is painted out. A world-sized polygon with a hole cut around
+ * Taiwan, filled with the basemap's own ocean colour, sampled rather than
+ * guessed — #262626 across CARTO dark_all. The hole's western edge follows the
+ * median of the strait rather than a meridian, because the strait runs
+ * north-east: a straight cut either clipped Penghu or let Fuzhou through.
+ *
+ * Deliberately NOT applied to /map. That map is an instrument, and Kinmen and
+ * Matsu carry real records; hiding them there would be lying about the data
+ * rather than composing a picture.
+ */
+const OCEAN = "#262626";
+const MASK_ID = "mainland-mask";
+
+function addMainlandMask(map: MLMap) {
+  if (map.getLayer(MASK_ID)) return;
+  map.addSource(MASK_ID, {
+    type: "geojson",
+    data: {
+      type: "Feature",
+      properties: {},
+      geometry: {
+        type: "Polygon",
+        coordinates: [
+          // The world.
+          [
+            [-180, -85],
+            [180, -85],
+            [180, 85],
+            [-180, 85],
+            [-180, -85],
+          ],
+          // The hole: Taiwan, Penghu, Green Island and Orchid Island.
+          [
+            [119.2, 21.3],
+            [119.3, 23.0],
+            [119.6, 24.0],
+            [120.2, 25.0],
+            [120.8, 25.6],
+            [122.7, 25.6],
+            [122.7, 21.3],
+            [119.2, 21.3],
+          ],
+        ],
+      },
+    },
+  });
+  map.addLayer({
+    id: MASK_ID,
+    type: "fill",
+    source: MASK_ID,
+    paint: { "fill-color": OCEAN },
+  });
+}
+
+/**
  * Frame the island inside whatever container the map has been given.
  *
- * Simple even padding now, because the hero gives the map its own column rather
- * than laying the headline over it. The previous version had to compute an inset
- * past the headline, and every value it derived was a guess that held at one
- * width — at 768px a 44% inset ran the text straight through the island.
+ * Two modes, because the two maps want opposite things.
  *
- * Fits TAIWAN_MAIN_BOUNDS, not TAIWAN_BOUNDS: the latter reaches west to Kinmen
- * and Matsu against the Fujian coast, so fitting it always drags mainland China
- * into frame.
+ * The hero is full bleed with the entry panel floating over its left side, so
+ * the island has to sit clear of that panel — which means padding on the LEFT,
+ * which drags the window west toward Fujian. That is acceptable here and only
+ * here: the mainland lands underneath the panel and its scrim, at 90% black.
+ *
+ * The interactive map has no panel, so it takes the opposite bias. Taiwan is far
+ * taller than it is wide, so any container wider than that ratio has horizontal
+ * slack, and everything west of the island is China. Weighting the padding right
+ * shifts the window east and fills the slack with the Pacific instead.
+ *
+ * Both are proportional. A constant that cleared the mainland in one container
+ * left Quanzhou on screen in another, because the slack scales with width.
  */
-function frameIsland(map: MLMap) {
-  // Asymmetric on purpose. Taiwan is much taller than it is wide, so any
-  // container wider than that ratio has horizontal slack — and everything west
-  // of the island is Fujian. Weighting the padding to the right shifts the
-  // window east, so the slack is filled with the Pacific instead of the
-  // mainland, at every container shape.
-  // Proportional, not fixed. The slack scales with the container, so a constant
-  // 150px that cleared the mainland in the hero's narrow column left Quanzhou
-  // and Xiamen on screen across a 1180px map. About 0.6 degrees of strait
-  // separates Taiwan's west coast from Fujian, which is the only budget there is.
+function frameIsland(map: MLMap, mode: "hero" | "browse") {
   const { width } = map.getCanvas().getBoundingClientRect();
-  map.fitBounds(TAIWAN_MAIN_BOUNDS, {
-    padding: { top: 8, bottom: 8, left: 0, right: Math.round(width * 0.42) },
-    duration: 0,
-  });
+  const padding =
+    mode === "hero"
+      ? {
+          top: 40,
+          bottom: 40,
+          // Just past the panel: it is max-w-sm (384px) inside a centred
+          // max-w-7xl, so this tracks it rather than guessing a fraction of the
+          // viewport. Overshooting is not free — every pixel of left inset
+          // pulls the window west toward the mainland.
+          left: Math.min(Math.round(width * 0.36), 520),
+          right: 24,
+        }
+      : { top: 8, bottom: 8, left: 0, right: Math.round(width * 0.42) };
+  map.fitBounds(TAIWAN_MAIN_BOUNDS, { padding, duration: 0 });
 }
 
 /**
@@ -77,12 +147,13 @@ const SOURCE_PTS = "reports-pts";
 const SOURCE_LAYER = "reports";
 const CELL_LAYER = "reports-cells";
 const DOT_LAYER = "reports-dots";
+const HEAT_LAYER = "reports-heat";
 const POINT_LAYER = "reports-points";
 /** Second layer in the same MVT, carrying cell centroids. See the tile route. */
 const DOT_SOURCE_LAYER = "reports_dots";
 
-export type MapMode = "bins" | "dots";
-const MODES: MapMode[] = ["bins", "dots"];
+export type MapMode = "heat" | "bins" | "dots";
+const MODES: MapMode[] = ["heat", "bins", "dots"];
 const MODE_KEY = "conservation.mapMode";
 
 /**
@@ -105,7 +176,7 @@ const modeStore = {
   get(): MapMode {
     try {
       const v = window.localStorage.getItem(MODE_KEY);
-      return v === "dots" || v === "bins" ? v : "bins";
+      return v === "dots" || v === "bins" || v === "heat" ? v : "bins";
     } catch {
       return "bins"; // private browsing
     }
@@ -374,7 +445,7 @@ export default function HeatmapView({
       // shared URL carrying lng/lat/z is honoured instead, and panning still
       // reaches Kinmen and Matsu, which do carry records.
       if (presentationRef.current || !initialViewRef.current) {
-        frameIsland(map);
+        frameIsland(map, presentationRef.current ? "hero" : "browse");
       }
 
       // No maxBounds. It is not a pan limit so much as a camera override:
@@ -388,13 +459,18 @@ export default function HeatmapView({
       // changes shape with the window. Doing it on the interactive map would
       // yank a browsing user back to the island the moment they resized.
       if (presentationRef.current) {
-        const onResizeFit = () => frameIsland(map);
+        const onResizeFit = () => frameIsland(map, "hero");
         map.on("resize", onResizeFit);
         cleanupRef.current = () => map.off("resize", onResizeFit);
       }
 
       // Idempotent: may be invoked more than once as the style settles.
       function addReportLayers(map: MLMap) {
+        // Before the report layers, so the density cells draw over it. Called
+        // from here rather than beside frameIsland because addLayer throws
+        // "Style is not done loading" until this callback fires.
+        if (presentationRef.current) addMainlandMask(map);
+
         if (map.getSource(SOURCE_AGG)) return;
 
         map.addSource(SOURCE_AGG, {
@@ -445,6 +521,86 @@ export default function HeatmapView({
               0.85,
               TILE_AGGREGATION_MAX_ZOOM + 1,
               0.55,
+              TILE_AGGREGATION_MAX_ZOOM + 1.2,
+              0,
+            ],
+          },
+        });
+
+        // The blurry one. A kernel density estimate: MapLibre spreads each
+        // point over a radius and sums the overlaps, so the colour at a pixel is
+        // not any feature's count — which is exactly why bins and dots exist
+        // beside it. It is kept because it reads shape and pressure across a
+        // whole region better than discrete symbols do.
+        map.addLayer({
+          id: HEAT_LAYER,
+          type: "heatmap",
+          source: SOURCE_AGG,
+          "source-layer": DOT_SOURCE_LAYER,
+          maxzoom: TILE_AGGREGATION_MAX_ZOOM + 2,
+          layout: { visibility: "none" },
+          paint: {
+            // Weighted by the cell's own count, so a cell holding 300 reports
+            // pushes far harder than one holding 2. Capped so a single hotspot
+            // cannot saturate the whole surface.
+            "heatmap-weight": [
+              "interpolate",
+              ["linear"],
+              ["get", "weight"],
+              0,
+              0,
+              1,
+              0.12,
+              30,
+              0.5,
+              300,
+              1,
+            ],
+            "heatmap-intensity": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              5,
+              0.8,
+              12,
+              2.4,
+            ],
+            // Same blue -> cyan -> green -> amber -> red progression as
+            // DENSITY_CLASSES, so switching modes does not relearn the colours.
+            "heatmap-color": [
+              "interpolate",
+              ["linear"],
+              ["heatmap-density"],
+              0,
+              "rgba(0,0,0,0)",
+              0.15,
+              "rgba(56,132,255,0.55)",
+              0.35,
+              "rgba(34,211,238,0.7)",
+              0.55,
+              "rgba(52,211,153,0.8)",
+              0.75,
+              "rgba(251,146,60,0.88)",
+              1,
+              "rgba(244,63,94,0.95)",
+            ],
+            "heatmap-radius": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              5,
+              12,
+              9,
+              22,
+              13,
+              34,
+            ],
+            "heatmap-opacity": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              TILE_AGGREGATION_MAX_ZOOM,
+              0.9,
               TILE_AGGREGATION_MAX_ZOOM + 1.2,
               0,
             ],
@@ -645,7 +801,7 @@ export default function HeatmapView({
     };
   }, [ready, filter]);
 
-  /* ---- bins vs dots ---- */
+  /* ---- heat vs bins vs dots ---- */
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
@@ -660,6 +816,11 @@ export default function HeatmapView({
       DOT_LAYER,
       "visibility",
       mode === "dots" ? "visible" : "none",
+    );
+    map.setLayoutProperty(
+      HEAT_LAYER,
+      "visibility",
+      mode === "heat" ? "visible" : "none",
     );
     // Persistence is modeStore.set's job; doing it here too would be a second
     // source of truth for the same value.

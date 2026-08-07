@@ -54,7 +54,11 @@ export default async function SiteHeader({
               : "mx-auto flex w-full max-w-5xl items-center justify-between gap-6 px-6 py-3"
         }
       >
-        <Link href="/" className="shrink-0" aria-label={t("site.title")}>
+        <Link
+          href="/"
+          className={`shrink-0 ${overlay ? "text-parchment-50" : "text-ink-900"}`}
+          aria-label={t("site.title")}
+        >
           <Wordmark size={app ? "sm" : "md"} />
         </Link>
 
@@ -74,7 +78,7 @@ export default async function SiteHeader({
               <Link
                 key={l.href}
                 href={l.href}
-                className="text-xs text-ink-600 transition hover:text-ink-900"
+                className={`text-xs transition ${overlay ? "text-parchment-200 hover:text-parchment-50" : "text-ink-600 hover:text-ink-900"}`}
               >
                 {l.label}
               </Link>
@@ -105,7 +109,7 @@ export default async function SiteHeader({
               <Link
                 key={l.href}
                 href={l.href}
-                className="text-xs text-ink-600 transition hover:text-ink-900"
+                className={`text-xs transition ${overlay ? "text-parchment-200 hover:text-parchment-50" : "text-ink-600 hover:text-ink-900"}`}
               >
                 {l.label}
               </Link>

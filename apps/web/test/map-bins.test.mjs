@@ -38,24 +38,81 @@ const MAP_COMPONENTS = [
   "components/species/SpeciesMap.tsx",
 ];
 
-describe("the blur stays gone", () => {
-  for (const path of MAP_COMPONENTS) {
-    test(`${path} uses no heatmap layer`, () => {
-      const src = read(path);
-      for (const banned of ['type: "heatmap"', '"heatmap-radius"', '"heatmap-weight"', '"heatmap-intensity"']) {
-        assert.ok(
-          !src.includes(banned),
-          `${path} contains ${banned}. MapLibre's heatmap layer is a kernel ` +
-            `density estimate, so it is blurry by construction — tuning its radius ` +
-            `and weight cannot make it sharp, which is why this map draws discrete ` +
-            `cells instead. If you genuinely want a heatmap back, delete this test ` +
-            `deliberately rather than by accident.`,
-        );
-      }
-    });
+describe("the blur is opt-in", () => {
+  /*
+   * This used to ban MapLibre's heatmap layer outright, and said to delete the
+   * ban deliberately rather than by accident if a heatmap was ever genuinely
+   * wanted. It now is: the main map offers three views — heat, bins, dots — so
+   * that the blurry surface, which reads regional pressure better than discrete
+   * symbols do, is available without becoming the default.
+   *
+   * What still has to hold is the reason the ban existed. A kernel density
+   * estimate has no feature under the cursor: the colour at a pixel is a sum
+   * over neighbouring blobs and corresponds to no particular count, so it cannot
+   * answer "how many?". That makes it a poor default for a map whose whole point
+   * is counting roadkill, and unacceptable as the only option.
+   */
+  test("HeatmapView offers heat, bins and dots", () => {
+    const src = read("components/map/HeatmapView.tsx");
+    assert.match(
+      src,
+      /const MODES: MapMode\[\] = \["heat", "bins", "dots"\]/,
+      "the three display modes should stay explicit and ordered",
+    );
+  });
 
+  test("the default view is countable, not blurry", () => {
+    const src = read("components/map/HeatmapView.tsx");
+    // Both the client store and its server snapshot must default to a mode with
+    // real features behind it, or the first paint is a surface nobody can query.
+    const defaults = [
+      ...src.matchAll(
+        /return v === [^;]*\? v : "([a-z]+)"|getServer\(\): MapMode \{\s*return "([a-z]+)"/g,
+      ),
+    ]
+      .flatMap((m) => [m[1], m[2]])
+      .filter(Boolean);
+    assert.ok(
+      defaults.length >= 2,
+      `expected both defaults, found ${defaults}`,
+    );
+    for (const d of defaults) {
+      assert.notEqual(
+        d,
+        "heat",
+        "the blurry surface must not be the default view",
+      );
+    }
+  });
+
+  for (const path of MAP_COMPONENTS) {
+    test(`${path} still draws countable cells`, () => {
+      const src = read(path);
+      assert.ok(
+        src.includes('type: "fill"'),
+        `${path} should still render discrete cells, whatever else it offers`,
+      );
+    });
+  }
+
+  test("SpeciesMap stays free of the heatmap layer", () => {
+    // One species' records are sparse by construction — a density estimate over
+    // a handful of points invents structure that is not in the data.
+    const src = read("components/species/SpeciesMap.tsx");
+    assert.ok(
+      !src.includes('type: "heatmap"'),
+      "SpeciesMap must not use a KDE",
+    );
+  });
+});
+
+describe("cell rendering", () => {
+  for (const path of MAP_COMPONENTS) {
     test(`${path} draws cells as a fill`, () => {
-      assert.ok(read(path).includes('type: "fill"'), `${path} should render cells as filled polygons`);
+      assert.ok(
+        read(path).includes('type: "fill"'),
+        `${path} should render cells as filled polygons`,
+      );
     });
 
     test(`${path} disables fill antialiasing`, () => {
@@ -73,7 +130,10 @@ describe("the bins/dots toggle", () => {
   const src = read("components/map/HeatmapView.tsx");
 
   test("a dots layer exists alongside the cells layer", () => {
-    assert.ok(src.includes('"source-layer": DOT_SOURCE_LAYER'), "dots must read the tile's second layer");
+    assert.ok(
+      src.includes('"source-layer": DOT_SOURCE_LAYER'),
+      "dots must read the tile's second layer",
+    );
     assert.ok(src.includes('type: "circle"'), "dots are a circle layer");
   });
 
@@ -106,7 +166,10 @@ describe("the bins/dots toggle", () => {
     const i = src.indexOf("const dotRadius");
     assert.ok(i > -1, "expected a dotRadius expression");
     const decl = src.slice(i, src.indexOf("];", i));
-    assert.ok(decl.includes('"sqrt"'), "dot radius must interpolate on sqrt(weight), not the raw count");
+    assert.ok(
+      decl.includes('"sqrt"'),
+      "dot radius must interpolate on sqrt(weight), not the raw count",
+    );
   });
 
   test("the choice persists via useSyncExternalStore, not useState", () => {
@@ -147,16 +210,31 @@ describe("the zoom handoff has no blank band", () => {
   function zoomRamp(src, key) {
     const at = src.indexOf(`"${key}":`);
     if (at === -1) return null;
-    if (src[src.indexOf(":", at) + 1] !== " " || src.slice(at).match(/^"[^"]+":\s*\[/) === null) return null;
+    if (
+      src[src.indexOf(":", at) + 1] !== " " ||
+      src.slice(at).match(/^"[^"]+":\s*\[/) === null
+    )
+      return null;
     const open = src.indexOf("[", at);
-    let depth = 0, end = -1;
+    let depth = 0,
+      end = -1;
     for (let i = open; i < src.length; i++) {
       if (src[i] === "[") depth++;
-      else if (src[i] === "]" && --depth === 0) { end = i; break; }
+      else if (src[i] === "]" && --depth === 0) {
+        end = i;
+        break;
+      }
     }
     if (end === -1) return null;
-    const nums = src.slice(open, end).match(/(?<![\w.])-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
-    return { zooms: nums.filter((_, i) => i % 2 === 0), values: nums.filter((_, i) => i % 2 === 1) };
+    const nums =
+      src
+        .slice(open, end)
+        .match(/(?<![\w.])-?\d+(?:\.\d+)?/g)
+        ?.map(Number) ?? [];
+    return {
+      zooms: nums.filter((_, i) => i % 2 === 0),
+      values: nums.filter((_, i) => i % 2 === 1),
+    };
   }
 
   test("the point layer is not transparent at the zoom it takes over", () => {
@@ -222,7 +300,10 @@ describe("the zoom handoff has no blank band", () => {
     const at = src.indexOf('"fill-opacity"');
     assert.ok(at > -1);
     const decl = src.slice(at, at + 400);
-    assert.ok(decl.includes("interpolate"), "fill-opacity should fade across the handoff");
+    assert.ok(
+      decl.includes("interpolate"),
+      "fill-opacity should fade across the handoff",
+    );
   });
 });
 
@@ -249,14 +330,23 @@ describe("aggregation grid", () => {
     const px = 512 / AGGREGATION_CELLS_PER_TILE;
     // Below ~3px a cell is indistinguishable from noise — measured by comparing
     // 256 cells/tile (2px, speckled) against 128 (4px, legible).
-    assert.ok(px >= 3, `cells render at ${px}px; below 3px they read as noise, not bins`);
-    assert.ok(px <= 16, `cells render at ${px}px; that is coarse enough to hide real structure`);
+    assert.ok(
+      px >= 3,
+      `cells render at ${px}px; below 3px they read as noise, not bins`,
+    );
+    assert.ok(
+      px <= 16,
+      `cells render at ${px}px; that is coarse enough to hide real structure`,
+    );
   });
 
   test("cell size halves with each zoom level", () => {
     for (let z = 3; z < 9; z++) {
       const ratio = aggregationCellMeters(z) / aggregationCellMeters(z + 1);
-      assert.ok(Math.abs(ratio - 2) < 1e-9, `z${z}->z${z + 1} ratio was ${ratio}`);
+      assert.ok(
+        Math.abs(ratio - 2) < 1e-9,
+        `z${z}->z${z + 1} ratio was ${ratio}`,
+      );
     }
   });
 });
@@ -283,7 +373,11 @@ describe("density classes", () => {
 
     test(`${name} colours are valid hex`, () => {
       for (const c of classes) {
-        assert.match(c.color, /^#[0-9a-f]{6}$/i, `${name}: ${c.color} is not a hex colour`);
+        assert.match(
+          c.color,
+          /^#[0-9a-f]{6}$/i,
+          `${name}: ${c.color} is not a hex colour`,
+        );
       }
     });
 
@@ -294,7 +388,11 @@ describe("density classes", () => {
       assert.equal(expr.length, 3 + (classes.length - 1) * 2);
       for (let i = 3; i < expr.length; i += 2) {
         assert.equal(typeof expr[i], "number", "break inputs must be numbers");
-        assert.equal(typeof expr[i + 1], "string", "break outputs must be colours");
+        assert.equal(
+          typeof expr[i + 1],
+          "string",
+          "break outputs must be colours",
+        );
       }
     });
   }
@@ -311,7 +409,9 @@ describe("density classes", () => {
       `lowest class ${hex} has luminance ${luminance.toFixed(2)}; it must recede, not shout`,
     );
     const brighter = DENSITY_CLASSES[1].color;
-    const [r2, g2, b2] = [1, 3, 5].map((i) => parseInt(brighter.slice(i, i + 2), 16));
+    const [r2, g2, b2] = [1, 3, 5].map((i) =>
+      parseInt(brighter.slice(i, i + 2), 16),
+    );
     assert.ok(
       (0.2126 * r2 + 0.7152 * g2 + 0.0722 * b2) / 255 > luminance,
       "the second class must be brighter than the first",
@@ -336,6 +436,10 @@ describe("density classes", () => {
         `class ${i} must end exactly where class ${i + 1} begins`,
       );
     }
-    assert.equal(densityClassMax(DENSITY_CLASSES.length - 1), null, "top class is open-ended");
+    assert.equal(
+      densityClassMax(DENSITY_CLASSES.length - 1),
+      null,
+      "top class is open-ended",
+    );
   });
 });

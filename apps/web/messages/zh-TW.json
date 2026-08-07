@@ -54,6 +54,7 @@
     "cellSize": "方格約 {km} 公里",
     "displayMode": "顯示方式",
     "mode": {
+      "heat": "熱區",
       "bins": "方格",
       "dots": "圓點"
     },

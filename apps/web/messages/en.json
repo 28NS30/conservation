@@ -54,6 +54,7 @@
     "cellSize": "about {km} km per cell",
     "displayMode": "Display mode",
     "mode": {
+      "heat": "Heat",
       "bins": "Grid",
       "dots": "Dots"
     },
