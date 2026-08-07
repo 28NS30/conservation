@@ -45,7 +45,26 @@ const state = await page.evaluate(() => {
     tiles: src?.tiles,
     sourceLoaded: m.isSourceLoaded("reports-agg"),
     features: m.querySourceFeatures("reports-agg", { sourceLayer: "reports" }).length,
-    renderedCells: m.queryRenderedFeatures({ layers: ["reports-cells"] }).length,
+    // Whatever the ACTIVE mode draws, not one hard-coded layer. This counted
+    // "reports-cells" only, so the day dots became the default it silently
+    // reported 0 rendered features and still exited 0 — the one check that
+    // proves the map paints at all, measuring nothing.
+    renderedByMode: Object.fromEntries(
+      ["reports-heat", "reports-cells", "reports-dots"]
+        .filter((id) => m.getLayer(id))
+        .map((id) => [
+          id,
+          {
+            visible: (m.getLayoutProperty(id, "visibility") ?? "visible") !== "none",
+            // A heatmap layer is not queryable by feature, so fall back to the
+            // source it draws from.
+            features:
+              id === "reports-heat"
+                ? m.querySourceFeatures("reports-agg", { sourceLayer: "reports_dots" }).length
+                : m.queryRenderedFeatures({ layers: [id] }).length,
+          },
+        ]),
+    ),
     layers: m.getStyle().layers.map((l) => l.id),
     // Every data layer must actually exist. An invalid paint expression makes
     // MapLibre reject the layer at addLayer time and log to the console — the

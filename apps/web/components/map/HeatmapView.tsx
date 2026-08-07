@@ -25,6 +25,8 @@ import {
 } from "@conservation/shared";
 import { createMap, type MapHandle } from "@/lib/map";
 import MapFilters from "./MapFilters";
+import MapModeToggle from "./MapModeToggle";
+import { modeStore, type MapMode } from "./mapMode";
 import { Link } from "@/i18n/navigation";
 
 /**
@@ -160,6 +162,8 @@ function frameIsland(map: MLMap, mode: "hero" | "browse") {
  * underneath them. The point source starts one level up, so neither source
  * fetches tiles the other regime would serve.
  */
+export type { MapMode };
+
 const SOURCE_AGG = "reports-agg";
 const SOURCE_PTS = "reports-pts";
 const SOURCE_LAYER = "reports";
@@ -169,57 +173,6 @@ const HEAT_LAYER = "reports-heat";
 const POINT_LAYER = "reports-points";
 /** Second layer in the same MVT, carrying cell centroids. See the tile route. */
 const DOT_SOURCE_LAYER = "reports_dots";
-
-export type MapMode = "heat" | "bins" | "dots";
-const MODES: MapMode[] = ["heat", "bins", "dots"];
-const MODE_KEY = "conservation.mapMode";
-
-/**
- * The bins/dots preference, held in localStorage and read through
- * useSyncExternalStore.
- *
- * Two simpler approaches both fail. Reading localStorage in a `useState`
- * initialiser also runs during hydration, where the server could not have known
- * the value, so React reports a hydration mismatch and refuses to patch it up.
- * Restoring it in an effect instead means calling setState synchronously in an
- * effect body, which cascades renders. useSyncExternalStore is the intended tool:
- * it renders the server snapshot during hydration and swaps to the client
- * snapshot immediately afterwards, with no mismatch and no cascade.
- *
- * The `storage` event subscription is a small bonus — flipping the toggle in one
- * tab updates any others.
- */
-const modeStore = {
-  listeners: new Set<() => void>(),
-  get(): MapMode {
-    try {
-      const v = window.localStorage.getItem(MODE_KEY);
-      return v === "dots" || v === "bins" || v === "heat" ? v : "dots";
-    } catch {
-      return "dots"; // private browsing
-    }
-  },
-  /** The server has no preference to read, so it always renders the default. */
-  getServer(): MapMode {
-    return "dots";
-  },
-  set(m: MapMode) {
-    try {
-      window.localStorage.setItem(MODE_KEY, m);
-    } catch {
-      // Not persisted, but the in-memory notify below still updates the UI.
-    }
-    for (const l of modeStore.listeners) l();
-  },
-  subscribe(l: () => void) {
-    modeStore.listeners.add(l);
-    window.addEventListener("storage", l);
-    return () => {
-      modeStore.listeners.delete(l);
-      window.removeEventListener("storage", l);
-    };
-  },
-};
 
 /**
  * How big a symbol representing exactly ONE report should be, at a given zoom.
@@ -387,7 +340,7 @@ export default function HeatmapView({
   const [ready, setReady] = useState(false);
   const [filter, setFilter] = useState<MapFilter>(initialFilter ?? {});
   const [hint, setHint] = useState<string | null>(null);
-  // Bins vs dots. See modeStore above for why this is not useState.
+  // See mapMode.ts for why this is a store rather than useState.
   const mode = useSyncExternalStore(
     modeStore.subscribe,
     modeStore.get,
@@ -927,27 +880,7 @@ export default function HeatmapView({
       {!presentation && (
         <div className="pointer-events-auto absolute bottom-16 right-3 sm:bottom-12 sm:right-4">
           <div className="rounded-lg border border-parchment-200/15 bg-bark-900/80 px-3 py-2 text-[11px] text-parchment-300 backdrop-blur">
-            <div
-              role="group"
-              aria-label={t("map.displayMode")}
-              className="mb-2 flex rounded-md border border-parchment-200/15 p-0.5"
-            >
-              {MODES.map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setMode(m)}
-                  aria-pressed={mode === m}
-                  className={`flex-1 rounded px-2 py-1 text-[11px] transition ${
-                    mode === m
-                      ? "bg-parchment-50/90 font-medium text-bark-950"
-                      : "text-parchment-300 hover:bg-parchment-50/10"
-                  }`}
-                >
-                  {t(`map.mode.${m}`)}
-                </button>
-              ))}
-            </div>
+            <MapModeToggle mode={mode} onChange={setMode} className="mb-2" />
 
             <div className="mb-1 font-medium text-parchment-200">
               {t("map.density")}
