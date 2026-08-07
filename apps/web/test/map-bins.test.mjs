@@ -52,8 +52,10 @@ describe("the blur is opt-in", () => {
    * answer "how many?". That makes it a poor default for a map whose whole point
    * is counting roadkill, and unacceptable as the only option.
    */
-  test("HeatmapView offers heat, bins and dots", () => {
-    const src = read("components/map/HeatmapView.tsx");
+  test("the three display modes stay explicit and ordered", () => {
+    // Moved out of HeatmapView so /map and the species pages share one store,
+    // one vocabulary and one default.
+    const src = read("components/map/mapMode.ts");
     assert.match(
       src,
       /const MODES: MapMode\[\] = \["heat", "bins", "dots"\]/,
@@ -62,7 +64,7 @@ describe("the blur is opt-in", () => {
   });
 
   test("the default view is countable, not blurry", () => {
-    const src = read("components/map/HeatmapView.tsx");
+    const src = read("components/map/mapMode.ts");
     // Both the client store and its server snapshot must default to a mode with
     // real features behind it, or the first paint is a surface nobody can query.
     const defaults = [
@@ -95,13 +97,34 @@ describe("the blur is opt-in", () => {
     });
   }
 
-  test("SpeciesMap stays free of the heatmap layer", () => {
-    // One species' records are sparse by construction — a density estimate over
-    // a handful of points invents structure that is not in the data.
+  test("SpeciesMap gates the KDE behind a record count", () => {
+    /*
+     * This used to ban the heatmap layer from species maps outright, on the
+     * grounds that one species' records are sparse by construction and a density
+     * estimate over a handful of points invents structure that is not in the
+     * data.
+     *
+     * That reasoning is about sparsity, not about species pages: it holds for a
+     * species with twelve records and not for one with 3,978. So the map now
+     * offers the same three views as /map, and the constraint is expressed as
+     * the floor it always really was. What must not come back is heat being
+     * available — or worse, chosen — for a species with almost no records.
+     */
     const src = read("components/species/SpeciesMap.tsx");
-    assert.ok(
-      !src.includes('type: "heatmap"'),
-      "SpeciesMap must not use a KDE",
+    assert.match(
+      src,
+      /const HEAT_MIN_RECORDS = \d+/,
+      "the KDE needs an explicit record floor",
+    );
+    assert.match(
+      src,
+      /allowHeat/,
+      "the toggle must drop heat when the floor is not met",
+    );
+    assert.match(
+      src,
+      /stored === "heat" && !allowHeat \? "dots"/,
+      "a stored heat preference must fall back on a sparse species, not blank the map",
     );
   });
 });
@@ -173,6 +196,7 @@ describe("the bins/dots toggle", () => {
   });
 
   test("the choice persists via useSyncExternalStore, not useState", () => {
+    const src = read("components/map/mapMode.ts");
     assert.ok(src.includes("localStorage"), "the mode should survive a reload");
     // Two simpler approaches are both wrong, and both were tried:
     //   - localStorage in a useState initialiser runs during hydration too, where

@@ -131,10 +131,7 @@ export default async function SpeciesPage({
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 pb-24 pt-10">
-      <Link
-        href="/species"
-        className="text-xs text-ink-500 hover:text-ink-700"
-      >
+      <Link href="/species" className="text-xs text-ink-500 hover:text-ink-700">
         {nav("backToSpecies")}
       </Link>
 
@@ -169,17 +166,13 @@ export default async function SpeciesPage({
         >
           {lineage.join(" › ")}
           {habitats.length > 0 && (
-            <span className="ml-2 text-ink-500">
-              · {habitats.join(" / ")}
-            </span>
+            <span className="ml-2 text-ink-500">· {habitats.join(" / ")}</span>
           )}
         </nav>
       )}
 
       <section className="mt-8">
-        <h2 className="text-lg font-semibold text-ink-900">
-          {t("records")}
-        </h2>
+        <h2 className="text-lg font-semibold text-ink-900">{t("records")}</h2>
 
         {withheld ? (
           <p className="mt-2 rounded-lg border border-amber-700/30 bg-amber-600/10 px-3 py-2.5 text-[12px] leading-relaxed text-amber-800">
@@ -210,7 +203,7 @@ export default async function SpeciesPage({
             <div className="mt-3">
               <SpeciesMap
                 taxonId={s.id}
-                mode={s.reportCount >= HEATMAP_MIN_RECORDS ? "heat" : "points"}
+                reportCount={s.reportCount}
                 maptilerKey={process.env.NEXT_PUBLIC_MAPTILER_KEY || undefined}
               />
             </div>
