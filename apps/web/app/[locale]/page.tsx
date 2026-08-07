@@ -77,87 +77,102 @@ export default async function HomePage({
 
       {/* ---------------- hero ---------------- */}
       {/*
-        Two columns on a wide screen: the words on paper, the map in its own
-        dark panel beside them.
+        The map is the stage, not an illustration beside the words.
 
-        The map used to span the full width with the text laid over it. That put
-        a large piece of mainland China on screen for a reason that is purely
-        geometric — fitting a tall island into a wide short frame leaves a lot of
-        horizontal slack, and what fills it is Fujian. Giving the map a column
-        roughly the island's own proportions removes the slack, so the mainland
-        falls outside the frame without any masking.
+        It ran as a column next to a block of prose, which made it one element
+        among several and left the page reading like a brochure about a map. Full
+        bleed, the instrument is the first and largest thing on screen and the
+        panel is clearly laid over something live.
 
-        It also lets the two materials meet at a hard edge instead of blending.
-        A paper gradient drawn across the map desaturated the whole density scale
-        to grey, which is the one thing its dark ground exists to prevent.
+        The panel carries the whole entry point — badge, name, and every route
+        out — so the top bar can stay out of the way. Buttons are stacked and
+        full width rather than a row of pills: one column of equal-weight targets
+        reads as a menu, and works identically on a phone.
       */}
-      <section className="relative w-full overflow-hidden bg-paper-50">
-        <div className="mx-auto grid max-w-7xl items-stretch gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
-          {/* Words */}
-          <div className="order-2 flex items-center px-6 py-14 sm:px-10 lg:order-1 lg:py-24">
-            <div className="max-w-xl">
-              <p className="text-[11px] font-medium uppercase tracking-[0.28em] text-ember-700">
+      <section className="relative h-[100dvh] min-h-[600px] w-full overflow-hidden bg-bark-950">
+        <div className="absolute inset-0">
+          <HeatmapView
+            presentation
+            maptilerKey={process.env.NEXT_PUBLIC_MAPTILER_KEY || undefined}
+            years={
+              s.earliest && s.latest
+                ? { first: Number(s.earliest), last: Number(s.latest) }
+                : null
+            }
+          />
+        </div>
+
+        {/* Keeps the panel legible over whatever the map is showing beneath it,
+            without washing the density colours out across the whole frame. */}
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-full bg-gradient-to-r from-bark-950/90 via-bark-950/40 to-transparent lg:w-2/3" />
+
+        <div className="absolute inset-0 flex items-end pb-6 sm:items-center sm:pb-0">
+          <div className="mx-auto w-full max-w-7xl px-5 sm:px-8">
+            <div className="w-full max-w-[400px] rounded-3xl border border-parchment-200/15 bg-bark-900/80 p-5 shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl sm:p-8">
+              <Badge
+                size={148}
+                className="mx-auto w-24 sm:w-[148px]"
+                priority
+              />
+
+              <p className="mt-4 text-center text-[10px] sm:mt-6 font-medium uppercase tracking-[0.3em] text-ember-400">
                 {t("eyebrow")}
               </p>
-              <h1 className="mt-4 text-4xl font-semibold leading-[1.15] text-ink-900 sm:text-5xl">
+              <h1 className="mt-3 text-center text-lg font-semibold leading-relaxed text-parchment-50">
                 {t("headline")}
               </h1>
-              <p className="mt-5 max-w-lg text-sm leading-relaxed text-ink-600 sm:text-base">
-                {t("sub")}
-              </p>
 
-              <div className="mt-8 flex flex-wrap items-center gap-3">
+              <div className="mt-5 space-y-2 sm:mt-7 sm:space-y-2.5">
                 <Link
                   href="/report"
-                  className="rounded-full bg-ember-500 px-6 py-3 text-sm font-semibold text-bark-950 transition hover:bg-ember-400"
+                  className="block rounded-xl bg-ember-500 px-5 py-2.5 text-center text-sm sm:py-3 font-semibold text-bark-950 transition hover:bg-ember-400"
                 >
                   {t("ctaReport")}
                 </Link>
                 <Link
                   href="/map"
-                  className="rounded-full border border-ink-900/25 px-6 py-3 text-sm font-medium text-ink-800 transition hover:bg-ink-900/5"
+                  className="block rounded-xl border border-parchment-200/20 bg-parchment-50/5 px-5 py-2.5 text-center text-sm sm:py-3 font-medium text-parchment-100 transition hover:bg-parchment-50/12"
                 >
-                  {t("ctaMap")} →
+                  {t("ctaMap")}
+                </Link>
+                <Link
+                  href="/about"
+                  className="block rounded-xl border border-parchment-200/20 bg-parchment-50/5 px-5 py-2.5 text-center text-sm sm:py-3 font-medium text-parchment-100 transition hover:bg-parchment-50/12"
+                >
+                  {t("trustLink")}
+                </Link>
+                <Link
+                  href="/species"
+                  className="block rounded-xl border border-parchment-200/20 bg-parchment-50/5 px-5 py-2.5 text-center text-sm sm:py-3 font-medium text-parchment-100 transition hover:bg-parchment-50/12"
+                >
+                  {t("speciesLink")}
                 </Link>
               </div>
-            </div>
-          </div>
 
-          {/* The live map, not an image of one. Someone landing here is already
-              looking at the real thing. */}
-          <div className="order-1 relative h-[52vh] min-h-[380px] bg-bark-950 lg:order-2 lg:h-auto lg:min-h-[660px]">
-            <HeatmapView
-              presentation
-              maptilerKey={process.env.NEXT_PUBLIC_MAPTILER_KEY || undefined}
-              years={
-                s.earliest && s.latest
-                  ? { first: Number(s.earliest), last: Number(s.latest) }
-                  : null
-              }
-            />
+              {/* The numbers earn their place here: they are the reason to
+                  believe the map underneath is real. */}
+              <dl className="mt-5 grid grid-cols-3 sm:mt-7 gap-2 border-t border-parchment-200/12 pt-5 text-center">
+                {[
+                  { v: n(s.reports), k: t("statsRecords") },
+                  { v: n(s.species), k: t("statsSpecies") },
+                  { v: years ? String(years) : "—", k: t("statsYears") },
+                ].map((x) => (
+                  <div key={x.k}>
+                    <dt className="sr-only">{x.k}</dt>
+                    <dd>
+                      <span className="block text-base font-semibold tabular-nums text-parchment-50">
+                        {x.v}
+                      </span>
+                      <span className="mt-0.5 block text-[10px] leading-tight text-parchment-400">
+                        {x.k}
+                      </span>
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
           </div>
         </div>
-      </section>
-
-      {/* ---------------- the numbers ---------------- */}
-      <section className="border-y border-ink-900/10 bg-paper-100">
-        <dl className="mx-auto grid max-w-5xl grid-cols-1 divide-y divide-ink-900/10 px-6 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-          {[
-            { v: n(s.reports), k: t("statsRecords") },
-            { v: n(s.species), k: t("statsSpecies") },
-            { v: years ? String(years) : "—", k: t("statsYears") },
-          ].map((x) => (
-            <div key={x.k} className="px-2 py-8 text-center">
-              <dt className="sr-only">{x.k}</dt>
-              <dd>
-                <span className="block text-4xl font-semibold tabular-nums text-ink-900">
-                  {x.v}
-                </span>
-                <span className="mt-1 block text-xs text-ink-500">{x.k}</span>
-              </dd>
-            </div>
-          ))}
-        </dl>
       </section>
 
       {/* ---------------- what we record ---------------- */}
@@ -192,29 +207,35 @@ export default async function HomePage({
           ].map((x) => (
             <article
               key={x.c}
-              className="flex flex-col rounded-xl border border-ink-900/10 bg-paper-100 p-6"
+              className="group relative flex flex-col overflow-hidden rounded-2xl border border-ink-900/10 bg-paper-50 shadow-[0_1px_2px_rgba(22,36,28,0.04)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_32px_rgba(22,36,28,0.10)]"
             >
+              {/* The category's own colour, as a band rather than a 10px dot.
+                  It is the same key the map uses, so the two read as one system
+                  instead of a legend and an unrelated illustration. */}
               <span
                 aria-hidden
-                className="block size-2.5 rounded-full"
+                className="block h-1.5 w-full"
                 style={{ background: CATEGORIES[x.c].color }}
               />
-              <h3 className="mt-4 text-base font-semibold text-ink-900">
-                {x.h}
-              </h3>
-              <p className="mt-2 flex-1 text-sm leading-relaxed text-ink-600">
-                {x.b}
-              </p>
-              {/* The count turns each card from a claim into evidence — but
-                  only when there is one. The seed corpus is entirely roadkill,
-                  and printing "0 records" under the other two would advertise
-                  an empty site rather than a young one. */}
-              {x.n > 0 && (
-                <p className="mt-5 border-t border-ink-900/10 pt-3 text-xs tabular-nums text-ink-500">
-                  <span className="font-semibold text-ink-800">{n(x.n)}</span>{" "}
-                  {t("statsRecords")}
+              <div className="flex flex-1 flex-col p-6">
+                <h3 className="text-lg font-semibold text-ink-900">{x.h}</h3>
+                <p className="mt-2.5 flex-1 text-sm leading-relaxed text-ink-600">
+                  {x.b}
                 </p>
-              )}
+                {/* Suppressed at zero rather than printing "0 records" — the
+                    seed corpus is entirely roadkill, and advertising an empty
+                    category makes a young site look like a dead one. */}
+                {x.n > 0 && (
+                  <p className="mt-6 flex items-baseline gap-2 border-t border-ink-900/10 pt-4">
+                    <span className="text-2xl font-semibold tabular-nums leading-none text-ink-900">
+                      {n(x.n)}
+                    </span>
+                    <span className="text-xs text-ink-500">
+                      {t("statsRecords")}
+                    </span>
+                  </p>
+                )}
+              </div>
             </article>
           ))}
         </div>
@@ -296,7 +317,7 @@ export default async function HomePage({
               { h: t("how3"), b: t("how3Body") },
             ].map((x, i) => (
               <li key={x.h}>
-                <span className="flex size-8 items-center justify-center rounded-full border border-ember-700/40 bg-paper-50 text-xs font-semibold text-ember-700">
+                <span className="flex size-9 items-center justify-center rounded-full border border-ember-700/30 bg-ember-500/10 text-sm font-semibold text-ember-700">
                   {i + 1}
                 </span>
                 <h3 className="mt-5 text-base font-semibold text-ink-900">
@@ -405,19 +426,22 @@ function Section({
     >
       <div className="mx-auto max-w-5xl px-6 py-20 sm:py-24">
         {(eyebrow || title) && (
-          <div className="mb-10 max-w-2xl">
+          <div className="mb-12 max-w-2xl">
             {eyebrow && (
-              <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-ember-700/80">
+              <p className="flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.24em] text-ember-700">
+                {/* A short rule anchors the eyebrow to the left edge of the
+                    grid; alone it floated as a stray line of small caps. */}
+                <span aria-hidden className="h-px w-8 bg-ember-700/50" />
                 {eyebrow}
               </p>
             )}
             {title && (
-              <h2 className="mt-3 text-2xl font-semibold leading-snug text-ink-900 sm:text-3xl">
+              <h2 className="mt-4 text-[1.75rem] font-semibold leading-tight tracking-tight text-ink-900 sm:text-[2.25rem]">
                 {title}
               </h2>
             )}
             {lede && (
-              <p className="mt-4 text-sm leading-relaxed text-ink-600 sm:text-base">
+              <p className="mt-4 text-base leading-relaxed text-ink-600">
                 {lede}
               </p>
             )}

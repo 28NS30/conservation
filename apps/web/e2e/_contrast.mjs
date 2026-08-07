@@ -67,6 +67,12 @@ for (const path of PAGES) {
     };
     const bgOf = (el) => {
       for (let n = el; n; n = n.parentElement) {
+        // Chrome laid over the map has no background of its own, and walking
+        // past it finds the light page behind — which is not what is on screen.
+        // The map is a canvas, not a background colour, so the DOM cannot say
+        // this; the marker does. Without it the floating header on the home page
+        // was reported as three AA failures while being plainly legible.
+        if (n.dataset && n.dataset.onDark !== undefined) return [11, 20, 16];
         const bg = getComputedStyle(n).backgroundColor;
         if (bg && bg !== "transparent" && alphaOf(bg) >= 0.75) return parse(bg);
       }
