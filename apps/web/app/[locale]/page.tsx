@@ -106,40 +106,44 @@ export default async function HomePage({
             without washing the density colours out across the whole frame. */}
         <div className="pointer-events-none absolute inset-y-0 left-0 w-full bg-gradient-to-r from-bark-950/90 via-bark-950/40 to-transparent lg:w-2/3" />
 
-        <div className="absolute inset-0 flex items-center">
+        <div className="absolute inset-0 flex items-end pb-6 sm:items-center sm:pb-0">
           <div className="mx-auto w-full max-w-7xl px-5 sm:px-8">
-            <div className="w-full max-w-[400px] rounded-3xl border border-parchment-200/15 bg-bark-900/80 p-7 shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl sm:p-8">
-              <Badge size={148} className="mx-auto" priority />
+            <div className="w-full max-w-[400px] rounded-3xl border border-parchment-200/15 bg-bark-900/80 p-5 shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl sm:p-8">
+              <Badge
+                size={148}
+                className="mx-auto w-24 sm:w-[148px]"
+                priority
+              />
 
-              <p className="mt-6 text-center text-[10px] font-medium uppercase tracking-[0.3em] text-ember-400">
+              <p className="mt-4 text-center text-[10px] sm:mt-6 font-medium uppercase tracking-[0.3em] text-ember-400">
                 {t("eyebrow")}
               </p>
               <h1 className="mt-3 text-center text-lg font-semibold leading-relaxed text-parchment-50">
                 {t("headline")}
               </h1>
 
-              <div className="mt-7 space-y-2.5">
+              <div className="mt-5 space-y-2 sm:mt-7 sm:space-y-2.5">
                 <Link
                   href="/report"
-                  className="block rounded-xl bg-ember-500 px-5 py-3 text-center text-sm font-semibold text-bark-950 transition hover:bg-ember-400"
+                  className="block rounded-xl bg-ember-500 px-5 py-2.5 text-center text-sm sm:py-3 font-semibold text-bark-950 transition hover:bg-ember-400"
                 >
                   {t("ctaReport")}
                 </Link>
                 <Link
                   href="/map"
-                  className="block rounded-xl border border-parchment-200/20 bg-parchment-50/5 px-5 py-3 text-center text-sm font-medium text-parchment-100 transition hover:bg-parchment-50/12"
+                  className="block rounded-xl border border-parchment-200/20 bg-parchment-50/5 px-5 py-2.5 text-center text-sm sm:py-3 font-medium text-parchment-100 transition hover:bg-parchment-50/12"
                 >
                   {t("ctaMap")}
                 </Link>
                 <Link
                   href="/about"
-                  className="block rounded-xl border border-parchment-200/20 bg-parchment-50/5 px-5 py-3 text-center text-sm font-medium text-parchment-100 transition hover:bg-parchment-50/12"
+                  className="block rounded-xl border border-parchment-200/20 bg-parchment-50/5 px-5 py-2.5 text-center text-sm sm:py-3 font-medium text-parchment-100 transition hover:bg-parchment-50/12"
                 >
                   {t("trustLink")}
                 </Link>
                 <Link
                   href="/species"
-                  className="block rounded-xl border border-parchment-200/20 bg-parchment-50/5 px-5 py-3 text-center text-sm font-medium text-parchment-100 transition hover:bg-parchment-50/12"
+                  className="block rounded-xl border border-parchment-200/20 bg-parchment-50/5 px-5 py-2.5 text-center text-sm sm:py-3 font-medium text-parchment-100 transition hover:bg-parchment-50/12"
                 >
                   {t("speciesLink")}
                 </Link>
@@ -147,7 +151,7 @@ export default async function HomePage({
 
               {/* The numbers earn their place here: they are the reason to
                   believe the map underneath is real. */}
-              <dl className="mt-7 grid grid-cols-3 gap-2 border-t border-parchment-200/12 pt-5 text-center">
+              <dl className="mt-5 grid grid-cols-3 sm:mt-7 gap-2 border-t border-parchment-200/12 pt-5 text-center">
                 {[
                   { v: n(s.reports), k: t("statsRecords") },
                   { v: n(s.species), k: t("statsSpecies") },

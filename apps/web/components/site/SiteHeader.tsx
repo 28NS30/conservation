@@ -37,6 +37,10 @@ export default async function SiteHeader({
 
   return (
     <header
+      // Marks this bar as sitting on the dark map, for the contrast audit —
+      // it has no background of its own, so the DOM alone reads the light page
+      // behind it.
+      {...(overlay ? { "data-on-dark": "" } : {})}
       className={
         app
           ? "z-20 flex shrink-0 flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-ink-900/10 bg-paper-100/95 px-4 py-2.5 backdrop-blur"
@@ -85,7 +89,9 @@ export default async function SiteHeader({
             ))}
           </nav>
 
-          <LanguageSwitcher className="hidden sm:flex" />
+          <LanguageSwitcher
+            className={`hidden sm:flex ${overlay ? "text-parchment-100" : "text-ink-700"}`}
+          />
 
           <Link
             href="/report"
@@ -103,7 +109,11 @@ export default async function SiteHeader({
           and needs no menu button, no JS, and no focus trap. The map's own
           header stays single-row: there, vertical space is the instrument. */}
       {!app && (
-        <div className="flex items-center justify-between gap-4 border-t border-ink-900/10 px-5 py-2 sm:hidden">
+        <div
+          className={`flex items-center justify-between gap-4 border-t px-5 py-2 sm:hidden ${
+            overlay ? "border-parchment-200/15" : "border-ink-900/10"
+          }`}
+        >
           <nav className="flex items-center gap-5">
             {nav.map((l) => (
               <Link
@@ -115,7 +125,9 @@ export default async function SiteHeader({
               </Link>
             ))}
           </nav>
-          <LanguageSwitcher />
+          <LanguageSwitcher
+            className={overlay ? "text-parchment-100" : "text-ink-700"}
+          />
         </div>
       )}
     </header>

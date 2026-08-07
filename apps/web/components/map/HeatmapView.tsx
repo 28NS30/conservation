@@ -110,6 +110,24 @@ function addMainlandMask(map: MLMap) {
  */
 function frameIsland(map: MLMap, mode: "hero" | "browse") {
   const { width } = map.getCanvas().getBoundingClientRect();
+  const { height } = map.getCanvas().getBoundingClientRect();
+  // A phone's panel spans the full width, so no horizontal inset can clear it.
+  // The island moves into the upper third instead, above the panel.
+  if (mode === "hero" && width < 640) {
+    map.fitBounds(TAIWAN_MAIN_BOUNDS, {
+      padding: {
+        // Clear of the two header rows above and the panel below, so the whole
+        // island sits in the band between them rather than running under the
+        // panel's top edge.
+        top: 130,
+        bottom: Math.round(height * 0.62),
+        left: 20,
+        right: 20,
+      },
+      duration: 0,
+    });
+    return;
+  }
   const padding =
     mode === "hero"
       ? {
