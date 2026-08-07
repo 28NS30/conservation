@@ -219,10 +219,7 @@
     "whatTitle": "What this is",
     "whatBody": "A public map of environmental reports for Taiwan. Anyone can report roadkill, invasive species, pollution or other observations; reports with a photo are passed to an open-source model that attempts to identify the species; everyone can see the aggregated heatmap.",
     "privacyTitle": "Why some locations are blurred",
-    "privacyBody": "Publishing precise coordinates of protected or sensitive species is, functionally, a map for poachers. GBIF, eBird and iNaturalist all obscure such records. So do we.",
-    "howTitle": "How the blurring works",
-    "howBody": "Every report stores two locations: the true one and a public one. The Taiwan species checklist assigns each species a sensitivity rating, and we follow it directly — roughly 10 km for 輕度, roughly 50 km for 重度 or county-level, and no coordinates at all for species marked 座標不開放.",
-    "howDetail": "Two things make this real rather than decorative. The database role the site reads with has no permission to see true coordinates at all, so a mistake in our code fails loudly instead of leaking. And the offset is computed once from the report's id rather than randomised per view — otherwise anyone could reload the page repeatedly and average their way back to the true point.",
+    "privacyBody": "Publishing precise coordinates of protected or sensitive species is, functionally, a map for poachers. GBIF, eBird and iNaturalist all obscure such records, and so do we: for those species the public map shows a deliberately coarsened location rather than the real one, and the most sensitive show no coordinates at all.",
     "unknownTitle": "Reports that aren't identified yet",
     "unknownBody": "A freshly submitted report is held back and stored at coarse precision until its species is known. Before identification we cannot tell whether it is sensitive — it might be a leopard cat.",
     "contributeTitle": "How to take part",
@@ -290,7 +287,7 @@
     "perCell": "records",
     "coverage": "About location precision",
     "coverageBody": "Of {total} published records, {obscured} have blurred coordinates because their species is flagged sensitive in TaiCOL. They are still counted in every statistic here; only their mapped position is approximate.",
-    "howObscuringWorks": "How obscuring works"
+    "howObscuringWorks": "About the project"
   },
   "home": {
     "eyebrow": "Taiwan · Citizen science",
@@ -324,8 +321,8 @@
     "how3": "It goes on the public map",
     "how3Body": "Every report feeds a public hotspot map and open statistics. Coordinates of protected and sensitive species are blurred before publication.",
     "trustTitle": "Why some locations are blurred",
-    "trustBody": "Publishing exact coordinates for a protected species is drawing a map for poachers. We blur automatically according to the sensitivity rating in the Taiwan species checklist — and the database enforces it: the role the site reads with has no permission to see true coordinates at all.",
-    "trustLink": "How obscuring works",
+    "trustBody": "Publishing exact coordinates for a protected species is drawing a map for poachers. Records of sensitive species are published at a deliberately coarse location, following the sensitivity rating in the Taiwan species checklist.",
+    "trustLink": "About the project",
     "openTitle": "The data is open",
     "openBody": "Seeded with records from TaiRON via GBIF (CC BY 4.0), with names from TaiCOL. We plan to contribute our own records back to GBIF as a Darwin Core Archive.",
     "openLink": "Sources and licensing",

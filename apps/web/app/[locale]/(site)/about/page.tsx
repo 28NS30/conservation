@@ -21,9 +21,12 @@ export async function generateMetadata({
  * also the page a stranger opens to find out who is behind this, which is why it
  * now opens with the mark and a lede rather than a bare 20px <h1>.
  *
- * The obscuring mechanism gets a panel of its own instead of being the third of
- * six identical prose blocks — it is the one claim this whole page exists to
- * make credible.
+ * The obscuring mechanism no longer gets a write-up of its own. It said the
+ * same thing as the section above it and then kept going into database roles,
+ * deterministic offsets and averaging attacks — engineering internals, on the
+ * page a stranger reads first. What a reader needs is the promise, not its
+ * implementation: sensitive species are published at a coarse location, and the
+ * most sensitive not at all. That now lives in one paragraph.
  */
 export default async function AboutPage({
   params,
@@ -36,11 +39,9 @@ export default async function AboutPage({
   const nav = await getTranslations("nav");
   const site = await getTranslations("site");
 
-  const before = [
+  const sections = [
     ["whatTitle", "whatBody"],
     ["privacyTitle", "privacyBody"],
-  ] as const;
-  const after = [
     ["unknownTitle", "unknownBody"],
     ["contributeTitle", "contributeBody"],
   ] as const;
@@ -57,22 +58,7 @@ export default async function AboutPage({
         </p>
       </header>
 
-      {before.map(([heading, body]) => (
-        <Block key={heading} title={t(heading)} body={t(body)} />
-      ))}
-
-      {/* The trust centrepiece. Everything else here is context for it. */}
-      <section className="mt-12 rounded-xl border border-ink-900/12 bg-paper-100 p-7">
-        <h2 className="text-lg font-semibold text-ink-900">{t("howTitle")}</h2>
-        <p className="mt-3 text-sm leading-relaxed text-ink-700">
-          {t("howBody")}
-        </p>
-        <p className="mt-4 border-l-2 border-ember-700/40 pl-4 text-sm leading-relaxed text-ink-600">
-          {t("howDetail")}
-        </p>
-      </section>
-
-      {after.map(([heading, body]) => (
+      {sections.map(([heading, body]) => (
         <Block key={heading} title={t(heading)} body={t(body)} />
       ))}
 
