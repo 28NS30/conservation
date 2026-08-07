@@ -207,29 +207,35 @@ export default async function HomePage({
           ].map((x) => (
             <article
               key={x.c}
-              className="flex flex-col rounded-xl border border-ink-900/10 bg-paper-100 p-6"
+              className="group relative flex flex-col overflow-hidden rounded-2xl border border-ink-900/10 bg-paper-50 shadow-[0_1px_2px_rgba(22,36,28,0.04)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_32px_rgba(22,36,28,0.10)]"
             >
+              {/* The category's own colour, as a band rather than a 10px dot.
+                  It is the same key the map uses, so the two read as one system
+                  instead of a legend and an unrelated illustration. */}
               <span
                 aria-hidden
-                className="block size-2.5 rounded-full"
+                className="block h-1.5 w-full"
                 style={{ background: CATEGORIES[x.c].color }}
               />
-              <h3 className="mt-4 text-base font-semibold text-ink-900">
-                {x.h}
-              </h3>
-              <p className="mt-2 flex-1 text-sm leading-relaxed text-ink-600">
-                {x.b}
-              </p>
-              {/* The count turns each card from a claim into evidence — but
-                  only when there is one. The seed corpus is entirely roadkill,
-                  and printing "0 records" under the other two would advertise
-                  an empty site rather than a young one. */}
-              {x.n > 0 && (
-                <p className="mt-5 border-t border-ink-900/10 pt-3 text-xs tabular-nums text-ink-500">
-                  <span className="font-semibold text-ink-800">{n(x.n)}</span>{" "}
-                  {t("statsRecords")}
+              <div className="flex flex-1 flex-col p-6">
+                <h3 className="text-lg font-semibold text-ink-900">{x.h}</h3>
+                <p className="mt-2.5 flex-1 text-sm leading-relaxed text-ink-600">
+                  {x.b}
                 </p>
-              )}
+                {/* Suppressed at zero rather than printing "0 records" — the
+                    seed corpus is entirely roadkill, and advertising an empty
+                    category makes a young site look like a dead one. */}
+                {x.n > 0 && (
+                  <p className="mt-6 flex items-baseline gap-2 border-t border-ink-900/10 pt-4">
+                    <span className="text-2xl font-semibold tabular-nums leading-none text-ink-900">
+                      {n(x.n)}
+                    </span>
+                    <span className="text-xs text-ink-500">
+                      {t("statsRecords")}
+                    </span>
+                  </p>
+                )}
+              </div>
             </article>
           ))}
         </div>
@@ -311,7 +317,7 @@ export default async function HomePage({
               { h: t("how3"), b: t("how3Body") },
             ].map((x, i) => (
               <li key={x.h}>
-                <span className="flex size-8 items-center justify-center rounded-full border border-ember-700/40 bg-paper-50 text-xs font-semibold text-ember-700">
+                <span className="flex size-9 items-center justify-center rounded-full border border-ember-700/30 bg-ember-500/10 text-sm font-semibold text-ember-700">
                   {i + 1}
                 </span>
                 <h3 className="mt-5 text-base font-semibold text-ink-900">
@@ -420,19 +426,22 @@ function Section({
     >
       <div className="mx-auto max-w-5xl px-6 py-20 sm:py-24">
         {(eyebrow || title) && (
-          <div className="mb-10 max-w-2xl">
+          <div className="mb-12 max-w-2xl">
             {eyebrow && (
-              <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-ember-700/80">
+              <p className="flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.24em] text-ember-700">
+                {/* A short rule anchors the eyebrow to the left edge of the
+                    grid; alone it floated as a stray line of small caps. */}
+                <span aria-hidden className="h-px w-8 bg-ember-700/50" />
                 {eyebrow}
               </p>
             )}
             {title && (
-              <h2 className="mt-3 text-2xl font-semibold leading-snug text-ink-900 sm:text-3xl">
+              <h2 className="mt-4 text-[1.75rem] font-semibold leading-tight tracking-tight text-ink-900 sm:text-[2.25rem]">
                 {title}
               </h2>
             )}
             {lede && (
-              <p className="mt-4 text-sm leading-relaxed text-ink-600 sm:text-base">
+              <p className="mt-4 text-base leading-relaxed text-ink-600">
                 {lede}
               </p>
             )}
