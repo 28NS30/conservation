@@ -194,14 +194,14 @@ const modeStore = {
   get(): MapMode {
     try {
       const v = window.localStorage.getItem(MODE_KEY);
-      return v === "dots" || v === "bins" || v === "heat" ? v : "bins";
+      return v === "dots" || v === "bins" || v === "heat" ? v : "dots";
     } catch {
-      return "bins"; // private browsing
+      return "dots"; // private browsing
     }
   },
   /** The server has no preference to read, so it always renders the default. */
   getServer(): MapMode {
-    return "bins";
+    return "dots";
   },
   set(m: MapMode) {
     try {
