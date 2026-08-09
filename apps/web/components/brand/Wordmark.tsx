@@ -1,4 +1,4 @@
-import Mark from "./Mark";
+import Badge from "./Badge";
 
 /**
  * Mark plus name, for the header and footer.
@@ -22,7 +22,11 @@ export default function Wordmark({
   size?: "sm" | "md" | "lg";
   className?: string;
 }) {
-  const mark = size === "lg" ? "size-11" : size === "md" ? "size-8" : "size-7";
+  // The badge, not a reduction of it. Below about 48px its two rings of type
+  // stop resolving — but a single mark used everywhere is worth more than a
+  // sharper one that shares nothing with the logo people will actually see on a
+  // sticker or a report cover.
+  const mark = size === "lg" ? 44 : size === "md" ? 32 : 28;
   const zh =
     size === "lg"
       ? "text-lg tracking-[0.2em]"
@@ -34,7 +38,7 @@ export default function Wordmark({
 
   return (
     <span className={`flex items-center gap-2.5 ${className}`}>
-      <Mark className={`${mark} shrink-0`} />
+      <Badge size={mark} className="shrink-0" />
       <span className="leading-none">
         {/* The wide tracking is doing real work: at these sizes Hanzi set solid
             look like a dense block, and opening them up is what makes the name
