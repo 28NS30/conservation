@@ -1,5 +1,6 @@
 import type { Map as MLMap, StyleSpecification } from "maplibre-gl";
 import { TAIWAN_BOUNDS, TAIWAN_CENTER } from "@conservation/shared";
+import { withBase } from "@/lib/basePath";
 
 /**
  * MapLibre is loaded as a raw ES module from public/maplibre, NOT through the
@@ -20,8 +21,8 @@ import { TAIWAN_BOUNDS, TAIWAN_CENTER } from "@conservation/shared";
  */
 export type MapLibre = typeof import("maplibre-gl");
 
-const MAPLIBRE_URL = "/maplibre/maplibre-gl.mjs";
-const WORKER_URL = "/maplibre/maplibre-gl-worker.mjs";
+const MAPLIBRE_URL = withBase("/maplibre/maplibre-gl.mjs");
+const WORKER_URL = withBase("/maplibre/maplibre-gl-worker.mjs");
 
 let modulePromise: Promise<MapLibre> | null = null;
 

@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+/*
+ * BioWatch shares EcoWatch's tokens verbatim.
+ *
+ * Not a coincidence to be tidied up later: the two project badges came from the
+ * same hand, and the parent has to look like the thing the children belong to.
+ * Copied rather than imported because this app deploys to a different domain
+ * and must not depend on the other's build.
+ */
+@theme {
+  /* ---- pages ---- */
+
+  /* Paper. Warm off-white from the badge's cream, never pure white: #fff next
+     to these greens reads clinical and glares against the night map alongside
+     it. 200 is borders and dividers only — text never sits on it, which is why
+     it is allowed to fall under 4.5:1 with the quieter inks. */
+  --color-paper-50: #faf7f0;
+  --color-paper-100: #f3ece0;
+  --color-paper-200: #e7dcc9;
+
+  /* Ink. Forest green rather than grey, so the text belongs to the same family
+     as the mark. Measured against paper-50 and paper-100: 900 is 15.1 and 13.7,
+     600 is 6.9 and 6.3, 500 is 5.6 and 5.1 — all clear of WCAG AA. */
+  --color-ink-900: #16241c;
+  --color-ink-800: #22362b;
+  --color-ink-700: #2f4a3a;
+  --color-ink-600: #435b4c;
+  --color-ink-500: #51695b;
+
+  /* Accents that survive a light ground. ember-500 is 3.0:1 on paper and fails
+     as text; these are the steps that pass. */
+  --color-ember-700: #9a4e22;
+  --color-moss-700: #4a6835;
+
+  /* ---- the map, and its chrome ---- */
+
+  /* Ground: deep forest. Warm enough to sit under parchment text without the
+     blue cast the old #020617 had. */
+  --color-bark-950: #0b1410;
+  --color-bark-900: #0f1c16;
+  --color-bark-850: #13241b;
+  --color-bark-800: #1a3125;
+  --color-bark-700: #244233;
+  --color-bark-600: #315744;
+
+  /* Parchment: the cream from the badge. Never pure white — it reads clinical
+     against the greens and glares next to a night map. */
+  --color-parchment-50: #f6efe0;
+  --color-parchment-100: #ece2cd;
+  --color-parchment-200: #d8cbb0;
+  --color-parchment-300: #b8ab94;
+  --color-parchment-400: #9d9179;
+  /* Lightened from #7d7462, which measured 4.05:1 on bark-950 and 3.80:1 on
+     bark-900 — under WCAG AA's 4.5:1 for normal text, and this is the token
+     every muted caption, rank number and separator uses. Now 4.93 / 4.61.
+     Still the quietest step; the gap to parchment-400 (6.03) survives. */
+  --color-parchment-500: #8b8270;
+
+  /* Pangolin scales. Warmth on surfaces and borders. */
+  --color-scale-300: #c9a882;
+  --color-scale-400: #a8845c;
+  --color-scale-500: #8a6a45;
+
+  /* The two dots on the badge — the only saturated colour in the mark, so the
+     only thing on the page that should shout. Primary actions, nothing else.
+
+     300 is the light end, and exists because links set in ember-400 had nowhere
+     to go on hover: `hover:text-ember-300` was being written against a token
+     that did not exist, so it compiled to nothing and the hover was silently
+     dead. Every other ramp here carries a lighter step; this one was missing it. */
+  --color-ember-300: #eda471;
+  --color-ember-400: #e08a4f;
+  --color-ember-500: #cf7238;
+  --color-ember-600: #b25c28;
+
+  /* Living things. Deliberately distinct from the ground greens so a "healthy"
+     signal never sinks into the background. */
+  --color-moss-300: #a8c48a;
+  --color-moss-400: #8bad6b;
+  --color-moss-500: #6d9150;
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", "PingFang TC",
+    "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+
+html,
+body {
+  height: 100%;
+  background: var(--color-paper-50);
+  color: var(--color-ink-600);
+}
+
+/* Hanzi and Latin do not share a comfortable optical size; `palt` tightens the
+   Latin-style spacing Chinese punctuation is set with. */
+:lang(zh-TW) {
+  font-feature-settings: "palt" 1;
+}

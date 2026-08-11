@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { withBase } from "@/lib/basePath";
 
 /**
  * Installable PWA.
@@ -14,19 +15,19 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "生態守望",
     description:
       "台灣路殺、外來入侵種與環境通報的公開熱點地圖。A public heatmap of roadkill, invasive species and environmental reports across Taiwan.",
-    start_url: "/",
+    start_url: withBase("/"),
     display: "standalone",
     background_color: "#0b1410",
     theme_color: "#0b1410",
     icons: [
       {
-        src: "/brand-badge.png",
+        src: withBase("/brand-badge.png"),
         sizes: "512x512",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/brand-badge.png",
+        src: withBase("/brand-badge.png"),
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",

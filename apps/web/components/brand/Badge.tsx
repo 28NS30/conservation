@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { withBase } from "@/lib/basePath";
 
 /**
  * The full badge: pangolin crossing a road, trees, car, and both name rings.
@@ -25,7 +26,7 @@ export default function Badge({
 }) {
   return (
     <Image
-      src="/brand-badge.png"
+      src={withBase("/brand-badge.png")}
       alt=""
       width={size}
       height={size}

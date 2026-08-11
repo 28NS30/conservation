@@ -4,6 +4,8 @@
   "version": "0.1.0",
   "workspaces": [
     "apps/web",
+    "apps/biowatch",
+    "apps/firewatch",
     "packages/shared",
     "scripts"
   ],

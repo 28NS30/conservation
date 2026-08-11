@@ -1,0 +1,6 @@
+@import "tailwindcss";
+@plugin "daisyui";
+
+.mapboxgl-popup-content {
+    color: black; /* Put your desired text color here */
+}

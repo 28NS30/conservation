@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import Turnstile, { turnstileEnabled } from "./Turnstile";
+import { withBase } from "@/lib/basePath";
 import { useTranslations, useLocale } from "next-intl";
 import {
   CATEGORIES,
@@ -93,7 +94,7 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
       let paths: string[] = [];
 
       if (photos.length) {
-        const signRes = await fetch("/api/uploads/sign", {
+        const signRes = await fetch(withBase("/api/uploads/sign"), {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ count: photos.length }),
@@ -113,7 +114,7 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
         paths = uploads.map((u) => u.path);
       }
 
-      const res = await fetch("/api/reports", {
+      const res = await fetch(withBase("/api/reports"), {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
