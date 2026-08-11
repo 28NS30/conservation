@@ -1,46 +1,42 @@
 # BioWatch International
 
-The parent site at **biowatchintl.org**. Both projects are served as subpages of
-this domain, not as separate sites:
+The parent site at **biowatchintl.org**. Each project runs on its own subdomain
+and deploys independently:
 
-| Path | App | Stack |
+| Domain | App | Stack |
 |---|---|---|
-| `/` | this app | Next.js |
-| `/ecowatch` | `apps/web` | Next.js — Taiwan, roadkill and invasive species |
-| `/firewatch` | `apps/firewatch` | Vite SPA — Atlántico, Colombia, wildfires |
+| `biowatchintl.org` | this app | Next.js |
+| `ecowatch.biowatchintl.org` | `apps/web` | Next.js — Taiwan, roadkill and invasive species |
+| `firewatch.biowatchintl.org` | `apps/firewatch` | Vite SPA — Atlántico, Colombia, wildfires |
 
-## How one domain serves three apps
+Three Vercel projects, one repository. A Vercel project has a single Root
+Directory, so three apps need three projects however the URLs look.
 
-Next.js **Multi-Zones**. This app rewrites `/ecowatch/:path*` and
-`/firewatch/:path*` to the other two deployments, so a visitor sees one site
-while each app keeps building, breaking and shipping on its own.
+This app shares nothing with either child at runtime. It is a static page with
+one hourly `fetch` for EcoWatch's record count, which returns null rather than
+throwing — a parent that 500s because a child is briefly down would be a worse
+failure than a missing number.
 
-The rewrite is only half of it. Each child also has to *know* it is mounted
-under a prefix, or it will emit root-relative URLs that miss:
+## Why subdomains rather than subpages
 
-- **EcoWatch** — `basePath` in `next.config.ts`, driven by
-  `NEXT_PUBLIC_BASE_PATH` so the tests and any root deploy keep working. Next
-  applies that to `<Link>` and routing but **not** to `next/image`, `fetch()`,
-  service-worker registration, or the web manifest; `lib/basePath.ts` covers
-  those.
-- **FireWatch** — Vite's `base` for assets, plus a matching `basename` on
-  `BrowserRouter`. Both read one exported constant.
+Both were built and worked. Subpages were reverted because the cutover fails
+quietly on a site already taking real reports: a base path moves the API routes,
+so the classification cron 404s and reports pile up unidentified with nothing
+logging an error, and Turnstile validates on hostname, so every submission is
+rejected until the new domain is on its allowlist.
 
-Because each child prefixes its own asset URLs, a single `/:path*` rule per zone
-is enough — scripts, styles and API calls all fall under it.
+`apps/web/lib/basePath.ts` still exists and is inert. It documents what a prefix
+would require if that decision is ever revisited.
 
 ## Environment
 
-| Variable | Where | Why |
-|---|---|---|
-| `ECOWATCH_ORIGIN` | this app | The EcoWatch deployment to rewrite to, and to read live counts from at build time. |
-| `FIREWATCH_ORIGIN` | this app | The FireWatch deployment to rewrite to. |
-| `NEXT_PUBLIC_BASE_PATH` | `apps/web` | `/ecowatch` when deployed as a zone; unset for a root deploy. |
-| `NEXT_PUBLIC_CONTACT_EMAIL` | this app | Defaults to `hello@biowatchintl.org`. |
+All optional; each has a working default.
 
-The two children stay on their own Vercel projects — a Vercel project has one
-Root Directory, so three apps need three projects regardless of how the URLs
-look to a visitor.
+| Variable | Default | Why you would set it |
+|---|---|---|
+| `NEXT_PUBLIC_ECOWATCH_URL` | `https://ecowatch.biowatchintl.org` | Point a preview at a Vercel URL before DNS is cut over. |
+| `NEXT_PUBLIC_FIREWATCH_URL` | `https://firewatch.biowatchintl.org` | As above. |
+| `NEXT_PUBLIC_CONTACT_EMAIL` | `hello@biowatchintl.org` | Until the real address exists. |
 
 ## Known gaps
 
