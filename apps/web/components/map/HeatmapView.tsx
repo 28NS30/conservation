@@ -24,6 +24,7 @@ import {
   type MapFilter,
 } from "@conservation/shared";
 import { createMap, type MapHandle } from "@/lib/map";
+import { withBase } from "@/lib/basePath";
 import MapFilters from "./MapFilters";
 import MapModeToggle from "./MapModeToggle";
 import { modeStore, type MapMode } from "./mapMode";
@@ -254,7 +255,7 @@ const dotRadius = [
 function tileUrl(filter: MapFilter): string {
   const qs = filterToQuery(filter);
   const origin = typeof window === "undefined" ? "" : window.location.origin;
-  return `${origin}/api/tiles/{z}/{x}/{y}${qs ? `?${qs}` : ""}`;
+  return `${origin}${withBase("/api/tiles")}/{z}/{x}/{y}${qs ? `?${qs}` : ""}`;
 }
 
 /**

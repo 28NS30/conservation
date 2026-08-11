@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { ExpressionSpecification } from "maplibre-gl";
 import { createMap, type MapHandle } from "@/lib/map";
+import { withBase } from "@/lib/basePath";
 import MapModeToggle from "@/components/map/MapModeToggle";
 import { useMapMode, type MapMode } from "@/components/map/mapMode";
 import {
@@ -120,7 +121,7 @@ export default function SpeciesMap({
 
         // Built by concatenation, not new URL(): the URL spec percent-encodes
         // `{` and `}`, which stops MapLibre substituting the tile placeholders.
-        const tiles = `${window.location.origin}/api/tiles/{z}/{x}/{y}?taxonId=${taxonId}`;
+        const tiles = `${window.location.origin}${withBase("/api/tiles")}/{z}/{x}/{y}?taxonId=${taxonId}`;
         map.addSource(SOURCE_ID, {
           type: "vector",
           tiles: [tiles],

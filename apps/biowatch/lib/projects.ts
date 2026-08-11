@@ -1,16 +1,21 @@
 import type { Project } from "@/components/Project";
 
 /**
- * Where each project actually lives.
- *
- * Overridable so a preview deploy can point at staging without a code change,
- * and so these can be flipped to the subdomains the moment DNS is cut over
- * without touching the copy.
+ * Paths, not domains: both projects are served from this site under their own
+ * prefix (see next.config.ts), so a visitor never leaves biowatchintl.org.
  */
-const ECOWATCH =
-  process.env.NEXT_PUBLIC_ECOWATCH_URL ?? "https://ecowatch.biowatchintl.org";
-const FIREWATCH =
-  process.env.NEXT_PUBLIC_FIREWATCH_URL ?? "https://firewatch.biowatchintl.org";
+const ECOWATCH = "/ecowatch";
+const FIREWATCH = "/firewatch";
+
+/**
+ * Where to read EcoWatch's live counts from during the build.
+ *
+ * Not the public path above: the rewrite that serves it only exists once this
+ * app is running, and a build cannot fetch through its own not-yet-deployed
+ * rewrite. This is the child deployment's own origin.
+ */
+const ECOWATCH_ORIGIN =
+  process.env.ECOWATCH_ORIGIN ?? "https://ecowatch-internal.vercel.app";
 
 /**
  * EcoWatch publishes a health endpoint carrying its public record count, so the
@@ -25,7 +30,7 @@ export async function ecowatchCounts(): Promise<{
   taxa: number;
 } | null> {
   try {
-    const res = await fetch(`${ECOWATCH}/api/health`, {
+    const res = await fetch(`${ECOWATCH_ORIGIN}/ecowatch/api/health`, {
       next: { revalidate: 3600 },
       signal: AbortSignal.timeout(5000),
     });

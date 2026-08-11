@@ -1,5 +1,6 @@
 import { browserSupabase, PHOTO_BUCKET } from "@/lib/supabase/client";
 import { listQueued, updateQueued, removeQueued, type QueuedReport } from "./queue";
+import { withBase } from "@/lib/basePath";
 
 /**
  * Runs the full submission pipeline for queued reports.
@@ -24,7 +25,7 @@ async function uploadPhotos(item: QueuedReport): Promise<string[]> {
   const pending = item.photos.slice(done.length);
   if (pending.length === 0) return done;
 
-  const res = await fetch("/api/uploads/sign", {
+  const res = await fetch(withBase("/api/uploads/sign"), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ count: pending.length }),
@@ -52,7 +53,7 @@ async function sendOne(item: QueuedReport): Promise<"sent" | "failed"> {
   try {
     const photoPaths = await uploadPhotos(item);
 
-    const res = await fetch("/api/reports", {
+    const res = await fetch(withBase("/api/reports"), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ ...item.payload, photoPaths, clientNonce: item.id }),

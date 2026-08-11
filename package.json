@@ -5,6 +5,7 @@
   "workspaces": [
     "apps/web",
     "apps/biowatch",
+    "apps/firewatch",
     "packages/shared",
     "scripts"
   ],

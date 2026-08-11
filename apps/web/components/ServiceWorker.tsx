@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { flushQueue } from "@/lib/offline/flush";
+import { withBase } from "@/lib/basePath";
 
 /**
  * Registers the service worker so the app opens without a signal, and responds
@@ -13,7 +14,7 @@ export default function ServiceWorker() {
     if (!("serviceWorker" in navigator)) return;
     if (process.env.NODE_ENV !== "production" && !process.env.NEXT_PUBLIC_SW_IN_DEV) return;
 
-    void navigator.serviceWorker.register("/sw.js").catch(() => {});
+    void navigator.serviceWorker.register(withBase("/sw.js")).catch(() => {});
 
     const onMessage = (e: MessageEvent) => {
       if (e.data?.type === "flush-reports") void flushQueue();
