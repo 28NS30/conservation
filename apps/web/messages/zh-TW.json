@@ -15,7 +15,8 @@
     "attribution": "資料來源",
     "privacy": "隱私",
     "stats": "統計",
-    "map": "地圖"
+    "map": "地圖",
+    "mine": "我的通報"
   },
   "categories": {
     "roadkill": "路殺",
@@ -92,14 +93,16 @@
     "emailHelp": "僅用於後續聯繫，不會顯示在地圖上。",
     "submit": "送出通報",
     "submitting": "送出中…",
-    "needLocation": "請選擇位置",
+    "needLocation": "請先在地圖上點選發現地點",
     "photoFailed": "無法處理照片",
     "privacyNote": "敏感或保育類物種的座標會自動模糊化後才公開，避免成為盜獵線索。",
     "thanks": "感謝您的通報！",
     "received": "我們已收到您的通報。",
     "identifying": "AI 正在辨識物種，完成後就會顯示在地圖上（通常一兩分鐘）。",
     "published": "已發布至地圖。",
-    "viewReport": "查看這筆通報"
+    "viewReport": "查看這筆通報",
+    "needChallenge": "請先完成人機驗證",
+    "preparingPhotos": "照片處理中…"
   },
   "detail": {
     "species": "物種",
@@ -259,7 +262,8 @@
     "next": "下一頁",
     "pageN": "第 {page} 頁",
     "viewAsList": "以列表檢視",
-    "obscuredLegend": "此標記的座標屬於保育類或敏感物種，已模糊化後才公開。"
+    "obscuredLegend": "此標記的座標屬於保育類或敏感物種，已模糊化後才公開。",
+    "photo": "照片"
   },
   "statsPage": {
     "title": "資料統計",
@@ -328,5 +332,22 @@
     "openLink": "資料來源與授權",
     "finalTitle": "看到了，就順手記一筆。",
     "finalBody": "一分鐘、一張照片。你的紀錄會成為公開科學資料的一部分。"
+  },
+  "me": {
+    "title": "我的通報",
+    "lede": "你送出的所有通報，以及目前的處理狀態。",
+    "signedOut": "登入後可以查看自己送出的通報。通報本身不需要帳號。",
+    "signIn": "登入",
+    "empty": "還沒有通報紀錄。",
+    "first": "送出第一筆",
+    "unidentified": "尚未辨識",
+    "statTotal": "總通報數",
+    "statPublished": "已公開",
+    "statIdentified": "已辨識物種",
+    "status": {
+      "published": "已公開",
+      "pending": "審核中",
+      "rejected": "未採用"
+    }
   }
 }

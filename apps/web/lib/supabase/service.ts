@@ -58,6 +58,31 @@ export async function signedPhotoUrl(path: string, expiresIn = 3600): Promise<st
 }
 
 /**
+ * Sign many photo paths in one request.
+ *
+ * The reports list shows a thumbnail per row, fifty to a page. Signing those one
+ * at a time is fifty round trips to Storage before the page can render — enough
+ * to make the list slower than the map it is the accessible alternative to.
+ *
+ * Returns a path -> URL map, omitting anything that failed, so a single missing
+ * object degrades to a row without a thumbnail rather than a broken page.
+ */
+export async function signedPhotoUrls(
+  paths: string[],
+  expiresIn = 3600,
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (paths.length === 0) return out;
+  const { data } = await serviceSupabase()
+    .storage.from(PHOTO_BUCKET)
+    .createSignedUrls(paths, expiresIn);
+  for (const row of data ?? []) {
+    if (row.signedUrl && row.path) out.set(row.path, row.signedUrl);
+  }
+  return out;
+}
+
+/**
  * Fetch a stored photo's bytes with the service role.
  *
  * Used by the classification worker so inference never depends on the photo

@@ -100,6 +100,11 @@ jobs:
         # returns 200 and looks healthy. That has slipped through three times.
         run: npm run test:pages
 
+      - name: Every focusable control shows a focus ring
+        # The usual cause of an invisible focus ring is someone writing
+        # `outline: none` for looks. Nothing else here would catch that.
+        run: npm run test:focus --workspace @conservation/web
+
       - name: Map renders end to end
         # MapLibre does all its work inside requestAnimationFrame, so only a real
         # browser can prove the heatmap actually paints. This check is what caught

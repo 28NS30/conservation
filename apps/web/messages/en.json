@@ -1,6 +1,6 @@
 {
   "site": {
-    "title": "Project EcoWatch",
+    "title": "Project HabitatWatch",
     "tagline": "Roadkill · invasive species · environmental reports",
     "description": "A public heatmap of roadkill, invasive species and environmental reports across Taiwan."
   },
@@ -15,7 +15,8 @@
     "attribution": "Attribution",
     "privacy": "Privacy",
     "stats": "Statistics",
-    "map": "Map"
+    "map": "Map",
+    "mine": "My reports"
   },
   "categories": {
     "roadkill": "Roadkill",
@@ -92,14 +93,16 @@
     "emailHelp": "Used only to follow up. Never shown publicly.",
     "submit": "Submit report",
     "submitting": "Submitting…",
-    "needLocation": "Please set a location",
+    "needLocation": "Tap the map to mark where you saw it",
     "photoFailed": "Could not process photo",
     "privacyNote": "Locations of sensitive and protected species are automatically blurred before publication, so reports cannot be used to find them.",
     "thanks": "Thank you for your report!",
     "received": "Your report was received.",
     "identifying": "Being identified now; it will appear on the map shortly (usually a minute or two).",
     "published": "Published to the map.",
-    "viewReport": "View this report"
+    "viewReport": "View this report",
+    "needChallenge": "Complete the check above first",
+    "preparingPhotos": "Processing photos…"
   },
   "detail": {
     "species": "Species",
@@ -259,7 +262,8 @@
     "next": "Next",
     "pageN": "Page {page}",
     "viewAsList": "View as list",
-    "obscuredLegend": "Coordinates with this mark belong to protected or sensitive species, and are published only after being generalised."
+    "obscuredLegend": "Coordinates with this mark belong to protected or sensitive species, and are published only after being generalised.",
+    "photo": "Photo"
   },
   "statsPage": {
     "title": "Statistics",
@@ -328,5 +332,22 @@
     "openLink": "Sources and licensing",
     "finalTitle": "If you see one, take a minute.",
     "finalBody": "One photo, one minute. Your record becomes part of the open scientific record."
+  },
+  "me": {
+    "title": "My reports",
+    "lede": "Everything you have submitted, and where each one has got to.",
+    "signedOut": "Sign in to see the reports you have submitted. Reporting itself needs no account.",
+    "signIn": "Sign in",
+    "empty": "No reports yet.",
+    "first": "File your first",
+    "unidentified": "Not yet identified",
+    "statTotal": "reports",
+    "statPublished": "published",
+    "statIdentified": "identified",
+    "status": {
+      "published": "Published",
+      "pending": "In review",
+      "rejected": "Not used"
+    }
   }
 }

@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import Wordmark from "@/components/brand/Wordmark";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { currentUserId } from "@/lib/supabase/server";
 
 /**
  * One header for the whole site.
@@ -25,6 +26,10 @@ export default async function SiteHeader({
   stats?: { reports: string; species: string; range: string | null };
 }) {
   const t = await getTranslations();
+  // Only shown when there is something behind it. An always-visible "my reports"
+  // that leads to a sign-in wall reads as a gate on a site whose whole promise
+  // is that reporting needs no account.
+  const signedIn = (await currentUserId()) !== null;
   const app = variant === "app";
   const overlay = variant === "site";
 
@@ -33,6 +38,7 @@ export default async function SiteHeader({
     { href: "/species", label: t("nav.species") },
     { href: "/stats", label: t("nav.stats") },
     { href: "/about", label: t("nav.about") },
+    ...(signedIn ? ([{ href: "/me", label: t("nav.mine") }] as const) : []),
   ] as const;
 
   return (

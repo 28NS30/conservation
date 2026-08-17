@@ -212,6 +212,15 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
   const heldForReview =
     CATEGORIES[category].classifiable && photos.length === 0;
 
+  // The first unmet requirement, in the order someone meets them.
+  const blocker = preparing
+    ? t("preparingPhotos")
+    : !location
+      ? t("needLocation")
+      : turnstileEnabled && !turnstileToken
+        ? t("needChallenge")
+        : null;
+
   return (
     <div className="space-y-6">
       {/* Category */}
@@ -225,7 +234,7 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
               onClick={() => setCategory(k)}
               className={`flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-medium transition ${
                 category === k
-                  ? "border-ink-900/40 bg-ink-900 text-bark-950"
+                  ? "border-ink-900 bg-ink-900 text-paper-50"
                   : "border-ink-900/12 bg-paper-100/70 text-ink-600 hover:bg-paper-200"
               }`}
             >
@@ -429,6 +438,18 @@ export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
       {/* Directly above the button it gates, so it reads as part of submitting
           rather than as an unexplained box. Renders nothing without a site key. */}
       <Turnstile onToken={setTurnstileToken} locale={locale} />
+
+      {/*
+          Say what is missing, rather than leaving a dead button.
+
+          The picker drops a pin on Taiwan's centre before anything is chosen, so
+          the form looks complete while `location` is still null — the button
+          greys out and nothing on screen explains why. That is a dead end on the
+          one page whose entire job is collecting a report.
+      */}
+      {blocker && (
+        <p className="-mb-1 text-center text-xs text-ink-500">{blocker}</p>
+      )}
 
       <button
         type="button"

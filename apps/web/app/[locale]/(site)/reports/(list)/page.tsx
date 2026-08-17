@@ -12,6 +12,8 @@ import {
   type LocationPrecision,
 } from "@conservation/shared";
 import { speciesSlug } from "@/lib/species";
+import { signedPhotoUrls } from "@/lib/supabase/service";
+import { sql } from "@/lib/db";
 
 export const revalidate = 120;
 
@@ -101,6 +103,51 @@ export default async function ReportsListPage({
 
   const hasNext = rows.length > PAGE_SIZE;
   const visible = rows.slice(0, PAGE_SIZE);
+
+  /*
+   * One thumbnail per row.
+   *
+   * Every row here is someone who stopped at a roadside and photographed a dead
+   * animal. As a table of dates and coordinates that reads as a database export;
+   * with the photographs it reads as evidence, which is what it is — and this is
+   * the page most likely to convince a stranger the project is real.
+   *
+   * Safe to read paths with the privileged connection: `visible` came from
+   * reports_public, so every row here is already publicly visible, and the
+   * photos carry no location — EXIF is stripped in the browser before upload.
+   */
+  const firstPhotos = visible.length
+    ? await sql<{ report_id: string; storage_path: string }[]>`
+        select distinct on (report_id) report_id::text, storage_path
+          from report_photos
+         where report_id = any(${visible.map((r) => r.id)}::uuid[])
+         order by report_id, created_at`
+    : [];
+  const signed = await signedPhotoUrls(
+    firstPhotos.map((p) => p.storage_path),
+    900,
+  );
+  const thumb = new Map(
+    firstPhotos
+      .map((p) => [p.report_id, signed.get(p.storage_path)] as const)
+      .filter((e): e is readonly [string, string] => !!e[1]),
+  );
+
+  /*
+   * The column only exists when something is in it.
+   *
+   * Every seeded record came from GBIF without a photograph — today that is all
+   * 46,402 of them — so an unconditional thumbnail column would be a strip of
+   * empty placeholders down the whole page, which is worse than the table it
+   * replaced. It appears once people start submitting, and until then this page
+   * looks exactly as it did.
+   *
+   * Rows without a photo leave the cell empty rather than drawing a grey square.
+   * Once one report has a photograph the column exists for all of them, and
+   * 46,402 seeded records have none — a placeholder each would be the same wall
+   * of noise by another route.
+   */
+  const showPhotos = thumb.size > 0;
   const zhFirst = locale.startsWith("zh");
 
   /** Carry every active filter through paging and the category chips. */
@@ -169,6 +216,11 @@ export default async function ReportsListPage({
             <caption className="sr-only">{t("tableCaption")}</caption>
             <thead className="text-ink-500">
               <tr>
+                {showPhotos && (
+                  <th scope="col" className="w-14 py-1.5">
+                    <span className="sr-only">{t("photo")}</span>
+                  </th>
+                )}
                 <th scope="col" className="py-1.5 font-medium">
                   {t("date")}
                 </th>
@@ -186,6 +238,22 @@ export default async function ReportsListPage({
             <tbody>
               {visible.map((r) => (
                 <tr key={r.id} className="border-t border-ink-900/10 align-top">
+                  {showPhotos && (
+                    <td className="py-1.5 pr-3">
+                      {thumb.get(r.id) ? (
+                        /* eslint-disable-next-line @next/next/no-img-element --
+                         a signed Storage URL expires, so next/image's optimiser
+                         would cache a URL that stops working. */
+                        <img
+                          src={thumb.get(r.id)}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                          className="size-10 rounded object-cover"
+                        />
+                      ) : null}
+                    </td>
+                  )}
                   <td className="py-1.5 whitespace-nowrap">
                     <Link
                       href={`/reports/${r.id}`}

@@ -60,30 +60,80 @@ for (const path of PAGES) {
       const d = cx.getImageData(0, 0, 1, 1).data;
       return [d[0], d[1], d[2]];
     };
+    /*
+     * Alpha, counted properly rather than by grabbing the last number.
+     *
+     * The previous regex read the trailing value of any colour, so opaque
+     * `rgb(207, 114, 56)` came back as alpha 56. That was invisible while the
+     * result was only compared against a threshold — 56 >= 0.75 is "opaque",
+     * accidentally right — and produced negative contrast ratios the moment it
+     * was used as a multiplier.
+     */
     const alphaOf = (s) => {
-      const m =
-        /rgba?\([^)]*?([\d.]+)\s*\)$/.exec(s) || /\/\s*([\d.]+)\s*\)/.exec(s);
-      return m ? Number(m[1]) : 1;
-    };
-    const bgOf = (el) => {
-      for (let n = el; n; n = n.parentElement) {
-        // Chrome laid over the map has no background of its own, and walking
-        // past it finds the light page behind — which is not what is on screen.
-        // The map is a canvas, not a background colour, so the DOM cannot say
-        // this; the marker does. Without it the floating header on the home page
-        // was reported as three AA failures while being plainly legible.
-        if (n.dataset && n.dataset.onDark !== undefined) return [11, 20, 16];
-        const bg = getComputedStyle(n).backgroundColor;
-        if (bg && bg !== "transparent" && alphaOf(bg) >= 0.75) return parse(bg);
+      const nums = (s.match(/[\d.]+/g) || []).map(Number);
+      if (/^rgba/.test(s) || /\//.test(s)) {
+        return nums.length >= 4 ? nums[3] : 1;
       }
-      return [11, 20, 16];
+      return 1;
+    };
+    /*
+     * Composite the background the way the browser does, instead of hunting for
+     * the first layer opaque enough to count.
+     *
+     * The old version took any layer at 75% or more and ignored the rest. That
+     * is two errors in opposite directions: a 70% panel over the dark map was
+     * skipped entirely, so its text was measured against the light page behind
+     * and reported as a failure it was not; and a 76% panel was treated as
+     * fully opaque, overstating contrast slightly. The threshold was a guess
+     * standing in for arithmetic.
+     *
+     * Now every semi-transparent layer is composited onto what is behind it,
+     * which is what the eye actually receives.
+     */
+    const bgOf = (el) => {
+      const layers = [];
+      for (let n = el; n; n = n.parentElement) {
+        // The map is a canvas, not a background colour, so the DOM cannot say
+        // what is behind chrome laid over it. The marker does.
+        if (n.dataset && n.dataset.onDark !== undefined) {
+          layers.push([[11, 20, 16], 1]);
+          break;
+        }
+        const bg = getComputedStyle(n).backgroundColor;
+        if (!bg || bg === "transparent") continue;
+        const a = alphaOf(bg);
+        if (a <= 0) continue;
+        layers.push([parse(bg), a]);
+        if (a >= 0.999) break;
+      }
+      // Nothing opaque found: the page's own surface is the floor.
+      let [r, g, b] = [250, 247, 240];
+      for (let i = layers.length - 1; i >= 0; i--) {
+        const [c, a] = layers[i];
+        r = c[0] * a + r * (1 - a);
+        g = c[1] * a + g * (1 - a);
+        b = c[2] * a + b * (1 - a);
+      }
+      return [r, g, b];
     };
     const out = [];
     for (const el of document.querySelectorAll(
       "p,span,a,h1,h2,h3,li,dt,dd,button,label,td,th,figcaption",
     )) {
-      const txt = (el.textContent || "").trim();
-      if (!txt || el.children.length > 0) continue;
+      /*
+       * Measure an element's OWN text nodes, not its subtree.
+       *
+       * This used to skip anything with element children, which silently
+       * excluded every button that pairs a label with an icon — the report
+       * form's category chips among them. One of those was shipping black on
+       * near-black, a ratio of 1.06, and this audit reported the page clean.
+       */
+      const txt = [...el.childNodes]
+        .filter((n) => n.nodeType === 3)
+        .map((n) => n.textContent)
+        .join("")
+        .trim();
+      if (!txt) continue;
       const r = el.getBoundingClientRect();
       if (r.width < 2 || r.height < 2) continue;
       const cs = getComputedStyle(el);

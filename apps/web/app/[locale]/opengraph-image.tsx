@@ -31,7 +31,7 @@ const BADGE = `data:image/png;base64,${(
  * Everything is drawn with flexbox and inline styles because that is all satori
  * supports — no grid, no external stylesheet, no Tailwind classes.
  */
-export const alt = "Project EcoWatch — Taiwan";
+export const alt = "Project HabitatWatch — Taiwan";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -80,7 +80,7 @@ export default async function Image() {
               color: PARCHMENT_50,
             }}
           >
-            PROJECT ECOWATCH
+            PROJECT HABITATWATCH
           </div>
           <div
             style={{

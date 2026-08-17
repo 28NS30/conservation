@@ -62,12 +62,12 @@ check(
     : title || "no <title>",
 );
 
-// The wordmark sets "Project Ecowatch" and uppercases it in CSS, so the capitals
+// The wordmark sets "Project HabitatWatch" and uppercases it in CSS, so the capitals
 // never appear in the HTML. Matching the rendered form finds nothing, always.
 check(
   "landing page is the redesigned one",
-  /project\s+ecowatch/i.test(html),
-  /project\s+ecowatch/i.test(html) ? "" : "wordmark missing — old build?",
+  /project\s+habitatwatch/i.test(html),
+  /project\s+habitatwatch/i.test(html) ? "" : "wordmark missing — old build?",
 );
 
 /* ---------------- routes ---------------- */
