@@ -133,3 +133,35 @@ describe("detail page", () => {
     assert.equal((await get("/species/not-a-species")).status, 404);
   });
 });
+
+describe("thin species pages", () => {
+  /*
+   * 458 taxa have records; 124,980 do not. Those pages carry a name, a rank and
+   * an empty map, and a crawler that finds a hundred thousand near-identical
+   * thin pages forms a view of the whole domain from them.
+   *
+   * They must stay reachable — the directory links them and search finds them —
+   * so this pins the distinction rather than their existence.
+   */
+  test("a species with no records is noindex, and one with records is not", async () => {
+    const [{ id: bare }] = await sql`
+      select t.id from taxa t
+        left join species_report_stats s on s.taxon_id = t.id
+       where s.taxon_id is null and t.rank = 'Species' limit 1`;
+    const [{ id: recorded }] = await sql`
+      select taxon_id as id from species_report_stats order by report_count desc limit 1`;
+
+    const thin = await (await fetch(`${BASE_URL}/species/${bare}`)).text();
+    assert.match(
+      thin,
+      /<meta name="robots" content="noindex/,
+      "a species with no records should not be indexed",
+    );
+
+    const rich = await (await fetch(`${BASE_URL}/species/${recorded}`)).text();
+    assert.ok(
+      !/<meta name="robots" content="noindex/.test(rich),
+      "a species with records must stay indexable",
+    );
+  });
+});

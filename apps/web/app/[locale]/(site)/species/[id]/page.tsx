@@ -72,6 +72,20 @@ export async function generateMetadata({
   return {
     title: name,
     description: t("metaDescription", { name, count: s.reportCount }),
+    /*
+     * A species nobody has reported is a page with a name, a rank and an empty
+     * map. There are 124,980 of them against 458 with records, and a crawler
+     * that finds a hundred thousand near-identical thin pages forms a view of
+     * the whole domain from them.
+     *
+     * They stay reachable and useful — the directory links them, search finds
+     * them, and the moment someone files a report the page has something to say
+     * and becomes indexable on its own. `follow` stays on so the taxonomy links
+     * out of them still carry.
+     */
+    ...(s.reportCount === 0
+      ? { robots: { index: false, follow: true } }
+      : null),
   };
 }
 
