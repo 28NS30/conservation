@@ -880,7 +880,7 @@ export default function HeatmapView({
           bottom-right and had been cutting the legend's caption off. */}
       {!presentation && (
         <div className="pointer-events-auto absolute bottom-16 right-3 sm:bottom-12 sm:right-4">
-          <div className="rounded-lg border border-parchment-200/15 bg-bark-900/80 px-3 py-2 text-[11px] text-parchment-300 backdrop-blur">
+          <div className="rounded-lg border border-parchment-200/15 bg-bark-900/92 px-3 py-2 text-[11px] text-parchment-300 backdrop-blur">
             <MapModeToggle mode={mode} onChange={setMode} className="mb-2" />
 
             <div className="mb-1 font-medium text-parchment-200">
@@ -926,7 +926,7 @@ export default function HeatmapView({
                         }
                       />
                     </span>
-                    <span className="tabular-nums text-parchment-400">
+                    <span className="tabular-nums text-parchment-300">
                       {label}
                     </span>
                   </li>
@@ -941,7 +941,7 @@ export default function HeatmapView({
       )}
 
       {hint && !presentation && (
-        <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-parchment-200/15 bg-bark-900/85 px-3 py-1.5 text-[11px] text-parchment-300 backdrop-blur">
+        <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-parchment-200/15 bg-bark-900/92 px-3 py-1.5 text-[11px] text-parchment-300 backdrop-blur">
           {hint}
         </div>
       )}

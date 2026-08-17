@@ -110,7 +110,7 @@ export default function MapFilters({
         className={`flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-medium backdrop-blur transition ${
           activeCount
             ? "border-ember-400/60 bg-ember-500/20 text-parchment-50"
-            : "border-parchment-200/20 bg-bark-900/70 text-parchment-200 hover:bg-bark-800/80"
+            : "border-parchment-200/20 bg-bark-900/90 text-parchment-200 hover:bg-bark-800/80"
         }`}
       >
         <svg
@@ -130,7 +130,7 @@ export default function MapFilters({
       </button>
 
       {panelOpen && (
-        <div className="flex flex-col gap-1.5 rounded-xl border border-parchment-200/15 bg-bark-900/85 p-2.5 backdrop-blur">
+        <div className="flex flex-col gap-1.5 rounded-xl border border-parchment-200/15 bg-bark-900/92 p-2.5 backdrop-blur">
           {/* Categories */}
           <div className="flex max-w-md flex-wrap gap-1.5">
             <button
@@ -138,7 +138,7 @@ export default function MapFilters({
               className={`rounded-full border px-3 py-1.5 text-xs font-medium backdrop-blur transition ${
                 !value.category
                   ? "border-parchment-200/70 bg-parchment-50/90 text-bark-950"
-                  : "border-parchment-200/20 bg-bark-900/70 text-parchment-200 hover:bg-bark-800/80"
+                  : "border-parchment-200/20 bg-bark-900/90 text-parchment-200 hover:bg-bark-800/80"
               }`}
             >
               {t("map.all")}
@@ -150,7 +150,7 @@ export default function MapFilters({
                 className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium backdrop-blur transition ${
                   value.category === k
                     ? "border-parchment-200/70 bg-parchment-50/90 text-bark-950"
-                    : "border-parchment-200/20 bg-bark-900/70 text-parchment-200 hover:bg-bark-800/80"
+                    : "border-parchment-200/20 bg-bark-900/90 text-parchment-200 hover:bg-bark-800/80"
                 }`}
               >
                 <span
@@ -188,7 +188,7 @@ export default function MapFilters({
                   onFocus={() => setOpen(true)}
                   placeholder={t("map.filterSpecies")}
                   aria-label={t("map.filterSpecies")}
-                  className="w-44 rounded-full border border-parchment-200/20 bg-bark-900/70 px-3 py-1.5 text-xs text-parchment-200 backdrop-blur placeholder:text-parchment-500"
+                  className="w-44 rounded-full border border-parchment-200/20 bg-bark-900/90 px-3 py-1.5 text-xs text-parchment-200 backdrop-blur placeholder:text-parchment-500"
                 />
               )}
 
@@ -242,7 +242,7 @@ export default function MapFilters({
             </div>
 
             {yearOptions.length > 1 && (
-              <div className="flex items-center gap-1 rounded-full border border-parchment-200/20 bg-bark-900/70 px-2.5 py-1 text-xs text-parchment-300 backdrop-blur">
+              <div className="flex items-center gap-1 rounded-full border border-parchment-200/20 bg-bark-900/90 px-2.5 py-1 text-xs text-parchment-300 backdrop-blur">
                 <select
                   value={yearOf(value.from)}
                   onChange={(e) => setYear("from", e.target.value)}
@@ -280,7 +280,7 @@ export default function MapFilters({
                   setSpeciesQuery("");
                   onChange({});
                 }}
-                className="rounded-full border border-parchment-200/15 px-3 py-1.5 text-xs text-parchment-400 backdrop-blur hover:bg-bark-800"
+                className="rounded-full border border-parchment-200/15 px-3 py-1.5 text-xs text-parchment-300 backdrop-blur hover:bg-bark-800"
               >
                 {t("map.clearFilters")}
               </button>
