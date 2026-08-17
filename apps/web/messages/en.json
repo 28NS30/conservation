@@ -92,14 +92,16 @@
     "emailHelp": "Used only to follow up. Never shown publicly.",
     "submit": "Submit report",
     "submitting": "Submitting…",
-    "needLocation": "Please set a location",
+    "needLocation": "Tap the map to mark where you saw it",
     "photoFailed": "Could not process photo",
     "privacyNote": "Locations of sensitive and protected species are automatically blurred before publication, so reports cannot be used to find them.",
     "thanks": "Thank you for your report!",
     "received": "Your report was received.",
     "identifying": "Being identified now; it will appear on the map shortly (usually a minute or two).",
     "published": "Published to the map.",
-    "viewReport": "View this report"
+    "viewReport": "View this report",
+    "needChallenge": "Complete the check above first",
+    "preparingPhotos": "Processing photos…"
   },
   "detail": {
     "species": "Species",
