@@ -196,3 +196,54 @@ input[type="time"]:focus {
 .maplibregl-ctrl.maplibregl-ctrl-group button .maplibregl-ctrl-icon {
   filter: invert(1) brightness(0.92);
 }
+
+/*
+ * MapLibre's own controls ship with `outline: none` on their buttons, so the
+ * zoom pair was the only thing on the site a keyboard user could land on
+ * without seeing where they were. Everything else keeps the browser default,
+ * which is why an audit of every focusable element on seven pages found exactly
+ * these two.
+ *
+ * A ring rather than an outline: the buttons sit flush inside a rounded group,
+ * and an outline is drawn outside the border box where the neighbour clips it.
+ */
+.maplibregl-ctrl button:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--color-bark-950),
+    0 0 0 4px var(--color-ember-400);
+  border-radius: 4px;
+  position: relative;
+  z-index: 1;
+}
+
+/*
+ * One focus ring for every form control.
+ *
+ * Most of the site relies on the browser's default outline, which is why an
+ * audit of seven pages found almost nothing wrong. Composite controls are the
+ * exception: Chrome draws no outline on `datetime-local`, so the report form's
+ * date field — on the page whose entire job is collecting a report — was the
+ * one thing a keyboard user could reach without seeing where they were.
+ *
+ * Declared once here rather than per element so a new field cannot be added
+ * without it.
+ */
+/* `:focus` as well as `:focus-visible`. A composite control such as
+   datetime-local moves focus through internal segments, and :focus-visible does
+   not reliably match on arrival — a keyboard audit read the report form's date
+   field as unringed at the moment Tab landed on it. Showing the ring on mouse
+   focus too is a small cost against a field that looks unfocused while it has
+   focus. */
+input:focus,
+textarea:focus,
+select:focus,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--color-paper-50),
+    0 0 0 4px var(--color-ember-500);
+  border-color: transparent;
+}
