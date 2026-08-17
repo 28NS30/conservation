@@ -13,10 +13,11 @@ export const config = {
    * and prefixing them would break MapLibre's tile URLs and every fetch in the app.
    *
    * `"/"` is listed separately and is load-bearing under a basePath. A request to
-   * /ecowatch arrives here with its pathname normalised to the empty string, which
+   * a prefixed root arrives here with its pathname normalised to the empty string,
+   * which
    * the pattern below — anchored on a leading slash — does not match. The proxy
    * then never ran for the site's own front page, so the default locale was never
-   * rewritten in and /ecowatch alone 404'd while every route under it worked.
+   * rewritten in and that one path 404'd while every route under it worked.
    */
   matcher: ["/", "/((?!api|_next|maplibre|.*\\..*).*)"],
 };

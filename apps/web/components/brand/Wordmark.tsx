@@ -8,9 +8,13 @@ import Badge from "./Badge";
  * collaborators. Reversing that would be a quiet statement about who the site is
  * for.
  *
- * NAMING: the project is 生態守望計畫 / Project EcoWatch, after the badge. It
- * used to be 生態通報地圖 ("ecological reporting map") in metadata while the
- * header already said this, so the two disagreed. The descriptive phrase now
+ * NAMING: the project is 生態守望計畫 / Project HabitatWatch. The English was
+ * EcoWatch until the group renamed it; the Chinese is unchanged and undecided,
+ * so the two are deliberately not parallel for now. The badge artwork still
+ * letters the old English around its ring and needs redrawing.
+ *
+ * Before that it was 生態通報地圖 ("ecological reporting map") in metadata while
+ * the header said something else, so the two disagreed. The descriptive phrase now
  * lives in site.tagline and site.description, where it describes rather than
  * names — a name that means "reporting map" could not follow the organisation
  * past roadkill.
@@ -47,7 +51,7 @@ export default function Wordmark({
         <span
           className={`mt-1 block font-medium uppercase tracking-[0.3em] opacity-70 ${latin}`}
         >
-          Project Ecowatch
+          Project HabitatWatch
         </span>
       </span>
     </span>

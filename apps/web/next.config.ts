@@ -4,7 +4,8 @@ import type { NextConfig } from "next";
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 /**
- * Mounted under /ecowatch on biowatchintl.org, and at the root everywhere else.
+ * Served from the root of its own subdomain. The prefix machinery is inert;
+ * see lib/basePath.ts.
  *
  * Driven by an environment variable rather than hardcoded so the tests, the
  * local dev server and any standalone deploy keep working unchanged — every
