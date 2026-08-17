@@ -37,6 +37,7 @@ const PAGES = [
   { path: "/reports", name: "reports list" },
   { path: "/report", name: "submission form" },
   { path: "/about", name: "about" },
+  { path: "/me", name: "my reports (signed out)" },
   { path: "/attribution", name: "attribution" },
   { path: "/privacy", name: "privacy" },
 ];
@@ -45,6 +46,7 @@ const PAGES = [
 const NAMESPACES = [
   "site",
   "nav",
+  "me",
   "categories",
   "precision",
   "stats",

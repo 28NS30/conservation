@@ -15,7 +15,8 @@
     "attribution": "Attribution",
     "privacy": "Privacy",
     "stats": "Statistics",
-    "map": "Map"
+    "map": "Map",
+    "mine": "My reports"
   },
   "categories": {
     "roadkill": "Roadkill",
@@ -330,5 +331,22 @@
     "openLink": "Sources and licensing",
     "finalTitle": "If you see one, take a minute.",
     "finalBody": "One photo, one minute. Your record becomes part of the open scientific record."
+  },
+  "me": {
+    "title": "My reports",
+    "lede": "Everything you have submitted, and where each one has got to.",
+    "signedOut": "Sign in to see the reports you have submitted. Reporting itself needs no account.",
+    "signIn": "Sign in",
+    "empty": "No reports yet.",
+    "first": "File your first",
+    "unidentified": "Not yet identified",
+    "statTotal": "reports",
+    "statPublished": "published",
+    "statIdentified": "identified",
+    "status": {
+      "published": "Published",
+      "pending": "In review",
+      "rejected": "Not used"
+    }
   }
 }

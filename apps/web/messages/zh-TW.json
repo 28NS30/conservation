@@ -15,7 +15,8 @@
     "attribution": "資料來源",
     "privacy": "隱私",
     "stats": "統計",
-    "map": "地圖"
+    "map": "地圖",
+    "mine": "我的通報"
   },
   "categories": {
     "roadkill": "路殺",
@@ -330,5 +331,22 @@
     "openLink": "資料來源與授權",
     "finalTitle": "看到了，就順手記一筆。",
     "finalBody": "一分鐘、一張照片。你的紀錄會成為公開科學資料的一部分。"
+  },
+  "me": {
+    "title": "我的通報",
+    "lede": "你送出的所有通報，以及目前的處理狀態。",
+    "signedOut": "登入後可以查看自己送出的通報。通報本身不需要帳號。",
+    "signIn": "登入",
+    "empty": "還沒有通報紀錄。",
+    "first": "送出第一筆",
+    "unidentified": "尚未辨識",
+    "statTotal": "總通報數",
+    "statPublished": "已公開",
+    "statIdentified": "已辨識物種",
+    "status": {
+      "published": "已公開",
+      "pending": "審核中",
+      "rejected": "未採用"
+    }
   }
 }
