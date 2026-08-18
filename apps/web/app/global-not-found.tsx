@@ -7,7 +7,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "找不到這個頁面 · 生態守望計畫",
+  title: "找不到這個頁面 · 棲地守望計畫",
   robots: { index: false, follow: false },
 };
 

@@ -44,7 +44,7 @@ export function projects(eco: { reports: number; taxa: number } | null): Project
     {
       key: "ecowatch",
       badge: "/badge-ecowatch.png",
-      name: "生態守望計畫",
+      name: "棲地守望計畫",
       latin: "Project EcoWatch",
       place: "Taiwan",
       href: ECOWATCH,

@@ -26,8 +26,9 @@ export default async function SiteFooter({
     <>
       {t("footer.dataSource")}:{" "}
       <ExternalLink href="https://roadkill.tw">TaiRON</ExternalLink> via{" "}
-      <ExternalLink href="https://www.gbif.org">GBIF</ExternalLink> (CC BY 4.0) ·{" "}
-      {t("footer.checklist")} <ExternalLink href="https://taicol.tw">TaiCOL</ExternalLink>
+      <ExternalLink href="https://www.gbif.org">GBIF</ExternalLink> (CC BY 4.0)
+      · {t("footer.checklist")}{" "}
+      <ExternalLink href="https://taicol.tw">TaiCOL</ExternalLink>
       {obscured && <> · {t("footer.blurredCount", { count: obscured })}</>}
     </>
   );
@@ -96,6 +97,16 @@ export default async function SiteFooter({
                 </Link>
               </li>
             ))}
+            {/* Reachable from every page. 個資法 gives people the right to have
+                their data removed, and a right nobody can find is not one. */}
+            <li>
+              <a
+                href={`mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? "neolava2@gmail.com"}`}
+                className="transition hover:text-ink-900"
+              >
+                {t("nav.contact")}
+              </a>
+            </li>
           </ul>
           <div className="mt-4">
             <LanguageSwitcher />
@@ -112,7 +123,13 @@ export default async function SiteFooter({
   );
 }
 
-function ExternalLink({ href, children }: { href: string; children: React.ReactNode }) {
+function ExternalLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
   return (
     <a
       className="text-ink-600 underline-offset-2 hover:underline"

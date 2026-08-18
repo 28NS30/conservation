@@ -16,7 +16,8 @@
     "privacy": "Privacy",
     "stats": "Statistics",
     "map": "Map",
-    "mine": "My reports"
+    "mine": "My reports",
+    "contact": "Contact"
   },
   "categories": {
     "roadkill": "Roadkill",
@@ -226,7 +227,9 @@
     "unknownTitle": "Reports that aren't identified yet",
     "unknownBody": "A freshly submitted report is held back and stored at coarse precision until its species is known. Before identification we cannot tell whether it is sensitive — it might be a leopard cat.",
     "contributeTitle": "How to take part",
-    "contributeBody": "Just submit a report; no account is needed. Signing in only gives you your own history."
+    "contributeBody": "Just submit a report; no account is needed. Signing in only gives you your own history.",
+    "contactTitle": "Contact",
+    "contactBody": "Questions, corrections, or collaboration — all welcome by email."
   },
   "privacy": {
     "title": "Privacy",
@@ -244,7 +247,9 @@
     "analyticsTitle": "Usage statistics",
     "analyticsBody": "We count page views through Vercel Analytics, to see how many people find the reporting page. It sets no cookies, creates no cross-site identifier, and records nothing that identifies a person — what we see is “the home page was viewed N times”, not who viewed it.",
     "cookiesTitle": "Cookies",
-    "cookiesBody": "Only an essential session cookie, and only if you choose to sign in. No advertising or tracking cookies are used."
+    "cookiesBody": "Only an essential session cookie, and only if you choose to sign in. No advertising or tracking cookies are used.",
+    "contactTitle": "Contact us",
+    "contactBody": "To ask about, correct, or remove your own reports and contact address — or with any question about how this site handles personal data — write to us. We will reply within a reasonable time."
   },
   "list": {
     "title": "Report list",

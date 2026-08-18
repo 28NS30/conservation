@@ -177,14 +177,19 @@ All rendered and reviewed once the database came back.
 
 ## Still open — these need a person
 
-- **Contact details.** `/privacy` and `/about` name nobody, and 個資法 gives
-  people the right to have their data removed. A removal right with no route to
-  exercise it is not a right. This needs an address, not code.
+- ~~**Contact details.**~~ **DONE** — neolava2@gmail.com on `/privacy`,
+  `/about` and in the footer. Still worth replacing with a project address
+  rather than a personal one: it is published on a public page and will be
+  scraped, and it ties the project's data-controller contact to one individual's
+  inbox.
 - **The badge.** Its ring still letters PROJECT ECOWATCH. Every piece of text on
   the site says HabitatWatch. It needs re-lettering by whoever drew it; when the
   art lands it goes into `public/brand-badge.png`, `app/icon.png` and
   `app/apple-icon.png`, and both Open Graph routes pick it up from the first.
-- **The Chinese name**, still undecided. The site says 生態守望計畫 throughout.
+- ~~**The Chinese name.**~~ **DONE** — 棲地守望計畫. 棲地 is the word the site
+  already uses for habitat and the standard one in Taiwanese conservation
+  writing; 守望 carries over from the previous name and the badge lettering, so
+  the two names are parallel again.
 - **3.4, statistics slicing** — no way to filter by year or county. The tile
   endpoint already supports date ranges, so the data layer exists. Worth doing
   once there is more than one year of user-contributed data to slice.

@@ -39,6 +39,8 @@ export default async function AboutPage({
   const nav = await getTranslations("nav");
   const site = await getTranslations("site");
 
+  const contact = process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? "neolava2@gmail.com";
+
   const sections = [
     ["whatTitle", "whatBody"],
     ["privacyTitle", "privacyBody"],
@@ -61,6 +63,21 @@ export default async function AboutPage({
       {sections.map(([heading, body]) => (
         <Block key={heading} title={t(heading)} body={t(body)} />
       ))}
+
+      <section className="mt-12">
+        <h2 className="text-lg font-semibold text-ink-900">
+          {t("contactTitle")}
+        </h2>
+        <p className="mt-3 text-sm leading-relaxed text-ink-600">
+          {t("contactBody")}
+        </p>
+        <a
+          href={`mailto:${contact}`}
+          className="mt-2 inline-block text-sm text-ember-700 underline-offset-2 hover:underline"
+        >
+          {contact}
+        </a>
+      </section>
 
       <div className="mt-14 flex flex-wrap items-center gap-3 border-t border-ink-900/10 pt-8">
         <Link
