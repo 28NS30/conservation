@@ -39,6 +39,12 @@ export default async function SiteFooter({
     { href: "/privacy", label: t("nav.privacy") },
   ] as const;
 
+  // Both footers carry it, including the thin strip under the map. 個資法 gives
+  // people the right to have their data removed, and /map is the page most
+  // visitors see — a right reachable from everywhere except the busiest page is
+  // not reachable from everywhere.
+  const contact = process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? "neolava2@gmail.com";
+
   if (variant === "app") {
     return (
       <footer className="z-20 flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-ink-900/10 bg-paper-100/95 px-4 py-1.5 text-[10px] text-ink-500">
@@ -49,6 +55,9 @@ export default async function SiteFooter({
               {l.label}
             </Link>
           ))}
+          <a href={`mailto:${contact}`} className="hover:text-ink-800">
+            {t("nav.contact")}
+          </a>
           <LanguageSwitcher className="sm:hidden" />
         </span>
       </footer>
@@ -97,11 +106,9 @@ export default async function SiteFooter({
                 </Link>
               </li>
             ))}
-            {/* Reachable from every page. 個資法 gives people the right to have
-                their data removed, and a right nobody can find is not one. */}
             <li>
               <a
-                href={`mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? "neolava2@gmail.com"}`}
+                href={`mailto:${contact}`}
                 className="transition hover:text-ink-900"
               >
                 {t("nav.contact")}
