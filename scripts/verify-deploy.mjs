@@ -56,8 +56,8 @@ const html = home.status === 200 ? await home.text() : "";
 const title = /<title[^>]*>([^<]*)<\/title>/.exec(html)?.[1] ?? "";
 check(
   "title carries the current name",
-  title.includes("生態守望計畫"),
-  title.includes("生態通報地圖")
+  title.includes("棲地守望計畫"),
+  /生態守望計畫|生態通報地圖/.test(title)
     ? `STALE — title reads "${title}"`
     : title || "no <title>",
 );
