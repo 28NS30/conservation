@@ -40,13 +40,13 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
  * ------------------------------------------------------------------ */
 
 const DATASET = {
-  title: "Project HabitatWatch (生態守望計畫) — citizen science observations from Taiwan",
+  title: "Project HabitatWatch (棲地守望計畫) — citizen science observations from Taiwan",
   shortName: "habitatwatch-tw-occurrences",
   /** Placeholder until the project registers a DOI/UUID with GBIF. */
   id: "habitatwatch-tw",
   language: "zh-Hant",
   abstract:
-    "Wildlife observations contributed by the public through Project HabitatWatch (生態守望計畫), Taiwan: " +
+    "Wildlife observations contributed by the public through Project HabitatWatch (棲地守望計畫), Taiwan: " +
     "roadkill, invasive species, injured animals, and general sightings. Species identifications " +
     "are either confirmed by the reporter, assigned by a machine-learning classifier above a " +
     "measured confidence threshold, or verified by a moderator; the identificationVerificationStatus " +

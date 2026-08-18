@@ -1,6 +1,6 @@
 {
   "site": {
-    "title": "生態守望計畫",
+    "title": "棲地守望計畫",
     "tagline": "路殺 · 外來入侵種 · 環境通報",
     "description": "台灣路殺、外來入侵種與環境通報的公開熱點地圖。"
   },
@@ -16,7 +16,8 @@
     "privacy": "隱私",
     "stats": "統計",
     "map": "地圖",
-    "mine": "我的通報"
+    "mine": "我的通報",
+    "contact": "聯絡"
   },
   "categories": {
     "roadkill": "路殺",
@@ -226,7 +227,9 @@
     "unknownTitle": "還沒辨識出來的通報",
     "unknownBody": "剛送出、還沒辨識物種的通報會先保留不公開，並以較粗的精度儲存。因為在還不知道是什麼物種之前，我們無法判斷牠是否敏感——那可能是一隻石虎。",
     "contributeTitle": "怎麼參與",
-    "contributeBody": "直接通報就好，不需要帳號。登入只是為了查看自己的紀錄。"
+    "contributeBody": "直接通報就好，不需要帳號。登入只是為了查看自己的紀錄。",
+    "contactTitle": "聯絡",
+    "contactBody": "有問題、發現錯誤，或想合作，都歡迎來信。"
   },
   "privacy": {
     "title": "隱私說明",
@@ -244,7 +247,9 @@
     "analyticsTitle": "使用統計",
     "analyticsBody": "我們透過 Vercel Analytics 計算各頁面的瀏覽次數，用來了解有多少人找到通報頁面。它不使用 cookie、不建立跨網站識別碼，也不記錄可辨識個人的資料——我們看到的是「首頁被看了幾次」，而不是誰看的。",
     "cookiesTitle": "Cookie",
-    "cookiesBody": "僅在您選擇登入時使用必要的登入 cookie。本站不使用廣告或追蹤 cookie。"
+    "cookiesBody": "僅在您選擇登入時使用必要的登入 cookie。本站不使用廣告或追蹤 cookie。",
+    "contactTitle": "聯絡我們",
+    "contactBody": "若您想查詢、更正或移除自己的通報與聯絡信箱，或對本站的個人資料處理有任何疑問，請寄信給我們。我們會在合理時間內回覆。"
   },
   "list": {
     "title": "通報列表",

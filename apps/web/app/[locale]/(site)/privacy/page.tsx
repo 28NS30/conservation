@@ -36,6 +36,14 @@ export default async function PrivacyPage({
     ["cookiesTitle", "cookiesBody"],
   ] as const;
 
+  /*
+   * Taiwan's 個資法 gives people the right to see, correct and delete their own
+   * data. A privacy policy that describes that right and gives no way to
+   * exercise it does not grant one — this page said "please contact us" and
+   * named nobody.
+   */
+  const contact = process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? "neolava2@gmail.com";
+
   return (
     <main className="mx-auto w-full max-w-2xl px-6 pb-24 pt-12">
       <PageHeader title={t("title")} lede={t("intro")} />
@@ -45,6 +53,16 @@ export default async function PrivacyPage({
           {t(body)}
         </ProseSection>
       ))}
+
+      <ProseSection title={t("contactTitle")}>
+        {t("contactBody")}
+        <a
+          href={`mailto:${contact}`}
+          className="mt-3 block text-ember-700 underline-offset-2 hover:underline"
+        >
+          {contact}
+        </a>
+      </ProseSection>
     </main>
   );
 }

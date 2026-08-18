@@ -22,7 +22,7 @@ const BADGE = `data:image/png;base64,${(
  * URL with no image at all.
  *
  * NO CHINESE TEXT IN THE IMAGE, deliberately. Satori ships no CJK glyphs, so
- * 生態守望計畫 would render as tofu boxes unless a font were embedded, and the
+ * 棲地守望計畫 would render as tofu boxes unless a font were embedded, and the
  * only CJK font on this machine is Apple's STHeiti, which cannot be
  * redistributed. That costs nothing here: the preview's *text* comes from the
  * HTML title and description, which are already Chinese. The image carries the
