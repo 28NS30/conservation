@@ -1,9 +1,10 @@
 import ProjectCard from "@/components/Project";
-import { ecowatchCounts, projects } from "@/lib/projects";
+import { habitatwatchCounts, projects } from "@/lib/projects";
 
 export const revalidate = 3600;
 
-const CONTACT = process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? "hello@biowatchintl.org";
+const CONTACT =
+  process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? "hello@biowatchintl.org";
 
 /**
  * The organisation, and the door to each project.
@@ -14,8 +15,8 @@ const CONTACT = process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? "hello@biowatchintl.org
  * third is worth starting.
  */
 export default async function Home() {
-  const eco = await ecowatchCounts();
-  const list = projects(eco);
+  const habitat = await habitatwatchCounts();
+  const list = projects(habitat);
 
   return (
     <main>
@@ -84,9 +85,9 @@ export default async function Home() {
             Two places, one method
           </h2>
           <p className="mt-4 max-w-2xl text-sm leading-relaxed text-ink-600 sm:text-base">
-            Each project is run in its own language, for its own country, against
-            the threat that matters most there. They share an approach, not a
-            template.
+            Each project is run in its own language, for its own country,
+            against the threat that matters most there. They share an approach,
+            not a template.
           </p>
 
           <div className="mt-10 grid gap-6 lg:grid-cols-2">
