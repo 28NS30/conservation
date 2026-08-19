@@ -6,25 +6,26 @@ import type { Project } from "@/components/Project";
  * Overridable so a preview of this site can point at a project's Vercel URL
  * before DNS is cut over, without editing the copy.
  */
-const ECOWATCH =
-  process.env.NEXT_PUBLIC_ECOWATCH_URL ?? "https://ecowatch.biowatchintl.org";
+const HABITATWATCH =
+  process.env.NEXT_PUBLIC_HABITATWATCH_URL ??
+  "https://habitatwatch.biowatchintl.org";
 const FIREWATCH =
   process.env.NEXT_PUBLIC_FIREWATCH_URL ?? "https://firewatch.biowatchintl.org";
 
 /**
- * EcoWatch publishes a health endpoint carrying its public record count, so the
+ * HabitatWatch publishes a health endpoint carrying its public record count, so the
  * figure on this page is the real one rather than a number that quietly goes
  * stale. Revalidated hourly by the page.
  *
  * Returns null rather than throwing: a parent site that 500s because a child is
  * briefly down would be a worse failure than a missing number.
  */
-export async function ecowatchCounts(): Promise<{
+export async function habitatwatchCounts(): Promise<{
   reports: number;
   taxa: number;
 } | null> {
   try {
-    const res = await fetch(`${ECOWATCH}/api/health`, {
+    const res = await fetch(`${HABITATWATCH}/api/health`, {
       next: { revalidate: 3600 },
       signal: AbortSignal.timeout(5000),
     });
@@ -39,24 +40,32 @@ export async function ecowatchCounts(): Promise<{
 
 const n = (v: number) => v.toLocaleString("en-US");
 
-export function projects(eco: { reports: number; taxa: number } | null): Project[] {
+export function projects(
+  habitat: { reports: number; taxa: number } | null,
+): Project[] {
   return [
     {
-      key: "ecowatch",
-      badge: "/badge-ecowatch.png",
+      key: "habitatwatch",
+      badge: "/badge-habitatwatch.png",
       name: "棲地守望計畫",
-      latin: "Project EcoWatch",
+      latin: "Project HabitatWatch",
       place: "Taiwan",
-      href: ECOWATCH,
+      href: HABITATWATCH,
       watches: "Roadkill, invasive species and habitat loss.",
       body: "Taiwan's roads kill countless animals every year and almost none of it is written down. Anyone can file a report from the roadside; an open model helps identify the species; everything lands on a public map. Locations of protected species are deliberately coarsened before they are published.",
       stats: [
-        { value: eco ? n(eco.reports) : "46,000+", label: "public records" },
-        { value: eco && eco.taxa ? "458" : "458", label: "species recorded" },
+        {
+          value: habitat ? n(habitat.reports) : "46,000+",
+          label: "public records",
+        },
+        {
+          value: habitat && habitat.taxa ? "458" : "458",
+          label: "species recorded",
+        },
         { value: "2011–", label: "years covered" },
       ],
-      live: eco !== null,
-      cta: "Open EcoWatch",
+      live: habitat !== null,
+      cta: "Open HabitatWatch",
     },
     {
       key: "firewatch",
@@ -67,10 +76,10 @@ export function projects(eco: { reports: number; taxa: number } | null): Project
       href: FIREWATCH,
       watches: "Wildfires and illegal burning.",
       body: "Fires and illegal burns happen daily across Colombia's Atlantic coast, and most go unrecorded. The project documents them and makes each instance public, so that prevention has something to work from rather than anecdote.",
-      // Static, unlike EcoWatch's. FireWatch has no public counts endpoint yet;
+      // Static, unlike HabitatWatch's. FireWatch has no public counts endpoint yet;
       // these are the figures it states on its own home page. Worth replacing
       // with a live read the moment it exposes one, for the same reason
-      // EcoWatch's is live: a hardcoded number is a number that goes stale.
+      // HabitatWatch's is live: a hardcoded number is a number that goes stale.
       stats: [
         { value: "171", label: "wildfires in 2026" },
         { value: "346", label: "illegal burns in 2026" },
