@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { TURNSTILE_SITE_KEY, turnstileEnabled } from "@/lib/turnstile";
 
 /**
  * The Cloudflare Turnstile challenge on the submission form.
@@ -19,7 +20,7 @@ import { useEffect, useRef } from "react";
  * server does with the secret.
  */
 
-const SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+const SITE_KEY = TURNSTILE_SITE_KEY;
 const SCRIPT =
   "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
 
@@ -36,6 +37,7 @@ type TurnstileApi = {
     },
   ) => string;
   remove: (id: string) => void;
+  reset: (id: string) => void;
 };
 
 declare global {
@@ -45,15 +47,26 @@ declare global {
 }
 
 /** True when a challenge will actually be rendered, so the form can require it. */
-export const turnstileEnabled = !!SITE_KEY;
+export { turnstileEnabled };
 
 export default function Turnstile({
   onToken,
   locale,
+  theme = "dark",
+  onReady,
 }: {
   /** Called with a token when solved, and with null when it expires or errors. */
   onToken: (token: string | null) => void;
   locale?: string;
+  /** The form sits on a dark panel; the offline queue banner does not. */
+  theme?: "light" | "dark" | "auto";
+  /**
+   * Hands back a `reset`, which discards the solved token and mints another.
+   *
+   * The offline queue needs this and the form does not: a token is single-use,
+   * and one flush can carry several queued reports, so each needs its own.
+   */
+  onReady?: (api: { reset: () => void }) => void;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const widgetId = useRef<string | null>(null);
@@ -63,6 +76,10 @@ export default function Turnstile({
   useEffect(() => {
     onTokenRef.current = onToken;
   }, [onToken]);
+  const onReadyRef = useRef(onReady);
+  useEffect(() => {
+    onReadyRef.current = onReady;
+  }, [onReady]);
 
   useEffect(() => {
     if (!SITE_KEY || !container.current) return;
@@ -74,7 +91,7 @@ export default function Turnstile({
       if (!api) return;
       widgetId.current = api.render(container.current, {
         sitekey: SITE_KEY,
-        theme: "dark",
+        theme,
         language: locale?.startsWith("zh") ? "zh-tw" : "en",
         callback: (token) => onTokenRef.current(token),
         // A token is single-use and short-lived. Clearing it on expiry is what
@@ -82,6 +99,11 @@ export default function Turnstile({
         // cannot explain.
         "expired-callback": () => onTokenRef.current(null),
         "error-callback": () => onTokenRef.current(null),
+      });
+      onReadyRef.current?.({
+        reset: () => {
+          if (widgetId.current) window.turnstile?.reset(widgetId.current);
+        },
       });
     };
 
@@ -119,7 +141,7 @@ export default function Turnstile({
         widgetId.current = null;
       }
     };
-  }, [locale]);
+  }, [locale, theme]);
 
   if (!SITE_KEY) return null;
   return <div ref={container} className="mt-1" />;

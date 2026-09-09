@@ -17,7 +17,8 @@
     "stats": "統計",
     "map": "地圖",
     "mine": "我的通報",
-    "contact": "聯絡"
+    "contact": "聯絡",
+    "season": "本季目標"
   },
   "categories": {
     "roadkill": "路殺",
@@ -188,7 +189,8 @@
     "sending": "送出中…",
     "discard": "刪除",
     "sentCount": "已送出 {count} 筆通報。",
-    "queueFailed": "無法存到裝置"
+    "queueFailed": "無法存到裝置",
+    "verifying": "送出前正在驗證瀏覽器，請稍候。"
   },
   "errors": {
     "title": "發生錯誤",
@@ -296,7 +298,29 @@
     "perCell": "筆",
     "coverage": "關於位置精確度",
     "coverageBody": "共 {total} 筆公開紀錄中，有 {obscured} 筆的座標經過模糊化處理，因為所屬物種在 TaiCOL 被標記為敏感。這些紀錄仍列入所有統計，只是地圖上的位置不是實際地點。",
-    "howObscuringWorks": "關於本站"
+    "howObscuringWorks": "關於本站",
+    "seasonLink": "本季目標",
+    "seasonLinkHint": "全台通報者共同的目標——為地圖上還完全空白的方格留下第一筆記錄。"
+  },
+  "season": {
+    "title": "本季目標",
+    "lede": "全台通報者共同的一個目標：為地圖上還完全空白的 {km} 公里方格，留下第一筆記錄。匿名通報與登入通報同等計算。",
+    "thisSeason": "本季 · 至 {until}",
+    "newSquares": "個新達成的 {km} 公里方格",
+    "noneYet": "本季還沒有新的方格。一個從未有過任何記錄的地方，它的第一筆記錄是最有用的。",
+    "progress": "每一格都代表台灣有一塊地方，在有人前往之前從來沒有任何記錄。",
+    "cta": "我要通報",
+    "standingTitle": "目前的地圖覆蓋",
+    "cellsCovered": "個 {km} 公里方格已有記錄",
+    "cellsHint": "以座標精確的已發布記錄計算。",
+    "speciesCovered": "個物種曾被記錄／台灣名錄總數",
+    "speciesHint": "TaiCOL 收錄的台灣物種數。其中絕大多數在本站從未被通報過。",
+    "obscuredNote": "有 {n} 筆已發布記錄未計入上述方格。這些物種被列為敏感，座標以粗略方式發布，對應到 {km} 公里方格只會指向錯誤的一格。它們仍計入本站其他所有統計。",
+    "whyTitle": "為什麼算方格，不算筆數",
+    "whyBody": "以筆數為目標會獎勵數量，而最省力的數量就是明天再拍一次同一段路肩。這裡只計算每個 {km} 公里方格的第一筆記錄，第二筆不算，因此沒有理由守著已經知道的地點。這也正是資料最缺的部分：現有記錄集中在少數幾條調查路線，描述的是那幾條路，而不是整座島。",
+    "noRewardBody": "這裡沒有積分、沒有排行榜，也沒有任何可以贏得的東西。這些記錄會以本計畫的名義作為開放資料發布，若為「通報」本身附上獎勵，等於為通報錯誤訂了價格。",
+    "seeMap": "開啟地圖",
+    "seeStats": "完整統計"
   },
   "home": {
     "eyebrow": "臺灣 · 公民科學",
@@ -353,6 +377,18 @@
       "published": "已公開",
       "pending": "審核中",
       "rejected": "未採用"
+    },
+    "statSpecies": "個物種",
+    "journalTitle": "你記錄過的物種",
+    "journalHint": "每一個你親手放上地圖的物種，以及目前已知的資料。這份清單只有你看得到。",
+    "reportsTitle": "你的通報",
+    "journeyHint": "「開放資料」表示這筆記錄符合下一次 Darwin Core 匯出至 GBIF 的條件：已發布、已鑑定，且座標未被隱藏。",
+    "journey": {
+      "submitted": "已送出",
+      "identified": "已鑑定",
+      "identifiedAt": "已鑑定（{pct}%）",
+      "published": "已發布",
+      "open": "開放資料"
     }
   }
 }

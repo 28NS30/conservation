@@ -196,6 +196,15 @@ All rendered and reviewed once the database came back.
 
 ---
 
+## The game-layer proposal
+
+Assessed separately in [plan-game-layer.md](plan-game-layer.md), which also
+records the three live defects that audit turned up and that are now fixed.
+Phases 2 and 3 there are gated on the site having at least one user-submitted
+report; today it has none, in any category.
+
+---
+
 ## Deliberately not proposed
 
 - **A redesign.** The structure works and was arrived at by iteration; the gaps

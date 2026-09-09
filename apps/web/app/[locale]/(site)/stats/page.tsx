@@ -47,9 +47,7 @@ function Section({
     >
       <h2 className="text-sm font-semibold text-ink-800">{title}</h2>
       {hint && (
-        <p className="mt-1 text-[11px] leading-relaxed text-ink-500">
-          {hint}
-        </p>
+        <p className="mt-1 text-[11px] leading-relaxed text-ink-500">{hint}</p>
       )}
       <div className="mt-4">{children}</div>
     </section>
@@ -90,6 +88,25 @@ export default async function StatsPage({
     <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-12">
       <PageHeader title={t("title")} lede={t("intro")} />
 
+      {/* The one number on this site that is a target rather than a
+          description. It belongs next to the descriptive ones. */}
+      <Link
+        href="/season"
+        className="mb-6 flex items-center justify-between gap-4 rounded-xl border border-ember-500/30 bg-ember-500/8 px-5 py-4 transition hover:border-ember-500/50 hover:bg-ember-500/12"
+      >
+        <span>
+          <span className="block text-sm font-semibold text-ink-900">
+            {t("seasonLink")}
+          </span>
+          <span className="mt-0.5 block text-[12px] leading-relaxed text-ink-600">
+            {t("seasonLinkHint")}
+          </span>
+        </span>
+        <span aria-hidden className="shrink-0 text-ember-700">
+          →
+        </span>
+      </Link>
+
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           { k: "records", v: n(ov.reports) },
@@ -112,9 +129,7 @@ export default async function StatsPage({
             key={s.k}
             className="rounded-lg border border-ink-900/10 bg-paper-100 px-4 py-3.5"
           >
-            <dt className="text-[11px] text-ink-500">
-              {t(`metric.${s.k}`)}
-            </dt>
+            <dt className="text-[11px] text-ink-500">{t(`metric.${s.k}`)}</dt>
             <dd className="mt-0.5 text-xl font-semibold tabular-nums text-ink-800">
               {s.v}
             </dd>

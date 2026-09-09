@@ -1,3 +1,6 @@
+import { notFound } from "next/navigation";
+import { hasLocale } from "next-intl";
+import { routing } from "@/i18n/routing";
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { sql } from "@/lib/db";
@@ -55,6 +58,12 @@ export default async function HomePage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
+  // The layout guards this too, but a layout and its page render in parallel, so
+  // the page can still run with whatever the segment matched. `/favicon.ico` has
+  // no static file to answer it and falls through to this dynamic route, which
+  // then reached `Number(...).toLocaleString("favicon.ico")` and threw a
+  // RangeError — a 500 on a request every browser makes.
+  if (!hasLocale(routing.locales, locale)) notFound();
   setRequestLocale(locale);
 
   const t = await getTranslations("home");
