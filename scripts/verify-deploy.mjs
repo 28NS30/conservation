@@ -76,6 +76,8 @@ const ROUTES = [
   ["/map", 200],
   ["/species", 200],
   ["/stats", 200],
+  ["/season", 200],
+  ["/en/season", 200],
   ["/report", 200],
   ["/reports", 200],
   ["/about", 200],
@@ -153,7 +155,19 @@ let turnstileWired = false;
     const js = await fetch(BASE + c)
       .then((r) => r.text())
       .catch(() => "");
-    if (/challenges\.cloudflare\.com|0x4AAAA/i.test(js)) {
+    // Look for a site key VALUE, not for the Turnstile script URL.
+    //
+    // This used to match /challenges\.cloudflare\.com|0x4AAAA/, and the first
+    // alternative is a module-level constant in Turnstile.tsx that is in the
+    // bundle whether or not a key is configured. So the check reported "site
+    // key present in the client bundle" against a build with
+    // NEXT_PUBLIC_TURNSTILE_SITE_KEY set to the empty string — which is exactly
+    // the state it exists to catch, since an empty key disables the challenge
+    // on both halves and leaves /report with no bot protection at all.
+    //
+    // `sitekey` is a property name in Cloudflare's own render options, so it
+    // survives minification; the value beside it is inlined at build time.
+    if (/sitekey\s*:\s*["'][^"']{8,}["']/.test(js)) {
       turnstileWired = true;
       break;
     }
