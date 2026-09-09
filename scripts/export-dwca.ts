@@ -48,9 +48,10 @@ const DATASET = {
   abstract:
     "Wildlife observations contributed by the public through Project HabitatWatch (棲地守望計畫), Taiwan: " +
     "roadkill, invasive species, injured animals, and general sightings. Species identifications " +
-    "are either confirmed by the reporter, assigned by a machine-learning classifier above a " +
-    "measured confidence threshold, or verified by a moderator; the identificationVerificationStatus " +
-    "field distinguishes these. Locations of species rated sensitive by the Catalogue of Life in " +
+    "are either chosen by the reporter from the classifier's suggestions for their own photograph, " +
+    "assigned by a machine-learning classifier above a measured confidence threshold, or verified by " +
+    "a moderator; the identificationVerificationStatus field distinguishes these, and only the last " +
+    "involves a second observer. Locations of species rated sensitive by the Catalogue of Life in " +
     "Taiwan (TaiCOL) are generalised, and coordinateUncertaintyInMeters reflects that.",
   /** CC BY 4.0: matches what we ask contributors to agree to, and what we received. */
   license: "http://creativecommons.org/licenses/by/4.0/legalcode",
@@ -142,9 +143,18 @@ const UNCERTAINTY: Record<string, number> = {
   coarse_50km: 50_000,
 };
 
-/** How the identification was arrived at, in GBIF's controlled-ish vocabulary. */
+/**
+ * How the identification was arrived at, in GBIF's controlled-ish vocabulary.
+ *
+ * `user` is NOT "verified". It is the reporter agreeing with one of the
+ * classifier's own suggestions for their own photograph — one person, no second
+ * opinion. "Verified by" is a claim about a second party, and on that path there
+ * is no second party; a downstream modeller filtering for verified records would
+ * have been handed self-assertions. Only `expert` involves someone other than
+ * the reporter, and only that one says verified.
+ */
 const VERIFICATION: Record<string, string> = {
-  user: "Verified by reporter",
+  user: "Unverified — reporter's own identification",
   expert: "Verified by moderator",
   ai: "Unverified — machine identification above measured confidence threshold",
   imported: "Unverified",

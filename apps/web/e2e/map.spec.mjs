@@ -10,6 +10,7 @@
  * Chromium runs rAF normally, so this is the only way to verify the paint.
  */
 import { chromium } from "playwright";
+import { join } from "node:path";
 
 // /map, not /: the home page hero runs the same component in presentation
 // mode, which deliberately has no chrome, so it cannot stand in for the tool.
@@ -22,12 +23,20 @@ const consoleErrors = [];
 const tileRequests = [];
 page.on("console", (m) => {
   const t = m.text();
-  if (m.type() === "error" || t.startsWith("[layers]") || t.startsWith("[createMap]")) consoleErrors.push(m.type()+": "+t.slice(0, 260));
+  if (
+    m.type() === "error" ||
+    t.startsWith("[layers]") ||
+    t.startsWith("[createMap]")
+  )
+    consoleErrors.push(m.type() + ": " + t.slice(0, 260));
 });
 page.on("response", (r) => {
-  if (r.url().includes("/api/tiles/")) tileRequests.push(`${r.status()} ${new URL(r.url()).pathname}`);
+  if (r.url().includes("/api/tiles/"))
+    tileRequests.push(`${r.status()} ${new URL(r.url()).pathname}`);
 });
-page.on("pageerror", (e) => consoleErrors.push("pageerror: " + e.message.slice(0, 300)));
+page.on("pageerror", (e) =>
+  consoleErrors.push("pageerror: " + e.message.slice(0, 300)),
+);
 
 // Not "networkidle": a live map keeps fetching tiles, so the network never idles.
 await page.goto(URL_, { waitUntil: "load" });
@@ -40,11 +49,15 @@ const state = await page.evaluate(() => {
   if (!m) return { error: "window.__map missing" };
   const src = m.getSource("reports-agg");
   return {
-    center: m.getCenter().toArray().map((v) => +v.toFixed(3)),
+    center: m
+      .getCenter()
+      .toArray()
+      .map((v) => +v.toFixed(3)),
     zoom: +m.getZoom().toFixed(2),
     tiles: src?.tiles,
     sourceLoaded: m.isSourceLoaded("reports-agg"),
-    features: m.querySourceFeatures("reports-agg", { sourceLayer: "reports" }).length,
+    features: m.querySourceFeatures("reports-agg", { sourceLayer: "reports" })
+      .length,
     // Whatever the ACTIVE mode draws, not one hard-coded layer. This counted
     // "reports-cells" only, so the day dots became the default it silently
     // reported 0 rendered features and still exited 0 — the one check that
@@ -55,12 +68,15 @@ const state = await page.evaluate(() => {
         .map((id) => [
           id,
           {
-            visible: (m.getLayoutProperty(id, "visibility") ?? "visible") !== "none",
+            visible:
+              (m.getLayoutProperty(id, "visibility") ?? "visible") !== "none",
             // A heatmap layer is not queryable by feature, so fall back to the
             // source it draws from.
             features:
               id === "reports-heat"
-                ? m.querySourceFeatures("reports-agg", { sourceLayer: "reports_dots" }).length
+                ? m.querySourceFeatures("reports-agg", {
+                    sourceLayer: "reports_dots",
+                  }).length
                 : m.queryRenderedFeatures({ layers: [id] }).length,
           },
         ]),
@@ -77,13 +93,29 @@ const state = await page.evaluate(() => {
   };
 });
 
-const shot = await page.screenshot({ path: "apps/web/e2e/map-render.png" });
+// Resolved from this file, not from the working directory. `npm run test:map`
+// from the repo root delegates to the workspace and runs with cwd=apps/web, so
+// a repo-relative path wrote apps/web/apps/web/e2e/map-render.png and the
+// baseline beside this spec was never actually refreshed.
+const SHOT = join(import.meta.dirname, "map-render.png");
+const shot = await page.screenshot({ path: SHOT });
 // Count saturated pixels in the PNG itself. readPixels() on MapLibre's canvas
 // returns an empty buffer because it is created without preserveDrawingBuffer.
 const painted = { screenshotBytes: shot.length };
 
-console.log(JSON.stringify({ state, painted, tileRequests: tileRequests.slice(0, 12), consoleErrors: consoleErrors.slice(0, 40) }, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      state,
+      painted,
+      tileRequests: tileRequests.slice(0, 12),
+      consoleErrors: consoleErrors.slice(0, 40),
+    },
+    null,
+    2,
+  ),
+);
 
-console.log("screenshot -> apps/web/e2e/map-render.png");
+console.log(`screenshot -> ${SHOT}`);
 
 await browser.close();

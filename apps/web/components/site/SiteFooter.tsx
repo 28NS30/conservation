@@ -83,6 +83,7 @@ export default async function SiteFooter({
               { href: "/map", label: t("nav.map") },
               { href: "/species", label: t("nav.species") },
               { href: "/stats", label: t("nav.stats") },
+              { href: "/season", label: t("nav.season") },
               { href: "/reports", label: t("list.title") },
             ].map((l) => (
               <li key={l.href}>

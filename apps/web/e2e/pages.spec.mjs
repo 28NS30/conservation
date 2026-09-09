@@ -28,6 +28,8 @@ const PAGES = [
   { path: "/en/map", name: "map (en)", settle: 9000, layers: true },
   { path: "/stats", name: "stats (zh-TW)" },
   { path: "/en/stats", name: "stats (en)" },
+  { path: "/season", name: "season goal (zh-TW)" },
+  { path: "/en/season", name: "season goal (en)" },
   { path: "/species", name: "species directory" },
   {
     path: "/species/28758-duttaphrynus-melanostictus",

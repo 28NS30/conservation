@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useTranslations } from "next-intl";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { useTranslations, useLocale } from "next-intl";
 import {
   listQueued,
   removeQueued,
@@ -9,6 +9,8 @@ import {
   type QueuedReport,
 } from "@/lib/offline/queue";
 import { flushQueue, startFlushTriggers } from "@/lib/offline/flush";
+import Turnstile from "@/components/report/Turnstile";
+import { turnstileEnabled } from "@/lib/turnstile";
 
 /**
  * Shows what is still waiting to be sent.
@@ -16,15 +18,35 @@ import { flushQueue, startFlushTriggers } from "@/lib/offline/flush";
  * Deliberately prominent: on iOS there is no Background Sync, so a queued report
  * only leaves the device when the user opens the app. Hiding that would let
  * someone believe a report was transmitted when it was not.
+ *
+ * It also owns the queue's Turnstile challenge, which is why a widget appears in
+ * what is otherwise a status banner. `/api/reports` requires a token, the form
+ * only ever obtained one at submit time, and a queued report by definition never
+ * reached submit — so in production every queued report was rejected 403 and
+ * written off. The challenge has to be solved somewhere, and this is the one
+ * place on screen whenever there is something to send.
+ *
+ * A token is single-use, so one is minted per report: `getToken` hands out the
+ * solved token, immediately resets the widget, and the next call waits for the
+ * replacement. That is why the flush loop is sequential rather than parallel.
  */
 export default function QueueBanner() {
   const t = useTranslations("offline");
+  const locale = useLocale();
   const [items, setItems] = useState<QueuedReport[]>([]);
   const [busy, setBusy] = useState(false);
   const [justSent, setJustSent] = useState(0);
   const [stale, setStale] = useState(false);
+  const [ready, setReady] = useState(!turnstileEnabled);
 
   const STALE_AFTER_MS = 3 * 24 * 3600 * 1000;
+  /** How long a flush waits for the widget before holding a report back. */
+  const TOKEN_WAIT_MS = 15_000;
+
+  const tokenRef = useRef<string | null>(null);
+  const waitersRef = useRef<((token: string | undefined) => void)[]>([]);
+  const resetRef = useRef<(() => void) | null>(null);
+  const autoFlushedRef = useRef(false);
 
   const refresh = useCallback(async () => {
     const queued = await listQueued();
@@ -33,6 +55,63 @@ export default function QueueBanner() {
     // make the component's output depend on when it happened to re-render.
     setStale(queued.some((i) => Date.now() - i.createdAt > STALE_AFTER_MS));
   }, [STALE_AFTER_MS]);
+
+  /** Hand out one token, then start minting the next. */
+  const getToken = useCallback(async (): Promise<string | undefined> => {
+    if (!turnstileEnabled) return undefined;
+
+    const held = tokenRef.current;
+    if (held) {
+      tokenRef.current = null;
+      resetRef.current?.();
+      return held;
+    }
+
+    return new Promise<string | undefined>((resolve) => {
+      const waiter = (token: string | undefined) => resolve(token);
+      waitersRef.current.push(waiter);
+      window.setTimeout(() => {
+        const i = waitersRef.current.indexOf(waiter);
+        if (i >= 0) {
+          waitersRef.current.splice(i, 1);
+          resolve(undefined);
+        }
+      }, TOKEN_WAIT_MS);
+    });
+  }, [TOKEN_WAIT_MS]);
+
+  const onToken = useCallback((token: string | null) => {
+    if (token === null) {
+      tokenRef.current = null;
+      setReady(false);
+      return;
+    }
+    setReady(true);
+
+    const waiter = waitersRef.current.shift();
+    if (waiter) {
+      resetRef.current?.();
+      waiter(token);
+      return;
+    }
+    tokenRef.current = token;
+  }, []);
+
+  const runFlush = useCallback(async () => {
+    setBusy(true);
+    const r = await flushQueue(getToken);
+    if (r.sent > 0) setJustSent(r.sent);
+    await refresh();
+    setBusy(false);
+  }, [getToken, refresh]);
+
+  // The queue's first flush fires on mount, before the widget can possibly have
+  // solved, so it holds everything back. This is the retry that actually sends.
+  useEffect(() => {
+    if (!ready || autoFlushedRef.current || items.length === 0) return;
+    autoFlushedRef.current = true;
+    void runFlush();
+  }, [ready, items.length, runFlush]);
 
   useEffect(() => {
     let alive = true;
@@ -46,7 +125,7 @@ export default function QueueBanner() {
     const stop = startFlushTriggers((r) => {
       setJustSent(r.sent);
       void refresh();
-    });
+    }, getToken);
     const onChange = () => void refresh();
     window.addEventListener("conservation:queue-changed", onChange);
     return () => {
@@ -54,7 +133,7 @@ export default function QueueBanner() {
       stop();
       window.removeEventListener("conservation:queue-changed", onChange);
     };
-  }, [refresh, STALE_AFTER_MS]);
+  }, [refresh, STALE_AFTER_MS, getToken]);
 
   if (items.length === 0) {
     if (justSent > 0) {
@@ -76,12 +155,7 @@ export default function QueueBanner() {
         <button
           type="button"
           disabled={busy}
-          onClick={async () => {
-            setBusy(true);
-            await flushQueue();
-            await refresh();
-            setBusy(false);
-          }}
+          onClick={() => void runFlush()}
           className="shrink-0 rounded bg-amber-600/15 px-2.5 py-1 text-[11px] font-medium text-amber-900 disabled:opacity-50"
         >
           {busy ? t("sending") : t("sendNow")}
@@ -93,6 +167,24 @@ export default function QueueBanner() {
       </p>
       {stale && (
         <p className="mt-1 text-[11px] text-amber-700">{t("staleWarning")}</p>
+      )}
+
+      {turnstileEnabled && (
+        <div className="mt-2">
+          {!ready && (
+            <p className="mb-1 text-[11px] text-amber-800/70">
+              {t("verifying")}
+            </p>
+          )}
+          <Turnstile
+            onToken={onToken}
+            locale={locale}
+            theme="light"
+            onReady={(api) => {
+              resetRef.current = api.reset;
+            }}
+          />
+        </div>
       )}
 
       <ul className="mt-2 space-y-1">

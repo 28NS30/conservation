@@ -17,7 +17,8 @@
     "stats": "Statistics",
     "map": "Map",
     "mine": "My reports",
-    "contact": "Contact"
+    "contact": "Contact",
+    "season": "This season's goal"
   },
   "categories": {
     "roadkill": "Roadkill",
@@ -188,7 +189,8 @@
     "sending": "Sending…",
     "discard": "Discard",
     "sentCount": "Sent {count} reports.",
-    "queueFailed": "Could not save to this device"
+    "queueFailed": "Could not save to this device",
+    "verifying": "Checking your browser before sending — this takes a moment."
   },
   "errors": {
     "title": "Something went wrong",
@@ -296,7 +298,29 @@
     "perCell": "records",
     "coverage": "About location precision",
     "coverageBody": "Of {total} published records, {obscured} have blurred coordinates because their species is flagged sensitive in TaiCOL. They are still counted in every statistic here; only their mapped position is approximate.",
-    "howObscuringWorks": "About the project"
+    "howObscuringWorks": "About the project",
+    "seasonLink": "This season's goal",
+    "seasonLinkHint": "A shared target for everyone reporting in Taiwan — reach the squares of the map that have no record at all."
+  },
+  "season": {
+    "title": "This season's goal",
+    "lede": "One shared target for everyone reporting in Taiwan: put a first record into {km} km squares of the map that have none at all. Anonymous reports count exactly the same as signed-in ones.",
+    "thisSeason": "This season · until {until}",
+    "newSquares": "new {km} km squares reached",
+    "noneYet": "Nothing new yet this season. A first record from a square that has never had one is the most useful thing anyone can file.",
+    "progress": "Each of these is a square of Taiwan that had no record at all until someone went there.",
+    "cta": "Report something",
+    "standingTitle": "Where the map stands",
+    "cellsCovered": "{km} km squares with a record",
+    "cellsHint": "Counted from published records that carry an exact location.",
+    "speciesCovered": "species recorded, of Taiwan's checklist",
+    "speciesHint": "TaiCOL lists this many species for Taiwan. Almost none of them have ever been reported here.",
+    "obscuredNote": "{n} published records are left out of the squares above. Their species is rated sensitive, so their location is published coarsely and crediting it to a {km} km square would credit the wrong one. They count in every other statistic on this site.",
+    "whyTitle": "Why squares, and not records",
+    "whyBody": "A target counted in records rewards volume, and the cheapest volume is the same roadside verge photographed again tomorrow. This one counts only the first record in a {km} km square, so a second is worth nothing and there is no reason to sit on a site you already know. It is also what the data is short of: most records here come from a handful of surveyed roads, which describes those roads rather than the island.",
+    "noRewardBody": "There are no points here, no ranking, and nothing to win. These records are published as open data under this project's name, and attaching a reward to filing one would put a price on getting it wrong.",
+    "seeMap": "Open the map",
+    "seeStats": "All statistics"
   },
   "home": {
     "eyebrow": "Taiwan · Citizen science",
@@ -353,6 +377,18 @@
       "published": "Published",
       "pending": "In review",
       "rejected": "Not used"
+    },
+    "statSpecies": "species",
+    "journalTitle": "Species you have recorded",
+    "journalHint": "Every species you have personally put on the map, with what is known about each. This list is private to you.",
+    "reportsTitle": "Your reports",
+    "journeyHint": "Open data means the record qualifies for the next Darwin Core export to GBIF: published, identified, and not location-suppressed.",
+    "journey": {
+      "submitted": "Submitted",
+      "identified": "Identified",
+      "identifiedAt": "Identified ({pct}%)",
+      "published": "Published",
+      "open": "Open data"
     }
   }
 }
