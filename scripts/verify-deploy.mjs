@@ -155,19 +155,23 @@ let turnstileWired = false;
     const js = await fetch(BASE + c)
       .then((r) => r.text())
       .catch(() => "");
-    // Look for a site key VALUE, not for the Turnstile script URL.
+    // Look for the site key itself — not the script URL, and not the render
+    // call.
     //
-    // This used to match /challenges\.cloudflare\.com|0x4AAAA/, and the first
-    // alternative is a module-level constant in Turnstile.tsx that is in the
-    // bundle whether or not a key is configured. So the check reported "site
-    // key present in the client bundle" against a build with
-    // NEXT_PUBLIC_TURNSTILE_SITE_KEY set to the empty string — which is exactly
-    // the state it exists to catch, since an empty key disables the challenge
-    // on both halves and leaves /report with no bot protection at all.
+    // The script URL was the original false positive: it is a module-level
+    // constant in Turnstile.tsx and ships whether or not a key is configured,
+    // so this check passed against builds with NEXT_PUBLIC_TURNSTILE_SITE_KEY
+    // set to the empty string — the exact state it exists to catch.
     //
-    // `sitekey` is a property name in Cloudflare's own render options, so it
-    // survives minification; the value beside it is inlined at build time.
-    if (/sitekey\s*:\s*["'][^"']{8,}["']/.test(js)) {
+    // The render call was the second attempt, and the mirror-image mistake. The
+    // minifier hoists the key into a variable, so production's bundle reads
+    // `sitekey:n` and a pattern requiring a string literal after `sitekey:`
+    // failed against a deployment whose challenge was demonstrably live.
+    //
+    // The key is inlined at build time as a literal somewhere in the chunk, so
+    // match its shape: real Turnstile site keys begin 0x4AAAA, and Cloudflare's
+    // documented test keys are 1x/2x/3x followed by twenty zeros.
+    if (/["']0x4AAAA[0-9A-Za-z_-]{10,}["']|["'][123]x0{20}[A-Z]{2}["']/.test(js)) {
       turnstileWired = true;
       break;
     }
