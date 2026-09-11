@@ -171,7 +171,9 @@ let turnstileWired = false;
     // The key is inlined at build time as a literal somewhere in the chunk, so
     // match its shape: real Turnstile site keys begin 0x4AAAA, and Cloudflare's
     // documented test keys are 1x/2x/3x followed by twenty zeros.
-    if (/["']0x4AAAA[0-9A-Za-z_-]{10,}["']|["'][123]x0{20}[A-Z]{2}["']/.test(js)) {
+    if (
+      /["']0x4AAAA[0-9A-Za-z_-]{10,}["']|["'][123]x0{20}[A-Z]{2}["']/.test(js)
+    ) {
       turnstileWired = true;
       break;
     }
@@ -185,6 +187,70 @@ check(
     ? "site key present in the client bundle"
     : "no bot protection — do not launch publicly",
 );
+
+/* ---------------- the basemap, which is someone else's ----------------
+ * September 2026: CARTO began watermarking every keyless tile with "API KEY
+ * REQUIRED" while every route on this site still answered 200. Nothing about our
+ * own responses can see a third party change its policy, so check the provider
+ * directly, and check that the deployed code actually points at it. */
+
+const OFM = "https://tiles.openfreemap.org";
+try {
+  const styleRes = await fetch(`${OFM}/styles/dark`, {
+    signal: AbortSignal.timeout(20_000),
+  });
+  const style = styleRes.ok ? await styleRes.json() : null;
+  check(
+    "basemap style reachable (OpenFreeMap)",
+    styleRes.ok && Array.isArray(style?.layers),
+    `${styleRes.status}`,
+  );
+  // Tile paths are versioned per planet build, so resolve the template from the
+  // TileJSON rather than hard-coding one. 12/3431/1753 is Taipei.
+  const tj = await fetch(`${OFM}/planet`, {
+    signal: AbortSignal.timeout(20_000),
+  }).then((r) => r.json());
+  const tileRes = await fetch(
+    tj.tiles[0]
+      .replace("{z}", "12")
+      .replace("{x}", "3431")
+      .replace("{y}", "1753"),
+    { signal: AbortSignal.timeout(20_000) },
+  );
+  const type = tileRes.headers.get("content-type") ?? "";
+  check(
+    "basemap serves Taiwan tiles",
+    tileRes.ok && /vector-tile|protobuf/.test(type),
+    `${tileRes.status}, ${type}`,
+  );
+} catch (e) {
+  check("basemap style reachable (OpenFreeMap)", false, e.message.slice(0, 60));
+}
+
+{
+  const mapPage = await get("/map");
+  const mapHtml = mapPage.status === 200 ? await mapPage.text() : "";
+  let ofm = false;
+  let carto = false;
+  for (const c of [...mapHtml.matchAll(/\/_next\/static\/[^"']+\.js/g)]
+    .map((m) => m[0])
+    .slice(0, 40)) {
+    const js = await fetch(BASE + c)
+      .then((r) => r.text())
+      .catch(() => "");
+    if (js.includes("tiles.openfreemap.org")) ofm = true;
+    if (js.includes("basemaps.cartocdn.com")) carto = true;
+  }
+  check(
+    "deployed map uses the keyless basemap",
+    ofm && !carto,
+    carto
+      ? "still requests CARTO — old build?"
+      : ofm
+        ? ""
+        : "no basemap URL found",
+  );
+}
 
 /* ---------------- report ---------------- */
 

@@ -40,8 +40,8 @@ import { Link } from "@/i18n/navigation";
  * opposite directions.
  *
  * So the mainland is painted out. A world-sized polygon with a hole cut around
- * Taiwan, filled with the basemap's own ocean colour, sampled rather than
- * guessed — #262626 across CARTO dark_all. The hole's western edge follows the
+ * Taiwan, filled with the basemap's own ocean colour — read from the loaded
+ * style where it can be, see oceanColour(). The hole's western edge follows the
  * median of the strait rather than a meridian, because the strait runs
  * north-east: a straight cut either clipped Penghu or let Fuzhou through.
  *
@@ -49,8 +49,37 @@ import { Link } from "@/i18n/navigation";
  * Matsu carry real records; hiding them there would be lying about the data
  * rather than composing a picture.
  */
-const OCEAN = "#262626";
+/** CARTO dark_all's ocean, sampled. Only used if a style names neither water nor a background. */
+const FALLBACK_OCEAN = "#262626";
 const MASK_ID = "mainland-mask";
+
+/**
+ * The basemap's own water colour, read from the loaded style.
+ *
+ * The mask only works if it is indistinguishable from the sea around it, and a
+ * value sampled from one basemap is only right for that basemap. The hardcoded
+ * #262626 was already wrong under MapTiler, whose dark water is not CARTO's, and
+ * would have been wrong again the moment CARTO had to be replaced. A vector
+ * style names its colours, so read them: the first fill layer that is water,
+ * then the background. A raster style exposes neither, and that is the one case
+ * the sampled value is for.
+ */
+function oceanColour(map: MLMap): string {
+  const layers = map.getStyle()?.layers ?? [];
+  const water = layers.find(
+    (l) => l.type === "fill" && /water|ocean/i.test(l.id),
+  );
+  if (water) {
+    const c = map.getPaintProperty(water.id, "fill-color");
+    if (typeof c === "string") return c;
+  }
+  const bg = layers.find((l) => l.type === "background");
+  if (bg) {
+    const c = map.getPaintProperty(bg.id, "background-color");
+    if (typeof c === "string") return c;
+  }
+  return FALLBACK_OCEAN;
+}
 
 function addMainlandMask(map: MLMap) {
   if (map.getLayer(MASK_ID)) return;
@@ -89,7 +118,7 @@ function addMainlandMask(map: MLMap) {
     id: MASK_ID,
     type: "fill",
     source: MASK_ID,
-    paint: { "fill-color": OCEAN },
+    paint: { "fill-color": oceanColour(map) },
   });
 }
 

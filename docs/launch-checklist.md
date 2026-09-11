@@ -164,13 +164,23 @@ is a map nobody trusts.
 
 ---
 
-## 6. Optional but recommended: a MapTiler key
+## 6. The basemap needs no key
 
-<https://cloud.maptiler.com> → free tier.
+The map background comes from OpenFreeMap: free, no account, no key, and its
+terms allow a public site. Place names show in Traditional Chinese on Chinese
+pages and in English on `/en`, rewritten in `apps/web/lib/basemap.ts`.
 
-Without it the basemap falls back to CARTO, whose labels are **romanised** — your
-Taiwanese users currently see "TAICHUNG" rather than 台中. Everything works
-without it; it just reads as a foreign product.
+It replaced CARTO in September 2026, when CARTO began stamping "API KEY
+REQUIRED" across every tile served without a key. OpenFreeMap has no SLA, so if
+it goes down the maps fall back to a plain dark background and the site's own
+data keeps drawing. A second, keyed provider would remove that single point of
+failure. CARTO's free key tier (<https://carto.com/basemaps/apikey>) is the one
+whose terms clearly fit; it needs someone to request the key, and is not wired
+in yet.
+
+Do **not** set `NEXT_PUBLIC_MAPTILER_KEY`. MapTiler's free plan is limited to
+"non-commercial use", which it never defines, pauses the map when its quota runs
+out, and requires a logo this site does not render.
 
 ---
 
@@ -192,7 +202,7 @@ Then **Settings → Environment Variables**, for Production *and* Preview:
 | `TURNSTILE_SECRET_KEY` | from step 5 | no bot protection |
 | `ML_ENDPOINT_URL` | from your local `.env` | no species identification |
 | `ML_ENDPOINT_TOKEN` | from your local `.env` | no species identification |
-| `NEXT_PUBLIC_MAPTILER_KEY` | from step 6, or leave empty | English basemap labels |
+| `NEXT_PUBLIC_MAPTILER_KEY` | leave empty (see step 6) | nothing — the default basemap needs no key |
 
 The `service_role` key bypasses every access rule in the database. It belongs in
 Vercel's environment and nowhere else — never in `NEXT_PUBLIC_*`, never in git.

@@ -11,10 +11,16 @@
  * the user loads the app before driving into the mountains.
  */
 
-const VERSION = "v1";
+// v2 empties the old tile cache. Its basemap entries are CARTO tiles, which the
+// site stopped requesting when CARTO began watermarking keyless tiles
+// (September 2026); there is no reason to keep them occupying the cap.
+const VERSION = "v2";
 const SHELL = `shell-${VERSION}`;
 const TILES = `tiles-${VERSION}`;
-const MAX_TILE_ENTRIES = 400;
+// Sized down from 400 for vector tiles, which run to 100-220 KB each at low zoom
+// against the few KB of the raster PNGs the old figure was chosen for. Vector
+// tiles overzoom, so fewer entries still cover more ground.
+const MAX_TILE_ENTRIES = 150;
 
 self.addEventListener("install", () => self.skipWaiting());
 
@@ -76,7 +82,11 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/auth/")) return;
 
   // Basemap and our own vector tiles: serve instantly, refresh in the background.
-  if (url.pathname.startsWith("/api/tiles/") || url.hostname.endsWith("basemaps.cartocdn.com")) {
+  // OpenFreeMap serves the style, TileJSON, tiles, glyphs and sprite from one
+  // host, and all of them are needed to draw the basemap offline. Only what the
+  // map itself asks for is cached: OpenFreeMap's terms forbid automated
+  // collection, so nothing here may ever prefetch.
+  if (url.pathname.startsWith("/api/tiles/") || url.hostname === "tiles.openfreemap.org") {
     event.respondWith(staleWhileRevalidate(request, TILES, MAX_TILE_ENTRIES));
     return;
   }
