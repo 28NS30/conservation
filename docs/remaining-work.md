@@ -55,10 +55,11 @@ worker returns 401 and jobs queue) rather than exposing the endpoint.
   than effort: `next/og` ships no CJK font, so Chinese renders as blank boxes
   unless a subsetted font (~1–2 MB, SIL OFL) is committed to the repo. Latin-only
   previews are trivial but weak for a Taiwanese audience.
-- **NLSC (國土測繪中心) basemap layer** toggle. This is the keyless route to
-  Chinese place labels — CARTO's dark basemap romanises them ("TAICHUNG"), and the
-  alternative is a MapTiler key. The catch is that NLSC's map is light-themed and
-  the whole data palette is tuned for a dark background, so it needs a second
+- **NLSC (國土測繪中心) basemap layer** toggle. No longer needed for Chinese
+  labels: the OpenFreeMap basemap shows Traditional Chinese place names by
+  default (`apps/web/lib/basemap.ts`). It would still be the option for an
+  official government map. The catch is unchanged: NLSC's map is light-themed
+  and the data palette is tuned for a dark background, so it needs a second
   palette rather than just a source swap.
 - ~~**Publish back to GBIF**~~ — the exporter is built (`npm run export:dwca`).
   It writes `occurrence.txt` / `meta.xml` / `eml.xml` and deliberately exports

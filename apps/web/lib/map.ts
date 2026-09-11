@@ -1,6 +1,11 @@
 import type { Map as MLMap, StyleSpecification } from "maplibre-gl";
 import { TAIWAN_BOUNDS, TAIWAN_CENTER } from "@conservation/shared";
 import { withBase } from "@/lib/basePath";
+import {
+  FALLBACK_STYLE,
+  OPENFREEMAP_DARK,
+  transformBasemap,
+} from "@/lib/basemap";
 
 /**
  * MapLibre is loaded as a raw ES module from public/maplibre, NOT through the
@@ -29,7 +34,9 @@ let modulePromise: Promise<MapLibre> | null = null;
 export function loadMapLibre(): Promise<MapLibre> {
   if (!modulePromise) {
     modulePromise = (
-      import(/* webpackIgnore: true */ /* turbopackIgnore: true */ MAPLIBRE_URL) as Promise<MapLibre>
+      import(
+        /* webpackIgnore: true */ /* turbopackIgnore: true */ MAPLIBRE_URL
+      ) as Promise<MapLibre>
     ).then((ml) => {
       ml.setWorkerUrl(WORKER_URL);
       return ml;
@@ -39,32 +46,38 @@ export function loadMapLibre(): Promise<MapLibre> {
 }
 
 /**
- * Keyless dark basemap. CARTO permits use with attribution and reads far better
- * under a heatmap than a standard OSM raster. Set NEXT_PUBLIC_MAPTILER_KEY to
- * swap in vector tiles with zh-Hant labels.
+ * Fetch the basemap style and adapt it, or fall back to a plain background.
+ *
+ * Fetched here rather than handed to MapLibre as a URL for two reasons. The
+ * labels have to be rewritten before the first frame (see transformBasemap), and
+ * a failure has to degrade to FALLBACK_STYLE rather than leave the map with no
+ * style at all, in which case `load` never fires and none of the site's own
+ * layers draw.
+ *
+ * The MapTiler branch is kept only so an existing key keeps working. Do not set
+ * one: MapTiler's free plan is limited to undefined "non-commercial use", pauses
+ * the service when its quota runs out, and requires a logo this site does not
+ * render. See docs/launch-checklist.md.
  */
-export function basemapStyle(maptilerKey?: string): StyleSpecification | string {
-  if (maptilerKey) {
-    return `https://api.maptiler.com/maps/streets-v2-dark/style.json?key=${maptilerKey}`;
+async function loadBasemap(
+  maptilerKey: string | undefined,
+  locale: string,
+): Promise<StyleSpecification> {
+  const url = maptilerKey
+    ? `https://api.maptiler.com/maps/streets-v2-dark/style.json?key=${maptilerKey}`
+    : OPENFREEMAP_DARK;
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return transformBasemap((await res.json()) as StyleSpecification, locale);
+  } catch (err) {
+    // A handled degradation, not an error: the data still draws.
+    console.warn(
+      "[basemap] style unavailable, drawing on a plain background",
+      err,
+    );
+    return FALLBACK_STYLE;
   }
-  return {
-    version: 8,
-    glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
-    sources: {
-      carto: {
-        type: "raster",
-        tiles: [
-          "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-          "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-          "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-        ],
-        tileSize: 256,
-        attribution:
-          '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
-      },
-    },
-    layers: [{ id: "carto", type: "raster", source: "carto" }],
-  };
 }
 
 /** Padded so Kinmen and Matsu, far west near Fujian, stay reachable. */
@@ -97,6 +110,8 @@ export async function createMap(
   container: HTMLElement,
   opts: {
     maptilerKey?: string;
+    /** Label language. Defaults to the page's own <html lang>. */
+    locale?: string;
     center?: [number, number];
     zoom?: number;
     minZoom?: number;
@@ -116,11 +131,17 @@ export async function createMap(
     onReady?: (map: MLMap) => void;
   } = {},
 ): Promise<MapHandle> {
-  const ml = await loadMapLibre();
+  // Every page sets <html lang>, so reading it here spares the four components
+  // that create maps from threading a locale through.
+  const locale = opts.locale ?? (document.documentElement.lang || "zh-TW");
+  const [ml, style] = await Promise.all([
+    loadMapLibre(),
+    loadBasemap(opts.maptilerKey, locale),
+  ]);
 
   const map = new ml.Map({
     container,
-    style: basemapStyle(opts.maptilerKey),
+    style,
     center: opts.center ?? TAIWAN_CENTER,
     zoom: opts.zoom ?? 6.6,
     // maxBounds keeps a browsing user from panning off to the Atlantic. It is
@@ -149,8 +170,24 @@ export async function createMap(
     console.error("[maplibre]", (e as unknown as { error?: Error }).error ?? e);
   });
 
+  // OpenFreeMap's dark style names two images its own sprite does not contain,
+  // circle-11 (the city dot) and wood-pattern, and MapLibre warns about each on
+  // every tile that uses them. A transparent pixel draws exactly what was drawn
+  // before, nothing, without the noise, and covers any gap a future style update
+  // opens. It has to be a resolver: MapLibre 6 runs the resolver first, then
+  // fires `styleimagemissing` and logs the warning regardless of what a listener
+  // does, so a listener alone silences nothing.
+  map.setMissingStyleImageResolver((id) => {
+    if (!map.hasImage(id)) {
+      map.addImage(id, { width: 1, height: 1, data: new Uint8Array(4) });
+    }
+  });
+
   if (opts.navigation !== false && !opts.static) {
-    map.addControl(new ml.NavigationControl({ showCompass: false }), "top-right");
+    map.addControl(
+      new ml.NavigationControl({ showCompass: false }),
+      "top-right",
+    );
   }
 
   let disposed = false;
