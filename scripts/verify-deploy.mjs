@@ -56,18 +56,18 @@ const html = home.status === 200 ? await home.text() : "";
 const title = /<title[^>]*>([^<]*)<\/title>/.exec(html)?.[1] ?? "";
 check(
   "title carries the current name",
-  title.includes("棲地守望計畫"),
+  title.includes("福爾摩沙守望計畫"),
   /生態守望計畫|生態通報地圖/.test(title)
     ? `STALE — title reads "${title}"`
     : title || "no <title>",
 );
 
-// The wordmark sets "Project HabitatWatch" and uppercases it in CSS, so the capitals
+// The wordmark sets "Project FormosaWatch" and uppercases it in CSS, so the capitals
 // never appear in the HTML. Matching the rendered form finds nothing, always.
 check(
   "landing page is the redesigned one",
-  /project\s+habitatwatch/i.test(html),
-  /project\s+habitatwatch/i.test(html) ? "" : "wordmark missing — old build?",
+  /project\s+formosawatch/i.test(html),
+  /project\s+formosawatch/i.test(html) ? "" : "wordmark missing — old build?",
 );
 
 /* ---------------- routes ---------------- */

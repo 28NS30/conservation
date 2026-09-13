@@ -1,7 +1,7 @@
 /**
  * A path prefix this app can be mounted under. Currently always empty.
  *
- * HabitatWatch is served from the root of its own subdomain, so `withBase` is an
+ * FormosaWatch is served from the root of its own subdomain, so `withBase` is an
  * identity function today and every call site behaves exactly as it did before.
  * It is kept because the alternative — deleting it and rediscovering the same
  * things if the projects ever move to one domain — is worse than one inert
