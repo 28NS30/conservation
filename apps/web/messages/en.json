@@ -154,11 +154,9 @@
     "taxonomy": "Taxonomy",
     "seasonality": "By month",
     "seasonalityHint": "{total, number} records; peak in month {peak}.",
-    "protectedLevel": "Protected {level}",
     "endemic": "Endemic",
     "invasive": "Invasive",
     "alien": "Non-native",
-    "redlist": "Red List {code}",
     "sensitive": "Sensitive",
     "blurredNotice": "This is a sensitive or protected species, so all locations shown are blurred.",
     "coordinatesWithheld": "Under the Taiwan species checklist's sensitivity rating, coordinates for this species are not published, so no records are shown on the map.",
@@ -175,6 +173,48 @@
       "protected": "Protected",
       "invasive": "Invasive",
       "endemic": "Endemic"
+    },
+    "iucnChip": "IUCN {name}",
+    "redlistChip": "Red List {name}",
+    "citesChip": "CITES {name}",
+    "protectedChip": "Protected · {name}",
+    "protectedPlant": "Rare plant · Cultural Heritage Preservation Act",
+    "iucnCode": {
+      "CR": "Critically Endangered",
+      "DD": "Data Deficient",
+      "EN": "Endangered",
+      "EW": "Extinct in the Wild",
+      "EX": "Extinct",
+      "LC": "Least Concern",
+      "LRcd": "Lower Risk / conservation dependent",
+      "NA": "Not Applicable",
+      "NE": "Not Evaluated",
+      "NT": "Near Threatened",
+      "RE": "Regionally Extinct",
+      "VU": "Vulnerable"
+    },
+    "redlistCode": {
+      "DD": "Data Deficient",
+      "EW": "Extinct in the Wild",
+      "EX": "Extinct",
+      "NA": "Not Applicable",
+      "NCR": "Nationally Critically Endangered",
+      "NE": "Not Evaluated",
+      "NEN": "Nationally Endangered",
+      "NLC": "Nationally Least Concern",
+      "NNT": "Nationally Near Threatened",
+      "NVU": "Nationally Vulnerable",
+      "RE": "Regionally Extinct"
+    },
+    "citesCode": {
+      "I": "Appendix I",
+      "II": "Appendix II",
+      "III": "Appendix III"
+    },
+    "protectedName": {
+      "I": "Endangered Wildlife",
+      "II": "Rare and Valuable Wildlife",
+      "III": "Other Conservation-Deserving Wildlife"
     }
   },
   "offline": {
