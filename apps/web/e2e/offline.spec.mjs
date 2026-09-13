@@ -16,7 +16,10 @@ const ROOT = join(import.meta.dirname, "..", "..", "..");
 if (existsSync(join(ROOT, ".env")) && !process.env.DATABASE_URL) {
   process.loadEnvFile(join(ROOT, ".env"));
 }
-const sql = postgres(process.env.DATABASE_URL, { prepare: false, onnotice: () => {} });
+const sql = postgres(process.env.DATABASE_URL, {
+  prepare: false,
+  onnotice: () => {},
+});
 
 const BASE = process.env.TEST_BASE_URL ?? "http://localhost:3000";
 // Must be a real UUID: reportSubmissionSchema requires one, and the API rightly
@@ -25,7 +28,9 @@ const NONCE = crypto.randomUUID();
 const results = [];
 const check = (name, ok, detail = "") => {
   results.push({ name, ok, detail });
-  console.log(`${ok ? "  ok  " : "  FAIL"} ${name}${detail ? ` — ${detail}` : ""}`);
+  console.log(
+    `${ok ? "  ok  " : "  FAIL"} ${name}${detail ? ` — ${detail}` : ""}`,
+  );
 };
 
 const browser = await chromium.launch();
@@ -57,47 +62,57 @@ const swReady = await page
   })
   .catch(() => "error");
 await page.reload({ waitUntil: "load" });
-const controlled = await page.evaluate(() => !!navigator.serviceWorker?.controller);
-console.log(`  info service worker: ${swReady}, controlling page: ${controlled}`);
+const controlled = await page.evaluate(
+  () => !!navigator.serviceWorker?.controller,
+);
+console.log(
+  `  info service worker: ${swReady}, controlling page: ${controlled}`,
+);
 
 // Drive the queue directly: the form's photo picker needs a real file input and
 // the geolocation permission dance, none of which is what this test is about.
 const enqueueInPage = async (id) =>
-  page.evaluate(async ({ id }) => {
-    const { enqueue } = await import("/_next/static/chunks/__nonexistent.js").catch(() => ({}));
-    // Fall back to talking to IndexedDB directly with the same schema the app uses.
-    const db = await new Promise((res, rej) => {
-      const r = indexedDB.open("conservation-offline", 1);
-      r.onupgradeneeded = () => {
-        const s = r.result.createObjectStore("pendingReports", { keyPath: "id" });
-        s.createIndex("createdAt", "createdAt");
+  page.evaluate(
+    async ({ id }) => {
+      const { enqueue } =
+        await import("/_next/static/chunks/__nonexistent.js").catch(() => ({}));
+      // Fall back to talking to IndexedDB directly with the same schema the app uses.
+      const db = await new Promise((res, rej) => {
+        const r = indexedDB.open("conservation-offline", 1);
+        r.onupgradeneeded = () => {
+          const s = r.result.createObjectStore("pendingReports", {
+            keyPath: "id",
+          });
+          s.createIndex("createdAt", "createdAt");
+        };
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => rej(r.error);
+      });
+      const record = {
+        id,
+        createdAt: Date.now(),
+        payload: {
+          category: "roadkill", // no photo, so requiresClassification() is false and it publishes at once
+          lng: 120.95,
+          lat: 23.75,
+          observedAt: new Date().toISOString(),
+          notes: "offline e2e",
+        },
+        photos: [],
+        uploadedPaths: [],
+        attempts: 0,
+        status: "queued",
       };
-      r.onsuccess = () => res(r.result);
-      r.onerror = () => rej(r.error);
-    });
-    const record = {
-      id,
-      createdAt: Date.now(),
-      payload: {
-        category: "pollution", // non-classifiable: publishes immediately, no photo needed
-        lng: 120.95,
-        lat: 23.75,
-        observedAt: new Date().toISOString(),
-        notes: "offline e2e",
-      },
-      photos: [],
-      uploadedPaths: [],
-      attempts: 0,
-      status: "queued",
-    };
-    await new Promise((res, rej) => {
-      const tx = db.transaction("pendingReports", "readwrite");
-      tx.objectStore("pendingReports").put(record);
-      tx.oncomplete = () => res();
-      tx.onerror = () => rej(tx.error);
-    });
-    return true;
-  }, { id });
+      await new Promise((res, rej) => {
+        const tx = db.transaction("pendingReports", "readwrite");
+        tx.objectStore("pendingReports").put(record);
+        tx.oncomplete = () => res();
+        tx.onerror = () => rej(tx.error);
+      });
+      return true;
+    },
+    { id },
+  );
 
 const queueCount = () =>
   page.evaluate(async () => {
@@ -113,7 +128,8 @@ const queueCount = () =>
   });
 
 const dbCount = async (nonce) => {
-  const [row] = await sql`select count(*)::int as n from reports where client_nonce = ${nonce}`;
+  const [row] =
+    await sql`select count(*)::int as n from reports where client_nonce = ${nonce}`;
   return row.n;
 };
 
@@ -148,7 +164,11 @@ try {
   await page.waitForTimeout(4000);
 
   const landed = await dbCount(NONCE);
-  check("report reaches the database once online", landed === 1, `rows=${landed}`);
+  check(
+    "report reaches the database once online",
+    landed === 1,
+    `rows=${landed}`,
+  );
   check("queue is drained", (await queueCount()) === 0);
 
   // --- idempotency ---------------------------------------------------------
@@ -158,7 +178,11 @@ try {
   await page.evaluate(() => window.dispatchEvent(new Event("online")));
   await page.waitForTimeout(3500);
   const after = await dbCount(NONCE);
-  check("re-flushing the same nonce does not duplicate", after === 1, `rows=${after}`);
+  check(
+    "re-flushing the same nonce does not duplicate",
+    after === 1,
+    `rows=${after}`,
+  );
 } finally {
   await sql`delete from reports where client_nonce = ${NONCE}`;
   await sql.end();

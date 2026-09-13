@@ -24,9 +24,7 @@
     "roadkill": "Roadkill",
     "invasive": "Invasive species",
     "injured": "Injured wildlife",
-    "sighting": "Wildlife sighting",
-    "pollution": "Pollution / dumping",
-    "habitat": "Habitat destruction"
+    "sighting": "Wildlife sighting"
   },
   "precision": {
     "exact": "Exact location",
@@ -339,8 +337,6 @@
     "whyRoadkillBody": "Roads cut habitat into fragments. Leopard cats, pangolins, crab-eating mongooses — killed under wheels every year, and most are never recorded.",
     "whyInvasive": "Invasive species",
     "whyInvasiveBody": "Green iguanas, apple snails, mile-a-minute vine. The earlier the spreading edge is found, the more can be done about it.",
-    "whyHabitat": "Pollution and habitat loss",
-    "whyHabitatBody": "Illegal dumping, polluted water, cleared habitat. These reports need no species identification, but they still need to be seen.",
     "speciesTitle": "Most-recorded species",
     "speciesHeading": "Who is dying on the roads?",
     "speciesLede": "The species reported most often in the public record. Open one to see its distribution, seasonal pattern and conservation status.",

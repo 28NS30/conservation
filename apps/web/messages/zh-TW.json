@@ -24,9 +24,7 @@
     "roadkill": "路殺",
     "invasive": "外來入侵種",
     "injured": "受傷野生動物",
-    "sighting": "一般目擊",
-    "pollution": "污染與棄置",
-    "habitat": "棲地破壞"
+    "sighting": "一般目擊"
   },
   "precision": {
     "exact": "精確位置",
@@ -339,8 +337,6 @@
     "whyRoadkillBody": "道路把棲地切成碎片。石虎、穿山甲、食蟹獴——每年都有大量個體死在輪下，而多數從未被記錄。",
     "whyInvasive": "外來入侵種",
     "whyInvasiveBody": "綠鬣蜥、福壽螺、小花蔓澤蘭。愈早發現擴散的邊界，愈有機會處理。",
-    "whyHabitat": "污染與棲地破壞",
-    "whyHabitatBody": "非法棄置、水域污染、棲地開發。這些通報不需要辨識物種，但同樣需要被看見。",
     "speciesTitle": "被記錄最多的物種",
     "speciesHeading": "死在路上的，是誰？",
     "speciesLede": "目前公開紀錄中被通報最多的物種。點進去可以看牠的分布、季節趨勢與保育狀態。",
