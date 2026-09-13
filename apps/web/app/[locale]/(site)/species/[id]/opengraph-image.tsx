@@ -15,6 +15,7 @@ const BADGE = `data:image/png;base64,${(
 ).toString("base64")}`;
 
 import { getSpecies, parseSpeciesId } from "@/lib/species";
+import { subsetFont } from "@/lib/ogFont";
 
 /**
  * The share card for one species.
@@ -23,9 +24,14 @@ import { getSpecies, parseSpeciesId } from "@/lib/species";
  * being killed on this road" — so they are worth more than the generic site
  * card, which is what they fell back to.
  *
- * The scientific name carries the card, which solves the CJK problem for free:
- * satori has no Chinese glyphs, but a binomial is Latin by definition. The
- * Chinese common name still reaches the reader through og:title, which is HTML.
+ * It used to lead with the scientific name because satori has no Chinese glyphs
+ * and a binomial is Latin by definition. That was true and it meant the card a
+ * Taiwanese reader posted to LINE said "Prionailurus bengalensis" rather than
+ * 石虎. The name now leads in the language of the page, on a font subset fetched
+ * for exactly the characters printed — see lib/ogFont.ts.
+ *
+ * If that fetch fails the card falls back to Latin only, because a link preview
+ * must never be the reason a request errors.
  */
 export const alt = "Species record";
 export const size = { width: 1200, height: 630 };
@@ -41,9 +47,9 @@ const ROSE = "#fb7185";
 export default async function Image({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ locale: string; id: string }>;
 }) {
-  const { id } = await params;
+  const { locale, id } = await params;
   const taxonId = parseSpeciesId(id);
   const s = taxonId ? await getSpecies(taxonId) : null;
 
@@ -52,6 +58,53 @@ export default async function Image({
   // simply omitted rather than stated as zero — see the species page.
   const withheld = s?.sensitivity === "座標不開放";
   const count = s && !withheld ? s.reportCount : null;
+
+  const zh = locale.startsWith("zh");
+  const zhName = s?.commonNameZh ?? null;
+
+  // What the card would say with a Chinese font available.
+  const wanted = {
+    headline: zh && zhName ? zhName : binomial,
+    secondary: zh && zhName ? binomial : zhName,
+    countLabel:
+      count !== null
+        ? zh
+          ? `${count.toLocaleString("en-US")} 筆紀錄`
+          : `${count.toLocaleString("en-US")} records`
+        : null,
+    protectedLabel: zh ? "保育類" : "Protected",
+    endemicLabel: zh ? "台灣特有種" : "Endemic to Taiwan",
+    footer: zh
+      ? "台灣路殺與野生動物紀錄 · 開放資料"
+      : "Roadkill and wildlife records from Taiwan · open data",
+  };
+
+  // One subset covering every character actually printed, Latin included — a
+  // font that lacks the Latin glyphs would leave the binomial blank.
+  const font = await subsetFont(
+    [
+      wanted.headline,
+      wanted.secondary ?? "",
+      wanted.countLabel ?? "",
+      wanted.protectedLabel,
+      wanted.endemicLabel,
+      wanted.footer,
+      "PROJECT FORMOSAWATCH",
+    ].join(""),
+  );
+
+  // Without it, print nothing that needs a glyph satori does not have.
+  const card = font
+    ? wanted
+    : {
+        headline: binomial,
+        secondary: null,
+        countLabel:
+          count !== null ? `${count.toLocaleString("en-US")} records` : null,
+        protectedLabel: "Protected",
+        endemicLabel: "Endemic to Taiwan",
+        footer: "Roadkill and wildlife records from Taiwan · open data",
+      };
 
   return new ImageResponse(
     <div
@@ -81,14 +134,27 @@ export default async function Image({
       <div style={{ display: "flex", flexDirection: "column" }}>
         <div
           style={{
-            fontSize: binomial.length > 26 ? 62 : 78,
-            fontStyle: "italic",
+            fontSize: card.headline.length > 26 ? 62 : 78,
+            // Italic is a Latin convention for a binomial and wrong for Hanzi.
+            fontStyle: card.headline === binomial ? "italic" : "normal",
             lineHeight: 1.12,
             color: PARCHMENT_50,
           }}
         >
-          {binomial}
+          {card.headline}
         </div>
+        {card.secondary && (
+          <div
+            style={{
+              fontSize: 34,
+              fontStyle: card.secondary === binomial ? "italic" : "normal",
+              marginTop: 10,
+              color: PARCHMENT_200,
+            }}
+          >
+            {card.secondary}
+          </div>
+        )}
 
         <div
           style={{
@@ -98,13 +164,11 @@ export default async function Image({
             marginTop: 26,
           }}
         >
-          {count !== null && (
+          {card.countLabel && (
             // One text node, not two. Satori refuses any div with more than
             // one child unless it declares display, and `{n} records` is an
             // interpolation plus a literal — which is two.
-            <div style={{ fontSize: 34, color: EMBER }}>
-              {`${count.toLocaleString("en-US")} records`}
-            </div>
+            <div style={{ fontSize: 34, color: EMBER }}>{card.countLabel}</div>
           )}
           {s?.protectedStatus && (
             <div
@@ -117,7 +181,7 @@ export default async function Image({
                 padding: "6px 18px",
               }}
             >
-              Protected
+              {card.protectedLabel}
             </div>
           )}
           {s?.isEndemic && (
@@ -131,16 +195,14 @@ export default async function Image({
                 padding: "6px 18px",
               }}
             >
-              Endemic to Taiwan
+              {card.endemicLabel}
             </div>
           )}
         </div>
       </div>
 
-      <div style={{ fontSize: 22, color: PARCHMENT_400 }}>
-        Roadkill and wildlife records from Taiwan · open data
-      </div>
+      <div style={{ fontSize: 22, color: PARCHMENT_400 }}>{card.footer}</div>
     </div>,
-    size,
+    font ? { ...size, fonts: [font] } : size,
   );
 }
