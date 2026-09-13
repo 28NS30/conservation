@@ -24,12 +24,25 @@ function toLocalInput(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export default function ReportForm({ maptilerKey }: { maptilerKey?: string }) {
+export default function ReportForm({
+  maptilerKey,
+  initialCategory,
+}: {
+  maptilerKey?: string;
+  /**
+   * Preselected from the front page's category doors, so that choosing one there
+   * and arriving here is a single act rather than the same question twice.
+   * Validated against CATEGORY_KEYS by the page, never trusted raw.
+   */
+  initialCategory?: Category;
+}) {
   const t = useTranslations("report");
   const locale = useLocale();
   const tOffline = useTranslations("offline");
   const tc = useTranslations("categories");
-  const [category, setCategory] = useState<Category>("roadkill");
+  const [category, setCategory] = useState<Category>(
+    initialCategory ?? "roadkill",
+  );
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [location, setLocation] = useState<LatLng | null>(null);
   const [observedAt, setObservedAt] = useState(toLocalInput(new Date()));

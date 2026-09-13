@@ -6,11 +6,10 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { sql } from "@/lib/db";
 import { Link } from "@/i18n/navigation";
 import { CATEGORIES, type Category } from "@conservation/shared";
-import { categoryCounts, topSpecies } from "@/lib/stats";
-import { speciesSlug } from "@/lib/species";
+import { anniversaryLedger } from "@/lib/stats";
+import Badge from "@/components/brand/Badge";
 import SiteHeader from "@/components/site/SiteHeader";
 import SiteFooter from "@/components/site/SiteFooter";
-import Badge from "@/components/brand/Badge";
 
 export const revalidate = 300;
 
@@ -37,19 +36,53 @@ async function getStats(): Promise<Stats> {
     select count(*)::text                                as reports,
            count(distinct taxon_id)::text                as species,
            count(*) filter (where is_obscured)::text     as obscured,
-           to_char(min(observed_at), 'YYYY')             as earliest,
-           to_char(max(observed_at), 'YYYY')             as latest
+           extract(year from min(observed_at))::text     as earliest,
+           extract(year from max(observed_at))::text     as latest
       from reports_public`;
   return row;
 }
 
+/** The four doors, in the order the form offers them. */
+const DOORS = [
+  { key: "roadkill" as const, copy: "doorRoadkill" },
+  { key: "invasive" as const, copy: "doorInvasive" },
+  { key: "injured" as const, copy: "doorInjured" },
+  { key: "sighting" as const, copy: "doorSighting" },
+];
+
 /**
- * The organisation's front door.
+ * The front door.
  *
- * The map is still the centre of gravity — it is the hero, live and interactive,
- * not a screenshot — but this page has to do the job a bare map could not: say
- * who this is, why roadkill is worth a database, and how someone helps. The
- * full-screen instrument moved to /map, reachable from the hero and the nav.
+ * Rebuilt from purpose after the owner's verdict on the previous version: it
+ * didn't look like much, a stranger couldn't tell what the site was, and nobody
+ * acted on it. Each of those gets its own mechanism rather than one idea
+ * carrying all three.
+ *
+ * IT HAS NO PHOTOGRAPHS BECAUSE THERE ARE NONE. report_photos holds zero rows —
+ * TaiRON publishes no images to GBIF and nobody has ever filed a report here —
+ * so every ordinary move for a conservation front page is unavailable. The one
+ * picture this project owns is the corpus itself: 46,334 records at 500 m,
+ * which resolve into the road network of Taiwan. See app/field.svg.
+ *
+ * IT OPENS WITH THE FORM'S FIRST QUESTION. Four equally-weighted buttons is no
+ * choice at all, and was the old page's answer to "what should I do". The doors
+ * each carry one category into /report, so choosing and starting are one act.
+ *
+ * IT CREDITS 路殺社 BEFORE IT ASKS FOR ANYTHING. Every record displayed here was
+ * collected by their volunteers over a decade. A Taiwanese visitor who
+ * recognises the data and finds no acknowledgement reads the site as
+ * appropriation, and that is a first-impression problem, which makes it this
+ * page's problem. The provenance strip is the first thing under the nav.
+ *
+ * THE BADGE IS HERE ON PURPOSE, WITH ITS LETTERING WRONG. The artwork still
+ * reads 生態守望計畫 / PROJECT ECOWATCH, two renames out of date. The design
+ * dropped it so the page could ship without waiting for a redraw; the owner put
+ * it back so the page can be judged as the whole thing it will be, and the art
+ * swapped in later. It sits at 96px rather than the old 160px — present, and
+ * not inviting anyone to read the ring.
+ *
+ * When the new art lands it replaces public/brand-badge.png and nothing here
+ * changes.
  */
 export default async function HomePage({
   params,
@@ -57,385 +90,286 @@ export default async function HomePage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  // The layout guards this too, but a layout and its page render in parallel, so
-  // the page can still run with whatever the segment matched. `/favicon.ico` has
-  // no static file to answer it and falls through to this dynamic route, which
-  // then reached `Number(...).toLocaleString("favicon.ico")` and threw a
-  // RangeError — a 500 on a request every browser makes.
   if (!hasLocale(routing.locales, locale)) notFound();
   setRequestLocale(locale);
 
   const t = await getTranslations("home");
-  const [s, cats, species] = await Promise.all([
-    getStats(),
-    categoryCounts(),
-    topSpecies(8),
-  ]);
-  const n = (v: string | number) => Number(v).toLocaleString(locale);
-  const byCategory = new Map<Category, number>(
-    cats.map((c) => [c.category, c.n]),
-  );
-  const speciesMax = species[0]?.reportCount ?? 1;
-  const years =
-    s.earliest && s.latest ? Number(s.latest) - Number(s.earliest) + 1 : null;
+  const tc = await getTranslations("categories");
+  const [s, ledger] = await Promise.all([getStats(), anniversaryLedger(10)]);
+  const zhFirst = locale.startsWith("zh");
 
   return (
     <main className="bg-paper-50">
       <SiteHeader variant="page" />
 
-      {/* ---------------- who we are ---------------- */}
-      {/*
-        The front page used to BE the map: full bleed, 100dvh, with every route
-        out floating in a panel over it. It was the most persuasive thing on the
-        site — proof at a glance that the database is real and not a mock-up.
-
-        It is an introduction now, because someone who has never heard of the
-        project has to be told what it is before being handed an instrument. The
-        map did not lose its argument, only its position: /map sits in the nav on
-        every page, in both the desktop and phone rows, and is the second button
-        here.
-
-        What survives from the panel is the three counts, because they are the
-        reason to believe the paragraph above them.
-      */}
-      <section className="border-b border-ink-900/10">
-        <div className="mx-auto max-w-3xl px-6 pt-16 pb-16 text-center sm:pt-24">
-          <Badge size={160} className="mx-auto w-28 sm:w-40" priority />
-
-          <p className="mt-8 text-[11px] font-medium uppercase tracking-[0.3em] text-ember-700">
-            {t("eyebrow")}
-          </p>
-          <h1 className="mt-4 text-3xl font-semibold leading-tight text-ink-900 sm:text-4xl">
-            {t("headline")}
-          </h1>
-          {/* Written and translated long ago, and read by nothing until now. */}
-          <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-ink-600 sm:text-lg">
-            {t("sub")}
-          </p>
-
-          <div className="mt-9 flex flex-wrap justify-center gap-3">
-            <Link
-              href="/report"
-              className="rounded-full bg-ember-500 px-6 py-3 text-sm font-semibold text-bark-950 transition hover:bg-ember-400"
+      {/* ---------------- provenance ---------------- */}
+      {/* Scrolls rather than wraps on a narrow phone: two ragged lines of 11px
+          mono under the nav look like a mistake, one clipped line does not. */}
+      <div className="border-b border-bark-950 bg-bark-950">
+        <div className="mx-auto max-w-[1100px] overflow-x-auto px-6 py-2.5">
+          <p className="whitespace-nowrap font-mono text-[11px] tracking-tight text-parchment-400">
+            {t("provenanceCounts", {
+              count: Number(s.reports),
+              from: s.earliest ?? "",
+              to: s.latest ?? "",
+            })}
+            {" · "}
+            {t("provenanceSource")}{" "}
+            <a
+              href="https://roadkill.tw"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-parchment-200 underline underline-offset-2 hover:text-parchment-50"
             >
-              {t("ctaReport")}
-            </Link>
+              {t("provenanceOrg")}
+            </a>{" "}
+            {t("provenanceVia")}
+          </p>
+        </div>
+      </div>
+
+      {/* ---------------- the doorway ---------------- */}
+      <section className="mx-auto max-w-[1100px] px-6 pb-16 pt-12 sm:pt-16">
+        {/* Left-aligned with everything else. Centred under a centred column is
+            the shape this redesign was called a generic template for. */}
+        <Badge size={96} className="mb-7 w-16 sm:w-24" priority />
+        <h1 className="max-w-3xl text-[clamp(2rem,7vw,3.5rem)] font-semibold leading-[1.08] text-ink-900">
+          {t("ask")}
+        </h1>
+        <p className="mt-4 max-w-xl text-base leading-relaxed text-ink-600">
+          {t("askHint")}
+        </p>
+
+        <ul className="mt-9 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {DOORS.map((d) => (
+            <li key={d.key}>
+              <Link
+                href={`/report?category=${d.key}`}
+                className="flex h-full flex-col rounded-lg border border-ink-900/12 bg-paper-100 transition hover:border-ink-900/30 hover:bg-paper-200/60"
+              >
+                <span
+                  aria-hidden
+                  className="block h-1.5 w-full rounded-t-lg"
+                  style={{ background: CATEGORIES[d.key as Category].color }}
+                />
+                <span className="flex flex-1 flex-col gap-1.5 p-4">
+                  <span className="text-[17px] font-medium leading-snug text-ink-900">
+                    {tc(d.key)}
+                  </span>
+                  <span className="text-[12px] leading-relaxed text-ink-500">
+                    {t(d.copy)}
+                  </span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+
+        <Link
+          href="/about"
+          className="mt-7 inline-block text-[13px] text-ink-500 transition hover:text-ink-900"
+        >
+          {t("firstTime")} →
+        </Link>
+      </section>
+
+      {/* ---------------- the plate ---------------- */}
+      <section className="border-y border-ink-900/10 bg-paper-100/60">
+        <div className="mx-auto grid max-w-[1100px] gap-10 px-6 py-16 lg:grid-cols-[minmax(0,460px)_1fr] lg:items-center lg:gap-20 lg:py-24">
+          {/* eslint-disable-next-line @next/next/no-img-element --
+              A generated SVG route, not a file next/image can optimise. */}
+          <img
+            src="/field.svg"
+            alt=""
+            width={900}
+            height={1668}
+            className="mx-auto w-full max-w-[300px] sm:max-w-[360px] lg:max-w-none"
+          />
+          <div>
+            <h2 className="text-2xl font-semibold leading-snug text-ink-900 sm:text-3xl">
+              {t("plateTitle", { count: Number(s.reports) })}
+            </h2>
+            <p className="mt-5 max-w-lg text-sm leading-relaxed text-ink-600">
+              {t("plateCaption")}
+            </p>
             <Link
               href="/map"
-              className="rounded-full border border-ink-900/20 px-6 py-3 text-sm font-medium text-ink-800 transition hover:border-ink-900/35 hover:bg-ink-900/5"
+              className="mt-6 inline-block text-sm font-medium text-ember-700 transition hover:underline"
             >
-              {t("ctaMap")}
-            </Link>
-            <Link
-              href="/about"
-              className="rounded-full border border-ink-900/20 px-6 py-3 text-sm font-medium text-ink-800 transition hover:border-ink-900/35 hover:bg-ink-900/5"
-            >
-              {t("trustLink")}
-            </Link>
-            <Link
-              href="/species"
-              className="rounded-full border border-ink-900/20 px-6 py-3 text-sm font-medium text-ink-800 transition hover:border-ink-900/35 hover:bg-ink-900/5"
-            >
-              {t("speciesLink")}
+              {t("ctaMap")} →
             </Link>
           </div>
-
-          <dl className="mx-auto mt-12 grid max-w-lg grid-cols-3 gap-4 border-t border-ink-900/10 pt-8">
-            {[
-              { v: n(s.reports), k: t("statsRecords") },
-              { v: n(s.species), k: t("statsSpecies") },
-              { v: years ? String(years) : "—", k: t("statsYears") },
-            ].map((x) => (
-              <div key={x.k}>
-                <dt className="sr-only">{x.k}</dt>
-                <dd>
-                  <span className="block text-2xl font-semibold tabular-nums text-ink-900">
-                    {x.v}
-                  </span>
-                  <span className="mt-1 block text-[11px] leading-tight text-ink-500">
-                    {x.k}
-                  </span>
-                </dd>
-              </div>
-            ))}
-          </dl>
         </div>
       </section>
 
-      {/* ---------------- what we record ---------------- */}
-      <Section
-        eyebrow={t("whyTitle")}
-        title={t("whyHeading")}
-        lede={t("whyLede")}
-      >
-        <div className="grid gap-5 sm:grid-cols-3">
+      {/* ---------------- three answers ---------------- */}
+      <section className="mx-auto max-w-[1100px] px-6 py-16">
+        <dl className="grid gap-8 sm:grid-cols-3 sm:gap-10">
           {[
-            {
-              c: "roadkill" as const,
-              h: t("whyRoadkill"),
-              b: t("whyRoadkillBody"),
-              n: byCategory.get("roadkill") ?? 0,
-            },
-            {
-              c: "invasive" as const,
-              h: t("whyInvasive"),
-              b: t("whyInvasiveBody"),
-              n: byCategory.get("invasive") ?? 0,
-            },
-            {
-              // The third of the team's three report buttons, and the reason the
-              // heading can still say three. A map made only of carcasses
-              // describes where animals die, not where they are.
-              c: "sighting" as const,
-              h: t("whySighting"),
-              b: t("whySightingBody"),
-              n: byCategory.get("sighting") ?? 0,
-            },
-          ].map((x) => (
-            <article
-              key={x.c}
-              className="group relative flex flex-col overflow-hidden rounded-2xl border border-ink-900/10 bg-paper-50 shadow-[0_1px_2px_rgba(22,36,28,0.04)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_32px_rgba(22,36,28,0.10)]"
+            ["whatTitle", "whatBody"],
+            ["whoTitle", "whoBody"],
+            ["taironTitle", "taironBody"],
+          ].map(([h, b], i) => (
+            <div
+              key={h}
+              className={
+                i > 0
+                  ? "border-t border-ink-900/10 pt-8 sm:border-l sm:border-t-0 sm:pl-8 sm:pt-0"
+                  : ""
+              }
             >
-              {/* The category's own colour, as a band rather than a 10px dot.
-                  It is the same key the map uses, so the two read as one system
-                  instead of a legend and an unrelated illustration. */}
-              <span
-                aria-hidden
-                className="block h-1.5 w-full"
-                style={{ background: CATEGORIES[x.c].color }}
-              />
-              <div className="flex flex-1 flex-col p-6">
-                <h3 className="text-lg font-semibold text-ink-900">{x.h}</h3>
-                <p className="mt-2.5 flex-1 text-sm leading-relaxed text-ink-600">
-                  {x.b}
-                </p>
-                {/* Suppressed at zero rather than printing "0 records" — the
-                    seed corpus is entirely roadkill, and advertising an empty
-                    category makes a young site look like a dead one. */}
-                {x.n > 0 && (
-                  <p className="mt-6 flex items-baseline gap-2 border-t border-ink-900/10 pt-4">
-                    <span className="text-2xl font-semibold tabular-nums leading-none text-ink-900">
-                      {n(x.n)}
-                    </span>
-                    <span className="text-xs text-ink-500">
-                      {t("statsRecords")}
-                    </span>
-                  </p>
-                )}
-              </div>
-            </article>
+              <dt className="text-[11px] font-medium uppercase tracking-[0.18em] text-ember-700">
+                {t(h)}
+              </dt>
+              <dd className="mt-3 text-sm leading-relaxed text-ink-600">
+                {t(b)}
+              </dd>
+            </div>
           ))}
-        </div>
-      </Section>
+        </dl>
+      </section>
 
-      {/* ---------------- who is being hit ---------------- */}
-      {species.length > 0 && (
-        <Section
-          eyebrow={t("speciesTitle")}
-          title={t("speciesHeading")}
-          lede={t("speciesLede")}
-          tone="raised"
-        >
-          <ol className="grid gap-x-10 gap-y-1 sm:grid-cols-2">
-            {species.map((sp, i) => (
-              <li key={sp.id}>
+      {/* ---------------- the ledger ---------------- */}
+      <section className="border-t border-ink-900/10 bg-paper-100/60">
+        <div className="mx-auto max-w-[1100px] px-6 py-16">
+          <h2 className="text-2xl font-semibold text-ink-900 sm:text-3xl">
+            {t("ledgerTitle")}
+          </h2>
+          <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-600">
+            {t("ledgerHint")}
+          </p>
+
+          <div className="mt-8 border-t border-ink-900/12">
+            {/* The blank line. It is the call to action, in the geometry of a
+                record — the argument for filing one is that the next line of
+                the ledger is empty. */}
+            <Link
+              href="/report"
+              className="flex items-center gap-4 border-b border-dashed border-ember-500/70 px-1 py-3.5 transition hover:bg-ember-500/8"
+            >
+              <span className="font-mono text-[12px] tabular-nums text-ember-700/70">
+                ————-——-——
+              </span>
+              <span className="flex-1 text-sm font-medium text-ember-700">
+                {t("ledgerBlank")} →
+              </span>
+            </Link>
+
+            {ledger.map((r) => {
+              const name =
+                zhFirst && r.commonNameZh ? r.commonNameZh : r.scientificName;
+              const second =
+                zhFirst && r.commonNameZh ? r.scientificName : r.commonNameZh;
+              return (
                 <Link
-                  href={`/species/${speciesSlug(sp)}`}
-                  className="group flex items-baseline gap-3 rounded-lg px-3 py-2.5 -mx-3 transition hover:bg-ink-900/5"
+                  key={r.id}
+                  href={`/reports/${r.id}`}
+                  className="flex items-baseline gap-4 border-b border-ink-900/8 px-1 py-3 transition hover:bg-paper-200/50"
                 >
-                  <span className="w-4 shrink-0 text-xs tabular-nums text-ink-500">
-                    {i + 1}
+                  <span className="font-mono text-[12px] tabular-nums text-ink-500">
+                    {new Date(r.observedAt).toISOString().slice(0, 10)}
                   </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex flex-wrap items-baseline gap-x-2">
-                      <span className="truncate text-sm font-medium text-ink-900 group-hover:text-ember-700">
-                        {sp.commonNameZh ?? sp.scientificName}
+                  <span className="min-w-0 flex-1 truncate text-[15px] text-ink-900">
+                    {name}
+                    {second && (
+                      <span className="ml-2 text-[11px] italic text-ink-500">
+                        {second}
                       </span>
-                      {sp.commonNameZh && (
-                        <span className="truncate text-[11px] italic text-ink-500">
-                          {sp.scientificName}
-                        </span>
-                      )}
-                    </span>
-                    {/* A bar makes the long tail legible at a glance: the top
-                        species has many times the records of the eighth. */}
-                    <span
-                      aria-hidden
-                      className="mt-1.5 block h-1 overflow-hidden rounded-full bg-ink-900/5"
-                    >
-                      <span
-                        className="block h-full rounded-full bg-moss-700/70"
-                        style={{
-                          width: `${Math.max(2, (sp.reportCount / speciesMax) * 100)}%`,
-                        }}
-                      />
-                    </span>
+                    )}
                   </span>
-                  <span className="shrink-0 text-xs tabular-nums text-ink-500">
-                    {n(sp.reportCount)}
+                  <span className="hidden font-mono text-[11px] tabular-nums text-ink-400 sm:inline">
+                    {r.lat.toFixed(4)}, {r.lng.toFixed(4)}
                   </span>
                 </Link>
-              </li>
-            ))}
-          </ol>
-          <Link
-            href="/species"
-            className="mt-8 inline-block text-sm text-ember-700 transition hover:underline"
-          >
-            {t("speciesLink")} →
-          </Link>
-        </Section>
-      )}
+              );
+            })}
+          </div>
+
+          <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+            <Link
+              href="/reports"
+              className="font-medium text-ember-700 transition hover:underline"
+            >
+              {t("ledgerAll", { count: Number(s.reports) })} →
+            </Link>
+            <Link
+              href="/species"
+              className="text-ink-600 transition hover:text-ink-900"
+            >
+              {t("speciesLink")} →
+            </Link>
+          </div>
+        </div>
+      </section>
 
       {/* ---------------- how it works ---------------- */}
-      <Section eyebrow={t("howTitle")} title={t("howHeading")}>
-        {/* The rule runs behind the numbered markers and stops short of the
-            last one, so the three steps read as one sequence rather than three
-            unrelated columns. Hidden on mobile, where they stack. */}
-        <div className="relative">
-          <div
-            aria-hidden
-            className="absolute left-0 right-0 top-4 hidden h-px bg-gradient-to-r from-ember-500/30 via-ember-500/20 to-transparent sm:block"
-          />
-          <ol className="relative grid gap-8 sm:grid-cols-3 sm:gap-10">
-            {[
-              { h: t("how1"), b: t("how1Body") },
-              { h: t("how2"), b: t("how2Body") },
-              { h: t("how3"), b: t("how3Body") },
-            ].map((x, i) => (
-              <li key={x.h}>
-                <span className="flex size-9 items-center justify-center rounded-full border border-ember-700/30 bg-ember-500/10 text-sm font-semibold text-ember-700">
-                  {i + 1}
-                </span>
-                <h3 className="mt-5 text-base font-semibold text-ink-900">
-                  {x.h}
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed text-ink-600">
-                  {x.b}
-                </p>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </Section>
-
-      {/* ---------------- trust ---------------- */}
-      <Section tone="raised">
-        <div className="grid gap-5 sm:grid-cols-2">
+      <section className="mx-auto max-w-[1100px] px-6 py-16">
+        <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-ember-700">
+          {t("howTitle")}
+        </p>
+        <h2 className="mt-3 max-w-2xl text-2xl font-semibold leading-snug text-ink-900 sm:text-3xl">
+          {t("howHeading")}
+        </h2>
+        <ol className="mt-10 grid gap-8 sm:grid-cols-3 sm:gap-10">
           {[
-            {
-              h: t("trustTitle"),
-              b: t("trustBody"),
-              href: "/about" as const,
-              link: t("trustLink"),
-            },
-            {
-              h: t("openTitle"),
-              b: t("openBody"),
-              href: "/attribution" as const,
-              link: t("openLink"),
-            },
-          ].map((x) => (
-            <div
-              key={x.h}
-              className="flex flex-col rounded-xl border border-ink-900/10 bg-paper-50/70 p-7"
-            >
-              <h2 className="text-lg font-semibold text-ink-900">{x.h}</h2>
-              <p className="mt-3 flex-1 text-sm leading-relaxed text-ink-600">
-                {x.b}
+            ["how1", "how1Body"],
+            ["how2", "how2Body"],
+            ["how3", "how3Body"],
+          ].map(([h, b], i) => (
+            <li key={h} className="border-t border-ink-900/12 pt-5">
+              <span className="font-mono text-[11px] tabular-nums text-ink-400">
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <h3 className="mt-2 text-base font-semibold text-ink-900">
+                {t(h)}
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-ink-600">
+                {t(b)}
+              </p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      {/* ---------------- trust, and the close ---------------- */}
+      <section className="border-t border-ink-900/10 bg-paper-100/60">
+        <div className="mx-auto grid max-w-[1100px] gap-10 px-6 py-16 sm:grid-cols-2 sm:gap-14">
+          {[
+            ["trustTitle", "trustBody", "trustLink", "/about"] as const,
+            ["openTitle", "openBody", "openLink", "/attribution"] as const,
+          ].map(([h, b, l, href]) => (
+            <div key={h}>
+              <h2 className="text-lg font-semibold text-ink-900">{t(h)}</h2>
+              <p className="mt-3 text-sm leading-relaxed text-ink-600">
+                {t(b)}
               </p>
               <Link
-                href={x.href}
-                className="mt-5 text-sm text-ember-700 transition hover:underline"
+                href={href}
+                className="mt-4 inline-block text-sm font-medium text-ember-700 transition hover:underline"
               >
-                {x.link} →
+                {t(l)} →
               </Link>
             </div>
           ))}
         </div>
-      </Section>
-
-      {/* ---------------- closing call ---------------- */}
-      <section className="border-t border-ink-900/10 bg-paper-100">
-        <div className="mx-auto flex max-w-5xl flex-col items-center gap-6 px-6 py-20 text-center">
-          <Badge size={96} />
-          <h2 className="max-w-lg text-2xl font-semibold leading-snug text-ink-900">
-            {t("finalTitle")}
-          </h2>
-          <p className="max-w-md text-sm leading-relaxed text-ink-600">
-            {t("finalBody")}
-          </p>
-          <Link
-            href="/report"
-            className="rounded-full bg-ember-500 px-7 py-3 text-sm font-semibold text-bark-950 transition hover:bg-ember-400"
-          >
-            {t("ctaReport")}
-          </Link>
-        </div>
       </section>
 
-      <SiteFooter
-        obscured={Number(s.obscured) > 0 ? n(s.obscured) : undefined}
-      />
-    </main>
-  );
-}
+      <section className="mx-auto max-w-[1100px] px-6 py-20">
+        <h2 className="max-w-2xl text-2xl font-semibold leading-snug text-ink-900 sm:text-3xl">
+          {t("closeTitle")}
+        </h2>
+        <p className="mt-4 max-w-xl text-sm leading-relaxed text-ink-600">
+          {t("closeBody")}
+        </p>
+        <Link
+          href="/report"
+          className="mt-7 inline-block rounded-full bg-ember-500 px-6 py-3 text-sm font-semibold text-bark-950 transition hover:bg-ember-400"
+        >
+          {t("ctaReport")}
+        </Link>
+      </section>
 
-/**
- * One section rhythm for the whole page.
- *
- * The eyebrow alone was doing the work of a heading before, in 12px tracked-out
- * grey — so every band looked the same weight and the page read as one
- * undifferentiated column of small text. The eyebrow now labels, the heading
- * carries, and the lede says the one thing worth reading if you read nothing
- * else. Alternating `tone` gives the scroll a beat.
- */
-function Section({
-  eyebrow,
-  title,
-  lede,
-  tone = "flat",
-  children,
-}: {
-  eyebrow?: string;
-  title?: string;
-  lede?: string;
-  tone?: "flat" | "raised";
-  children: React.ReactNode;
-}) {
-  return (
-    <section
-      className={
-        tone === "raised"
-          ? "border-y border-ink-900/10 bg-paper-100/60"
-          : undefined
-      }
-    >
-      <div className="mx-auto max-w-5xl px-6 py-20 sm:py-24">
-        {(eyebrow || title) && (
-          <div className="mb-12 max-w-2xl">
-            {eyebrow && (
-              <p className="flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.24em] text-ember-700">
-                {/* A short rule anchors the eyebrow to the left edge of the
-                    grid; alone it floated as a stray line of small caps. */}
-                <span aria-hidden className="h-px w-8 bg-ember-700/50" />
-                {eyebrow}
-              </p>
-            )}
-            {title && (
-              <h2 className="mt-4 text-[1.75rem] font-semibold leading-tight tracking-tight text-ink-900 sm:text-[2.25rem]">
-                {title}
-              </h2>
-            )}
-            {lede && (
-              <p className="mt-4 text-base leading-relaxed text-ink-600">
-                {lede}
-              </p>
-            )}
-          </div>
-        )}
-        {children}
-      </div>
-    </section>
+      <SiteFooter obscured={s.obscured} />
+    </main>
   );
 }
