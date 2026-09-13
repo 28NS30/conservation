@@ -204,7 +204,9 @@ describe("thin species pages", () => {
     // code, and the badge used to print the raw string. NC is not an appendix
     // at all; it marks a taxon listed in none of them.
     const [split] = await sql`
-      select id from taxa where cites like '%/%' and is_in_taiwan limit 1`;
+      select id, cites from taxa
+       where cites like '%/%' and is_in_taiwan
+       order by id limit 1`;
     assert.ok(split, "expected a split-listed CITES fixture");
     const html = await (
       await fetch(`${BASE_URL}/en/species/${split.id}`)
@@ -213,7 +215,17 @@ describe("thin species pages", () => {
       !/CITES\s+[IV]+\//.test(html),
       "the raw slashed code must not be printed",
     );
-    assert.match(html, /CITES Appendix I\b/);
+    // Derived from the row, not hardcoded. The first split-listed species is
+    // II/NC in one dataset and I/II in another, and "Appendix I" is a prefix of
+    // "Appendix II" — so a fixed expectation is wrong in two separate ways.
+    for (const part of split.cites.split("/")) {
+      const chip = `CITES Appendix ${part}<`;
+      if (["I", "II", "III"].includes(part)) {
+        assert.ok(html.includes(chip), `expected a chip for appendix ${part}`);
+      } else {
+        assert.ok(!html.includes(chip), `${part} is not an appendix`);
+      }
+    }
 
     const [nc] = await sql`
       select id from taxa where cites = 'NC' and is_in_taiwan limit 1`;

@@ -7,6 +7,7 @@ import { sql } from "@/lib/db";
 import { Link } from "@/i18n/navigation";
 import { CATEGORIES, type Category } from "@conservation/shared";
 import { anniversaryLedger } from "@/lib/stats";
+import Badge from "@/components/brand/Badge";
 import SiteHeader from "@/components/site/SiteHeader";
 import SiteFooter from "@/components/site/SiteFooter";
 
@@ -73,9 +74,15 @@ const DOORS = [
  * appropriation, and that is a first-impression problem, which makes it this
  * page's problem. The provenance strip is the first thing under the nav.
  *
- * NO BADGE. The artwork still letters 生態守望計畫 / PROJECT ECOWATCH, two renames
- * out of date, and at hero size that is perfectly legible. Leaving it off means
- * this page needs no redraw to ship.
+ * THE BADGE IS HERE ON PURPOSE, WITH ITS LETTERING WRONG. The artwork still
+ * reads 生態守望計畫 / PROJECT ECOWATCH, two renames out of date. The design
+ * dropped it so the page could ship without waiting for a redraw; the owner put
+ * it back so the page can be judged as the whole thing it will be, and the art
+ * swapped in later. It sits at 96px rather than the old 160px — present, and
+ * not inviting anyone to read the ring.
+ *
+ * When the new art lands it replaces public/brand-badge.png and nothing here
+ * changes.
  */
 export default async function HomePage({
   params,
@@ -122,7 +129,10 @@ export default async function HomePage({
       </div>
 
       {/* ---------------- the doorway ---------------- */}
-      <section className="mx-auto max-w-[1100px] px-6 pb-16 pt-14 sm:pt-20">
+      <section className="mx-auto max-w-[1100px] px-6 pb-16 pt-12 sm:pt-16">
+        {/* Left-aligned with everything else. Centred under a centred column is
+            the shape this redesign was called a generic template for. */}
+        <Badge size={96} className="mb-7 w-16 sm:w-24" priority />
         <h1 className="max-w-3xl text-[clamp(2rem,7vw,3.5rem)] font-semibold leading-[1.08] text-ink-900">
           {t("ask")}
         </h1>
