@@ -668,3 +668,65 @@ insert into reports (id, category, location, location_public, observed_at, taxon
   ('ce89df3f-fc4c-4fb9-aa4f-503416ed0a93'::uuid, 'roadkill', st_setsrid(st_makepoint(120.28192,23.20407),4326)::geography, st_setsrid(st_makepoint(120.28192,23.20407),4326)::geography, '2017-11-30T00:00:00.000Z', 98364, 'imported', 'published', 'gbif', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122715', 'http://creativecommons.org/licenses/by/4.0/legalcode', NULL),
   ('fdbf2708-8253-4aa1-90f6-3063bfa441c3'::uuid, 'roadkill', st_setsrid(st_makepoint(120.27411,22.61969),4326)::geography, st_setsrid(st_makepoint(120.27411,22.61969),4326)::geography, '2017-12-02T00:00:00.000Z', 98364, 'imported', 'published', 'gbif', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122816', 'http://creativecommons.org/licenses/by/4.0/legalcode', NULL),
   ('8747d788-8124-4fbf-a532-2166a4c95b2f'::uuid, 'roadkill', st_setsrid(st_makepoint(121.23303,24.68277),4326)::geography, st_setsrid(st_makepoint(121.23303,24.68277),4326)::geography, '2017-12-03T00:00:00.000Z', 63825, 'imported', 'published', 'gbif', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122907', 'http://creativecommons.org/licenses/by/4.0/legalcode', NULL);
+
+-- ---------------------------------------------------------------------------
+-- Conservation assessments for the taxa above.
+--
+-- These three columns were absent from the fixture, so in CI every status chip
+-- rendered empty and three tests asserting what the chips SAY had nothing to
+-- say it about. Real values from the TaiCOL import, including the two rows that
+-- carry the traps the chips exist to handle: 32116 (豹貓) is CITES 'I/II', a
+-- split listing where different populations sit in different appendices, and
+-- 63825 (貓) is 'NC', which is not an appendix but the code for being in none.
+-- ---------------------------------------------------------------------------
+update taxa set iucn = v.iucn, redlist = v.redlist, cites = v.cites
+  from (values
+  (27464,'LC',NULL,NULL),
+  (28608,'EN','NEN',NULL),
+  (28659,'LC','NLC',NULL),
+  (28758,'LC','NLC',NULL),
+  (29144,'LC','NA',NULL),
+  (29194,'LC','NLC',NULL),
+  (29972,'LC','NLC',NULL),
+  (31239,'LC','NLC',NULL),
+  (31599,NULL,'NNT',NULL),
+  (32116,'LC','NEN','I/II'),
+  (32463,'LC','NNT',NULL),
+  (32873,'LC','NCR',NULL),
+  (36225,'LC','NLC',NULL),
+  (36854,'LC','NLC',NULL),
+  (37193,'LC','NLC',NULL),
+  (37457,'VU','NNT',NULL),
+  (37689,'LC','NLC',NULL),
+  (46059,'LC','NLC',NULL),
+  (46405,'LC','NLC',NULL),
+  (47934,'LC','NLC',NULL),
+  (57640,'LC','NLC',NULL),
+  (63825,NULL,NULL,'NC'),
+  (64794,'LC','NLC',NULL),
+  (64796,'LC','NLC',NULL),
+  (65214,'VU','NEN',NULL),
+  (65215,'LC','NLC',NULL),
+  (68126,'LC','NLC',NULL),
+  (76900,'VU','NLC',NULL),
+  (78136,'LC',NULL,NULL),
+  (96345,'LC',NULL,NULL),
+  (97625,'LC','NLC',NULL),
+  (98168,'LC','NLC',NULL),
+  (98211,'LC','NLC','II'),
+  (98264,'LC','NLC','III'),
+  (98364,'LC','NNT',NULL),
+  (98583,'LC','NLC',NULL),
+  (98619,'LC','NLC',NULL),
+  (98689,'LC','NLC',NULL),
+  (99780,'LC',NULL,NULL),
+  (103634,NULL,'NVU',NULL)
+) as v(id, iucn, redlist, cites)
+ where taxa.id = v.id;
+
+-- 臺灣穗花杉 — one of exactly four plants whose protected_status is '1'. That marks
+-- a 珍貴稀有植物 designated under 文化資產保存法, not a level under 野生動物保育法, which
+-- covers animals only. The chip used to render it as "Protected 1".
+insert into taxa (id,taicol_id,scientific_name,common_name_zh,rank,kingdom,phylum,class,"order",family,is_in_taiwan,is_endemic,alien_type,is_invasive,protected_status,sensitivity,iucn,redlist,bioclip_prompt) values
+  (52582,'t0052582','Amentotaxus formosana','臺灣穗花杉','Species','Plantae','Tracheophyta','Pinopsida','Cupressales','Taxaceae',true,true,'native',false,'1','輕度','EN','NEN','a photo of Plantae Tracheophyta Pinopsida Cupressales Taxaceae Amentotaxus formosana.')
+  on conflict (id) do nothing;
