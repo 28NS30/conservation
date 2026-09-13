@@ -22,7 +22,7 @@ const BADGE = `data:image/png;base64,${(
  * URL with no image at all.
  *
  * NO CHINESE TEXT IN THE IMAGE, deliberately. Satori ships no CJK glyphs, so
- * 棲地守望計畫 would render as tofu boxes unless a font were embedded, and the
+ * 福爾摩沙守望計畫 would render as tofu boxes unless a font were embedded, and the
  * only CJK font on this machine is Apple's STHeiti, which cannot be
  * redistributed. That costs nothing here: the preview's *text* comes from the
  * HTML title and description, which are already Chinese. The image carries the
@@ -31,7 +31,7 @@ const BADGE = `data:image/png;base64,${(
  * Everything is drawn with flexbox and inline styles because that is all satori
  * supports — no grid, no external stylesheet, no Tailwind classes.
  */
-export const alt = "Project HabitatWatch — Taiwan";
+export const alt = "Project FormosaWatch — Taiwan";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -80,7 +80,7 @@ export default async function Image() {
               color: PARCHMENT_50,
             }}
           >
-            PROJECT HABITATWATCH
+            PROJECT FORMOSAWATCH
           </div>
           <div
             style={{

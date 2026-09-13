@@ -1,6 +1,6 @@
 {
   "site": {
-    "title": "Project HabitatWatch",
+    "title": "Project FormosaWatch",
     "tagline": "Roadkill · invasive species · environmental reports",
     "description": "A public heatmap of roadkill, invasive species and environmental reports across Taiwan."
   },
@@ -334,7 +334,7 @@
     "statsYears": "years of data",
     "whyTitle": "What we record",
     "whyHeading": "Three kinds of overlooked record",
-    "whyLede": "Roadkill, spreading invasives, damaged habitat — all of it happens by the roadside every day, and almost none of it is written down systematically.",
+    "whyLede": "Roadkill, invasive species, damaged habitats — all of it happens by the roadside every day, and almost none of it is written down systematically.",
     "whyRoadkill": "Roadkill",
     "whyRoadkillBody": "Roads cut habitat into fragments. Leopard cats, pangolins, crab-eating mongooses — killed under wheels every year, and most are never recorded.",
     "whyInvasive": "Invasive species",

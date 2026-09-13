@@ -47,7 +47,7 @@ export default async function Image({
   const taxonId = parseSpeciesId(id);
   const s = taxonId ? await getSpecies(taxonId) : null;
 
-  const binomial = s?.scientificName ?? "Project HabitatWatch";
+  const binomial = s?.scientificName ?? "Project FormosaWatch";
   // A 座標不開放 taxon reports 0 here even when records exist, so the count is
   // simply omitted rather than stated as zero — see the species page.
   const withheld = s?.sensitivity === "座標不開放";
@@ -74,7 +74,7 @@ export default async function Image({
             color: PARCHMENT_400,
           }}
         >
-          PROJECT HABITATWATCH
+          PROJECT FORMOSAWATCH
         </div>
       </div>
 

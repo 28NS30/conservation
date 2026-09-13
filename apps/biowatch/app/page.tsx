@@ -1,5 +1,5 @@
 import ProjectCard from "@/components/Project";
-import { habitatwatchCounts, projects } from "@/lib/projects";
+import { formosawatchCounts, projects } from "@/lib/projects";
 
 export const revalidate = 3600;
 
@@ -15,7 +15,7 @@ const CONTACT =
  * third is worth starting.
  */
 export default async function Home() {
-  const habitat = await habitatwatchCounts();
+  const habitat = await formosawatchCounts();
   const list = projects(habitat);
 
   return (

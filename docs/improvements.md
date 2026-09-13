@@ -1,6 +1,7 @@
 # What to improve next
 
-Written after the rename to HabitatWatch, then worked through. Ordered by what
+Written after the rename to HabitatWatch (since renamed again, to
+FormosaWatch), then worked through. Ordered by what
 it costs the project to leave alone.
 
 **Status: Tier 1 and most of Tiers 2 and 3 are done.** What remains needs a
@@ -105,7 +106,7 @@ sensitive-species rows must stay coarse. **Impact:** high on credibility.
 ### 2.3 The badge disagrees with the name
 
 The artwork letters PROJECT ECOWATCH around its ring. Every piece of text now
-says HabitatWatch. Shipped deliberately, but it is the first thing a careful
+says FormosaWatch. Shipped deliberately, but it is the first thing a careful
 visitor notices, and it undercuts a project whose whole pitch is carefulness.
 
 Needs re-lettering by whoever drew it. When the new art lands it goes in five
@@ -183,13 +184,14 @@ All rendered and reviewed once the database came back.
   scraped, and it ties the project's data-controller contact to one individual's
   inbox.
 - **The badge.** Its ring still letters PROJECT ECOWATCH. Every piece of text on
-  the site says HabitatWatch. It needs re-lettering by whoever drew it; when the
+  the site says FormosaWatch. It needs re-lettering by whoever drew it; when the
   art lands it goes into `public/brand-badge.png`, `app/icon.png` and
   `app/apple-icon.png`, and both Open Graph routes pick it up from the first.
-- ~~**The Chinese name.**~~ **DONE** — 棲地守望計畫. 棲地 is the word the site
-  already uses for habitat and the standard one in Taiwanese conservation
-  writing; 守望 carries over from the previous name and the badge lettering, so
-  the two names are parallel again.
+- ~~**The Chinese name.**~~ **DONE** — 福爾摩沙守望計畫, after the second rename.
+  福爾摩沙 is the island's old name, naturalised in Taiwan; 守望 carries over from
+  both earlier names and from the badge lettering, so the two halves stay
+  parallel. A place name also cannot drift out of step with the scope the way
+  生態 and 棲地 both did.
 - **3.4, statistics slicing** — no way to filter by year or county. The tile
   endpoint already supports date ranges, so the data layer exists. Worth doing
   once there is more than one year of user-contributed data to slice.

@@ -6,14 +6,17 @@ and deploys independently:
 | Domain | App | Stack |
 |---|---|---|
 | `biowatchintl.org` | this app | Next.js |
-| `habitatwatch.biowatchintl.org` | `apps/web` | Next.js — Taiwan, roadkill and invasive species |
-| `firewatch.biowatchintl.org` | `apps/firewatch` | Vite SPA — Atlántico, Colombia, wildfires |
+| `formosawatch.biowatchintl.org` | `apps/web` | Next.js — Taiwan, roadkill and invasive species |
 
-Three Vercel projects, one repository. A Vercel project has a single Root
-Directory, so three apps need three projects however the URLs look.
+Two Vercel projects, one repository. A Vercel project has a single Root
+Directory, so two apps need two projects however the URLs look.
 
-This app shares nothing with either child at runtime. It is a static page with
-one hourly `fetch` for HabitatWatch's record count, which returns null rather than
+FireWatch used to live here as `apps/firewatch` and has been deleted. Its
+Colombian successor, FlamaWatch, is a separate organisation with its own site;
+nothing of it is built from this repository.
+
+This app shares nothing with FormosaWatch at runtime. It is a static page with
+one hourly `fetch` for FormosaWatch's record count, which returns null rather than
 throwing — a parent that 500s because a child is briefly down would be a worse
 failure than a missing number.
 
@@ -34,7 +37,7 @@ All optional; each has a working default.
 
 | Variable | Default | Why you would set it |
 |---|---|---|
-| `NEXT_PUBLIC_HABITATWATCH_URL` | `https://habitatwatch.biowatchintl.org` | Point a preview at a Vercel URL before DNS is cut over. |
+| `NEXT_PUBLIC_FORMOSAWATCH_URL` | `https://formosawatch.biowatchintl.org` | Point a preview at a Vercel URL before DNS is cut over. |
 | `NEXT_PUBLIC_FIREWATCH_URL` | `https://firewatch.biowatchintl.org` | As above. |
 | `NEXT_PUBLIC_CONTACT_EMAIL` | `hello@biowatchintl.org` | Until the real address exists. |
 
@@ -43,6 +46,8 @@ All optional; each has a working default.
 - **No BioWatch badge.** The two project badges were drawn by hand as a set; the
   parent has a typographic lockup standing in. A third in the same family should
   be drawn, then wired in here, as the favicon, and into an OG card.
-- **FireWatch's figures are static**, taken from its own home page. HabitatWatch's
-  are read live from `/api/health`. FireWatch should grow the same endpoint.
+- **The Colombia figures are static**, taken from that project's own home page.
+  FormosaWatch's are read live from `/api/health`. A live count would need the
+  other project to publish an equivalent endpoint, and it is run by a separate
+  organisation, so that is a request rather than a task.
 - **No OG card for the apex**, so links preview as a bare URL.

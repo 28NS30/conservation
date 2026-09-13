@@ -11,7 +11,7 @@ import { withBase } from "@/lib/basePath";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "棲地守望計畫 · Project HabitatWatch",
+    name: "福爾摩沙守望計畫 · Project FormosaWatch",
     short_name: "生態守望",
     description:
       "台灣路殺、外來入侵種與環境通報的公開熱點地圖。A public heatmap of roadkill, invasive species and environmental reports across Taiwan.",
