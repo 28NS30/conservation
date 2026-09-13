@@ -63,6 +63,67 @@ export function parseSpeciesId(param: string): number | null {
   return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
 
+/**
+ * Whether a species page carries something a searcher could actually want.
+ *
+ * The old rule was `reportCount === 0 -> noindex`, which left 458 of 66,201
+ * pages indexable. That was the right instinct aimed at the wrong test: it
+ * assumed the only thing worth indexing is our own data, when the page also
+ * renders a name, an authority, a lineage, a habitat and up to four
+ * conservation assessments from the TaiCOL checklist — none of which needs a
+ * user to have reported anything.
+ *
+ * Counting facts does not work either: 48,273 species clear "four or more",
+ * and four generic fields repeated 48,273 times is exactly the mass of
+ * near-identical thin pages the original comment was afraid of.
+ *
+ * So the test is whether the page says something DISTINGUISHING — a
+ * conservation status, records of our own, endemism or invasiveness, or the
+ * Chinese names people actually search by. That admits 24,243 pages, and every
+ * one of them answers a question somebody might have typed.
+ */
+export function isIndexworthy(s: {
+  reportCount: number;
+  protectedStatus: string | null;
+  iucn?: string | null;
+  redlist?: string | null;
+  cites?: string | null;
+  isEndemic: boolean;
+  isInvasive: boolean;
+  commonNameZh: string | null;
+  altNamesZh: string[] | null;
+}): boolean {
+  return Boolean(
+    s.reportCount > 0 ||
+    s.protectedStatus ||
+    s.iucn ||
+    s.redlist ||
+    s.cites ||
+    s.isEndemic ||
+    s.isInvasive ||
+    (s.commonNameZh && s.altNamesZh && s.altNamesZh.length > 0),
+  );
+}
+
+/**
+ * Which of the four habitat flags are KNOWN, as distinct from known-false.
+ *
+ * 3,338 Taiwan species have all four columns NULL, and the page filtered on
+ * truthiness — so "we have no habitat data" and "it lives in none of these"
+ * rendered identically. They are different claims, and only one of them is
+ * something to print.
+ */
+export function habitatKnown(s: {
+  isTerrestrial: boolean | null;
+  isFreshwater: boolean | null;
+  isBrackish: boolean | null;
+  isMarine: boolean | null;
+}): boolean {
+  return [s.isTerrestrial, s.isFreshwater, s.isBrackish, s.isMarine].some(
+    (v) => v !== null,
+  );
+}
+
 export async function getSpecies(id: number): Promise<SpeciesDetail | null> {
   const rows = await asPublic(
     (tx) => tx<SpeciesDetail[]>`
@@ -137,7 +198,14 @@ export async function monthlyCounts(taxonId: number): Promise<number[]> {
 export async function recentRecords(taxonId: number, limit = 12) {
   return asPublic(
     (tx) => tx<
-      { id: string; observedAt: string; lat: number; lng: number; category: string; isObscured: boolean }[]
+      {
+        id: string;
+        observedAt: string;
+        lat: number;
+        lng: number;
+        category: string;
+        isObscured: boolean;
+      }[]
     >`
       select id, observed_at as "observedAt",
              st_y(location_public::geometry) as lat,

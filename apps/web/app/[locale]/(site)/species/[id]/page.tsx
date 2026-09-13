@@ -9,6 +9,8 @@ import {
   recentRecords,
   speciesSlug,
   parseSpeciesId,
+  isIndexworthy,
+  habitatKnown,
 } from "@/lib/species";
 import StatusBadges from "@/components/species/StatusBadges";
 import MonthlyChart from "@/components/species/MonthlyChart";
@@ -73,19 +75,19 @@ export async function generateMetadata({
     title: name,
     description: t("metaDescription", { name, count: s.reportCount }),
     /*
-     * A species nobody has reported is a page with a name, a rank and an empty
-     * map. There are 124,980 of them against 458 with records, and a crawler
-     * that finds a hundred thousand near-identical thin pages forms a view of
-     * the whole domain from them.
+     * A page with nothing but a name and a rank is thin, and a crawler that
+     * finds a hundred thousand near-identical ones forms a view of the whole
+     * domain from them. But "has anyone reported it" was the wrong test: this
+     * page renders a lineage, a habitat and up to four conservation assessments
+     * without any user data at all. See isIndexworthy() — it asks whether the
+     * page says something distinguishing, which 24,243 species do and the rest
+     * do not.
      *
-     * They stay reachable and useful — the directory links them, search finds
-     * them, and the moment someone files a report the page has something to say
-     * and becomes indexable on its own. `follow` stays on so the taxonomy links
-     * out of them still carry.
+     * The rest stay reachable and useful either way: the directory links them,
+     * search within the site finds them, and `follow` stays on so the taxonomy
+     * links out of them still carry.
      */
-    ...(s.reportCount === 0
-      ? { robots: { index: false, follow: true } }
-      : null),
+    ...(isIndexworthy(s) ? null : { robots: { index: false, follow: true } }),
   };
 }
 
@@ -120,16 +122,19 @@ export default async function SpeciesPage({
   const lineage = [s.kingdom, s.phylum, s.class, s.order, s.family].filter(
     Boolean,
   ) as string[];
-  const habitats = (
-    [
-      [s.isTerrestrial, "terrestrial"],
-      [s.isFreshwater, "freshwater"],
-      [s.isBrackish, "brackish"],
-      [s.isMarine, "marine"],
-    ] as const
-  )
-    .filter(([on]) => on)
-    .map(([, key]) => t(`habitat.${key}`));
+  // Only meaningful when at least one flag is non-NULL; see habitatKnown().
+  const habitats = habitatKnown(s)
+    ? (
+        [
+          [s.isTerrestrial, "terrestrial"],
+          [s.isFreshwater, "freshwater"],
+          [s.isBrackish, "brackish"],
+          [s.isMarine, "marine"],
+        ] as const
+      )
+        .filter(([on]) => on === true)
+        .map(([, key]) => t(`habitat.${key}`))
+    : [];
 
   // A 座標不開放 taxon has no rows in reports_public at all, so `reportCount` is
   // 0 even when records exist. Say that plainly rather than rendering a
