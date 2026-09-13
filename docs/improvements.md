@@ -198,6 +198,15 @@ All rendered and reviewed once the database came back.
 
 ---
 
+## The team's backlog
+
+Five areas requested in September 2026 — home page, report form, at-submission
+AI, offline capture, map and team page — are planned in
+[backlog-plan.md](backlog-plan.md), together with the decisions already taken and
+what is still blocked on the group.
+
+---
+
 ## The game-layer proposal
 
 Assessed separately in [plan-game-layer.md](plan-game-layer.md), which also

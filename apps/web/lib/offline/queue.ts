@@ -49,9 +49,14 @@ let dbPromise: Promise<IDBPDatabase> | null = null;
 function db() {
   if (!dbPromise) {
     dbPromise = openDB(DB_NAME, VERSION, {
-      upgrade(database) {
-        const store = database.createObjectStore(STORE, { keyPath: "id" });
-        store.createIndex("createdAt", "createdAt");
+      upgrade(database, oldVersion) {
+        // Guarded so a later VERSION bump does not re-create an existing store,
+        // which throws ConstraintError and leaves listQueued() rejecting with
+        // nothing catching it — i.e. a silent, total loss of the queue UI.
+        if (oldVersion < 1) {
+          const store = database.createObjectStore(STORE, { keyPath: "id" });
+          store.createIndex("createdAt", "createdAt");
+        }
       },
     });
   }

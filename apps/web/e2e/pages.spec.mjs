@@ -46,6 +46,8 @@ const PAGES = [
 
 /** Namespaces from messages/*.json. A leaked key looks like `namespace.someKey`. */
 const NAMESPACES = [
+  "home",
+  "season",
   "site",
   "nav",
   "me",

@@ -11,9 +11,10 @@ and deploys independently:
 Two Vercel projects, one repository. A Vercel project has a single Root
 Directory, so two apps need two projects however the URLs look.
 
-FireWatch used to live here as `apps/firewatch` and has been deleted. Its
-Colombian successor, FlamaWatch, is a separate organisation with its own site;
-nothing of it is built from this repository.
+FireWatch used to live here as `apps/firewatch` and has been deleted. The same
+Colombian project now runs as **FlamaWatch**, under a separate organisation with
+its own site; nothing of it is built from this repository. Its address is still
+to be confirmed — `NEXT_PUBLIC_FLAMAWATCH_URL` overrides the placeholder.
 
 This app shares nothing with FormosaWatch at runtime. It is a static page with
 one hourly `fetch` for FormosaWatch's record count, which returns null rather than

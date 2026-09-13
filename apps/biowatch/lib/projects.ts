@@ -9,8 +9,12 @@ import type { Project } from "@/components/Project";
 const FORMOSAWATCH =
   process.env.NEXT_PUBLIC_FORMOSAWATCH_URL ??
   "https://formosawatch.biowatchintl.org";
-const FIREWATCH =
-  process.env.NEXT_PUBLIC_FIREWATCH_URL ?? "https://firewatch.biowatchintl.org";
+// FlamaWatch is the same Colombian project, renamed. It is run by a separate
+// organisation now, so this is a link to someone else's site rather than a
+// sibling of this repo — confirm the address with them before launch.
+const FLAMAWATCH =
+  process.env.NEXT_PUBLIC_FLAMAWATCH_URL ??
+  "https://flamawatch.biowatchintl.org";
 
 /**
  * FormosaWatch publishes a health endpoint carrying its public record count, so the
@@ -68,15 +72,15 @@ export function projects(
       cta: "Open FormosaWatch",
     },
     {
-      key: "firewatch",
-      badge: "/badge-firewatch.png",
-      name: "Proyecto FireWatch",
-      latin: "Project FireWatch",
+      key: "flamawatch",
+      badge: "/badge-flamawatch.png",
+      name: "Proyecto FlamaWatch",
+      latin: "Project FlamaWatch",
       place: "Atlántico, Colombia",
-      href: FIREWATCH,
+      href: FLAMAWATCH,
       watches: "Wildfires and illegal burning.",
       body: "Fires and illegal burns happen daily across Colombia's Atlantic coast, and most go unrecorded. The project documents them and makes each instance public, so that prevention has something to work from rather than anecdote.",
-      // Static, unlike FormosaWatch's. FireWatch has no public counts endpoint yet;
+      // Static, unlike FormosaWatch's. FlamaWatch has no public counts endpoint yet;
       // these are the figures it states on its own home page. Worth replacing
       // with a live read the moment it exposes one, for the same reason
       // FormosaWatch's is live: a hardcoded number is a number that goes stale.
@@ -86,7 +90,7 @@ export function projects(
         { value: "150 ha", label: "lost, 2001–2025" },
       ],
       live: false,
-      cta: "Open FireWatch",
+      cta: "Open FlamaWatch",
     },
   ];
 }
