@@ -34,7 +34,9 @@ export async function overview(): Promise<Overview> {
   return row;
 }
 
-export async function categoryCounts(): Promise<{ category: Category; n: number }[]> {
+export async function categoryCounts(): Promise<
+  { category: Category; n: number }[]
+> {
   return asPublic(
     (tx) => tx<{ category: Category; n: number }[]>`
       select category, count(*)::int as n
@@ -82,6 +84,63 @@ export async function topSpecies(limit = 15): Promise<TopSpecies[]> {
         from species_report_stats s
         join taxa t on t.id = s.taxon_id
        order by s.report_count desc, t.scientific_name
+       limit ${limit}`,
+  );
+}
+
+export type LedgerRow = {
+  id: string;
+  observedAt: string;
+  lat: number;
+  lng: number;
+  commonNameZh: string | null;
+  scientificName: string | null;
+};
+
+/**
+ * A handful of real records from this week, in other years.
+ *
+ * The front page shows the corpus as a ledger, so what the rows contain is the
+ * design. The obvious query — the most recent records — is useless here: the
+ * import ends on 2017-12-31 and `order by observed_at desc limit 24` returns
+ * twenty-four rows all bearing that one date, so the date column, which is the
+ * whole texture, becomes one string repeated twenty-four times.
+ *
+ * So: records from within three days of today's calendar date, in any year,
+ * one per distinct date. The column reads as real descending dates, the species
+ * vary, and the page differs every day of the year. The thinnest day in the
+ * calendar still has 151 records to draw from.
+ *
+ * Obscured records are excluded, and not only for tidiness. The row's texture is
+ * a precise coordinate, and a blurred one has none to show — and it is how a
+ * misidentified 狼 (Canis lupus, of which this dataset holds fourteen, on an
+ * island with no wild wolves) would otherwise reach the front page.
+ */
+export async function anniversaryLedger(limit = 12): Promise<LedgerRow[]> {
+  return asPublic(
+    (tx) => tx<LedgerRow[]>`
+      with near as (
+        select r.id::text,
+               r.observed_at as "observedAt",
+               st_y(r.location_public::geometry) as lat,
+               st_x(r.location_public::geometry) as lng,
+               t.common_name_zh as "commonNameZh",
+               t.scientific_name as "scientificName",
+               row_number() over (
+                 partition by r.observed_at::date
+                 order by (t.common_name_zh is null), (t.is_in_taiwan is not true), r.id
+               ) as rn
+          from reports_public r
+          join taxa t on t.id = r.taxon_id
+         where not r.is_obscured
+           and abs(
+                 extract(doy from r.observed_at)
+                 - extract(doy from now() at time zone 'Asia/Taipei')
+               ) <= 3
+      )
+      select id, "observedAt", lat, lng, "commonNameZh", "scientificName"
+        from near where rn = 1
+       order by "observedAt" desc
        limit ${limit}`,
   );
 }
