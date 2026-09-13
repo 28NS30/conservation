@@ -1,4 +1,6 @@
 import { ImageResponse } from "next/og";
+import { getTranslations } from "next-intl/server";
+import { subsetFont } from "@/lib/ogFont";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -21,12 +23,13 @@ const BADGE = `data:image/png;base64,${(
  * how a citizen-science project actually spreads in Taiwan — rendered as a bare
  * URL with no image at all.
  *
- * NO CHINESE TEXT IN THE IMAGE, deliberately. Satori ships no CJK glyphs, so
- * 福爾摩沙守望計畫 would render as tofu boxes unless a font were embedded, and the
- * only CJK font on this machine is Apple's STHeiti, which cannot be
- * redistributed. That costs nothing here: the preview's *text* comes from the
- * HTML title and description, which are already Chinese. The image carries the
- * mark and the Latin line, which is exactly what the badge does.
+ * The Chinese name now appears on the Chinese card. Satori ships no CJK glyphs,
+ * and the fix used to be "do not print any" — the image carried the mark and the
+ * Latin line while the Chinese reached the reader only through the HTML title.
+ * Embedding a CJK font is the wrong fix (megabytes, for perhaps thirty glyphs);
+ * lib/ogFont.ts fetches a subset covering exactly the characters printed, about
+ * four kilobytes. If that fetch fails the card falls back to the Latin-only
+ * version below, which is what it has always been.
  *
  * Everything is drawn with flexbox and inline styles because that is all satori
  * supports — no grid, no external stylesheet, no Tailwind classes.
@@ -40,7 +43,40 @@ const PARCHMENT_50 = "#f6efe0";
 const PARCHMENT_400 = "#9d9179";
 const EMBER = "#cf7238";
 
-export default async function Image() {
+export default async function Image({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  const zh = locale.startsWith("zh");
+  const t = await getTranslations({ locale, namespace: "home" });
+  const site = await getTranslations({ locale, namespace: "site" });
+
+  // Copy comes from the catalogues so the card cannot drift from the page.
+  const wanted = {
+    name: zh ? site("title") : "PROJECT FORMOSAWATCH",
+    latin: zh ? "PROJECT FORMOSAWATCH" : null,
+    eyebrow: zh ? site("tagline") : "TAIWAN · CITIZEN SCIENCE",
+    headline: t("headline"),
+    sub: site("description"),
+  };
+
+  const font = await subsetFont(
+    Object.values(wanted).filter(Boolean).join(""),
+    700,
+  );
+
+  const card = font
+    ? wanted
+    : {
+        name: "PROJECT FORMOSAWATCH",
+        latin: null,
+        eyebrow: "TAIWAN · CITIZEN SCIENCE",
+        headline: "Every life lost on the road deserves a record.",
+        sub: "An open map of roadkill, invasive species and environmental reports",
+      };
+
   return new ImageResponse(
     <div
       style={{
@@ -76,12 +112,25 @@ export default async function Image() {
             style={{
               fontSize: 46,
               fontWeight: 700,
-              letterSpacing: "0.18em",
+              // Hanzi at this size do not need the tracking the Latin line does.
+              letterSpacing: card.latin ? "0.12em" : "0.18em",
               color: PARCHMENT_50,
             }}
           >
-            PROJECT FORMOSAWATCH
+            {card.name}
           </div>
+          {card.latin && (
+            <div
+              style={{
+                fontSize: 20,
+                letterSpacing: "0.26em",
+                color: PARCHMENT_400,
+                marginTop: 8,
+              }}
+            >
+              {card.latin}
+            </div>
+          )}
           <div
             style={{
               fontSize: 21,
@@ -90,7 +139,7 @@ export default async function Image() {
               marginTop: 10,
             }}
           >
-            TAIWAN · CITIZEN SCIENCE
+            {card.eyebrow}
           </div>
         </div>
       </div>
@@ -104,10 +153,10 @@ export default async function Image() {
             maxWidth: 900,
           }}
         >
-          Every life lost on the road deserves a record.
+          {card.headline}
         </div>
         <div style={{ fontSize: 24, color: PARCHMENT_400, marginTop: 18 }}>
-          An open map of roadkill, invasive species and environmental reports
+          {card.sub}
         </div>
       </div>
 
@@ -122,6 +171,6 @@ export default async function Image() {
         }}
       />
     </div>,
-    size,
+    font ? { ...size, fonts: [font] } : size,
   );
 }
