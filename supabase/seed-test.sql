@@ -730,3 +730,13 @@ update taxa set iucn = v.iucn, redlist = v.redlist, cites = v.cites
 insert into taxa (id,taicol_id,scientific_name,common_name_zh,rank,kingdom,phylum,class,"order",family,is_in_taiwan,is_endemic,alien_type,is_invasive,protected_status,sensitivity,iucn,redlist,bioclip_prompt) values
   (52582,'t0052582','Amentotaxus formosana','臺灣穗花杉','Species','Plantae','Tracheophyta','Pinopsida','Cupressales','Taxaceae',true,true,'native',false,'1','輕度','EN','NEN','a photo of Plantae Tracheophyta Pinopsida Cupressales Taxaceae Amentotaxus formosana.')
   on conflict (id) do nothing;
+
+-- 黑尾大葉蟬 — a species with nothing distinguishing about it: no assessment under
+-- any of the four schemes, not endemic, not invasive, no synonyms, no records.
+-- It is the fixture for the indexing rule's negative case, and it is here
+-- because every other seeded taxon has something: after the assessments above,
+-- CI could no longer find a single page that isIndexworthy() should hide.
+-- A leafhopper is the honest shape of the 41,958 pages that rule keeps out.
+insert into taxa (id,taicol_id,scientific_name,common_name_zh,rank,kingdom,phylum,class,"order",family,is_in_taiwan,is_endemic,alien_type,is_invasive,bioclip_prompt) values
+  (27073,'t0027073','Bothrogonia ferruginea','黑尾大葉蟬','Species','Animalia','Arthropoda','Insecta','Hemiptera','Cicadellidae',true,false,'native',false,'a photo of Animalia Arthropoda Insecta Hemiptera Cicadellidae Bothrogonia ferruginea.')
+  on conflict (id) do nothing;
