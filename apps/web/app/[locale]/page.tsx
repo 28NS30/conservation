@@ -8,7 +8,6 @@ import { Link } from "@/i18n/navigation";
 import { CATEGORIES, type Category } from "@conservation/shared";
 import { categoryCounts, topSpecies } from "@/lib/stats";
 import { speciesSlug } from "@/lib/species";
-import HeatmapView from "@/components/map/HeatmapView";
 import SiteHeader from "@/components/site/SiteHeader";
 import SiteFooter from "@/components/site/SiteFooter";
 import Badge from "@/components/brand/Badge";
@@ -82,105 +81,84 @@ export default async function HomePage({
 
   return (
     <main className="bg-paper-50">
-      <SiteHeader />
+      <SiteHeader variant="page" />
 
-      {/* ---------------- hero ---------------- */}
+      {/* ---------------- who we are ---------------- */}
       {/*
-        The map is the stage, not an illustration beside the words.
+        The front page used to BE the map: full bleed, 100dvh, with every route
+        out floating in a panel over it. It was the most persuasive thing on the
+        site — proof at a glance that the database is real and not a mock-up.
 
-        It ran as a column next to a block of prose, which made it one element
-        among several and left the page reading like a brochure about a map. Full
-        bleed, the instrument is the first and largest thing on screen and the
-        panel is clearly laid over something live.
+        It is an introduction now, because someone who has never heard of the
+        project has to be told what it is before being handed an instrument. The
+        map did not lose its argument, only its position: /map sits in the nav on
+        every page, in both the desktop and phone rows, and is the second button
+        here.
 
-        The panel carries the whole entry point — badge, name, and every route
-        out — so the top bar can stay out of the way. Buttons are stacked and
-        full width rather than a row of pills: one column of equal-weight targets
-        reads as a menu, and works identically on a phone.
+        What survives from the panel is the three counts, because they are the
+        reason to believe the paragraph above them.
       */}
-      <section className="relative h-[100dvh] min-h-[600px] w-full overflow-hidden bg-bark-950">
-        <div className="absolute inset-0">
-          <HeatmapView
-            presentation
-            maptilerKey={process.env.NEXT_PUBLIC_MAPTILER_KEY || undefined}
-            years={
-              s.earliest && s.latest
-                ? { first: Number(s.earliest), last: Number(s.latest) }
-                : null
-            }
-          />
-        </div>
+      <section className="border-b border-ink-900/10">
+        <div className="mx-auto max-w-3xl px-6 pt-16 pb-16 text-center sm:pt-24">
+          <Badge size={160} className="mx-auto w-28 sm:w-40" priority />
 
-        {/* Keeps the panel legible over whatever the map is showing beneath it,
-            without washing the density colours out across the whole frame. */}
-        <div className="pointer-events-none absolute inset-y-0 left-0 w-full bg-gradient-to-r from-bark-950/90 via-bark-950/40 to-transparent lg:w-2/3" />
+          <p className="mt-8 text-[11px] font-medium uppercase tracking-[0.3em] text-ember-700">
+            {t("eyebrow")}
+          </p>
+          <h1 className="mt-4 text-3xl font-semibold leading-tight text-ink-900 sm:text-4xl">
+            {t("headline")}
+          </h1>
+          {/* Written and translated long ago, and read by nothing until now. */}
+          <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-ink-600 sm:text-lg">
+            {t("sub")}
+          </p>
 
-        <div className="absolute inset-0 flex items-end pb-6 sm:items-center sm:pb-0">
-          <div className="mx-auto w-full max-w-7xl px-5 sm:px-8">
-            <div className="w-full max-w-[400px] rounded-3xl border border-parchment-200/15 bg-bark-900/80 p-5 shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl sm:p-8">
-              <Badge
-                size={148}
-                className="mx-auto w-24 sm:w-[148px]"
-                priority
-              />
-
-              <p className="mt-4 text-center text-[10px] sm:mt-6 font-medium uppercase tracking-[0.3em] text-ember-400">
-                {t("eyebrow")}
-              </p>
-              <h1 className="mt-3 text-center text-lg font-semibold leading-relaxed text-parchment-50">
-                {t("headline")}
-              </h1>
-
-              <div className="mt-5 space-y-2 sm:mt-7 sm:space-y-2.5">
-                <Link
-                  href="/report"
-                  className="block rounded-xl bg-ember-500 px-5 py-2.5 text-center text-sm sm:py-3 font-semibold text-bark-950 transition hover:bg-ember-400"
-                >
-                  {t("ctaReport")}
-                </Link>
-                <Link
-                  href="/map"
-                  className="block rounded-xl border border-parchment-200/20 bg-parchment-50/5 px-5 py-2.5 text-center text-sm sm:py-3 font-medium text-parchment-100 transition hover:bg-parchment-50/12"
-                >
-                  {t("ctaMap")}
-                </Link>
-                <Link
-                  href="/about"
-                  className="block rounded-xl border border-parchment-200/20 bg-parchment-50/5 px-5 py-2.5 text-center text-sm sm:py-3 font-medium text-parchment-100 transition hover:bg-parchment-50/12"
-                >
-                  {t("trustLink")}
-                </Link>
-                <Link
-                  href="/species"
-                  className="block rounded-xl border border-parchment-200/20 bg-parchment-50/5 px-5 py-2.5 text-center text-sm sm:py-3 font-medium text-parchment-100 transition hover:bg-parchment-50/12"
-                >
-                  {t("speciesLink")}
-                </Link>
-              </div>
-
-              {/* The numbers earn their place here: they are the reason to
-                  believe the map underneath is real. */}
-              <dl className="mt-5 grid grid-cols-3 sm:mt-7 gap-2 border-t border-parchment-200/12 pt-5 text-center">
-                {[
-                  { v: n(s.reports), k: t("statsRecords") },
-                  { v: n(s.species), k: t("statsSpecies") },
-                  { v: years ? String(years) : "—", k: t("statsYears") },
-                ].map((x) => (
-                  <div key={x.k}>
-                    <dt className="sr-only">{x.k}</dt>
-                    <dd>
-                      <span className="block text-base font-semibold tabular-nums text-parchment-50">
-                        {x.v}
-                      </span>
-                      <span className="mt-0.5 block text-[10px] leading-tight text-parchment-400">
-                        {x.k}
-                      </span>
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
+          <div className="mt-9 flex flex-wrap justify-center gap-3">
+            <Link
+              href="/report"
+              className="rounded-full bg-ember-500 px-6 py-3 text-sm font-semibold text-bark-950 transition hover:bg-ember-400"
+            >
+              {t("ctaReport")}
+            </Link>
+            <Link
+              href="/map"
+              className="rounded-full border border-ink-900/20 px-6 py-3 text-sm font-medium text-ink-800 transition hover:border-ink-900/35 hover:bg-ink-900/5"
+            >
+              {t("ctaMap")}
+            </Link>
+            <Link
+              href="/about"
+              className="rounded-full border border-ink-900/20 px-6 py-3 text-sm font-medium text-ink-800 transition hover:border-ink-900/35 hover:bg-ink-900/5"
+            >
+              {t("trustLink")}
+            </Link>
+            <Link
+              href="/species"
+              className="rounded-full border border-ink-900/20 px-6 py-3 text-sm font-medium text-ink-800 transition hover:border-ink-900/35 hover:bg-ink-900/5"
+            >
+              {t("speciesLink")}
+            </Link>
           </div>
+
+          <dl className="mx-auto mt-12 grid max-w-lg grid-cols-3 gap-4 border-t border-ink-900/10 pt-8">
+            {[
+              { v: n(s.reports), k: t("statsRecords") },
+              { v: n(s.species), k: t("statsSpecies") },
+              { v: years ? String(years) : "—", k: t("statsYears") },
+            ].map((x) => (
+              <div key={x.k}>
+                <dt className="sr-only">{x.k}</dt>
+                <dd>
+                  <span className="block text-2xl font-semibold tabular-nums text-ink-900">
+                    {x.v}
+                  </span>
+                  <span className="mt-1 block text-[11px] leading-tight text-ink-500">
+                    {x.k}
+                  </span>
+                </dd>
+              </div>
+            ))}
+          </dl>
         </div>
       </section>
 

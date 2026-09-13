@@ -105,7 +105,7 @@ export default async function AdminPage({
               key={r.id}
               id={r.id}
               categoryLabel={tc(r.category)}
-              categoryColor={CATEGORIES[r.category].color}
+              categoryColor={CATEGORIES[r.category]?.color}
               observedAt={r.observed_at}
               notes={r.notes}
               flaggedReason={r.flagged_reason}
