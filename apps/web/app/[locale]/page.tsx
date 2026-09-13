@@ -182,15 +182,6 @@ export default async function HomePage({
               b: t("whyInvasiveBody"),
               n: byCategory.get("invasive") ?? 0,
             },
-            {
-              // One card covers both environmental categories, so it sums them.
-              c: "pollution" as const,
-              h: t("whyHabitat"),
-              b: t("whyHabitatBody"),
-              n:
-                (byCategory.get("pollution") ?? 0) +
-                (byCategory.get("habitat") ?? 0),
-            },
           ].map((x) => (
             <article
               key={x.c}

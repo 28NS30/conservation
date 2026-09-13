@@ -11,7 +11,10 @@ import assert from "node:assert/strict";
 import { VectorTile } from "@mapbox/vector-tile";
 import { PbfReader } from "pbf";
 import { sql, BASE_URL } from "./helpers.mjs";
-import { aggregationCellMeters, TILE_AGGREGATION_MAX_ZOOM } from "@conservation/shared";
+import {
+  aggregationCellMeters,
+  TILE_AGGREGATION_MAX_ZOOM,
+} from "@conservation/shared";
 
 after(() => sql.end());
 
@@ -21,12 +24,20 @@ const Z6 = { z: 6, x: 53, y: 27 };
 async function getTile(path) {
   const res = await fetch(`${BASE_URL}/api/tiles/${path}`);
   const buf = new Uint8Array(await res.arrayBuffer());
-  return { status: res.status, bytes: buf.length, buf, contentType: res.headers.get("content-type") };
+  return {
+    status: res.status,
+    bytes: buf.length,
+    buf,
+    contentType: res.headers.get("content-type"),
+  };
 }
 
 before(async () => {
   const res = await fetch(BASE_URL).catch(() => null);
-  if (!res) throw new Error(`dev server not reachable at ${BASE_URL} — run \`npm run dev\``);
+  if (!res)
+    throw new Error(
+      `dev server not reachable at ${BASE_URL} — run \`npm run dev\``,
+    );
 });
 
 describe("aggregation loses no records", () => {
@@ -40,8 +51,15 @@ describe("aggregation loses no records", () => {
       select (select count(*) from reports_public r, env where r.geom_3857 && env.e)::int as direct,
              (select coalesce(sum(w),0) from cells)::int as via_cells,
              (select count(*) from cells)::int as n_cells`;
-    assert.equal(row.via_cells, row.direct, "aggregation must conserve the total");
-    assert.ok(row.n_cells < row.direct, "aggregation should actually reduce feature count");
+    assert.equal(
+      row.via_cells,
+      row.direct,
+      "aggregation must conserve the total",
+    );
+    assert.ok(
+      row.n_cells < row.direct,
+      "aggregation should actually reduce feature count",
+    );
   });
 });
 
@@ -53,7 +71,10 @@ describe("MVT structure", () => {
     // The layer names must match `source-layer` in HeatmapView, or MapLibre
     // silently renders nothing. Aggregated tiles carry two: filled cells and the
     // dot centroids the display toggle switches to.
-    assert.deepEqual(Object.keys(tile.layers).sort(), ["reports", "reports_dots"]);
+    assert.deepEqual(Object.keys(tile.layers).sort(), [
+      "reports",
+      "reports_dots",
+    ]);
     const layer = tile.layers.reports;
     assert.equal(layer.extent, 4096);
     assert.ok(layer.length > 0);
@@ -62,11 +83,18 @@ describe("MVT structure", () => {
     // square rather than feeding a centroid into a heatmap kernel — see
     // DENSITY_CLASSES in packages/shared for why that changed.
     assert.equal(f.type, 3, "aggregated features must be polygons");
-    assert.ok(typeof f.properties.weight === "number", "aggregated cells must carry `weight`");
+    assert.ok(
+      typeof f.properties.weight === "number",
+      "aggregated cells must carry `weight`",
+    );
 
     // A square: five points, first and last coincident.
     const ring = f.loadGeometry()[0];
-    assert.equal(ring.length, 5, "each cell should be a closed 4-corner square");
+    assert.equal(
+      ring.length,
+      5,
+      "each cell should be a closed 4-corner square",
+    );
     assert.equal(ring[0].x, ring.at(-1).x);
     assert.equal(ring[0].y, ring.at(-1).y);
   });
@@ -90,11 +118,19 @@ describe("MVT structure", () => {
     assert.equal(dots.feature(0).type, 1, "reports_dots must be points");
 
     const weights = (layer) =>
-      [...Array(layer.length).keys()].map((i) => layer.feature(i).properties.weight);
+      [...Array(layer.length).keys()].map(
+        (i) => layer.feature(i).properties.weight,
+      );
     const cw = weights(cells);
     const dw = weights(dots);
-    assert.ok(cw.every((w) => typeof w === "number" && w > 0), "cells carry a positive weight");
-    assert.ok(dw.every((w) => typeof w === "number" && w > 0), "dots carry a positive weight");
+    assert.ok(
+      cw.every((w) => typeof w === "number" && w > 0),
+      "cells carry a positive weight",
+    );
+    assert.ok(
+      dw.every((w) => typeof w === "number" && w > 0),
+      "dots carry a positive weight",
+    );
 
     // Dots are emitted with a 64px buffer so an edge dot draws its whole circle;
     // cells are clipped exactly at the boundary. So dots >= cells, never fewer.
@@ -103,7 +139,11 @@ describe("MVT structure", () => {
       `dots (${dots.length}) should not be fewer than cells (${cells.length})`,
     );
     // Both describe the same underlying aggregation, so the busiest cell agrees.
-    assert.equal(Math.max(...cw), Math.max(...dw), "both layers describe the same cells");
+    assert.equal(
+      Math.max(...cw),
+      Math.max(...dw),
+      "both layers describe the same cells",
+    );
   });
 
   test("high zoom returns individual points, not aggregates", async () => {
@@ -121,7 +161,10 @@ describe("MVT structure", () => {
     const layer = tile.layers.reports;
     assert.ok(layer && layer.length > 0, `expected point features at z${z}`);
     const f = layer.feature(0);
-    assert.ok("id" in f.properties, "point tiles should carry a report id for click handling");
+    assert.ok(
+      "id" in f.properties,
+      "point tiles should carry a report id for click handling",
+    );
   });
 });
 
@@ -129,7 +172,11 @@ describe("empty tiles", () => {
   test("return 200 with a zero-length body, never 204", async () => {
     // Open ocean far from any report.
     const { status, bytes, contentType } = await getTile("7/105/53");
-    assert.equal(status, 200, "MapLibre handles a bodyless 204 inconsistently; must be 200");
+    assert.equal(
+      status,
+      200,
+      "MapLibre handles a bodyless 204 inconsistently; must be 200",
+    );
     assert.equal(bytes, 0);
     assert.match(contentType ?? "", /vector-tile/);
   });
@@ -140,7 +187,12 @@ const CELL_M_Z6 = aggregationCellMeters(6);
 
 describe("filters discriminate", () => {
   test("a category with no data yields an empty tile", async () => {
-    const { status, bytes } = await getTile(`${Z6.z}/${Z6.x}/${Z6.y}?category=pollution`);
+    // Every one of the 46,334 records is imported roadkill, so any other live
+    // category is empty. This used to ask for `pollution`, which was retired in
+    // 0008 and is now rejected as unknown — a 400, not an empty 200.
+    const { status, bytes } = await getTile(
+      `${Z6.z}/${Z6.x}/${Z6.y}?category=sighting`,
+    );
     assert.equal(status, 200);
     assert.equal(bytes, 0);
   });
@@ -160,8 +212,10 @@ describe("filters discriminate", () => {
 
     const full = await getTile(`${Z6.z}/${Z6.x}/${Z6.y}`);
     const filtered = await getTile(`${Z6.z}/${Z6.x}/${Z6.y}?from=${cutoff}`);
-    assert.ok(filtered.bytes > 0 && filtered.bytes < full.bytes,
-      `filtered tile (${filtered.bytes}B) should be smaller than full (${full.bytes}B)`);
+    assert.ok(
+      filtered.bytes > 0 && filtered.bytes < full.bytes,
+      `filtered tile (${filtered.bytes}B) should be smaller than full (${full.bytes}B)`,
+    );
 
     // Weights are counted over the tile envelope expanded by one cell, so a cell
     // straddling the boundary carries its FULL count in both neighbouring tiles
@@ -178,8 +232,10 @@ describe("filters discriminate", () => {
        where r.geom_3857 && st_expand(env.e, ${CELL_M_Z6}::float8)
          and r.observed_at >= ${cutoff}::date`;
     const tile = new VectorTile(new PbfReader(filtered.buf));
-    const total = [...Array(tile.layers.reports.length).keys()]
-      .reduce((s, i) => s + tile.layers.reports.feature(i).properties.weight, 0);
+    const total = [...Array(tile.layers.reports.length).keys()].reduce(
+      (s, i) => s + tile.layers.reports.feature(i).properties.weight,
+      0,
+    );
     assert.ok(
       total >= row.inside && total <= row.inside_with_collar,
       `tile weights (${total}) must lie between the reports inside the tile ` +
@@ -201,7 +257,9 @@ describe("input validation", () => {
   }
 
   test("rejects an unknown category", async () => {
-    const { status } = await getTile(`${Z6.z}/${Z6.x}/${Z6.y}?category=notacategory`);
+    const { status } = await getTile(
+      `${Z6.z}/${Z6.x}/${Z6.y}?category=notacategory`,
+    );
     assert.equal(status, 400);
   });
 });

@@ -16,9 +16,18 @@ export const CATEGORIES = {
   invasive: { classifiable: true, color: "#f59e0b" },
   injured: { classifiable: true, color: "#fb923c" },
   sighting: { classifiable: true, color: "#10b981" },
-  pollution: { classifiable: false, color: "#6366f1" },
-  habitat: { classifiable: false, color: "#a855f7" },
 } as const;
+
+/*
+ * `pollution` and `habitat` were retired in September 2026 at the team's
+ * request: the form now offers invasive species, wildlife sighting, and
+ * roadkill-or-injured, and nothing else. Neither category ever held a single
+ * report, so nothing was migrated or lost.
+ *
+ * They were also the only two non-classifiable categories, which is why
+ * requiresClassification() below now turns entirely on whether a photo was
+ * attached.
+ */
 
 export type Category = keyof typeof CATEGORIES;
 export const CATEGORY_KEYS = Object.keys(CATEGORIES) as Category[];
@@ -110,7 +119,11 @@ export const MAX_PHOTOS = 4;
 export const MAX_NOTES = 1000;
 /** Post-downscale ceiling. Phone originals are 3–8 MB; we send ~250 KB. */
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
-export const ACCEPTED_IMAGE_TYPES = ["image/webp", "image/jpeg", "image/png"] as const;
+export const ACCEPTED_IMAGE_TYPES = [
+  "image/webp",
+  "image/jpeg",
+  "image/png",
+] as const;
 
 /** Longest edge after client-side downscale, before upload. */
 export const IMAGE_MAX_EDGE = 2048;
@@ -150,7 +163,10 @@ export type ReportSubmission = z.infer<typeof reportSubmissionSchema>;
  * unknown — publishing immediately would expose a protected species' exact
  * coordinate until classification caught up. See 0003_reporting.sql.
  */
-export function requiresClassification(category: Category, photoCount: number): boolean {
+export function requiresClassification(
+  category: Category,
+  photoCount: number,
+): boolean {
   return CATEGORIES[category].classifiable && photoCount > 0;
 }
 
