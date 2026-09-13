@@ -182,6 +182,15 @@ export default async function HomePage({
               b: t("whyInvasiveBody"),
               n: byCategory.get("invasive") ?? 0,
             },
+            {
+              // The third of the team's three report buttons, and the reason the
+              // heading can still say three. A map made only of carcasses
+              // describes where animals die, not where they are.
+              c: "sighting" as const,
+              h: t("whySighting"),
+              b: t("whySightingBody"),
+              n: byCategory.get("sighting") ?? 0,
+            },
           ].map((x) => (
             <article
               key={x.c}

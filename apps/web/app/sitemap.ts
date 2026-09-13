@@ -3,7 +3,7 @@ import { asPublic } from "@/lib/db";
 import { speciesSlug } from "@/lib/species";
 import { routing } from "@/i18n/routing";
 
-const BASE = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+import { SITE_URL as BASE } from "@/lib/siteUrl";
 
 /**
  * Static pages plus the species that are actually worth indexing.

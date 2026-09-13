@@ -26,6 +26,37 @@ after(() => sql.end());
 
 const CELL_M = 5000;
 
+/**
+ * The headline number, mirroring lib/coverage.ts.
+ *
+ * Duplicated SQL rather than an import, because lib/coverage.ts resolves the
+ * `@/lib/db` path alias that this runner does not. If the shipped query changes,
+ * change this too — these tests are the only thing standing between the site's
+ * one call-to-action number and a silent lie.
+ */
+async function newThisSeason(tx) {
+  const [row] = await tx`
+    with bounds as (
+      select date_trunc('quarter', now() at time zone 'Asia/Taipei') as ss
+    ),
+    cells as (
+      select floor(st_x(geom_3857) / ${CELL_M})::int as gx,
+             floor(st_y(geom_3857) / ${CELL_M})::int as gy,
+             min(case when source = 'gbif' then observed_at else created_at end) as first_at,
+             count(*) filter (
+               where source = 'user' and created_at >= (select ss from bounds)
+             )::int as fresh
+        from reports_public
+       where not is_obscured
+       group by 1, 2
+    )
+    select count(*) filter (
+             where first_at >= (select ss from bounds) and fresh > 0
+           )::int as n
+      from cells`;
+  return row.n;
+}
+
 /** The season query's spatial half, runnable inside a rolled-back transaction. */
 async function covered(tx) {
   const [row] = await tx`
@@ -95,6 +126,35 @@ describe("map coverage", () => {
       const before = await covered(tx);
       await insertReport(tx, { lng: 119.2, lat: 24.1, status: "pending" });
       assert.equal(await covered(tx), before, "pending records are not public");
+    });
+  });
+
+  test("a report on an already-covered square is not newly reached", async () => {
+    // The defect this pins: newness was measured from min(created_at), and the
+    // whole TaiRON corpus was bulk-imported inside the current quarter, so every
+    // covered cell already satisfied it. The first user report to land anywhere
+    // would have been announced as reaching a square that "had no record at all",
+    // of a square with records since 2011.
+    await inRollback(async (tx) => {
+      const before = await newThisSeason(tx);
+      const [ex] = await tx`
+        select st_x(location_public::geometry) as lng,
+               st_y(location_public::geometry) as lat
+          from reports_public where not is_obscured limit 1`;
+      await insertReport(tx, { lng: ex.lng, lat: ex.lat });
+      assert.equal(
+        await newThisSeason(tx),
+        before,
+        "a square recorded since 2011 is not newly reached",
+      );
+    });
+  });
+
+  test("a report on an empty square is newly reached", async () => {
+    await inRollback(async (tx) => {
+      const before = await newThisSeason(tx);
+      await insertReport(tx, { lng: 119.2, lat: 24.1 });
+      assert.equal(await newThisSeason(tx), before + 1);
     });
   });
 

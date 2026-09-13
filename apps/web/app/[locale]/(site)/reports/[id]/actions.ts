@@ -75,7 +75,7 @@ export async function confirmSpecies(reportId: string, taxonId: number) {
     await tx`
       update reports
          set taxon_id = ${taxonId},
-             taxon_source = ${moderator ? "expert" : "user"},
+             taxon_source = ${moderator && report.reporter_id !== userId ? "expert" : "user"},
              precision_override = null
        where id = ${reportId}::uuid`;
     await tx`
