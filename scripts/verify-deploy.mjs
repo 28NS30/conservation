@@ -252,6 +252,45 @@ try {
   );
 }
 
+/* ---------------- the sitemap has to name this site ----------------
+ * Production served `Sitemap: http://localhost:3000/sitemap.xml` and a sitemap
+ * whose every <loc> was a localhost URL, because NEXT_PUBLIC_SITE_URL was never
+ * set and the fallback was localhost. Nothing errored and no test could see it:
+ * in every environment a test runs in, localhost IS the right answer. Only a
+ * check made from outside, against the host actually being served, can tell. */
+
+const robotsTxt = await get("/robots.txt")
+  .then((r) => (r.status === 200 ? r.text() : ""))
+  .catch(() => "");
+const sitemapLine = /^Sitemap:\s*(\S+)/m.exec(robotsTxt)?.[1] ?? "";
+let sitemapOk = false;
+try {
+  sitemapOk = new URL(sitemapLine).origin === new URL(BASE).origin;
+} catch {
+  sitemapOk = false;
+}
+check(
+  "robots.txt points at this host",
+  sitemapOk,
+  sitemapOk ? sitemapLine : `${sitemapLine || "no Sitemap line"} (expected ${BASE})`,
+);
+
+const firstLoc = await get("/sitemap.xml")
+  .then((r) => (r.status === 200 ? r.text() : ""))
+  .then((x) => /<loc>([^<]+)<\/loc>/.exec(x)?.[1] ?? "")
+  .catch(() => "");
+let locOk = false;
+try {
+  locOk = new URL(firstLoc).origin === new URL(BASE).origin;
+} catch {
+  locOk = false;
+}
+check(
+  "sitemap URLs are absolute and on this host",
+  locOk,
+  locOk ? firstLoc : `${firstLoc || "no <loc>"} (expected ${BASE})`,
+);
+
 /* ---------------- report ---------------- */
 
 console.log(

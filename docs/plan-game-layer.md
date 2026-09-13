@@ -217,11 +217,27 @@ someone should build this for real species.
 | Cosmetics, second currency | Collapsed to zero currencies; the rule replaces them |
 | PvP battles | Cut |
 
-The friendship retarget is the best move available. 84% of records are
-identified, meaning ~7,400 need human eyes. That is a daily loop the platform is
-genuinely starved of, it cannot corrupt the dataset because it adds no records,
-and it is exactly the "repeated low-stakes attention to a species" that teaches
-someone to notice it in the field.
+~~The friendship retarget is the best move available. 84% of records are
+identified, meaning ~7,400 need human eyes.~~
+
+**WRONG, and corrected on 13 September 2026 by measurement rather than
+re-reasoning.** The arithmetic held — 46,402 records, 7,336 without a taxon — but
+the inference did not. `select count(*) from report_photos` returns **0**: TaiRON
+publishes no images to GBIF, so there is nothing for a volunteer to look at. And
+those 7,336 rows are not 7,336 judgements. They are **163 distinct name strings**,
+roughly half sitting at Family or Order rank (Aves 350, Anura 340, Ranidae 275)
+where no finer truth exists, and the rest species-level synonyms TaiCOL does not
+use — *Ptyas major* alone is 2,004 records.
+
+So this is not a daily loop and cannot be made into one. It is a reviewed name
+mapping: a day's work with a taxonomist's sign-off, taking identification from
+84% to roughly 92%. Worth doing, and worth doing as a migration rather than as a
+crowd. Note that writing `taxon_id` re-fires `set_report_public_location()`, so a
+correct match to a sensitive taxon will blur a point that is currently exact —
+the right outcome, and a reason each binomial needs a real reviewer.
+
+The error was deriving a number from a percentage and never asking what those
+rows contain.
 
 ---
 
@@ -242,6 +258,23 @@ that already exist. No accounts required for the shared counter.
 > **Gate to Phase 2: at least one user-submitted invasive report exists.**
 > Today the answer is zero — in that category and in every category. No retention
 > mechanic can be evaluated without it.
+
+**THE GATE IS MISSTATED, corrected 13 September 2026.** It reads as a milestone
+Phase 1 might earn. It is not: Phase 1 shipped and produced zero, for reasons
+that have nothing to do with the product. The domain the code names has never
+been registered, the site is served from a Vercel hostname containing none of the
+project's names, production told every crawler its sitemap was at
+`localhost:3000` (fixed the same day), and nobody has been told the site exists.
+No amount of engineering satisfies this gate. Restate it as two conditions the
+project can actually own: **the 路殺社 / TBIA conversation has happened, and the
+site has been put in front of a real audience once.**
+
+One further correction: Phase 2's gate was **misapplied**. It bundled a public
+species card with a per-user collection. The card renders from TaiCOL for every
+Taiwan species with no user data at all — it is a content feature, and gating a
+content feature on users arriving is backwards when the binding constraint is
+that users do not arrive. The gate stays right for Phase 3 and for the per-user
+roster on /me.
 
 **Phase 2 — creature cards from real data.** Only once Phase 1 has users.
 

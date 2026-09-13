@@ -71,7 +71,7 @@
   },
   "report": {
     "heading": "New report",
-    "subheading": "Roadkill, invasive species, pollution or another environmental observation",
+    "subheading": "Roadkill, invasive species, injured wildlife or a sighting",
     "type": "Type",
     "photos": "Photos",
     "photoHelp": "Photos are downscaled and stripped of EXIF (including device data) before upload.",
@@ -221,7 +221,7 @@
   "about": {
     "title": "About",
     "whatTitle": "What this is",
-    "whatBody": "A public map of environmental reports for Taiwan. Anyone can report roadkill, invasive species, pollution or other observations; reports with a photo are passed to an open-source model that attempts to identify the species; everyone can see the aggregated heatmap.",
+    "whatBody": "A public map of environmental reports for Taiwan. Anyone can report roadkill, invasive species, injured wildlife or a sighting; reports with a photo are passed to an open-source model that attempts to identify the species; everyone can see the aggregated heatmap.",
     "privacyTitle": "Why some locations are blurred",
     "privacyBody": "Publishing precise coordinates of protected or sensitive species is, functionally, a map for poachers. GBIF, eBird and iNaturalist all obscure such records, and so do we: for those species the public map shows a deliberately coarsened location rather than the real one, and the most sensitive show no coordinates at all.",
     "unknownTitle": "Reports that aren't identified yet",
@@ -332,7 +332,7 @@
     "statsYears": "years of data",
     "whyTitle": "What we record",
     "whyHeading": "Three kinds of overlooked record",
-    "whyLede": "Roadkill, invasive species, damaged habitats — all of it happens by the roadside every day, and almost none of it is written down systematically.",
+    "whyLede": "Roadkill, invasive species, the animals still alive — all of it happens by the roadside every day, and almost none of it is written down systematically.",
     "whyRoadkill": "Roadkill",
     "whyRoadkillBody": "Roads cut habitat into fragments. Leopard cats, pangolins, crab-eating mongooses — killed under wheels every year, and most are never recorded.",
     "whyInvasive": "Invasive species",
@@ -356,7 +356,9 @@
     "openBody": "Seeded with records from TaiRON via GBIF (CC BY 4.0), with names from TaiCOL. We plan to contribute our own records back to GBIF as a Darwin Core Archive.",
     "openLink": "Sources and licensing",
     "finalTitle": "If you see one, take a minute.",
-    "finalBody": "One photo, one minute. Your record becomes part of the open scientific record."
+    "finalBody": "One photo, one minute. Your record becomes part of the open scientific record.",
+    "whySighting": "Wildlife sightings",
+    "whySightingBody": "A leopard cat crossing at dusk, a flying squirrel in a roadside tree. A distribution map built only from carcasses says where animals die, not where they live."
   },
   "me": {
     "title": "My reports",

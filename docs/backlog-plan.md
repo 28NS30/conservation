@@ -108,6 +108,9 @@ where two plans would have silently broken one another.
 ## Noted and not acted on
 
 The planning recommended a week of front-page analytics before replacing the
-hero, so the change could be measured. That would mean adding a third-party
-analytics script — its own decision, with its own privacy-page consequence — and
-waiting a week. The rewrite shipped instead. The comparison is not recoverable.
+hero, so the change could be measured, and this file first said that would mean
+adding an analytics script. **That was wrong:** `@vercel/analytics` has been in
+`app/[locale]/layout.tsx` and disclosed on /privacy since August. Only the
+waiting was skipped, and five weeks of production page-view data should already
+exist. The before-picture is therefore recoverable from the Vercel dashboard —
+worth looking at before judging the new front page.

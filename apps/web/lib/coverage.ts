@@ -62,7 +62,18 @@ export async function coverage(): Promise<Coverage> {
       cells as (
         select floor(st_x(geom_3857) / ${COVERAGE_CELL_M})::int as gx,
                floor(st_y(geom_3857) / ${COVERAGE_CELL_M})::int as gy,
-               min(created_at) as first_at,
+               -- When the cell was first REACHED, which is not when its first row
+               -- was written. The TaiRON corpus was bulk-imported on 2026-08-04,
+               -- so every one of the 1,366 covered cells has a created_at inside
+               -- the current quarter and would count as newly reached. Only the
+               -- fresh-report conjunct was holding the number at zero, and the
+               -- first user report to land on an already-mapped square would
+               -- have been announced as reaching "a square that had no record at
+               -- all until someone went there" — of a square recorded since 2011.
+               -- An import is a backfill, not an arrival: for those rows the
+               -- honest date is when the animal was seen.
+               min(case when source = 'gbif' then observed_at else created_at end)
+                 as first_at,
                count(*) filter (
                  where source = 'user'
                    and created_at >= (select season_start from bounds)
