@@ -154,11 +154,9 @@
     "taxonomy": "分類",
     "seasonality": "月份分布",
     "seasonalityHint": "共 {total, number} 筆，{peak} 月最多。",
-    "protectedLevel": "保育 {level}",
     "endemic": "特有種",
     "invasive": "入侵種",
     "alien": "外來種",
-    "redlist": "紅皮書 {code}",
     "sensitive": "敏感物種",
     "blurredNotice": "此物種屬敏感或保育類，地圖上的位置皆已模糊化。",
     "coordinatesWithheld": "依據臺灣物種名錄的敏感度分級，此物種的座標不予公開，因此地圖上不會顯示任何紀錄。",
@@ -175,6 +173,48 @@
       "protected": "保育類",
       "invasive": "入侵種",
       "endemic": "特有種"
+    },
+    "iucnChip": "IUCN {name}",
+    "redlistChip": "臺灣紅皮書 {name}",
+    "citesChip": "CITES {name}",
+    "protectedChip": "保育類 {name}",
+    "protectedPlant": "文資法珍貴稀有植物",
+    "iucnCode": {
+      "CR": "極危",
+      "DD": "資料缺乏",
+      "EN": "瀕危",
+      "EW": "野外滅絕",
+      "EX": "滅絕",
+      "LC": "暫無危機",
+      "LRcd": "保育依賴（1994 年舊制）",
+      "NA": "不適用",
+      "NE": "未評估",
+      "NT": "接近受脅",
+      "RE": "區域滅絕",
+      "VU": "易危"
+    },
+    "redlistCode": {
+      "DD": "資料缺乏",
+      "EW": "野外滅絕",
+      "EX": "滅絕",
+      "NA": "不適用",
+      "NCR": "國家極危",
+      "NE": "未評估",
+      "NEN": "國家瀕危",
+      "NLC": "國家暫無危機",
+      "NNT": "國家接近受脅",
+      "NVU": "國家易危",
+      "RE": "區域滅絕"
+    },
+    "citesCode": {
+      "I": "附錄一",
+      "II": "附錄二",
+      "III": "附錄三"
+    },
+    "protectedName": {
+      "I": "瀕臨絕種野生動物",
+      "II": "珍貴稀有野生動物",
+      "III": "其他應予保育之野生動物"
     }
   },
   "offline": {

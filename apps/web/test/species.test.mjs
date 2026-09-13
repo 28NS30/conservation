@@ -180,6 +180,68 @@ describe("thin species pages", () => {
    * They must stay reachable — the directory links them and search finds them —
    * so this pins the distinction rather than their existence.
    */
+  test("a protected plant is not rendered as a wildlife level", async () => {
+    // protected_status holds two statutes. I/II/III are levels under 野生動物保育法,
+    // which covers animals only; "1" marks a plant designated under 文化資產保存法.
+    // Interpolating it produced "Protected 1" — meaningless, and wrong about
+    // which law applies.
+    const [plant] = await sql`
+      select id from taxa where protected_status = '1' limit 1`;
+    assert.ok(plant, "expected a protected plant fixture");
+    const html = await (
+      await fetch(`${BASE_URL}/en/species/${plant.id}`)
+    ).text();
+    assert.match(html, /Cultural Heritage Preservation Act/);
+    assert.ok(
+      !/Protected\s*(·\s*)?1\b/.test(html),
+      "a plant must never render as wildlife protection level 1",
+    );
+  });
+
+  test("a split CITES listing renders one chip per appendix, and never NC", async () => {
+    // Ten Taiwan species carry values like I/II or II/NC. A slash is a split
+    // listing — different populations in different appendices — not a single
+    // code, and the badge used to print the raw string. NC is not an appendix
+    // at all; it marks a taxon listed in none of them.
+    const [split] = await sql`
+      select id from taxa where cites like '%/%' and is_in_taiwan limit 1`;
+    assert.ok(split, "expected a split-listed CITES fixture");
+    const html = await (
+      await fetch(`${BASE_URL}/en/species/${split.id}`)
+    ).text();
+    assert.ok(
+      !/CITES\s+[IV]+\//.test(html),
+      "the raw slashed code must not be printed",
+    );
+    assert.match(html, /CITES Appendix I\b/);
+
+    const [nc] = await sql`
+      select id from taxa where cites = 'NC' and is_in_taiwan limit 1`;
+    if (nc) {
+      const ncHtml = await (
+        await fetch(`${BASE_URL}/en/species/${nc.id}`)
+      ).text();
+      // Not /CITES/ alone: every page inlines the whole message catalogue, so
+      // the word appears whether or not a chip was rendered. "CITES Appendix"
+      // is contiguous only once a chip has been built from the template.
+      assert.ok(
+        !/CITES Appendix/.test(ncHtml),
+        "a taxon in no appendix must carry no CITES chip",
+      );
+    }
+  });
+
+  test("conservation codes are rendered as words, not codes", async () => {
+    const [row] = await sql`
+      select id from taxa where iucn = 'VU' and is_in_taiwan limit 1`;
+    assert.ok(row, "expected an IUCN VU fixture");
+    const en = await (await fetch(`${BASE_URL}/en/species/${row.id}`)).text();
+    assert.match(en, /IUCN Vulnerable/);
+    const zh = await (await fetch(`${BASE_URL}/species/${row.id}`)).text();
+    // Taiwan writes 易危; 近危/無危 are mainland renderings and must not appear.
+    assert.match(zh, /IUCN 易危/);
+  });
+
   test("a page with nothing distinguishing is noindex", async () => {
     // No records, no conservation assessment, not endemic or invasive, and no
     // Chinese synonyms — a name, an authority and a lineage, which 41,958
