@@ -20,11 +20,19 @@ do in production.
 ```bash
 npm install
 cp .env.example .env
+ln -s ../../.env apps/web/.env   # next dev reads env from its own directory, not the repo root
 supabase start         # Postgres+PostGIS, Auth, Storage, Studio; applies all migrations
 npm run import:taicol  # ~125k taxa from TaiCOL (~4 min)
 npm run import:gbif    # TaiRON roadkill records from GBIF
 npm run dev            # http://localhost:3000
 ```
+
+> The symlink is not optional and its absence is confusing rather than obvious.
+> Everything except the web app reads the root `.env` directly — the scripts,
+> the migration runner, the test helpers — but `next dev` only loads `.env` from
+> the directory holding `next.config.ts`. Without it the site starts, serves
+> most pages, and throws `NEXT_PUBLIC_SUPABASE_URL / _ANON_KEY are not set` on
+> the handful that ask who is signed in. Both files are gitignored.
 
 | URL | What |
 |---|---|

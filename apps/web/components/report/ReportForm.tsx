@@ -244,6 +244,9 @@ export default function ReportForm({
             <button
               key={k}
               type="button"
+              // Which one is chosen was conveyed by fill colour alone, so a
+              // screen reader announced four identical buttons and no state.
+              aria-pressed={category === k}
               onClick={() => setCategory(k)}
               className={`flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-medium transition ${
                 category === k
