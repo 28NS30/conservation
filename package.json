@@ -14,7 +14,7 @@
     "db:up": "docker compose up -d && echo 'postgis up on localhost:55432'",
     "db:down": "docker compose down",
     "db:reset": "docker compose down -v && docker compose up -d",
-    "db:migrate": "npm run migrate --workspace @conservation/scripts",
+    "db:migrate": "npm run migrate --workspace @conservation/scripts --",
     "import:taicol": "npm run import:taicol --workspace @conservation/scripts --",
     "import:gbif": "npm run import:gbif --workspace @conservation/scripts --",
     "build:evalset": "npm run build:evalset --workspace @conservation/scripts --",

@@ -127,7 +127,18 @@ for f in supabase/migrations/*.sql; do
 done
 
 psql "$PROD_DIRECT_URL" -v ON_ERROR_STOP=1 -f data/export/production.sql
+
+# Then record what that loop applied, so later migrations can use the runner:
+DATABASE_URL="$PROD_DIRECT_URL" npm run db:migrate -- --baseline
 ```
+
+**That last line is not optional.** The loop above applies the files without
+writing `_migrations`, so `npm run db:migrate` would later believe nothing had
+ever been applied, start at 0001 and abort against tables that already exist —
+having applied nothing. That is how 0009 and 0010 sat unapplied on production
+while the deployed code wrote a column and a `taxon_source` value the database
+did not have, which 500s every submission and is invisible from outside.
+`/api/health` reports `schemaCurrent` and names what is missing.
 
 Order matters and each part earns its place: the extensions must exist before the
 indexes that use them, the migrations create the schema *and* the `web_anon` role
