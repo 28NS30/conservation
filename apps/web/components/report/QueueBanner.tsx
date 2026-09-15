@@ -40,7 +40,6 @@ export default function QueueBanner() {
   /** Reports that have landed, kept as receipts. See markUploaded. */
   const [sent, setSent] = useState<QueuedReport[]>([]);
   const [busy, setBusy] = useState(false);
-  const [justSent, setJustSent] = useState(0);
   const [stale, setStale] = useState(false);
   const [ready, setReady] = useState(!turnstileEnabled);
 
@@ -111,8 +110,7 @@ export default function QueueBanner() {
 
   const runFlush = useCallback(async () => {
     setBusy(true);
-    const r = await flushQueue(getToken);
-    if (r.sent > 0) setJustSent(r.sent);
+    await flushQueue(getToken);
     await refresh();
     setBusy(false);
   }, [getToken, refresh]);
@@ -126,26 +124,22 @@ export default function QueueBanner() {
   }, [ready, items.length, runFlush]);
 
   useEffect(() => {
-    let alive = true;
     void (async () => {
       await requestPersistence();
-      const queued = await listQueued();
-      if (!alive) return;
-      setItems(queued);
-      setStale(queued.some((i) => Date.now() - i.createdAt > STALE_AFTER_MS));
+      // Through refresh(), not a second copy of it: this used to count every row
+      // in the store as still waiting, and a sent report now leaves a receipt
+      // there — so on mount the banner claimed reports were waiting that had
+      // already landed, until the next refresh corrected it.
+      await refresh();
     })();
-    const stop = startFlushTriggers((r) => {
-      setJustSent(r.sent);
-      void refresh();
-    }, getToken);
+    const stop = startFlushTriggers(() => void refresh(), getToken);
     const onChange = () => void refresh();
     window.addEventListener("conservation:queue-changed", onChange);
     return () => {
-      alive = false;
       stop();
       window.removeEventListener("conservation:queue-changed", onChange);
     };
-  }, [refresh, STALE_AFTER_MS, getToken]);
+  }, [refresh, getToken]);
 
   // The team asked for an "uploaded" state, and this is why: a sent report used
   // to be deleted outright, so the banner it had been sitting in simply
@@ -153,7 +147,10 @@ export default function QueueBanner() {
   // it go deserves to see that it went, and to be able to open it.
   const receipts = sent.length > 0 && (
     <div className="mb-4 rounded-lg border border-ember-500/30 bg-ember-500/10 px-3 py-2 text-xs text-ember-700">
-      <p>{t("sentCount", { count: justSent || sent.length })}</p>
+      {/* The count is the list's length, not the last flush's. With one report
+          just sent and two receipts still on screen, "1 sent" above three links
+          was a banner arguing with itself. */}
+      <p>{t("sentCount", { count: sent.length })}</p>
       <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
         {sent.map(
           (r) =>
