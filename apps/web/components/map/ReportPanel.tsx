@@ -5,6 +5,9 @@ import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { withBase } from "@/lib/basePath";
 import type { Category } from "@conservation/shared";
+import HabitatChips, {
+  type HabitatFlags,
+} from "@/components/species/HabitatChips";
 
 type Report = {
   id: string;
@@ -16,6 +19,7 @@ type Report = {
   scientificName: string | null;
   commonNameZh: string | null;
   photo: string | null;
+  habitat: HabitatFlags;
 };
 
 /**
@@ -144,6 +148,13 @@ export default function ReportPanel({
                   t("map.unidentified")
                 )}
               </dd>
+            </div>
+
+            {/* The card's habitat type: the one line here that is about the
+                animal rather than about the record. Draws nothing when TaiCOL
+                has not assessed it, which is 3,338 Taiwan species. */}
+            <div>
+              <HabitatChips species={report.habitat} tone="dark" />
             </div>
 
             <div>

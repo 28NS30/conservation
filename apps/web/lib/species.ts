@@ -105,25 +105,6 @@ export function isIndexworthy(s: {
   );
 }
 
-/**
- * Which of the four habitat flags are KNOWN, as distinct from known-false.
- *
- * 3,338 Taiwan species have all four columns NULL, and the page filtered on
- * truthiness — so "we have no habitat data" and "it lives in none of these"
- * rendered identically. They are different claims, and only one of them is
- * something to print.
- */
-export function habitatKnown(s: {
-  isTerrestrial: boolean | null;
-  isFreshwater: boolean | null;
-  isBrackish: boolean | null;
-  isMarine: boolean | null;
-}): boolean {
-  return [s.isTerrestrial, s.isFreshwater, s.isBrackish, s.isMarine].some(
-    (v) => v !== null,
-  );
-}
-
 export async function getSpecies(id: number): Promise<SpeciesDetail | null> {
   const rows = await asPublic(
     (tx) => tx<SpeciesDetail[]>`

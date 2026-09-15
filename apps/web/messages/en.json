@@ -146,7 +146,6 @@
     "notYetIdentified": "Not yet identified",
     "notes": "Notes",
     "location": "Location",
-    "protected": "Protected {level}",
     "aiSuggested": "AI suggestion",
     "blurredNotice": "Sensitive or protected species — coordinates {precision} before publication, so this report cannot be used to find it.",
     "suggestions": "Suggestions",
@@ -252,7 +251,12 @@
       "I": "Endangered Wildlife",
       "II": "Rare and Valuable Wildlife",
       "III": "Other Conservation-Deserving Wildlife"
-    }
+    },
+    "habitatLabel": "Habitat",
+    "cardRecords": "Records",
+    "cardRecordCount": "{count, plural, =0 {none here yet} one {# record} other {# records}}",
+    "cardPeak": "most often in {month}",
+    "seeAllRecords": "See every record of it"
   },
   "offline": {
     "queuedTitle": "Saved on this device",

@@ -27,6 +27,10 @@ type Row = {
   scientific_name: string | null;
   common_name_zh: string | null;
   source: string;
+  is_terrestrial: boolean | null;
+  is_freshwater: boolean | null;
+  is_brackish: boolean | null;
+  is_marine: boolean | null;
 };
 
 export async function GET(
@@ -42,7 +46,10 @@ export async function GET(
       select rp.id, rp.category, rp.observed_at, rp.notes,
              rp.location_precision, rp.is_obscured,
              rp.taxon_id, rp.taxon_source, rp.source,
-             t.scientific_name, t.common_name_zh
+             t.scientific_name, t.common_name_zh,
+             -- The species card's habitat type, so the panel says what the
+             -- animal is and not only when it was seen. Public columns only.
+             t.is_terrestrial, t.is_freshwater, t.is_brackish, t.is_marine
         from reports_public rp
         left join taxa t on t.id = rp.taxon_id
        where rp.id = ${id}::uuid`,
@@ -72,6 +79,12 @@ export async function GET(
       scientificName: row.scientific_name,
       commonNameZh: row.common_name_zh,
       source: row.source,
+      habitat: {
+        isTerrestrial: row.is_terrestrial,
+        isFreshwater: row.is_freshwater,
+        isBrackish: row.is_brackish,
+        isMarine: row.is_marine,
+      },
       photo,
     },
     {

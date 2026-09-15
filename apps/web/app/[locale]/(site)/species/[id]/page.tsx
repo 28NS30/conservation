@@ -10,9 +10,9 @@ import {
   speciesSlug,
   parseSpeciesId,
   isIndexworthy,
-  habitatKnown,
 } from "@/lib/species";
 import StatusBadges from "@/components/species/StatusBadges";
+import HabitatChips from "@/components/species/HabitatChips";
 import MonthlyChart from "@/components/species/MonthlyChart";
 import SpeciesMap from "@/components/species/SpeciesMap";
 
@@ -122,20 +122,6 @@ export default async function SpeciesPage({
   const lineage = [s.kingdom, s.phylum, s.class, s.order, s.family].filter(
     Boolean,
   ) as string[];
-  // Only meaningful when at least one flag is non-NULL; see habitatKnown().
-  const habitats = habitatKnown(s)
-    ? (
-        [
-          [s.isTerrestrial, "terrestrial"],
-          [s.isFreshwater, "freshwater"],
-          [s.isBrackish, "brackish"],
-          [s.isMarine, "marine"],
-        ] as const
-      )
-        .filter(([on]) => on === true)
-        .map(([, key]) => t(`habitat.${key}`))
-    : [];
-
   // A 座標不開放 taxon has no rows in reports_public at all, so `reportCount` is
   // 0 even when records exist. Say that plainly rather than rendering a
   // misleading "no reports yet" — it reveals nothing a poacher can use, since
@@ -176,6 +162,12 @@ export default async function SpeciesPage({
           </p>
         )}
         <StatusBadges {...s} />
+        {/* Where it lives, as the same chips the card uses. It was a trailing
+            clause on the lineage line — "· Terrestrial" — which is the one fact
+            on this page a child would read first. */}
+        <div className="mt-2.5">
+          <HabitatChips species={s} />
+        </div>
       </header>
 
       {lineage.length > 0 && (
@@ -184,9 +176,6 @@ export default async function SpeciesPage({
           className="mt-4 text-[11px] text-ink-500"
         >
           {lineage.join(" › ")}
-          {habitats.length > 0 && (
-            <span className="ml-2 text-ink-500">· {habitats.join(" / ")}</span>
-          )}
         </nav>
       )}
 

@@ -11,6 +11,8 @@ import {
 import { currentRole } from "@/lib/auth";
 import { licenseLabel } from "@/lib/license";
 import ReportMap from "@/components/report/ReportMap";
+import SpeciesCard from "@/components/species/SpeciesCard";
+import { getSpecies, monthlyCounts, speciesSlug } from "@/lib/species";
 import SpeciesConfirm, {
   type Suggestion,
 } from "@/components/report/SpeciesConfirm";
@@ -89,6 +91,17 @@ export default async function ReportPage({
        order by rank`,
   );
 
+  // The species card, when this report has a species. Two small reads rather
+  // than widening the query above: the page renders without either of them, and
+  // neither should be able to fail the page.
+  const card = row.taxon_id ? await getSpecies(row.taxon_id) : null;
+  const months = row.taxon_id ? await monthlyCounts(row.taxon_id) : null;
+  // A peak only means something with enough records to have a shape. Below
+  // that, the "peak" is whichever month happened to catch two instead of one.
+  const total = months?.reduce((a, b) => a + b, 0) ?? 0;
+  const peakMonth =
+    months && total >= 12 ? months.indexOf(Math.max(...months)) + 1 : null;
+
   // Only the report's author or a moderator may change an identification.
   const { userId, role } = await currentRole();
   const [owner] = await sql<{ reporter_id: string | null }[]>`
@@ -137,33 +150,41 @@ export default async function ReportPage({
       )}
 
       <section className="mt-5 space-y-3 text-sm">
+        {/*
+          What this turned out to be, as a card.
+
+          A report page is where someone is most curious about the animal —
+          they either just filed it or just clicked it on the map — so the
+          species gets a card here rather than a line of text. Everything on it
+          comes from TaiCOL, so a common species gets exactly as complete a card
+          as a rare one, and nothing on it is earned, ranked or unlockable.
+        */}
         <div>
-          <h2 className="text-base font-semibold text-ink-900">
+          <h2 className="mb-2 text-base font-semibold text-ink-900">
             {t("detail.species")}
           </h2>
-          {row.scientific_name ? (
-            <p className="mt-0.5 text-ink-800">
-              {row.common_name_zh && (
-                <span className="mr-2">{row.common_name_zh}</span>
-              )}
-              <span className="italic text-ink-600">
-                {row.scientific_name}
-              </span>
-              {row.protected_status && (
-                <span className="ml-2 rounded bg-amber-400/15 px-1.5 py-0.5 text-[10px] text-amber-700">
-                  {t("detail.protected", { level: row.protected_status })}
-                </span>
-              )}
-              {row.taxon_source === "ai" && (
-                <span className="ml-2 text-[10px] text-ink-500">
-                  {t("detail.aiSuggested")}
-                  {row.ai_confidence != null &&
-                    ` · ${Math.round(row.ai_confidence * 100)}%`}
-                </span>
-              )}
-            </p>
+
+          {card ? (
+            <>
+              <SpeciesCard species={card} peakMonth={peakMonth} />
+              <p className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-ink-500">
+                <Link
+                  href={`/species/${speciesSlug(card)}`}
+                  className="underline decoration-ink-900/20 underline-offset-2 hover:text-ink-700"
+                >
+                  {t("species.seeAllRecords")}
+                </Link>
+                {row.taxon_source === "ai" && (
+                  <span>
+                    {t("detail.aiSuggested")}
+                    {row.ai_confidence != null &&
+                      ` · ${Math.round(row.ai_confidence * 100)}%`}
+                  </span>
+                )}
+              </p>
+            </>
           ) : (
-            <p className="mt-0.5 text-ink-500">
+            <p className="mt-0.5 text-sm text-ink-500">
               {row.verbatim_name ?? t("detail.notYetIdentified")}
             </p>
           )}
