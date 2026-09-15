@@ -52,6 +52,11 @@ export const REPORT_GROUPS = {
 export type ReportGroup = keyof typeof REPORT_GROUPS;
 export const REPORT_GROUP_KEYS = Object.keys(REPORT_GROUPS) as ReportGroup[];
 
+/** The stored categories a group covers. */
+export function categoriesIn(group: ReportGroup): readonly Category[] {
+  return REPORT_GROUPS[group].categories;
+}
+
 /** The group a stored category belongs to. */
 export function groupOf(category: Category): ReportGroup {
   const found = REPORT_GROUP_KEYS.find((g) =>
@@ -127,7 +132,13 @@ export type LocationPrecision = keyof typeof LOCATION_PRECISION;
  * ------------------------------------------------------------------ */
 
 export const mapFilterSchema = z.object({
-  category: z.enum(CATEGORY_KEYS as [Category, ...Category[]]).optional(),
+  /**
+   * The same three buckets the report form offers, not the four stored
+   * categories. A map that can filter for something the form cannot produce is
+   * a map with an option that is always empty; `roadkill` here therefore means
+   * roadkill *or* injured, exactly as the button that files them does.
+   */
+  group: z.enum(REPORT_GROUP_KEYS as [ReportGroup, ...ReportGroup[]]).optional(),
   taxonId: z.coerce.number().int().positive().optional(),
   from: z.iso.date().optional(),
   to: z.iso.date().optional(),
@@ -138,7 +149,7 @@ export type MapFilter = z.infer<typeof mapFilterSchema>;
 /** Serialise filters into a query string. This doubles as the CDN cache key. */
 export function filterToQuery(f: MapFilter): string {
   const p = new URLSearchParams();
-  if (f.category) p.set("category", f.category);
+  if (f.group) p.set("group", f.group);
   if (f.taxonId) p.set("taxonId", String(f.taxonId));
   if (f.from) p.set("from", f.from);
   if (f.to) p.set("to", f.to);

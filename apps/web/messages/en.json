@@ -60,7 +60,24 @@
       "dots": "Dots"
     },
     "speciesResults": "{count, number} matching species",
-    "filters": "Filters"
+    "filters": "Filters",
+    "colourBy": "Colour by",
+    "colour": {
+      "density": "Density",
+      "type": "Type"
+    },
+    "reportType": "Report type",
+    "mixed": "Mixed",
+    "typePerCell": "Whichever type most of the cell's reports are.",
+    "reportPanel": "Report details",
+    "closePanel": "Close",
+    "loading": "Loading…",
+    "panelFailed": "Could not load this report.",
+    "noPhoto": "No photograph",
+    "unidentified": "Not identified",
+    "openReport": "Open the full record",
+    "observedOn": "Observed",
+    "cellSizeM": "about {m} m per cell"
   },
   "footer": {
     "dataSource": "Data",

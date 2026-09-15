@@ -186,15 +186,46 @@ describe("empty tiles", () => {
 const CELL_M_Z6 = aggregationCellMeters(6);
 
 describe("filters discriminate", () => {
-  test("a category with no data yields an empty tile", async () => {
+  test("a report type with no data yields an empty tile", async () => {
     // Every one of the 46,334 records is imported roadkill, so any other live
-    // category is empty. This used to ask for `pollution`, which was retired in
+    // group is empty. This used to ask for `pollution`, which was retired in
     // 0008 and is now rejected as unknown — a 400, not an empty 200.
     const { status, bytes } = await getTile(
-      `${Z6.z}/${Z6.x}/${Z6.y}?category=sighting`,
+      `${Z6.z}/${Z6.x}/${Z6.y}?group=sighting`,
     );
     assert.equal(status, 200);
     assert.equal(bytes, 0);
+  });
+
+  test("the roadkill group carries injured reports too", async () => {
+    // One button on the form, two stored categories. A map that filtered to
+    // `roadkill` alone would hide every injured animal behind a toggle claiming
+    // to show them — and nothing else would notice, because every seeded record
+    // is roadkill. So one is planted, committed (the endpoint reads on its own
+    // connection and could not see a transaction), and removed afterwards.
+    const [{ id }] = await sql`
+      insert into reports (category, location, location_public, observed_at,
+                           taxon_source, status, source)
+      values ('injured',
+              st_setsrid(st_makepoint(121.0, 23.7), 4326)::geography,
+              st_setsrid(st_makepoint(121.0, 23.7), 4326)::geography,
+              now(), 'unknown', 'published', 'user')
+      returning id`;
+    try {
+      const high = { z: 12, x: 3424, y: 1770 };
+      const [{ n }] = await sql`
+        select count(*)::int as n from reports_public
+         where category = 'injured'
+           and geom_3857 && st_tileenvelope(${high.z}, ${high.x}, ${high.y})`;
+      assert.ok(n > 0, "the planted report must fall inside the test tile");
+
+      const roadkill = await getTile(`${high.z}/${high.x}/${high.y}?group=roadkill`);
+      const sighting = await getTile(`${high.z}/${high.x}/${high.y}?group=sighting`);
+      assert.ok(roadkill.bytes > 0, "the roadkill group must include it");
+      assert.equal(sighting.bytes, 0, "no other group may");
+    } finally {
+      await sql`delete from reports where id = ${id}`;
+    }
   });
 
   test("a future date range yields an empty tile", async () => {
@@ -256,9 +287,19 @@ describe("input validation", () => {
     });
   }
 
-  test("rejects an unknown category", async () => {
+  test("rejects an unknown report type", async () => {
     const { status } = await getTile(
-      `${Z6.z}/${Z6.x}/${Z6.y}?category=notacategory`,
+      `${Z6.z}/${Z6.x}/${Z6.y}?group=notagroup`,
+    );
+    assert.equal(status, 400);
+  });
+
+  test("the filter's old name is refused rather than ignored", async () => {
+    // `category` took one stored category and is now `group`, taking the three
+    // the form offers. Left to zod it would be stripped as an unknown key and
+    // the tile would come back unfiltered — a filter that looks applied.
+    const { status } = await getTile(
+      `${Z6.z}/${Z6.x}/${Z6.y}?category=roadkill`,
     );
     assert.equal(status, 400);
   });

@@ -1,5 +1,8 @@
 import { asPublic } from "@/lib/db";
 import {
+  CATEGORY_KEYS,
+  categoriesIn,
+  groupOf,
   mapFilterSchema,
   TILE_AGGREGATION_MAX_ZOOM,
   aggregationCellMeters,
@@ -8,7 +11,7 @@ import {
 /**
  * Mapbox Vector Tiles generated in PostGIS.
  *
- *   GET /api/tiles/{z}/{x}/{y}?category=roadkill&from=2024-01-01
+ *   GET /api/tiles/{z}/{x}/{y}?group=roadkill&from=2024-01-01
  *
  * Two regimes:
  *   z <= 9  aggregated grid cells carrying a `weight` — a country-zoom tile
@@ -39,19 +42,37 @@ export async function GET(
     return new Response("tile out of range", { status: 400 });
   }
 
-  const parsed = mapFilterSchema.safeParse(
-    Object.fromEntries(new URL(req.url).searchParams),
-  );
+  const params = new URL(req.url).searchParams;
+  // `category` used to be this filter's name and took one stored category. It
+  // now takes the three groups and is called `group`, so an old link would
+  // otherwise be silently ignored and return every report — a filter that looks
+  // applied and is not.
+  if (params.has("category"))
+    return new Response("category was replaced by group", { status: 400 });
+
+  const parsed = mapFilterSchema.safeParse(Object.fromEntries(params));
   if (!parsed.success) return new Response("bad filter", { status: 400 });
   const f = parsed.data;
 
   // Bound params are interpolated by the driver, never string-concatenated.
-  const category = f.category ?? null;
+  //
+  // A group covers one or more stored categories — `roadkill` means roadkill or
+  // injured — so it is passed as an array and matched with `= any`, rather than
+  // building one branch per category.
+  const categories = f.group ? [...categoriesIn(f.group)] : null;
   const taxonId = f.taxonId ?? null;
   const from = f.from ?? null;
   const to = f.to ?? null;
 
   const aggregated = z <= TILE_AGGREGATION_MAX_ZOOM;
+
+  // Every cell also carries which of the three report types dominates it, so the
+  // map can colour by type as well as by density. Built from REPORT_GROUPS
+  // rather than written out, because a category missing from this CASE would
+  // colour as "mixed" forever and look like data rather than like a bug.
+  const groupOfCategory = `case r.category ${CATEGORY_KEYS.map(
+    (c) => `when '${c}' then '${groupOf(c)}'`,
+  ).join(" ")} else 'roadkill' end`;
 
   // Runs as `web_anon`, which cannot reach the `reports` base table at all —
   // tiles are structurally incapable of carrying a true sensitive coordinate.
@@ -79,16 +100,28 @@ export async function GET(
       // tile edge. Clipping exactly at the boundary makes adjacent tiles abut.
       return tx<{ tile: Uint8Array | null }[]>`
       with env as (select st_tileenvelope(${z}, ${x}, ${y}) as e),
-      cells as (
+      by_group as (
         select st_snaptogrid(r.geom_3857, ${cell}::float8) as pt,
-               count(*)::int                      as weight
+               ${tx.unsafe(groupOfCategory)}               as grp,
+               count(*)::int                               as n
           from reports_public r, env
          where r.geom_3857 && st_expand(env.e, ${cell}::float8)
-           and (${category}::text is null or r.category = ${category})
+           and (${categories}::text[] is null or r.category = any(${categories}))
            and (${taxonId}::bigint is null or r.taxon_id = ${taxonId})
            and (${from}::date is null or r.observed_at >= ${from}::date)
            and (${to}::date   is null or r.observed_at <  (${to}::date + 1))
-         group by 1
+         group by 1, 2
+      ),
+      cells as (
+        select pt,
+               sum(n)::int                                as weight,
+               (array_agg(grp order by n desc, grp))[1]   as top_group,
+               -- How lopsided the cell is. A cell that is half roadkill and half
+               -- sightings has no colour that is honest, so the client draws it
+               -- neutral rather than picking the winner by one report.
+               (max(n)::float8 / sum(n))                  as top_share
+          from by_group
+         group by pt
       )
       -- TWO layers in one tile.
       --
@@ -111,7 +144,7 @@ export async function GET(
                                st_x(cells.pt) + ${cell}::float8 / 2, st_y(cells.pt) + ${cell}::float8 / 2,
                                3857),
                              env.e, 4096, 0, true) as geom,
-                           cells.weight
+                           cells.weight, cells.top_group, cells.top_share
                       from cells, env
                   ) a
                  where a.geom is not null),
@@ -123,7 +156,7 @@ export async function GET(
                     -- Buffered, unlike the cells: a dot near the tile edge must
                     -- still draw its full circle rather than being sliced in half.
                     select st_asmvtgeom(cells.pt, env.e, 4096, 64, true) as geom,
-                           cells.weight
+                           cells.weight, cells.top_group, cells.top_share
                       from cells, env
                   ) b
                  where b.geom is not null),
@@ -143,7 +176,7 @@ export async function GET(
                  1                     as weight
             from reports_public r, env
            where r.geom_3857 && env.e
-             and (${category}::text is null or r.category = ${category})
+             and (${categories}::text[] is null or r.category = any(${categories}))
              and (${taxonId}::bigint is null or r.taxon_id = ${taxonId})
              and (${from}::date is null or r.observed_at >= ${from}::date)
              and (${to}::date   is null or r.observed_at <  (${to}::date + 1))

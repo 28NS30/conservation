@@ -13,6 +13,8 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import {
   CATEGORIES,
   CATEGORY_KEYS,
+  REPORT_GROUP_KEYS,
+  categoriesIn,
   aggregationCellMeters,
   DENSITY_CLASSES,
   densityClassMax,
@@ -20,14 +22,15 @@ import {
   filterToQuery,
   TILE_AGGREGATION_MAX_ZOOM,
   TAIWAN_MAIN_BOUNDS,
-  type Category,
   type MapFilter,
 } from "@conservation/shared";
 import { createMap, type MapHandle } from "@/lib/map";
 import { withBase } from "@/lib/basePath";
 import MapFilters from "./MapFilters";
 import MapModeToggle from "./MapModeToggle";
-import { modeStore, type MapMode } from "./mapMode";
+import MapColourToggle from "./MapColourToggle";
+import ReportPanel from "./ReportPanel";
+import { colourStore, modeStore, type MapMode } from "./mapMode";
 import { Link } from "@/i18n/navigation";
 
 /**
@@ -323,6 +326,32 @@ const dotColor = [
   ]),
 ] as unknown as ExpressionSpecification;
 
+/**
+ * Report type -> colour for an aggregated cell.
+ *
+ * A cell holds many reports, so "its type" is whichever dominates. Below a
+ * two-thirds majority it is drawn neutral instead: a cell that is half roadkill
+ * and half sightings has no colour that is honest, and picking the winner by one
+ * report would paint a strong claim onto a coin flip.
+ */
+const MIXED = "#94a3b8";
+const MIXED_BELOW = 0.667;
+
+const groupColor: ExpressionSpecification = [
+  "case",
+  ["<", ["coalesce", ["get", "top_share"], 1], MIXED_BELOW],
+  MIXED,
+  [
+    "match",
+    ["get", "top_group"],
+    ...REPORT_GROUP_KEYS.flatMap(
+      (g) =>
+        [g, CATEGORIES[categoriesIn(g)[0]].color] as [string, string],
+    ),
+    MIXED,
+  ],
+] as unknown as ExpressionSpecification;
+
 /** Category -> colour, as a MapLibre `match` expression. */
 const categoryColor: ExpressionSpecification = [
   "match",
@@ -370,6 +399,8 @@ export default function HeatmapView({
   const [ready, setReady] = useState(false);
   const [filter, setFilter] = useState<MapFilter>(initialFilter ?? {});
   const [hint, setHint] = useState<string | null>(null);
+  /** The report whose details are open beside the map, if any. */
+  const [selected, setSelected] = useState<string | null>(null);
   // See mapMode.ts for why this is a store rather than useState.
   const mode = useSyncExternalStore(
     modeStore.subscribe,
@@ -377,6 +408,12 @@ export default function HeatmapView({
     modeStore.getServer,
   );
   const setMode = modeStore.set;
+  const colour = useSyncExternalStore(
+    colourStore.subscribe,
+    colourStore.get,
+    colourStore.getServer,
+  );
+  const setColour = colourStore.set;
   // The initial camera is read exactly once. Making it a dependency of the init
   // effect would mean a later navigation could yank the map away from wherever
   // the user has since panned to.
@@ -687,24 +724,17 @@ export default function HeatmapView({
         setReady(true);
       }
 
+      // A click on an individual report opens the panel rather than a popup.
+      // A popup is a label anchored to a moving point; the photograph and the
+      // details the team asked for need a surface that stays still and can
+      // scroll. The id rides in the tile already.
       map.on("click", POINT_LAYER, (e) => {
         const feat = e.features?.[0];
         if (!feat) return;
-        const p = feat.properties as Record<string, unknown>;
-        const cat = String(p.category ?? "") as Category;
-        const tr = tRef.current;
-        const label = cat in CATEGORIES ? tr(`categories.${cat}`) : cat;
-        const obscured = p.obscured === true || p.obscured === "true";
-        new ml.Popup({ closeButton: true, maxWidth: "260px" })
-          .setLngLat(e.lngLat)
-          .setHTML(
-            `<div style="font:13px/1.5 system-ui;color:#0b1410">
-               <div style="font-weight:600">${label}</div>
-               <div style="color:#475569">${p.observed_on ?? ""}</div>
-               ${obscured ? `<div style="margin-top:4px;color:#b45309">⚠ ${tr("map.blurred")}</div>` : ""}
-             </div>`,
-          )
-          .addTo(map);
+        const id = String(
+          (feat.properties as Record<string, unknown>).id ?? "",
+        );
+        if (id) setSelected(id);
       });
 
       // Cells are readable, which the old heatmap could not be. A kernel density
@@ -713,20 +743,30 @@ export default function HeatmapView({
       // is a real feature with a real count, so it can answer "how many?".
       for (const layer of [CELL_LAYER, DOT_LAYER])
         map.on("click", layer, (e) => {
+          // The aggregated cells are drawn past the handoff zoom while the real
+          // points fade in over them, so one click used to land on both: a
+          // detail panel and a "zoom in for individual records" popup, at a zoom
+          // where the individual records were already on screen. The specific
+          // record wins over the cell it happens to sit in.
+          if (map.queryRenderedFeatures(e.point, { layers: [POINT_LAYER] }).length)
+            return;
           const feat = e.features?.[0];
           if (!feat) return;
           const n = Number(feat.properties?.weight ?? 0);
           if (!Number.isFinite(n) || n <= 0) return;
           const tr = tRef.current;
-          const km =
-            Math.round(aggregationCellMeters(Math.floor(map.getZoom())) / 100) /
-            10;
+          const metres = aggregationCellMeters(Math.floor(map.getZoom()));
+          const km = Math.round(metres / 100) / 10;
           new ml.Popup({ closeButton: true, maxWidth: "220px" })
             .setLngLat(e.lngLat)
             .setHTML(
               `<div style="font:13px/1.5 system-ui;color:#0b1410">
                <div style="font-weight:600">${tr("map.cellCount", { count: n.toLocaleString() })}</div>
-               <div style="color:#475569">${tr("map.cellSize", { km })}</div>
+               <div style="color:#475569">${
+                 km >= 1
+                   ? tr("map.cellSize", { km })
+                   : tr("map.cellSizeM", { m: Math.round(metres) })
+               }</div>
                <div style="margin-top:4px;color:#475569">${tr("map.zoomHint")}</div>
              </div>`,
             )
@@ -827,6 +867,27 @@ export default function HeatmapView({
     // source of truth for the same value.
   }, [mode, ready]);
 
+  /* ---- colour: how many, or what kind ---- */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    // Both properties ride in the same tile as `weight`, so this is a repaint
+    // rather than a refetch — the same reason the mode flip above is free.
+    //
+    // The individual points at high zoom are not touched: one report has no
+    // density to express, so they are coloured by type in both settings.
+    map.setPaintProperty(
+      CELL_LAYER,
+      "fill-color",
+      colour === "type" ? groupColor : densityStep,
+    );
+    map.setPaintProperty(
+      DOT_LAYER,
+      "circle-color",
+      colour === "type" ? groupColor : dotColor,
+    );
+  }, [colour, ready]);
+
   /* ---- filters: repoint the source, which re-keys the CDN cache too ---- */
   useEffect(() => {
     const map = mapRef.current;
@@ -841,7 +902,7 @@ export default function HeatmapView({
     // Depending on the individual fields rather than the `filter` object avoids
     // re-running on every render just because the object identity changed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, filter.category, filter.taxonId, filter.from, filter.to]);
+  }, [ready, filter.group, filter.taxonId, filter.from, filter.to]);
 
   return (
     <div className="relative h-full w-full">
@@ -908,12 +969,26 @@ export default function HeatmapView({
       {/* Mode toggle + legend. Kept clear of the attribution bar, which is
           bottom-right and had been cutting the legend's caption off. */}
       {!presentation && (
-        <div className="pointer-events-auto absolute bottom-16 right-3 sm:bottom-12 sm:right-4">
+        <div
+          className={`pointer-events-auto absolute bottom-16 right-3 sm:bottom-12 ${
+            // The panel takes the right edge on a wide screen, so the legend
+            // steps aside. On a phone it takes the bottom half, where the legend
+            // lives and where there is nowhere to step to — so the legend gives
+            // way entirely: the record someone asked to see outranks a key to
+            // colours they can still read once they close it.
+            selected ? "hidden sm:block sm:right-[21rem]" : "sm:right-4"
+          }`}
+        >
           <div className="rounded-lg border border-parchment-200/15 bg-bark-900/92 px-3 py-2 text-[11px] text-parchment-300 backdrop-blur">
-            <MapModeToggle mode={mode} onChange={setMode} className="mb-2" />
+            <MapModeToggle mode={mode} onChange={setMode} className="mb-1.5" />
+            <MapColourToggle
+              colour={colour}
+              onChange={setColour}
+              className="mb-2"
+            />
 
             <div className="mb-1 font-medium text-parchment-200">
-              {t("map.density")}
+              {colour === "type" ? t("map.reportType") : t("map.density")}
             </div>
 
             {/* Swatches with real counts, not a gradient bar. The gradient was
@@ -921,6 +996,38 @@ export default function HeatmapView({
                 another but had no way to recover a number. In dots mode the same
                 classes are shown at their actual circle size, so the legend
                 explains both channels the symbol uses. */}
+            {colour === "type" ? (
+              /* The three the form offers, plus the cell that is not mostly any
+                 of them. Grey is a real answer here, not a fallback. */
+              <ul className="space-y-0.5">
+                {REPORT_GROUP_KEYS.map((g) => (
+                  <li key={g} className="flex items-center gap-1.5">
+                    <span className="flex w-4 shrink-0 justify-center">
+                      <span
+                        aria-hidden
+                        className="size-2.5 rounded-full"
+                        style={{
+                          background: CATEGORIES[categoriesIn(g)[0]].color,
+                        }}
+                      />
+                    </span>
+                    <span className="text-parchment-300">
+                      {t(`report.group.${g}`)}
+                    </span>
+                  </li>
+                ))}
+                <li className="flex items-center gap-1.5">
+                  <span className="flex w-4 shrink-0 justify-center">
+                    <span
+                      aria-hidden
+                      className="size-2.5 rounded-full"
+                      style={{ background: MIXED }}
+                    />
+                  </span>
+                  <span className="text-parchment-300">{t("map.mixed")}</span>
+                </li>
+              </ul>
+            ) : (
             <ul className="space-y-0.5">
               {DENSITY_CLASSES.map((c, i) => {
                 const max = densityClassMax(i);
@@ -962,11 +1069,16 @@ export default function HeatmapView({
                 );
               })}
             </ul>
+            )}
             <div className="mt-1 border-t border-parchment-200/10 pt-1 text-[10px] text-parchment-500">
-              {t("map.perCell")}
+              {colour === "type" ? t("map.typePerCell") : t("map.perCell")}
             </div>
           </div>
         </div>
+      )}
+
+      {selected && !presentation && (
+        <ReportPanel key={selected} id={selected} onClose={() => setSelected(null)} />
       )}
 
       {hint && !presentation && (
