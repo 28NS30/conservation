@@ -5,9 +5,12 @@ import { useTranslations, useLocale } from "next-intl";
 import {
   listQueued,
   removeQueued,
+  purgeUploaded,
+  isPending,
   requestPersistence,
   type QueuedReport,
 } from "@/lib/offline/queue";
+import { Link } from "@/i18n/navigation";
 import { flushQueue, startFlushTriggers } from "@/lib/offline/flush";
 import Turnstile from "@/components/report/Turnstile";
 import { turnstileEnabled } from "@/lib/turnstile";
@@ -34,12 +37,16 @@ export default function QueueBanner() {
   const t = useTranslations("offline");
   const locale = useLocale();
   const [items, setItems] = useState<QueuedReport[]>([]);
+  /** Reports that have landed, kept as receipts. See markUploaded. */
+  const [sent, setSent] = useState<QueuedReport[]>([]);
   const [busy, setBusy] = useState(false);
   const [justSent, setJustSent] = useState(0);
   const [stale, setStale] = useState(false);
   const [ready, setReady] = useState(!turnstileEnabled);
 
   const STALE_AFTER_MS = 3 * 24 * 3600 * 1000;
+  /** How long a "sent" receipt survives. Long enough to come down off a hill. */
+  const RECEIPT_TTL_MS = 24 * 3600 * 1000;
   /** How long a flush waits for the widget before holding a report back. */
   const TOKEN_WAIT_MS = 15_000;
 
@@ -49,12 +56,17 @@ export default function QueueBanner() {
   const autoFlushedRef = useRef(false);
 
   const refresh = useCallback(async () => {
-    const queued = await listQueued();
-    setItems(queued);
+    // Receipts are kept for a day so a reporter who closes the app on a
+    // mountain road and opens it in town still sees that their report went.
+    await purgeUploaded(RECEIPT_TTL_MS);
+    const all = await listQueued();
+    const waiting = all.filter(isPending);
+    setItems(waiting);
+    setSent(all.filter((i) => i.status === "uploaded"));
     // Computed here rather than during render: Date.now() is impure and would
     // make the component's output depend on when it happened to re-render.
-    setStale(queued.some((i) => Date.now() - i.createdAt > STALE_AFTER_MS));
-  }, [STALE_AFTER_MS]);
+    setStale(waiting.some((i) => Date.now() - i.createdAt > STALE_AFTER_MS));
+  }, [STALE_AFTER_MS, RECEIPT_TTL_MS]);
 
   /** Hand out one token, then start minting the next. */
   const getToken = useCallback(async (): Promise<string | undefined> => {
@@ -135,83 +147,102 @@ export default function QueueBanner() {
     };
   }, [refresh, STALE_AFTER_MS, getToken]);
 
-  if (items.length === 0) {
-    if (justSent > 0) {
-      return (
-        <p className="mb-4 rounded-lg border border-ember-500/30 bg-ember-500/10 px-3 py-2 text-xs text-ember-700">
-          {t("sentCount", { count: justSent })}
-        </p>
-      );
-    }
-    return null;
-  }
+  // The team asked for an "uploaded" state, and this is why: a sent report used
+  // to be deleted outright, so the banner it had been sitting in simply
+  // vanished. Someone who queues a report where there is no signal and watches
+  // it go deserves to see that it went, and to be able to open it.
+  const receipts = sent.length > 0 && (
+    <div className="mb-4 rounded-lg border border-ember-500/30 bg-ember-500/10 px-3 py-2 text-xs text-ember-700">
+      <p>{t("sentCount", { count: justSent || sent.length })}</p>
+      <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
+        {sent.map(
+          (r) =>
+            r.reportId && (
+              <li key={r.id}>
+                <Link
+                  href={`/reports/${r.reportId}`}
+                  className="underline decoration-ember-700/30 underline-offset-2"
+                >
+                  {t("viewSent")}
+                </Link>
+              </li>
+            ),
+        )}
+      </ul>
+    </div>
+  );
+
+  if (items.length === 0) return receipts || null;
 
   return (
-    <section className="mb-4 rounded-lg border border-amber-500/30 bg-amber-600/10 px-3 py-2.5">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-medium text-amber-800">
-          {t("waiting", { count: items.length })}
-        </p>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void runFlush()}
-          className="shrink-0 rounded bg-amber-600/15 px-2.5 py-1 text-[11px] font-medium text-amber-900 disabled:opacity-50"
-        >
-          {busy ? t("sending") : t("sendNow")}
-        </button>
-      </div>
-
-      <p className="mt-1 text-[11px] leading-relaxed text-amber-800/70">
-        {t("explain")}
-      </p>
-      {stale && (
-        <p className="mt-1 text-[11px] text-amber-700">{t("staleWarning")}</p>
-      )}
-
-      {turnstileEnabled && (
-        <div className="mt-2">
-          {!ready && (
-            <p className="mb-1 text-[11px] text-amber-800/70">
-              {t("verifying")}
-            </p>
-          )}
-          <Turnstile
-            onToken={onToken}
-            locale={locale}
-            theme="light"
-            onReady={(api) => {
-              resetRef.current = api.reset;
-            }}
-          />
-        </div>
-      )}
-
-      <ul className="mt-2 space-y-1">
-        {items.map((i) => (
-          <li
-            key={i.id}
-            className="flex items-center justify-between gap-3 text-[11px] text-amber-800/80"
+    <>
+      {receipts}
+      <section className="mb-4 rounded-lg border border-amber-500/30 bg-amber-600/10 px-3 py-2.5">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-medium text-amber-800">
+            {t("waiting", { count: items.length })}
+          </p>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void runFlush()}
+            className="shrink-0 rounded bg-amber-600/15 px-2.5 py-1 text-[11px] font-medium text-amber-900 disabled:opacity-50"
           >
-            <span className="truncate">
-              {new Date(i.createdAt).toLocaleString()}
-              {i.lastError && (
-                <span className="ml-2 text-rose-700">{i.lastError}</span>
-              )}
-            </span>
-            <button
-              type="button"
-              onClick={async () => {
-                await removeQueued(i.id);
-                await refresh();
+            {busy ? t("sending") : t("sendNow")}
+          </button>
+        </div>
+
+        <p className="mt-1 text-[11px] leading-relaxed text-amber-800/70">
+          {t("explain")}
+        </p>
+        {stale && (
+          <p className="mt-1 text-[11px] text-amber-700">{t("staleWarning")}</p>
+        )}
+
+        {turnstileEnabled && (
+          <div className="mt-2">
+            {!ready && (
+              <p className="mb-1 text-[11px] text-amber-800/70">
+                {t("verifying")}
+              </p>
+            )}
+            <Turnstile
+              onToken={onToken}
+              locale={locale}
+              theme="light"
+              onReady={(api) => {
+                resetRef.current = api.reset;
               }}
-              className="shrink-0 text-amber-700/70 hover:text-rose-700"
+            />
+          </div>
+        )}
+
+        <ul className="mt-2 space-y-1">
+          {items.map((i) => (
+            <li
+              key={i.id}
+              className="flex items-center justify-between gap-3 text-[11px] text-amber-800/80"
             >
-              {t("discard")}
-            </button>
-          </li>
-        ))}
-      </ul>
-    </section>
+              <span className="truncate">
+                {new Date(i.createdAt).toLocaleString()}
+                {i.lastError && (
+                  <span className="ml-2 text-rose-700">{i.lastError}</span>
+                )}
+              </span>
+              <button
+                type="button"
+                onClick={async () => {
+                  await removeQueued(i.id);
+                  await refresh();
+                }}
+                className="shrink-0 text-amber-700/70 hover:text-rose-700"
+              >
+                {t("discard")}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </>
   );
 }

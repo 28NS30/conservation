@@ -144,6 +144,44 @@ describe("the public role cannot reach true coordinates", () => {
     assert.ok(n > 0, "reports_public should be readable and non-empty");
   });
 
+  test("GPS accuracy is published only beside an exact coordinate", async () => {
+    // The obscuring stack moves a sensitive species' point by up to 50 km.
+    // Publishing "±12 m" beside that point would not give the location away,
+    // but it would publish a statement about the location that the blur exists
+    // to avoid making — that the true coordinate was measured to within twelve
+    // metres. So the column reads null wherever the point is not exact.
+    await inRollback(async (tx) => {
+      const sensitive = await taxonWhere("sensitivity = '輕度'");
+      const open = await taxonWhere(
+        "sensitivity is null and protected_status is null",
+      );
+
+      for (const [taxonId, precision, expected] of [
+        [open, "exact", 12],
+        [sensitive, "coarse_10km", null],
+      ]) {
+        const [row] = await tx`
+          insert into reports (category, location, location_public, observed_at,
+                               taxon_id, taxon_source, status, source,
+                               location_accuracy_m)
+          values ('sighting',
+                  st_setsrid(st_makepoint(120.9, 23.8), 4326)::geography,
+                  st_setsrid(st_makepoint(120.9, 23.8), 4326)::geography,
+                  now(), ${taxonId}, 'user', 'published', 'user', 12)
+          returning id, location_precision`;
+        assert.equal(row.location_precision, precision, "fixture assumption");
+
+        const [pub] = await tx`
+          select location_accuracy_m from reports_public where id = ${row.id}`;
+        assert.equal(
+          pub.location_accuracy_m,
+          expected,
+          `accuracy beside a ${precision} point`,
+        );
+      }
+    });
+  });
+
   test("reports_public does not expose the true location column", async () => {
     const cols = await sql`
       select column_name from information_schema.columns

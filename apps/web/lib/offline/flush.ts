@@ -2,7 +2,8 @@ import { browserSupabase, PHOTO_BUCKET } from "@/lib/supabase/client";
 import {
   listQueued,
   updateQueued,
-  removeQueued,
+  markUploaded,
+  isPending,
   type QueuedReport,
 } from "./queue";
 import { withBase } from "@/lib/basePath";
@@ -118,7 +119,8 @@ async function sendOne(
     const data = await res.json().catch(() => ({}));
 
     if (res.ok) {
-      await removeQueued(item.id);
+      // Kept as a receipt rather than deleted; see markUploaded.
+      await markUploaded(item.id, String(data.id ?? ""));
       return "sent";
     }
 
@@ -162,11 +164,16 @@ export async function flushQueue(
     let failed = 0;
     let skipped = 0;
 
+    // `remaining` counts work, not receipts: an uploaded row is a record of
+    // something that already succeeded, and counting it would leave the banner
+    // claiming a report was still waiting after it had landed.
+    const pending = async () => (await listQueued()).filter(isPending).length;
+
     if (typeof navigator !== "undefined" && navigator.onLine === false) {
-      return { sent, failed, skipped, remaining: (await listQueued()).length };
+      return { sent, failed, skipped, remaining: await pending() };
     }
 
-    for (const item of await listQueued()) {
+    for (const item of (await listQueued()).filter(isPending)) {
       if (item.status === "failed" && item.attempts >= MAX_ATTEMPTS) continue;
       const outcome = await sendOne(item, getToken);
       if (outcome === "sent") sent++;
@@ -174,7 +181,7 @@ export async function flushQueue(
       else failed++;
     }
 
-    return { sent, failed, skipped, remaining: (await listQueued()).length };
+    return { sent, failed, skipped, remaining: await pending() };
   })();
 
   try {

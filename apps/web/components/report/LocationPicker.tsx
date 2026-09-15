@@ -13,6 +13,16 @@ import {
 
 export type LatLng = { lat: number; lng: number };
 
+/**
+ * A device fix, with the radius the device claims for it.
+ *
+ * Kept separate from LatLng because only one of the two ways to set a location
+ * has an accuracy at all: the browser reports one, and a pin the reporter
+ * dragged onto a map does not. Attaching a number to the second would be
+ * inventing a measurement.
+ */
+export type Fix = LatLng & { accuracyM: number | null };
+
 export default function LocationPicker({
   value,
   onChange,
@@ -129,13 +139,21 @@ export default function LocationPicker({
 export function useGeolocate() {
   const [busy, setBusy] = useState(false);
   const locate = () =>
-    new Promise<LatLng | null>((resolve) => {
+    new Promise<Fix | null>((resolve) => {
       if (!("geolocation" in navigator)) return resolve(null);
       setBusy(true);
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           setBusy(false);
-          resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          resolve({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            // Metres, 95% confidence, per the Geolocation spec. Rounded: the
+            // fractional part of a claimed radius is noise.
+            accuracyM: Number.isFinite(pos.coords.accuracy)
+              ? Math.round(pos.coords.accuracy)
+              : null,
+          });
         },
         () => {
           setBusy(false);

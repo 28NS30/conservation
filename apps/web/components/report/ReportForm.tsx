@@ -54,6 +54,13 @@ export default function ReportForm({
   const [unsure, setUnsure] = useState(false);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [location, setLocation] = useState<LatLng | null>(null);
+  /**
+   * The radius the device claimed, in metres, and only when the device set the
+   * coordinate. A pin the reporter dragged, or one read out of a photo's EXIF,
+   * has no accuracy to report — so every other way of setting the location
+   * clears this rather than leaving a stale number attached to a new point.
+   */
+  const [accuracyM, setAccuracyM] = useState<number | null>(null);
   const [observedAt, setObservedAt] = useState(toLocalInput(new Date()));
   const [notes, setNotes] = useState("");
   const [email, setEmail] = useState("");
@@ -143,6 +150,7 @@ export default function ReportForm({
           category,
           lng: location.lng,
           lat: location.lat,
+          accuracyM: accuracyM ?? undefined,
           observedAt: new Date(observedAt).toISOString(),
           taxonId: species?.id,
           taxonUnknown: unsure || undefined,
@@ -179,6 +187,7 @@ export default function ReportForm({
               category,
               lng: location!.lng,
               lat: location!.lat,
+              accuracyM: accuracyM ?? undefined,
               observedAt: new Date(observedAt).toISOString(),
               taxonId: species?.id,
               taxonUnknown: unsure || undefined,
@@ -399,7 +408,8 @@ export default function ReportForm({
             onClick={async () => {
               const p = await locate();
               if (p) {
-                setLocation(p);
+                setLocation({ lat: p.lat, lng: p.lng });
+                setAccuracyM(p.accuracyM);
                 setExifOffer(null);
               } else {
                 setError(t("tapToAdjust"));
@@ -420,6 +430,7 @@ export default function ReportForm({
                 className="rounded bg-sky-400/20 px-2 py-1 font-medium"
                 onClick={() => {
                   setLocation(exifOffer);
+                  setAccuracyM(null);
                   setExifOffer(null);
                 }}
               >
@@ -438,10 +449,20 @@ export default function ReportForm({
 
         <LocationPicker
           value={location}
-          onChange={setLocation}
+          onChange={(v) => {
+            setLocation(v);
+            setAccuracyM(null);
+          }}
           maptilerKey={maptilerKey}
         />
-        <p className="mt-1.5 text-[11px] text-ink-500">{t("tapToAdjust")}</p>
+        <p className="mt-1.5 text-[11px] text-ink-500">
+          {t("tapToAdjust")}
+          {accuracyM != null && (
+            <span className="ml-1.5 tabular-nums text-ink-400">
+              · {t("accuracy", { m: accuracyM })}
+            </span>
+          )}
+        </p>
       </section>
 
       {/* Details */}

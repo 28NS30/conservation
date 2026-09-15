@@ -114,18 +114,40 @@ const enqueueInPage = async (id) =>
     { id },
   );
 
-const queueCount = () =>
+/**
+ * Rows in the store, by status.
+ *
+ * A sent report is no longer deleted: it stays as an `uploaded` receipt with
+ * its photographs dropped, so the banner can show that it landed and link to
+ * it. So "drained" means nothing is still waiting, not that the store is empty
+ * — and counting rows alone would now pass whether the report had been sent or
+ * was still sitting there.
+ *
+ * The database version is still 1 on purpose. IndexedDB stores structured
+ * clones and enforces no per-field schema, so adding fields to the stored
+ * object needs no upgrade; only a new store or index would.
+ */
+const counts = () =>
   page.evaluate(async () => {
     const db = await new Promise((res) => {
       const r = indexedDB.open("conservation-offline", 1);
       r.onsuccess = () => res(r.result);
     });
-    return new Promise((res) => {
+    const rows = await new Promise((res) => {
       const tx = db.transaction("pendingReports", "readonly");
-      const req = tx.objectStore("pendingReports").count();
+      const req = tx.objectStore("pendingReports").getAll();
       req.onsuccess = () => res(req.result);
     });
+    return {
+      total: rows.length,
+      pending: rows.filter((r) => r.status !== "uploaded").length,
+      receipts: rows.filter((r) => r.status === "uploaded").length,
+      withReportId: rows.filter((r) => r.status === "uploaded" && r.reportId)
+        .length,
+    };
   });
+
+const queueCount = async () => (await counts()).pending;
 
 const dbCount = async (nonce) => {
   const [row] =
@@ -169,7 +191,16 @@ try {
     landed === 1,
     `rows=${landed}`,
   );
-  check("queue is drained", (await queueCount()) === 0);
+  check("nothing is left waiting", (await queueCount()) === 0);
+
+  // The state the team asked for and the queue did not have: a report that
+  // landed says so, and can be opened, instead of silently disappearing.
+  const after_flush = await counts();
+  check(
+    "a sent report leaves a receipt that links to it",
+    after_flush.receipts === 1 && after_flush.withReportId === 1,
+    JSON.stringify(after_flush),
+  );
 
   // --- idempotency ---------------------------------------------------------
   // Re-queue the SAME nonce and flush again; the unique index plus the API's

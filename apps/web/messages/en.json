@@ -139,7 +139,8 @@
     "speciesInvasive": "Invasive",
     "speciesChange": "Change",
     "speciesUnsure": "I'm not sure what it was",
-    "speciesUnsureHint": "Better than a guess. We'll record it as unidentified and the model will still try."
+    "speciesUnsureHint": "Better than a guess. We'll record it as unidentified and the model will still try.",
+    "accuracy": "accurate to about {m} m"
   },
   "detail": {
     "species": "Species",
@@ -265,7 +266,8 @@
     "discard": "Discard",
     "sentCount": "Sent {count} reports.",
     "queueFailed": "Could not save to this device",
-    "verifying": "Checking your browser before sending — this takes a moment."
+    "verifying": "Checking your browser before sending — this takes a moment.",
+    "viewSent": "Open it"
   },
   "errors": {
     "title": "Something went wrong",

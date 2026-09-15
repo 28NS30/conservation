@@ -114,7 +114,8 @@ export async function POST(req: Request) {
         insert into reports (
           category, location, location_public, observed_at, notes,
           status, source, reporter_id, contact_email, flagged_reason,
-          client_nonce, precision_override, taxon_id, taxon_source
+          client_nonce, precision_override, taxon_id, taxon_source,
+          location_accuracy_m
         ) values (
           ${input.category},
           st_setsrid(st_makepoint(${input.lng}, ${input.lat}), 4326)::geography,
@@ -122,7 +123,8 @@ export async function POST(req: Request) {
           ${input.observedAt}, ${input.notes ?? null},
           ${status}, 'user', ${reporterId}, ${input.contactEmail ?? null}, ${flaggedReason},
           ${input.clientNonce}, ${precisionOverride},
-          ${input.taxonId ?? null}, ${taxonSource}
+          ${input.taxonId ?? null}, ${taxonSource},
+          ${input.accuracyM ?? null}
         )
         on conflict (client_nonce) where client_nonce is not null do nothing
         returning id`;

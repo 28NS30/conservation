@@ -181,6 +181,14 @@ export const reportSubmissionSchema = z
     lat: z.number().min(-90).max(90),
     observedAt: z.iso.datetime(),
     /**
+     * The radius the device claimed for its fix, in metres.
+     *
+     * Only ever sent when the coordinate came from `navigator.geolocation`. The
+     * upper bound matches the CHECK in 0010: beyond it the number says nothing a
+     * null does not.
+     */
+    accuracyM: z.coerce.number().int().min(0).max(100_000).optional(),
+    /**
      * What the reporter says it is. Consequential: naming a species is what
      * sets the published location precision, because the trigger derives the
      * blur from that taxon's TaiCOL sensitivity rating. That is the standing
