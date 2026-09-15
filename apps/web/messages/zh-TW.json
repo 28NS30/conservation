@@ -102,7 +102,17 @@
     "published": "已發布至地圖。",
     "viewReport": "查看這筆通報",
     "needChallenge": "請先完成人機驗證",
-    "preparingPhotos": "照片處理中…"
+    "preparingPhotos": "照片處理中…",
+    "group": {
+      "invasive": "外來入侵種",
+      "sighting": "一般目擊",
+      "roadkill": "路殺或受傷"
+    },
+    "conditionLabel": "牠還活著嗎？",
+    "condition": {
+      "roadkill": "已死亡",
+      "injured": "還活著，但受傷"
+    }
   },
   "detail": {
     "species": "物種",
@@ -386,9 +396,8 @@
     "provenanceVia": "經 GBIF 釋出 · CC BY 4.0",
     "ask": "你看到了什麼？",
     "askHint": "選一個，大約一分鐘就能送出，不需要註冊帳號。",
-    "doorRoadkill": "死在路上的動物。",
+    "doorRoadkill": "死在路上的動物，或還活著但受傷的。",
     "doorInvasive": "綠鬣蜥、福壽螺、埃及聖䴉。",
-    "doorInjured": "還活著，但需要幫忙。",
     "doorSighting": "活著、健康，剛好被你看到。",
     "firstTime": "第一次來？先看這是什麼、誰在做",
     "plateTitle": "{count, number} 筆紀錄，就是這座島的形狀。",
