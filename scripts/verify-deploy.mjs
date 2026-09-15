@@ -119,7 +119,7 @@ try {
     body.schemaCurrent === true,
     body.schemaCurrent === true
       ? ""
-      : `missing: ${(body.schemaMissing ?? ["unknown"]).join(", ")} — run npm run db:migrate against production`,
+      : `missing: ${(body.schemaMissing ?? ["unknown"]).join(", ")} — apply them: npm run db:migrate (it explains itself on a database with no migration history)`,
   );
 } catch (e) {
   check("database reachable (/api/health)", false, e.message.slice(0, 60));

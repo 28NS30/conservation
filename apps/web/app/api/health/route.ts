@@ -71,8 +71,9 @@ export async function GET() {
       {
         ok: true,
         // False means this deployment cannot accept a report: the code writes
-        // something the database does not have. Run `npm run db:migrate`
-        // against production.
+        // something the database does not have. `npm run db:migrate` against
+        // that database says what to do — including for one built by the psql
+        // loop in the launch checklist, which has no migration history.
         schemaCurrent: missing.length === 0,
         ...(missing.length ? { schemaMissing: missing } : {}),
         reports: row.reports,
