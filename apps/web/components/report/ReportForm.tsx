@@ -6,7 +6,9 @@ import { withBase } from "@/lib/basePath";
 import { useTranslations, useLocale } from "next-intl";
 import {
   CATEGORIES,
-  CATEGORY_KEYS,
+  REPORT_GROUPS,
+  REPORT_GROUP_KEYS,
+  groupOf,
   MAX_PHOTOS,
   MAX_NOTES,
   type Category,
@@ -39,10 +41,12 @@ export default function ReportForm({
   const t = useTranslations("report");
   const locale = useLocale();
   const tOffline = useTranslations("offline");
-  const tc = useTranslations("categories");
   const [category, setCategory] = useState<Category>(
     initialCategory ?? "roadkill",
   );
+  // Derived, never stored: the group is a view of the category, so the two can
+  // never disagree — including when ?category=injured arrives from a link.
+  const group = groupOf(category);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [location, setLocation] = useState<LatLng | null>(null);
   const [observedAt, setObservedAt] = useState(toLocalInput(new Date()));
@@ -237,31 +241,66 @@ export default function ReportForm({
   return (
     <div className="space-y-6">
       {/* Category */}
+      {/*
+        Three choices, not four. The team's list asks for invasive species,
+        wildlife sighting, and roadkill-or-injured; the last covers two stored
+        categories because an injured animal needs a response and a dead one
+        does not, so the distinction survives as a sub-choice rather than as a
+        fourth button competing with the other three.
+      */}
       <section>
         <h2 className="mb-2 text-sm font-medium text-ink-700">{t("type")}</h2>
         <div className="flex flex-wrap gap-1.5">
-          {CATEGORY_KEYS.map((k) => (
-            <button
-              key={k}
-              type="button"
-              // Which one is chosen was conveyed by fill colour alone, so a
-              // screen reader announced four identical buttons and no state.
-              aria-pressed={category === k}
-              onClick={() => setCategory(k)}
-              className={`flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-medium transition ${
-                category === k
-                  ? "border-ink-900 bg-ink-900 text-paper-50"
-                  : "border-ink-900/12 bg-paper-100/70 text-ink-600 hover:bg-paper-200"
-              }`}
-            >
-              <span
-                className="h-2 w-2 rounded-full"
-                style={{ background: CATEGORIES[k].color }}
-              />
-              {tc(k)}
-            </button>
-          ))}
+          {REPORT_GROUP_KEYS.map((g) => {
+            const first = REPORT_GROUPS[g].categories[0];
+            return (
+              <button
+                key={g}
+                type="button"
+                // Which one is chosen was conveyed by fill colour alone, so a
+                // screen reader announced identical buttons and no state.
+                aria-pressed={group === g}
+                onClick={() => setCategory(first)}
+                className={`flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-medium transition ${
+                  group === g
+                    ? "border-ink-900 bg-ink-900 text-paper-50"
+                    : "border-ink-900/12 bg-paper-100/70 text-ink-600 hover:bg-paper-200"
+                }`}
+              >
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{ background: CATEGORIES[first].color }}
+                />
+                {t(`group.${g}`)}
+              </button>
+            );
+          })}
         </div>
+
+        {REPORT_GROUPS[group].categories.length > 1 && (
+          <div className="mt-3">
+            <h3 className="mb-1.5 text-xs font-medium text-ink-600">
+              {t("conditionLabel")}
+            </h3>
+            <div className="flex flex-wrap gap-1.5">
+              {REPORT_GROUPS[group].categories.map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  aria-pressed={category === k}
+                  onClick={() => setCategory(k)}
+                  className={`rounded-full border px-3 py-1.5 text-xs transition ${
+                    category === k
+                      ? "border-ink-900/70 bg-paper-200 font-medium text-ink-900"
+                      : "border-ink-900/12 bg-paper-100/70 text-ink-600 hover:bg-paper-200"
+                  }`}
+                >
+                  {t(`condition.${k}`)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Photos */}

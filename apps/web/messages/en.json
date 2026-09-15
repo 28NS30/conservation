@@ -102,7 +102,17 @@
     "published": "Published to the map.",
     "viewReport": "View this report",
     "needChallenge": "Complete the check above first",
-    "preparingPhotos": "Processing photos…"
+    "preparingPhotos": "Processing photos…",
+    "group": {
+      "invasive": "Invasive species",
+      "sighting": "Wildlife sighting",
+      "roadkill": "Roadkill or injured"
+    },
+    "conditionLabel": "Was it alive?",
+    "condition": {
+      "roadkill": "Dead",
+      "injured": "Alive, but hurt"
+    }
   },
   "detail": {
     "species": "Species",
@@ -386,9 +396,8 @@
     "provenanceVia": "via GBIF · CC BY 4.0",
     "ask": "What did you see?",
     "askHint": "Pick one. It takes about a minute, and needs no account.",
-    "doorRoadkill": "An animal dead on the road.",
+    "doorRoadkill": "An animal dead on the road, or alive and hurt.",
     "doorInvasive": "Green iguana, apple snail, sacred ibis.",
-    "doorInjured": "Alive, but hurt.",
     "doorSighting": "Alive and well — you just saw it.",
     "firstTime": "First time here? What this is, and who runs it",
     "plateTitle": "{count, number} records, in the shape of the island.",

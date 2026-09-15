@@ -20,14 +20,48 @@ export const CATEGORIES = {
 
 /*
  * `pollution` and `habitat` were retired in September 2026 at the team's
- * request: the form now offers invasive species, wildlife sighting, and
- * roadkill-or-injured, and nothing else. Neither category ever held a single
- * report, so nothing was migrated or lost.
+ * request. Neither category ever held a single report, so nothing was migrated
+ * or lost. The four that remain are what is STORED; what a reporter is offered
+ * is the three groups below.
  *
  * They were also the only two non-classifiable categories, which is why
  * requiresClassification() below now turns entirely on whether a photo was
  * attached.
  */
+
+/**
+ * The three choices a reporter is actually offered, and what each one stores.
+ *
+ * The team's list asks for exactly three at the top of the form: invasive
+ * species, native wildlife sighting, and roadkill or injured. The last covers
+ * two stored categories, because an injured animal implies someone should
+ * respond and a dead one does not — a distinction worth keeping in the data
+ * even when it is one button in the form. Choosing that group reveals a
+ * dead/injured sub-choice; the others have nothing to ask.
+ *
+ * Defined here rather than in the form because the map's toggles are the same
+ * three buckets: if the two drifted apart, the map would filter for something
+ * the form cannot produce.
+ */
+export const REPORT_GROUPS = {
+  invasive: { categories: ["invasive"] },
+  sighting: { categories: ["sighting"] },
+  roadkill: { categories: ["roadkill", "injured"] },
+} as const satisfies Record<string, { categories: readonly Category[] }>;
+
+export type ReportGroup = keyof typeof REPORT_GROUPS;
+export const REPORT_GROUP_KEYS = Object.keys(REPORT_GROUPS) as ReportGroup[];
+
+/** The group a stored category belongs to. */
+export function groupOf(category: Category): ReportGroup {
+  const found = REPORT_GROUP_KEYS.find((g) =>
+    (REPORT_GROUPS[g].categories as readonly Category[]).includes(category),
+  );
+  // Unreachable while REPORT_GROUPS covers CATEGORY_KEYS, which the shared
+  // test asserts — but a category added without a group would otherwise
+  // silently vanish from the form.
+  return found ?? "roadkill";
+}
 
 export type Category = keyof typeof CATEGORIES;
 export const CATEGORY_KEYS = Object.keys(CATEGORIES) as Category[];

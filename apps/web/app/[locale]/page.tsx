@@ -5,7 +5,12 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { sql } from "@/lib/db";
 import { Link } from "@/i18n/navigation";
-import { CATEGORIES, type Category } from "@conservation/shared";
+import {
+  CATEGORIES,
+  REPORT_GROUPS,
+  REPORT_GROUP_KEYS,
+  type Category,
+} from "@conservation/shared";
 import { anniversaryLedger } from "@/lib/stats";
 import Badge from "@/components/brand/Badge";
 import SiteHeader from "@/components/site/SiteHeader";
@@ -42,13 +47,19 @@ async function getStats(): Promise<Stats> {
   return row;
 }
 
-/** The four doors, in the order the form offers them. */
-const DOORS = [
-  { key: "roadkill" as const, copy: "doorRoadkill" },
-  { key: "invasive" as const, copy: "doorInvasive" },
-  { key: "injured" as const, copy: "doorInjured" },
-  { key: "sighting" as const, copy: "doorSighting" },
-];
+/**
+ * The doors, in the order the form offers them.
+ *
+ * Three, not four, and generated from REPORT_GROUPS so that the front page and
+ * the form can never offer different choices. Each links to the group's first
+ * category; the roadkill door's dead/injured sub-choice is asked on the form,
+ * where the answer is in front of the person who saw the animal.
+ */
+const DOORS = REPORT_GROUP_KEYS.map((g) => ({
+  group: g,
+  key: REPORT_GROUPS[g].categories[0],
+  copy: `door${g[0].toUpperCase()}${g.slice(1)}` as const,
+}));
 
 /**
  * The front door.
@@ -94,7 +105,8 @@ export default async function HomePage({
   setRequestLocale(locale);
 
   const t = await getTranslations("home");
-  const tc = await getTranslations("categories");
+  // Door labels come from the form's own strings, so the two cannot drift.
+  const tr = await getTranslations("report");
   const [s, ledger] = await Promise.all([getStats(), anniversaryLedger(10)]);
   const zhFirst = locale.startsWith("zh");
 
@@ -140,9 +152,9 @@ export default async function HomePage({
           {t("askHint")}
         </p>
 
-        <ul className="mt-9 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <ul className="mt-9 grid gap-3 sm:grid-cols-3">
           {DOORS.map((d) => (
-            <li key={d.key}>
+            <li key={d.group}>
               <Link
                 href={`/report?category=${d.key}`}
                 className="flex h-full flex-col rounded-lg border border-ink-900/12 bg-paper-100 transition hover:border-ink-900/30 hover:bg-paper-200/60"
@@ -154,7 +166,7 @@ export default async function HomePage({
                 />
                 <span className="flex flex-1 flex-col gap-1.5 p-4">
                   <span className="text-[17px] font-medium leading-snug text-ink-900">
-                    {tc(d.key)}
+                    {tr(`group.${d.group}`)}
                   </span>
                   <span className="text-[12px] leading-relaxed text-ink-500">
                     {t(d.copy)}
