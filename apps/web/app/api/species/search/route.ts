@@ -3,11 +3,16 @@ import { listSpecies } from "@/lib/species";
 /**
  * Species autocomplete.
  *
- *   GET /api/species/search?q=石虎&filter=all
+ *   GET /api/species/search?q=石虎&filter=all&prefer=native
  *
- * Backs both the species directory and the map's species filter. Reads only
- * public data (see lib/species.ts), so it cannot expose a suppressed taxon's
- * record volume.
+ * Backs the species directory, the map's species filter and the report form's
+ * picker. Reads only public data (see lib/species.ts), so it cannot expose a
+ * suppressed taxon's record volume.
+ *
+ * `prefer=native` orders native species first without excluding anything: the
+ * report form scopes an invasive report to the invasive register, but a wildlife
+ * or roadkill report can legitimately be of a non-native animal, so there the
+ * preference is a ranking and never a wall.
  */
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -18,12 +23,17 @@ export async function GET(req: Request) {
   );
 
   if (!filter) return Response.json({ error: "bad_filter" }, { status: 400 });
+
+  const preferParam = url.searchParams.get("prefer");
+  if (preferParam !== null && preferParam !== "native")
+    return Response.json({ error: "bad_prefer" }, { status: 400 });
+  const preferNative = preferParam === "native";
   // A bare `%%` scan of 66k taxa on every empty keystroke is wasteful and the
   // result is meaningless.
   if (q.length < 1) return Response.json({ results: [] });
   if (q.length > 64) return Response.json({ error: "query_too_long" }, { status: 400 });
 
-  const results = await listSpecies({ q, filter, limit: 12 });
+  const results = await listSpecies({ q, filter, preferNative, limit: 12 });
 
   return Response.json(
     { results },

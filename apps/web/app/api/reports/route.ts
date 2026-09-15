@@ -76,14 +76,35 @@ export async function POST(req: Request) {
     photoCount: photos.length,
   });
 
+  // A named species must exist. The foreign key would catch it, but as a 500
+  // rather than as an answer, and the client can do nothing with a 500.
+  if (input.taxonId) {
+    const [taxon] = await sql<{ id: number }[]>`
+      select id from taxa where id = ${input.taxonId}`;
+    if (!taxon) return Response.json({ error: "taxon_not_found" }, { status: 400 });
+  }
+
+  // Who says so. 'user' is the reporter's own word, which is the same claim as
+  // confirming the classifier's guess later; 'unknown' is the reporter saying
+  // they looked and could not name it. See 0009_reporter_identification.sql.
+  const taxonSource = input.taxonId ? "user" : input.taxonUnknown ? "unknown" : null;
+
   // The core privacy decision.
   //
-  // A classifiable report has no taxon yet, so its sensitivity is unknown. If we
+  // An unidentified report has no taxon, so its sensitivity is unknown. If we
   // published it immediately, a 石虎 (leopard cat) would sit on the public map at
   // its exact coordinate until the classifier caught up. So: hold it as `pending`,
   // AND stamp a conservative precision override, so that even if it is published
   // by some other path it can never appear at full precision unidentified.
-  const awaitingId = requiresClassification(input.category, photos.length);
+  //
+  // A reporter who names the species removes the unknown. The trigger derives
+  // the blur from that taxon's own sensitivity rating on insert, so a protected
+  // species is blurred before the row is visible to anything — there is nothing
+  // left to wait for, and holding it back would only mean that naming the animal
+  // made the report slower to appear.
+  const identified = Boolean(input.taxonId);
+  const classifiable = requiresClassification(input.category, photos.length);
+  const awaitingId = classifiable && !identified;
   const status = awaitingId || flaggedReason ? "pending" : "published";
   const precisionOverride = awaitingId ? UNIDENTIFIED_PRECISION : null;
 
@@ -93,14 +114,15 @@ export async function POST(req: Request) {
         insert into reports (
           category, location, location_public, observed_at, notes,
           status, source, reporter_id, contact_email, flagged_reason,
-          client_nonce, precision_override
+          client_nonce, precision_override, taxon_id, taxon_source
         ) values (
           ${input.category},
           st_setsrid(st_makepoint(${input.lng}, ${input.lat}), 4326)::geography,
           st_setsrid(st_makepoint(${input.lng}, ${input.lat}), 4326)::geography,
           ${input.observedAt}, ${input.notes ?? null},
           ${status}, 'user', ${reporterId}, ${input.contactEmail ?? null}, ${flaggedReason},
-          ${input.clientNonce}, ${precisionOverride}
+          ${input.clientNonce}, ${precisionOverride},
+          ${input.taxonId ?? null}, ${taxonSource}
         )
         on conflict (client_nonce) where client_nonce is not null do nothing
         returning id`;
@@ -120,7 +142,11 @@ export async function POST(req: Request) {
           values (${reportId}, ${p.path}, ${p.bytes}, ${p.contentType})`;
       }
 
-      if (awaitingId) {
+      // Queued even when the reporter named the species: the model's opinion is
+      // worth recording next to theirs, and the job no longer overwrites a human
+      // identification. It is also what puts candidate rows in `classifications`,
+      // which is the set confirmSpecies is constrained to.
+      if (classifiable) {
         await tx`insert into classification_jobs (report_id) values (${reportId})`;
       }
 

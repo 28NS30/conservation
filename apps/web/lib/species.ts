@@ -149,12 +149,28 @@ export async function getSpecies(id: number): Promise<SpeciesDetail | null> {
 export async function listSpecies(opts: {
   q?: string;
   filter?: "recorded" | "all" | "invasive" | "protected" | "endemic";
+  /**
+   * Order native species first without excluding anything else.
+   *
+   * For the report form: someone naming a wildlife sighting almost always means
+   * a native species, but a roadkill victim is very often not one — feral
+   * pigeons and mynas account for 1,341 of our records. Ranking gets the common
+   * case to the top; excluding would hide the animal in front of the reporter.
+   */
+  preferNative?: boolean;
   limit?: number;
   offset?: number;
 }): Promise<SpeciesSummary[]> {
-  const { q, filter = "recorded", limit = 60, offset = 0 } = opts;
+  const {
+    q,
+    filter = "recorded",
+    preferNative = false,
+    limit = 60,
+    offset = 0,
+  } = opts;
+  const term = q ?? null;
   const like = q ? `%${q}%` : null;
-  const exact = q ? [q] : null;
+  const prefix = q ? `${q}%` : null;
 
   return asPublic(
     (tx) => tx<SpeciesSummary[]>`
@@ -171,12 +187,44 @@ export async function listSpecies(opts: {
            ${like}::text is null
            or t.scientific_name ilike ${like}
            or t.common_name_zh like ${like}
-           or t.alt_names_zh && ${exact}::text[]
+           -- Matched with LIKE rather than array overlap, which only ever
+           -- matched a whole alternate name. TaiCOL stores the iguana as 綠鬛蜥
+           -- and 綠鬣蜥 only as an alternate, so typing the spelling our own
+           -- front page uses found the species and typing part of it found
+           -- nothing at all.
+           or exists (
+             select 1 from unnest(t.alt_names_zh) a where a like ${like}
+           )
          )
-       -- Species with records first: someone searching 石虎 wants the page with
-       -- data, not an arbitrary synonym entry that has none.
-       order by (s.report_count is null), s.report_count desc nulls last,
-                t.common_name_zh nulls last, t.scientific_name
+       -- Relevance first, and it has to be: searching 石虎 returned 豹貓 (its own
+       -- alternate name) and 前鰭吻鮋 above the species actually called 石虎,
+       -- because the only ordering was by record count. That is tolerable in a
+       -- directory and useless in a picker, where the reporter types the name of
+       -- the animal in front of them and expects it first.
+       order by
+         case
+           when ${term}::text is null then 3
+           when t.common_name_zh = ${term}
+             or t.scientific_name ilike ${term}
+             -- An exact alternate name counts as exact, not as a lesser match.
+             -- 石虎 is the common name of the subspecies euptilurus and an
+             -- alternate for the species itself, which is the row holding all
+             -- 46,334 records; ranking the exact common name above it sent a
+             -- reporter to a page with nothing on it. Tie broken by records
+             -- below, which is the only evidence we have about which name is
+             -- actually used for which taxon.
+             or exists (select 1 from unnest(t.alt_names_zh) a where a = ${term})
+             then 0
+           when t.common_name_zh like ${prefix} or t.scientific_name ilike ${prefix} then 1
+           else 2
+         end,
+         (${preferNative}::boolean and t.alien_type is distinct from 'native'),
+         (s.report_count is null), s.report_count desc nulls last,
+         -- Among equally-exact, equally-recorded matches, the taxon actually
+         -- called that comes before one that merely lists it as an alternate:
+         -- 石虎 is also an alternate name for 前鰭吻鮋, a scorpionfish.
+         (t.common_name_zh is distinct from ${term}),
+         t.common_name_zh nulls last, t.scientific_name
        limit ${limit} offset ${offset}`,
   );
 }

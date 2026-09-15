@@ -112,7 +112,17 @@
     "condition": {
       "roadkill": "Dead",
       "injured": "Alive, but hurt"
-    }
+    },
+    "species": "Species",
+    "speciesSearch": "Search by name — 石虎, leopard cat, Prionailurus",
+    "speciesSearchInvasive": "Search the invasive species register",
+    "speciesResults": "{count, plural, =0 {No species found} one {# species} other {# species}}",
+    "speciesNoHits": "Nothing by that name.",
+    "speciesWiden": "Not what you saw? Search all species",
+    "speciesInvasive": "Invasive",
+    "speciesChange": "Change",
+    "speciesUnsure": "I'm not sure what it was",
+    "speciesUnsureHint": "Better than a guess. We'll record it as unidentified and the model will still try."
   },
   "detail": {
     "species": "Species",

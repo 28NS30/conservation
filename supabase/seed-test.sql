@@ -64,6 +64,29 @@ update taxa set alt_names_zh = array['箕作氏攀蜥','斯氏攀蜥']
 update taxa set alt_names_zh = array['錦蛇','黑眉曙蛇','黃長蟲','臺灣黑眉錦蛇']
  where scientific_name = 'Elaphe taeniura';
 
+-- The three species the report form's picker is built around, added by hand in
+-- September 2026 when that picker landed. Each pins a different property of the
+-- search, and none of them could be reached from the generated slice.
+--
+--   Iguana iguana        TaiCOL's own name for it is 綠鬛蜥; the spelling used
+--                        everywhere else, 綠鬣蜥 — including on our front page —
+--                        exists only as an alternate name.
+--   Pomacea canaliculata an invasive with a Chinese name shared by several
+--                        non-invasive relatives, so `filter=invasive` has
+--                        something to exclude.
+--   P. b. euptilurus     a subspecies whose own common name, 石虎, is an
+--                        alternate name of the species above it. The species is
+--                        the row with every record; ranking the exact common
+--                        name first sent a reporter to an empty page.
+insert into taxa (id,taicol_id,scientific_name,common_name_zh,rank,kingdom,phylum,class,"order",family,is_in_taiwan,is_endemic,alien_type,is_invasive,protected_status,sensitivity,bioclip_prompt) values
+  (36472,'t0036472','Pomacea canaliculata','福壽螺','Species','Animalia','Mollusca','Gastropoda','Mesogastropoda','Ampullariidae',true,false,'invasive',true,NULL,NULL,'a photo of Animalia Mollusca Gastropoda Mesogastropoda Ampullariidae Pomacea canaliculata.'),
+  (66185,'t0066185','Iguana iguana','綠鬛蜥','Species','Animalia','Chordata','Reptilia','Squamata','Iguanidae',true,false,'invasive',true,NULL,NULL,'a photo of Animalia Chordata Reptilia Squamata Iguanidae Iguana iguana.'),
+  (105762,'t0105762','Prionailurus bengalensis euptilurus','石虎','Subspecies','Animalia','Chordata','Mammalia','Carnivora','Felidae',true,false,'native',false,'I',NULL,'a photo of Animalia Chordata Mammalia Carnivora Felidae Prionailurus bengalensis euptilurus.')
+on conflict (id) do nothing;
+
+update taxa set alt_names_zh = array['綠鬣蜥','美洲綠鬣蜥'] where id = 66185;
+update taxa set alt_names_zh = array['華南豹貓'] where id = 105762;
+
 select setval(pg_get_serial_sequence('taxa','id'), (select max(id) from taxa));
 
 insert into reports (id, category, location, location_public, observed_at, taxon_id,
@@ -740,3 +763,17 @@ insert into taxa (id,taicol_id,scientific_name,common_name_zh,rank,kingdom,phylu
 insert into taxa (id,taicol_id,scientific_name,common_name_zh,rank,kingdom,phylum,class,"order",family,is_in_taiwan,is_endemic,alien_type,is_invasive,bioclip_prompt) values
   (27073,'t0027073','Bothrogonia ferruginea','黑尾大葉蟬','Species','Animalia','Arthropoda','Insecta','Hemiptera','Cicadellidae',true,false,'native',false,'a photo of Animalia Arthropoda Insecta Hemiptera Cicadellidae Bothrogonia ferruginea.')
   on conflict (id) do nothing;
+
+-- Leopard cat records. The sampler picks 600 reports evenly across the whole
+-- date range and happened to catch none of these, which left 石虎 — the species
+-- the privacy tests name and the one this project most exists to protect —
+-- present in the checklist with nothing recorded. The search ranks a taxon with
+-- records above one without, so without these the subspecies named 石虎 beat the
+-- species that holds every leopard cat record, in CI only.
+insert into reports (id, category, location, location_public, observed_at, taxon_id,
+                     taxon_source, status, source, source_id, license, rights_holder) values
+  ('330c07e7-9385-4173-b72d-6822450dfd44'::uuid, 'roadkill', st_setsrid(st_makepoint(120.85090,24.62544),4326)::geography, st_setsrid(st_makepoint(120.85090,24.62544),4326)::geography, '2013-04-07 00:00:00+00', 32116, 'imported', 'published', 'gbif', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:5024', 'http://creativecommons.org/licenses/by/4.0/legalcode', 'Taiwan Biodiversity Research Institute (臺灣生物多樣性研究所)'),
+  ('4687b755-7a2e-4466-aaf2-7796fe4af1b6'::uuid, 'roadkill', st_setsrid(st_makepoint(120.85929,24.63888),4326)::geography, st_setsrid(st_makepoint(120.85929,24.63888),4326)::geography, '2013-10-15 00:00:00+00', 32116, 'imported', 'published', 'gbif', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:11236', 'http://creativecommons.org/licenses/by/4.0/legalcode', 'Taiwan Biodiversity Research Institute (臺灣生物多樣性研究所)'),
+  ('d6b7cd65-b6d0-4e2c-8179-1e1bc9dbb1ba'::uuid, 'roadkill', st_setsrid(st_makepoint(120.73720,23.83506),4326)::geography, st_setsrid(st_makepoint(120.73720,23.83506),4326)::geography, '2014-08-29 00:00:00+00', 32116, 'imported', 'published', 'gbif', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14428', 'http://creativecommons.org/licenses/by/4.0/legalcode', 'Taiwan Biodiversity Research Institute (臺灣生物多樣性研究所)'),
+  ('b14628a3-6647-4835-ba5d-d6348d5e8335'::uuid, 'roadkill', st_setsrid(st_makepoint(120.74440,23.83303),4326)::geography, st_setsrid(st_makepoint(120.74440,23.83303),4326)::geography, '2014-11-12 00:00:00+00', 32116, 'imported', 'published', 'gbif', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19519', 'http://creativecommons.org/licenses/by/4.0/legalcode', 'Taiwan Biodiversity Research Institute (臺灣生物多樣性研究所)')
+on conflict (id) do nothing;
