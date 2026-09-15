@@ -111,6 +111,33 @@ export function isInTaiwanBounds(lng: number, lat: number): boolean {
 }
 
 /* ------------------------------------------------------------------ *
+ * Taxa
+ * ------------------------------------------------------------------ */
+
+/**
+ * Which of the four habitat flags are KNOWN, as distinct from known-false.
+ *
+ * 3,338 Taiwan species have all four columns NULL, and filtering on
+ * truthiness made "we have no habitat data" and "it lives in none of these"
+ * render identically. They are different claims and only one is worth printing.
+ *
+ * Lives here rather than in the web app's `lib/species.ts` because the map's
+ * report panel is a client component: importing it from there pulled `lib/db`,
+ * and so the Postgres driver, into the browser bundle, and the map page stopped
+ * building.
+ */
+export function habitatKnown(s: {
+  isTerrestrial: boolean | null;
+  isFreshwater: boolean | null;
+  isBrackish: boolean | null;
+  isMarine: boolean | null;
+}): boolean {
+  return [s.isTerrestrial, s.isFreshwater, s.isBrackish, s.isMarine].some(
+    (v) => v !== null,
+  );
+}
+
+/* ------------------------------------------------------------------ *
  * Location disclosure
  * ------------------------------------------------------------------ */
 

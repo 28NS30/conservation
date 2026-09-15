@@ -146,7 +146,6 @@
     "notYetIdentified": "尚未辨識",
     "notes": "備註",
     "location": "位置",
-    "protected": "保育 {level}",
     "aiSuggested": "AI 建議",
     "blurredNotice": "此物種屬敏感或保育類，座標已{precision}後才公開，以避免成為盜獵線索。",
     "suggestions": "AI 建議",
@@ -252,7 +251,12 @@
       "I": "瀕臨絕種野生動物",
       "II": "珍貴稀有野生動物",
       "III": "其他應予保育之野生動物"
-    }
+    },
+    "habitatLabel": "棲地",
+    "cardRecords": "紀錄",
+    "cardRecordCount": "{count, plural, =0 {尚無紀錄} other {# 筆}}",
+    "cardPeak": "最常出現在{month}",
+    "seeAllRecords": "查看這個物種的所有紀錄"
   },
   "offline": {
     "queuedTitle": "已存到裝置，等待送出",
