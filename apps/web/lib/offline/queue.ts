@@ -33,6 +33,17 @@ export type QueuedReport = {
     lng: number;
     lat: number;
     observedAt: string;
+    /**
+     * How good the device said the fix was, in metres.
+     *
+     * Asked for by name in the team's field list, and it is the difference
+     * between a 20 m reading under open sky and a 2 km one in a valley — a
+     * record whose coordinate cannot be trusted to a kilometre is a different
+     * record. Carried only when the coordinate came from the device: a pin the
+     * reporter dragged has no accuracy to report, and inventing one would be
+     * worse than leaving it empty.
+     */
+    accuracyM?: number;
     /** What the reporter named at capture time, if anything. */
     taxonId?: number;
     /** They looked and could not name it. See reportSubmissionSchema. */
@@ -45,8 +56,21 @@ export type QueuedReport = {
   uploadedPaths: string[];
   attempts: number;
   lastError?: string;
-  status: "queued" | "sending" | "failed";
+  /**
+   * The team asked for pending, uploading, uploaded and failed. The first three
+   * are `queued`, `sending` and `uploaded`; the missing one was `uploaded`,
+   * because a sent report was deleted outright and the banner it had been
+   * sitting in simply vanished. Someone who queues a report on a mountain road
+   * and watches it go deserves to see that it went.
+   */
+  status: "queued" | "sending" | "uploaded" | "failed";
+  /** Set once accepted, so the banner can link to the published record. */
+  reportId?: string;
+  sentAt?: number;
 };
+
+/** Still to send. `uploaded` rows are receipts, not work. */
+export const isPending = (r: QueuedReport) => r.status !== "uploaded";
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
 
@@ -95,6 +119,36 @@ export async function updateQueued(id: string, patch: Partial<QueuedReport>): Pr
 
 export async function removeQueued(id: string): Promise<void> {
   await (await db()).delete(STORE, id);
+}
+
+/**
+ * Accepted. Keep the receipt, drop the payload.
+ *
+ * The photographs are the whole weight of a queued report and they are on the
+ * server now, so holding them to show a tick would trade the user's storage for
+ * a line of text. The row that remains is an id, a timestamp and a link.
+ */
+export async function markUploaded(id: string, reportId: string): Promise<void> {
+  const conn = await db();
+  const existing = (await conn.get(STORE, id)) as QueuedReport | undefined;
+  if (!existing) return;
+  await conn.put(STORE, {
+    ...existing,
+    status: "uploaded",
+    reportId,
+    sentAt: Date.now(),
+    photos: [],
+    lastError: undefined,
+  });
+}
+
+/** Drop receipts older than `maxAgeMs`. Called on load; nothing else expires. */
+export async function purgeUploaded(maxAgeMs: number): Promise<void> {
+  const conn = await db();
+  for (const r of (await conn.getAll(STORE)) as QueuedReport[]) {
+    if (r.status === "uploaded" && Date.now() - (r.sentAt ?? 0) > maxAgeMs)
+      await conn.delete(STORE, r.id);
+  }
 }
 
 export async function queueSize(): Promise<number> {

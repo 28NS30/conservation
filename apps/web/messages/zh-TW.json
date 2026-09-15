@@ -139,7 +139,8 @@
     "speciesInvasive": "入侵種",
     "speciesChange": "更改",
     "speciesUnsure": "我不確定那是什麼",
-    "speciesUnsureHint": "這比亂猜好。我們會記錄為未鑑定，模型仍然會嘗試辨識。"
+    "speciesUnsureHint": "這比亂猜好。我們會記錄為未鑑定，模型仍然會嘗試辨識。",
+    "accuracy": "誤差約 {m} 公尺"
   },
   "detail": {
     "species": "物種",
@@ -269,7 +270,8 @@
     "discard": "刪除",
     "sentCount": "已送出 {count} 筆通報。",
     "queueFailed": "無法存到裝置",
-    "verifying": "送出前正在驗證瀏覽器，請稍候。"
+    "verifying": "送出前正在驗證瀏覽器，請稍候。",
+    "viewSent": "開啟"
   },
   "errors": {
     "title": "發生錯誤",
