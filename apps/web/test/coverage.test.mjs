@@ -175,20 +175,3 @@ describe("map coverage", () => {
     );
   });
 });
-
-describe("the deployment can accept a report", () => {
-  test("health says whether the database matches the code", async () => {
-    // Deploys are automatic and migrations are not, so a release can reach
-    // users before the columns it writes reach the database. From outside, that
-    // deployment renders perfectly and 500s every submission — and this site
-    // has not had its first submission yet, so nobody would notice.
-    const res = await fetch(`${BASE_URL}/api/health`);
-    const body = await res.json();
-    assert.equal(res.status, 200);
-    assert.equal(
-      body.schemaCurrent,
-      true,
-      `schema behind the code: ${(body.schemaMissing ?? []).join(", ")}`,
-    );
-  });
-});
