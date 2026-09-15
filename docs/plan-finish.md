@@ -33,6 +33,8 @@ September 2026. What remains is in G, and none of it is waiting on engineering.
 | #29 | Capture accuracy, and a receipt when a queued report lands    |
 | #30 | The team page, empty until there are people to put on it      |
 | #31 | A deploy that is ahead of its database now says so            |
+| #32 | Three things the receipt change left behind                   |
+| #33 | One migration command that works on the database we have      |
 
 Estimated at roughly 23 engineer-days. The estimate was for a team; what it
 actually cost is not a useful number to carry forward, so it is not recorded
@@ -339,11 +341,22 @@ outcome and the reason each binomial needs a real reviewer.
   that most needs it is 「我不確定那是什麼」 and its note — "we are not sure" has
   to read as honest rather than broken.
 - Whether to keep ranking by native or switch to a hard scope (B5).
-- **Migrations 0009 and 0010 applied to production.** Deploys are automatic and
-  migrations are not, so the live site currently runs code that writes a column
-  and a `taxon_source` value its database may not have — which would 500 every
-  submission, invisibly. `/api/health` now reports this and `verify-deploy` fails
-  on it (#31). The fix is `npm run db:migrate` against `PROD_DIRECT_URL`.
+- **Migrations 0009 and 0010 applied to production.** Confirmed missing on 15
+  September, which means the live site rejects every submission. Deploys are
+  automatic and migrations are not; `/api/health` now reports `schemaCurrent`
+  and `verify-deploy` fails on it (#31). Production has no migration history —
+  it was built by the checklist's psql loop — so the two files are applied
+  directly and then recorded:
+
+  ```
+  psql "$PROD_DIRECT_URL" -v ON_ERROR_STOP=1 \
+    -f supabase/migrations/0009_reporter_identification.sql \
+    -f supabase/migrations/0010_capture_accuracy.sql
+  DATABASE_URL="$PROD_DIRECT_URL" npm run db:migrate -- --baseline
+  ```
+
+  Both files are safe to re-run. After that, `npm run db:migrate` is the whole
+  procedure forever (#33).
 
 And the one that is not a deliverable: **the domain, and the 路殺社 / TBIA
 conversation.** The site is served from a Vercel hostname containing none of the
