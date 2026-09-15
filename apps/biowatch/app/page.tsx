@@ -15,8 +15,8 @@ const CONTACT =
  * third is worth starting.
  */
 export default async function Home() {
-  const habitat = await formosawatchCounts();
-  const list = projects(habitat);
+  const formosa = await formosawatchCounts();
+  const list = projects(formosa);
 
   return (
     <main>

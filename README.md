@@ -1,8 +1,12 @@
-# 生態通報地圖 · Taiwan Conservation Map
+# 福爾摩沙守望計畫 · FormosaWatch
 
-A citizen-science platform for Taiwan: anyone can report roadkill, invasive species,
-pollution, injured wildlife or habitat destruction; an open-source model identifies the
-species; everyone sees a public heatmap.
+A citizen-science platform for Taiwan: anyone can report roadkill, an invasive species,
+an injured animal or a wildlife sighting; an open-source model identifies the species;
+everyone sees a public map. Locations of protected species are coarsened before they are
+published.
+
+Named HabitatWatch until September 2026. FlamaWatch, in Atlántico, Colombia, is a separate
+project that promotes alongside this one; its site is its own.
 
 **Status: M1–M3 complete, bilingual, with species pages and offline submission.** Schema, species checklist, open-data
 seed, vector-tile heatmap, the full reporting flow (submission, photo upload, auth,
@@ -191,8 +195,9 @@ exactly the disclosure the obscuring design exists to prevent.
 So such reports are inserted as `status='pending'` **and** stamped with
 `precision_override='coarse_10km'`. Two independent mechanisms, because this is the failure
 that actually matters: the report is invisible, and even if some future code path published
-it early it still could not appear at full precision. Non-classifiable categories
-(pollution, habitat) publish immediately.
+it early it still could not appear at full precision. A report with no photograph has
+nothing to classify, so it publishes immediately — which is what `requiresClassification()`
+now turns on, since the two non-classifiable categories were retired.
 
 `precision_override` can only ever make a location **coarser** — the trigger takes the most
 conservative of (taxon policy, override), so it can never be used to reveal something the

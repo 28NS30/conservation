@@ -26,7 +26,7 @@ const FLAMAWATCH =
  */
 export async function formosawatchCounts(): Promise<{
   reports: number;
-  taxa: number;
+  species: number;
 } | null> {
   try {
     const res = await fetch(`${FORMOSAWATCH}/api/health`, {
@@ -34,9 +34,12 @@ export async function formosawatchCounts(): Promise<{
       signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) return null;
-    const d = (await res.json()) as { reports?: number; taxa?: number };
+    const d = (await res.json()) as { reports?: number; species?: number };
     if (typeof d.reports !== "number") return null;
-    return { reports: d.reports, taxa: d.taxa ?? 0 };
+    // `species` is the count of taxa we hold records for, added to the health
+    // endpoint for this card. `taxa` is the whole 125k checklist and was never
+    // the right number for a "species recorded" label.
+    return { reports: d.reports, species: d.species ?? 0 };
   } catch {
     return null;
   }
@@ -45,7 +48,7 @@ export async function formosawatchCounts(): Promise<{
 const n = (v: number) => v.toLocaleString("en-US");
 
 export function projects(
-  habitat: { reports: number; taxa: number } | null,
+  formosa: { reports: number; species: number } | null,
 ): Project[] {
   return [
     {
@@ -55,20 +58,20 @@ export function projects(
       latin: "Project FormosaWatch",
       place: "Taiwan",
       href: FORMOSAWATCH,
-      watches: "Roadkill, invasive species and habitat loss.",
+      watches: "Roadkill, invasive species and injured wildlife.",
       body: "Taiwan's roads kill countless animals every year and almost none of it is written down. Anyone can file a report from the roadside; an open model helps identify the species; everything lands on a public map. Locations of protected species are deliberately coarsened before they are published.",
       stats: [
         {
-          value: habitat ? n(habitat.reports) : "46,000+",
+          value: formosa ? n(formosa.reports) : "46,000+",
           label: "public records",
         },
         {
-          value: habitat && habitat.taxa ? "458" : "458",
+          value: formosa && formosa.species ? n(formosa.species) : "450+",
           label: "species recorded",
         },
         { value: "2011–", label: "years covered" },
       ],
-      live: habitat !== null,
+      live: formosa !== null,
       cta: "Open FormosaWatch",
     },
     {
