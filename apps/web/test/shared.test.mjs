@@ -42,16 +42,16 @@ describe("filterToQuery", () => {
   });
 
   test("serialises each filter", () => {
-    const q = new URLSearchParams(filterToQuery({ category: "roadkill", from: "2024-01-01" }));
-    assert.equal(q.get("category"), "roadkill");
+    const q = new URLSearchParams(filterToQuery({ group: "roadkill", from: "2024-01-01" }));
+    assert.equal(q.get("group"), "roadkill");
     assert.equal(q.get("from"), "2024-01-01");
   });
 
   test("distinct filters produce distinct strings", () => {
     // The query string doubles as the CDN cache key, so collisions would serve
     // one filter's tiles for another.
-    const a = filterToQuery({ category: "roadkill" });
-    const b = filterToQuery({ category: "invasive" });
+    const a = filterToQuery({ group: "roadkill" });
+    const b = filterToQuery({ group: "invasive" });
     assert.notEqual(a, b);
   });
 });

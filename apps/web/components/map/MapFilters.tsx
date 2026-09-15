@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   CATEGORIES,
-  CATEGORY_KEYS,
-  type Category,
+  REPORT_GROUPS,
+  REPORT_GROUP_KEYS,
+  type ReportGroup,
   type MapFilter,
 } from "@conservation/shared";
 
@@ -71,8 +72,8 @@ export default function MapFilters({
   // setState in an effect triggers a cascading render.
   const visibleHits = speciesQuery.trim().length >= 1 ? hits : [];
 
-  const pickCategory = (c?: Category) =>
-    onChange({ ...value, category: value.category === c ? undefined : c });
+  const pickGroup = (g?: ReportGroup) =>
+    onChange({ ...value, group: value.group === g ? undefined : g });
 
   const yearOptions = years
     ? Array.from(
@@ -90,11 +91,11 @@ export default function MapFilters({
   };
 
   const yearOf = (iso?: string) => (iso ? iso.slice(0, 4) : "");
-  const active = value.category || value.taxonId || value.from || value.to;
+  const active = value.group || value.taxonId || value.from || value.to;
 
   // How many filters are on, for the collapsed button's badge.
   const activeCount =
-    (value.category ? 1 : 0) +
+    (value.group ? 1 : 0) +
     (value.taxonId ? 1 : 0) +
     (value.from || value.to ? 1 : 0);
 
@@ -131,33 +132,36 @@ export default function MapFilters({
 
       {panelOpen && (
         <div className="flex flex-col gap-1.5 rounded-xl border border-parchment-200/15 bg-bark-900/92 p-2.5 backdrop-blur">
-          {/* Categories */}
+          {/* The three the form offers, generated from the same constant. */}
           <div className="flex max-w-md flex-wrap gap-1.5">
             <button
-              onClick={() => pickCategory(undefined)}
+              onClick={() => pickGroup(undefined)}
               className={`rounded-full border px-3 py-1.5 text-xs font-medium backdrop-blur transition ${
-                !value.category
+                !value.group
                   ? "border-parchment-200/70 bg-parchment-50/90 text-bark-950"
                   : "border-parchment-200/20 bg-bark-900/90 text-parchment-200 hover:bg-bark-800/80"
               }`}
             >
               {t("map.all")}
             </button>
-            {CATEGORY_KEYS.map((k) => (
+            {REPORT_GROUP_KEYS.map((g) => (
               <button
-                key={k}
-                onClick={() => pickCategory(k)}
+                key={g}
+                aria-pressed={value.group === g}
+                onClick={() => pickGroup(g)}
                 className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium backdrop-blur transition ${
-                  value.category === k
+                  value.group === g
                     ? "border-parchment-200/70 bg-parchment-50/90 text-bark-950"
                     : "border-parchment-200/20 bg-bark-900/90 text-parchment-200 hover:bg-bark-800/80"
                 }`}
               >
                 <span
                   className="h-2 w-2 shrink-0 rounded-full"
-                  style={{ background: CATEGORIES[k].color }}
+                  style={{
+                    background: CATEGORIES[REPORT_GROUPS[g].categories[0]].color,
+                  }}
                 />
-                {t(`categories.${k}`)}
+                {t(`report.group.${g}`)}
               </button>
             ))}
           </div>

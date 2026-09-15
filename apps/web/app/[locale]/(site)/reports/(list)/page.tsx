@@ -5,7 +5,8 @@ import { Link } from "@/i18n/navigation";
 import { asPublic } from "@/lib/db";
 import {
   CATEGORIES,
-  CATEGORY_KEYS,
+  REPORT_GROUP_KEYS,
+  categoriesIn,
   filterToQuery,
   mapFilterSchema,
   type Category,
@@ -60,7 +61,6 @@ export default async function ReportsListPage({
   setRequestLocale(locale);
   const sp = await searchParams;
   const rawPage = typeof sp.page === "string" ? sp.page : undefined;
-  const rawCategory = typeof sp.category === "string" ? sp.category : undefined;
   // Parsed with the same schema the map and the tile endpoint use, so the whole
   // filter survives the jump from the map. This page is the accessibility
   // fallback for a canvas nobody can read with a screen reader; if it silently
@@ -73,11 +73,15 @@ export default async function ReportsListPage({
 
   const t = await getTranslations("list");
   const tc = await getTranslations("categories");
+  // The chips are the form's three choices, so they take the form's own words.
+  const tr = await getTranslations("report");
   const tp = await getTranslations("precision");
 
-  const category = (CATEGORY_KEYS as string[]).includes(rawCategory ?? "")
-    ? (rawCategory as Category)
-    : null;
+  // The filter jumps here from the map, so it has to be the same three buckets
+  // the map offers — this page is that map's accessible equivalent, and an
+  // equivalent that filtered differently would not be one.
+  const group = f.group ?? null;
+  const categories = group ? [...categoriesIn(group)] : null;
   const page = Math.max(1, Number(rawPage) || 1);
   const offset = (page - 1) * PAGE_SIZE;
 
@@ -93,7 +97,7 @@ export default async function ReportsListPage({
              t.common_name_zh as "commonNameZh"
         from reports_public rp
         left join taxa t on t.id = rp.taxon_id
-       where (${category}::text is null or rp.category = ${category})
+       where (${categories}::text[] is null or rp.category = any(${categories}))
          and (${taxonId}::bigint is null or rp.taxon_id = ${taxonId})
          and (${from}::date is null or rp.observed_at >= ${from}::date)
          and (${to}::date   is null or rp.observed_at <  (${to}::date + 1))
@@ -150,9 +154,9 @@ export default async function ReportsListPage({
   const showPhotos = thumb.size > 0;
   const zhFirst = locale.startsWith("zh");
 
-  /** Carry every active filter through paging and the category chips. */
+  /** Carry every active filter through paging and the type chips. */
   const activeFilter = filterToQuery({
-    ...(category ? { category } : {}),
+    ...(group ? { group } : {}),
     ...(taxonId ? { taxonId } : {}),
     ...(from ? { from } : {}),
     ...(to ? { to } : {}),
@@ -175,35 +179,37 @@ export default async function ReportsListPage({
         <Link
           href={
             withFilter({})
-              .replace(/([?&])category=[^&]*&?/, "$1")
+              .replace(/([?&])group=[^&]*&?/, "$1")
               .replace(/[?&]$/, "") || "/reports"
           }
-          aria-current={!category ? "page" : undefined}
+          aria-current={!group ? "page" : undefined}
           className={`rounded-full border px-3 py-1.5 text-xs transition ${
-            !category
+            !group
               ? "border-ink-900 bg-ink-900 font-medium text-paper-50"
               : "border-ink-900/12 bg-paper-100/70 text-ink-600 hover:bg-paper-200"
           }`}
         >
           {t("all")}
         </Link>
-        {CATEGORY_KEYS.map((k) => (
+        {REPORT_GROUP_KEYS.map((g) => (
           <Link
-            key={k}
-            href={withFilter({ category: k })}
-            aria-current={category === k ? "page" : undefined}
+            key={g}
+            href={withFilter({ group: g })}
+            aria-current={group === g ? "page" : undefined}
             className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition ${
-              category === k
+              group === g
                 ? "border-ink-900 bg-ink-900 font-medium text-paper-50"
                 : "border-ink-900/12 bg-paper-100/70 text-ink-600 hover:bg-paper-200"
             }`}
           >
             <span
               className="h-2 w-2 rounded-full"
-              style={{ background: CATEGORIES[k].color }}
+              style={{
+                background: CATEGORIES[categoriesIn(g)[0]].color,
+              }}
               aria-hidden
             />
-            {tc(k)}
+            {tr(`group.${g}`)}
           </Link>
         ))}
       </nav>

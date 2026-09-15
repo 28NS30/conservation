@@ -60,7 +60,24 @@
       "dots": "圓點"
     },
     "speciesResults": "{count, number} 個符合的物種",
-    "filters": "篩選"
+    "filters": "篩選",
+    "colourBy": "顏色代表",
+    "colour": {
+      "density": "密度",
+      "type": "類型"
+    },
+    "reportType": "通報類型",
+    "mixed": "混合",
+    "typePerCell": "格內佔多數的通報類型。",
+    "reportPanel": "通報詳情",
+    "closePanel": "關閉",
+    "loading": "載入中…",
+    "panelFailed": "無法載入這筆通報。",
+    "noPhoto": "沒有照片",
+    "unidentified": "尚未鑑定",
+    "openReport": "開啟完整紀錄",
+    "observedOn": "觀察日期",
+    "cellSizeM": "每格約 {m} 公尺"
   },
   "footer": {
     "dataSource": "資料來源",

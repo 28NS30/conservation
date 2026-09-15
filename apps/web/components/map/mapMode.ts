@@ -14,6 +14,18 @@ const MODES: MapMode[] = ["heat", "bins", "dots"];
 const MODE_KEY = "conservation.mapMode";
 
 /**
+ * What the colour means — how many, or what kind.
+ *
+ * A separate axis from the shape above, because they answer different
+ * questions: density says where this is happening, type says what is happening
+ * there, and the map is asked both. Splitting them keeps six useful views out of
+ * two three-item controls instead of one six-item one.
+ */
+export type MapColour = "density" | "type";
+const COLOURS: MapColour[] = ["density", "type"];
+const COLOUR_KEY = "conservation.mapColour";
+
+/**
  * The bins/dots preference, held in localStorage and read through
  * useSyncExternalStore.
  *
@@ -60,6 +72,38 @@ const modeStore = {
   },
 };
 
+/** The same shape as modeStore, for the colour axis. */
+const colourStore = {
+  listeners: new Set<() => void>(),
+  get(): MapColour {
+    try {
+      const v = window.localStorage.getItem(COLOUR_KEY);
+      return v === "type" ? "type" : "density";
+    } catch {
+      return "density"; // private browsing
+    }
+  },
+  getServer(): MapColour {
+    return "density";
+  },
+  set(c: MapColour) {
+    try {
+      window.localStorage.setItem(COLOUR_KEY, c);
+    } catch {
+      // Not persisted, but the in-memory notify below still updates the UI.
+    }
+    for (const l of colourStore.listeners) l();
+  },
+  subscribe(l: () => void) {
+    colourStore.listeners.add(l);
+    window.addEventListener("storage", l);
+    return () => {
+      colourStore.listeners.delete(l);
+      window.removeEventListener("storage", l);
+    };
+  },
+};
+
 /** Subscribe to the shared preference. Returns the current mode and a setter. */
 export function useMapMode(): [MapMode, (m: MapMode) => void] {
   const mode = useSyncExternalStore(
@@ -70,4 +114,13 @@ export function useMapMode(): [MapMode, (m: MapMode) => void] {
   return [mode, modeStore.set];
 }
 
-export { MODES, modeStore };
+export function useMapColour(): [MapColour, (c: MapColour) => void] {
+  const colour = useSyncExternalStore(
+    colourStore.subscribe,
+    colourStore.get,
+    colourStore.getServer,
+  );
+  return [colour, colourStore.set];
+}
+
+export { MODES, modeStore, COLOURS, colourStore };
