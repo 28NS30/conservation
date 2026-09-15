@@ -27,6 +27,10 @@
  * While the roster is empty, /team 404s and nothing links to it. That is
  * deliberate: an empty team page says something worse about a project than no
  * team page at all.
+ *
+ * When the first person is added, add "/team" to app/sitemap.ts. It is left out
+ * while the page 404s, and a page nobody can find is the other way to publish
+ * nothing.
  */
 
 export type TeamGroup = "leadership" | "formosawatch" | "flamawatch";
