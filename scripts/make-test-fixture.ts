@@ -84,6 +84,17 @@ async function main() {
            e.license, e.rights_holder
       from eligible e
      where e.rn % greatest(1, (e.total / ${REPORT_SAMPLE})::int) = 0
+        -- Always keep a few 石虎 records. An even sample across the whole date
+        -- range caught none of them, which left the species the privacy tests
+        -- name present in the checklist with nothing recorded — and the search,
+        -- which ranks a taxon with records first, then put a recordless
+        -- subspecies of the same name above it.
+        or e.id in (
+          select id from reports
+           where taxon_id = (select id from taxa
+                              where scientific_name = 'Prionailurus bengalensis' limit 1)
+           order by observed_at limit 4
+        )
      order by e.observed_at
      limit ${REPORT_SAMPLE}`;
 

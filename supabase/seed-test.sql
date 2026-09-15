@@ -763,3 +763,17 @@ insert into taxa (id,taicol_id,scientific_name,common_name_zh,rank,kingdom,phylu
 insert into taxa (id,taicol_id,scientific_name,common_name_zh,rank,kingdom,phylum,class,"order",family,is_in_taiwan,is_endemic,alien_type,is_invasive,bioclip_prompt) values
   (27073,'t0027073','Bothrogonia ferruginea','黑尾大葉蟬','Species','Animalia','Arthropoda','Insecta','Hemiptera','Cicadellidae',true,false,'native',false,'a photo of Animalia Arthropoda Insecta Hemiptera Cicadellidae Bothrogonia ferruginea.')
   on conflict (id) do nothing;
+
+-- Leopard cat records. The sampler picks 600 reports evenly across the whole
+-- date range and happened to catch none of these, which left 石虎 — the species
+-- the privacy tests name and the one this project most exists to protect —
+-- present in the checklist with nothing recorded. The search ranks a taxon with
+-- records above one without, so without these the subspecies named 石虎 beat the
+-- species that holds every leopard cat record, in CI only.
+insert into reports (id, category, location, location_public, observed_at, taxon_id,
+                     taxon_source, status, source, source_id, license, rights_holder) values
+  ('330c07e7-9385-4173-b72d-6822450dfd44'::uuid, 'roadkill', st_setsrid(st_makepoint(120.85090,24.62544),4326)::geography, st_setsrid(st_makepoint(120.85090,24.62544),4326)::geography, '2013-04-07 00:00:00+00', 32116, 'imported', 'published', 'gbif', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:5024', 'http://creativecommons.org/licenses/by/4.0/legalcode', 'Taiwan Biodiversity Research Institute (臺灣生物多樣性研究所)'),
+  ('4687b755-7a2e-4466-aaf2-7796fe4af1b6'::uuid, 'roadkill', st_setsrid(st_makepoint(120.85929,24.63888),4326)::geography, st_setsrid(st_makepoint(120.85929,24.63888),4326)::geography, '2013-10-15 00:00:00+00', 32116, 'imported', 'published', 'gbif', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:11236', 'http://creativecommons.org/licenses/by/4.0/legalcode', 'Taiwan Biodiversity Research Institute (臺灣生物多樣性研究所)'),
+  ('d6b7cd65-b6d0-4e2c-8179-1e1bc9dbb1ba'::uuid, 'roadkill', st_setsrid(st_makepoint(120.73720,23.83506),4326)::geography, st_setsrid(st_makepoint(120.73720,23.83506),4326)::geography, '2014-08-29 00:00:00+00', 32116, 'imported', 'published', 'gbif', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14428', 'http://creativecommons.org/licenses/by/4.0/legalcode', 'Taiwan Biodiversity Research Institute (臺灣生物多樣性研究所)'),
+  ('b14628a3-6647-4835-ba5d-d6348d5e8335'::uuid, 'roadkill', st_setsrid(st_makepoint(120.74440,23.83303),4326)::geography, st_setsrid(st_makepoint(120.74440,23.83303),4326)::geography, '2014-11-12 00:00:00+00', 32116, 'imported', 'published', 'gbif', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19519', 'http://creativecommons.org/licenses/by/4.0/legalcode', 'Taiwan Biodiversity Research Institute (臺灣生物多樣性研究所)')
+on conflict (id) do nothing;
