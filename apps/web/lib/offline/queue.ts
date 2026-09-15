@@ -33,6 +33,10 @@ export type QueuedReport = {
     lng: number;
     lat: number;
     observedAt: string;
+    /** What the reporter named at capture time, if anything. */
+    taxonId?: number;
+    /** They looked and could not name it. See reportSubmissionSchema. */
+    taxonUnknown?: boolean;
     notes?: string;
     contactEmail?: string;
   };

@@ -112,7 +112,17 @@
     "condition": {
       "roadkill": "已死亡",
       "injured": "還活著，但受傷"
-    }
+    },
+    "species": "物種",
+    "speciesSearch": "輸入名稱搜尋 — 石虎、Prionailurus",
+    "speciesSearchInvasive": "搜尋外來入侵種名錄",
+    "speciesResults": "{count, plural, =0 {查無物種} other {# 個物種}}",
+    "speciesNoHits": "查不到這個名稱。",
+    "speciesWiden": "不是這些？搜尋全部物種",
+    "speciesInvasive": "入侵種",
+    "speciesChange": "更改",
+    "speciesUnsure": "我不確定那是什麼",
+    "speciesUnsureHint": "這比亂猜好。我們會記錄為未鑑定，模型仍然會嘗試辨識。"
   },
   "detail": {
     "species": "物種",

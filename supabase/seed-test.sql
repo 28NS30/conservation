@@ -64,6 +64,29 @@ update taxa set alt_names_zh = array['箕作氏攀蜥','斯氏攀蜥']
 update taxa set alt_names_zh = array['錦蛇','黑眉曙蛇','黃長蟲','臺灣黑眉錦蛇']
  where scientific_name = 'Elaphe taeniura';
 
+-- The three species the report form's picker is built around, added by hand in
+-- September 2026 when that picker landed. Each pins a different property of the
+-- search, and none of them could be reached from the generated slice.
+--
+--   Iguana iguana        TaiCOL's own name for it is 綠鬛蜥; the spelling used
+--                        everywhere else, 綠鬣蜥 — including on our front page —
+--                        exists only as an alternate name.
+--   Pomacea canaliculata an invasive with a Chinese name shared by several
+--                        non-invasive relatives, so `filter=invasive` has
+--                        something to exclude.
+--   P. b. euptilurus     a subspecies whose own common name, 石虎, is an
+--                        alternate name of the species above it. The species is
+--                        the row with every record; ranking the exact common
+--                        name first sent a reporter to an empty page.
+insert into taxa (id,taicol_id,scientific_name,common_name_zh,rank,kingdom,phylum,class,"order",family,is_in_taiwan,is_endemic,alien_type,is_invasive,protected_status,sensitivity,bioclip_prompt) values
+  (36472,'t0036472','Pomacea canaliculata','福壽螺','Species','Animalia','Mollusca','Gastropoda','Mesogastropoda','Ampullariidae',true,false,'invasive',true,NULL,NULL,'a photo of Animalia Mollusca Gastropoda Mesogastropoda Ampullariidae Pomacea canaliculata.'),
+  (66185,'t0066185','Iguana iguana','綠鬛蜥','Species','Animalia','Chordata','Reptilia','Squamata','Iguanidae',true,false,'invasive',true,NULL,NULL,'a photo of Animalia Chordata Reptilia Squamata Iguanidae Iguana iguana.'),
+  (105762,'t0105762','Prionailurus bengalensis euptilurus','石虎','Subspecies','Animalia','Chordata','Mammalia','Carnivora','Felidae',true,false,'native',false,'I',NULL,'a photo of Animalia Chordata Mammalia Carnivora Felidae Prionailurus bengalensis euptilurus.')
+on conflict (id) do nothing;
+
+update taxa set alt_names_zh = array['綠鬣蜥','美洲綠鬣蜥'] where id = 66185;
+update taxa set alt_names_zh = array['華南豹貓'] where id = 105762;
+
 select setval(pg_get_serial_sequence('taxa','id'), (select max(id) from taxa));
 
 insert into reports (id, category, location, location_public, observed_at, taxon_id,

@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import Turnstile, { turnstileEnabled } from "./Turnstile";
 import { withBase } from "@/lib/basePath";
+import SpeciesPicker, { type SpeciesHit } from "./SpeciesPicker";
 import { useTranslations, useLocale } from "next-intl";
 import {
   CATEGORIES,
@@ -47,6 +48,10 @@ export default function ReportForm({
   // Derived, never stored: the group is a view of the category, so the two can
   // never disagree — including when ?category=injured arrives from a link.
   const group = groupOf(category);
+  // What the reporter says it is. `unsure` is a judgement, not an empty field:
+  // it separates "nobody could name this" from "nobody has looked yet".
+  const [species, setSpecies] = useState<SpeciesHit | null>(null);
+  const [unsure, setUnsure] = useState(false);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [location, setLocation] = useState<LatLng | null>(null);
   const [observedAt, setObservedAt] = useState(toLocalInput(new Date()));
@@ -139,6 +144,8 @@ export default function ReportForm({
           lng: location.lng,
           lat: location.lat,
           observedAt: new Date(observedAt).toISOString(),
+          taxonId: species?.id,
+          taxonUnknown: unsure || undefined,
           notes: notes.trim() || undefined,
           contactEmail: email.trim() || undefined,
           photoPaths: paths,
@@ -173,6 +180,8 @@ export default function ReportForm({
               lng: location!.lng,
               lat: location!.lat,
               observedAt: new Date(observedAt).toISOString(),
+              taxonId: species?.id,
+              taxonUnknown: unsure || undefined,
               notes: notes.trim() || undefined,
               contactEmail: email.trim() || undefined,
             },
@@ -302,6 +311,14 @@ export default function ReportForm({
           </div>
         )}
       </section>
+
+      <SpeciesPicker
+        group={group}
+        value={species}
+        onChange={setSpecies}
+        unsure={unsure}
+        onUnsure={setUnsure}
+      />
 
       {/* Photos */}
       <section>

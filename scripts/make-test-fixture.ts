@@ -18,10 +18,15 @@ import { sql } from "./db.ts";
 const OUT = join(dirname(fileURLToPath(import.meta.url)), "..", "supabase", "seed-test.sql");
 const REPORT_SAMPLE = 600;
 
-const lit = (v: unknown) =>
+const lit = (v: unknown): string =>
   v === null || v === undefined ? "NULL" : typeof v === "boolean" || typeof v === "number"
     ? String(v)
-    : `'${String(v).replace(/'/g, "''")}'`;
+    : Array.isArray(v)
+      // Chinese alternate names, which the search matches on and which used to
+      // be patched into the generated file by hand — the one thing in it that a
+      // regeneration silently threw away.
+      ? `array[${v.map(lit).join(",")}]::text[]`
+      : `'${String(v).replace(/'/g, "''")}'`;
 
 async function main() {
   // Taxa the privacy tests depend on by name or property, plus whatever the
@@ -30,6 +35,16 @@ async function main() {
     with wanted as (
       (select id from taxa where scientific_name = 'Paguma larvata' limit 1)
       union (select id from taxa where scientific_name = 'Prionailurus bengalensis' limit 1)
+      -- The species the report form's picker is built around. Each pins a
+      -- different property of the search: the iguana's own TaiCOL name is 綠鬛蜥
+      -- and the spelling everyone else uses is only an alternate; 福壽螺 is an
+      -- invasive sharing a Chinese name with non-invasive relatives; and
+      -- euptilurus is a subspecies whose common name 石虎 is an alternate name
+      -- of the species that holds every leopard cat record.
+      union (select id from taxa where scientific_name = 'Iguana iguana' limit 1)
+      union (select id from taxa where scientific_name = 'Pomacea canaliculata' limit 1)
+      union (select id from taxa
+              where scientific_name = 'Prionailurus bengalensis euptilurus' limit 1)
       union (select id from taxa where sensitivity = '座標不開放' limit 2)
       union (select id from taxa where sensitivity = '重度' limit 2)
       union (select id from taxa where sensitivity = '輕度' limit 3)
@@ -41,7 +56,10 @@ async function main() {
     select t.id, t.taicol_id, t.scientific_name, t.common_name_zh, t.rank,
            t.kingdom, t.phylum, t.class, t."order", t.family,
            t.is_in_taiwan, t.is_endemic, t.alien_type, t.is_invasive,
-           t.protected_status, t.sensitivity, t.bioclip_prompt
+           t.protected_status, t.sensitivity, t.alt_names_zh,
+           -- Conservation codes. Patched into the generated file by hand in #21
+           -- and, like the alternate names, thrown away by the next run.
+           t.iucn, t.redlist, t.cites, t.bioclip_prompt
       from taxa t join wanted w on w.id = t.id
      where t.id is not null
      order by t.id`;
@@ -72,7 +90,8 @@ async function main() {
   const taxaCols = [
     "id","taicol_id","scientific_name","common_name_zh","rank","kingdom","phylum","class",
     '"order"',"family","is_in_taiwan","is_endemic","alien_type","is_invasive",
-    "protected_status","sensitivity","bioclip_prompt",
+    "protected_status","sensitivity","alt_names_zh","iucn","redlist","cites",
+    "bioclip_prompt",
   ];
   const taxaKeys = taxaCols.map((c) => c.replace(/"/g, ""));
 

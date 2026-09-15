@@ -169,6 +169,20 @@ export const reportSubmissionSchema = z
     lng: z.number().min(-180).max(180),
     lat: z.number().min(-90).max(90),
     observedAt: z.iso.datetime(),
+    /**
+     * What the reporter says it is. Consequential: naming a species is what
+     * sets the published location precision, because the trigger derives the
+     * blur from that taxon's TaiCOL sensitivity rating. That is the standing
+     * decision — trust the reporter — and a protected species named honestly
+     * still blurs automatically.
+     */
+    taxonId: z.coerce.number().int().positive().optional(),
+    /**
+     * The reporter looked and could not name it. Recorded as a judgement rather
+     * than as an absence, which is what separates it from a report nobody has
+     * examined yet. Mutually exclusive with `taxonId`.
+     */
+    taxonUnknown: z.boolean().optional(),
     notes: z.string().trim().max(MAX_NOTES).optional(),
     /** Optional, so we can follow up on an interesting record. Never displayed. */
     contactEmail: z.email().optional(),
@@ -177,6 +191,10 @@ export const reportSubmissionSchema = z
     /** Client-generated, so a double-tap or offline retry cannot duplicate a report. */
     clientNonce: z.uuid(),
     turnstileToken: z.string().min(1).optional(),
+  })
+  .refine((r) => !(r.taxonId && r.taxonUnknown), {
+    message: "a report cannot both name a species and be unidentifiable",
+    path: ["taxonUnknown"],
   })
   .refine((r) => new Date(r.observedAt) <= new Date(Date.now() + 5 * 60_000), {
     message: "observedAt cannot be in the future",

@@ -56,6 +56,9 @@ type Job = {
   job_id: string;
   report_id: string;
   category: string;
+  /** Null until someone identifies it; 'user'/'expert' mean a person did. */
+  taxon_source: string | null;
+  taxon_id: number | null;
   attempts: number;
   storage_path: string | null;
 };
@@ -137,6 +140,8 @@ export async function POST(req: Request) {
      where j.id = c.id
     returning j.id::text as job_id, j.report_id::text as report_id, j.attempts,
               (select r.category from reports r where r.id = j.report_id) as category,
+              (select r.taxon_source from reports r where r.id = j.report_id) as taxon_source,
+              (select r.taxon_id from reports r where r.id = j.report_id) as taxon_id,
               (select p.storage_path from report_photos p
                 where p.report_id = j.report_id order by p.created_at limit 1) as storage_path`;
 
@@ -161,7 +166,18 @@ export async function POST(req: Request) {
 
       const result = await callModel(bytes.toString("base64"), job.category);
       const best = result.predictions[0];
-      const assign = best && AUTO_ASSIGN_BANDS.has(result.band);
+
+      // A person already said what this is — the reporter at submission, or a
+      // moderator. The model gets to record its opinion beside theirs and
+      // nothing more: it looked at a photograph, they looked at the animal.
+      //
+      // Without this the reporter's identification survived until the next cron
+      // run and was then silently replaced, taking the published precision with
+      // it, because clearing the override hands control back to whichever taxon
+      // the model preferred.
+      const humanIdentified =
+        job.taxon_id !== null && job.taxon_source !== null && job.taxon_source !== "ai";
+      const assign = Boolean(best) && AUTO_ASSIGN_BANDS.has(result.band) && !humanIdentified;
 
       await sql.begin(async (tx) => {
         await tx`delete from classifications where report_id = ${job.report_id}::uuid`;
@@ -183,6 +199,25 @@ export async function POST(req: Request) {
                    ai_band = ${result.band},
                    precision_override = null,
                    status = 'published'
+             where id = ${job.report_id}::uuid`;
+        } else if (humanIdentified) {
+          // Keep their identification and the precision it implies; record what
+          // the model thought, and say so if the two disagree. Nothing here
+          // changes what is published — a disagreement is a note for a reviewer,
+          // not grounds for overriding the person who was there.
+          const disagrees =
+            Boolean(best) &&
+            AUTO_ASSIGN_BANDS.has(result.band) &&
+            best.taxon_id !== job.taxon_id;
+          await tx`
+            update reports
+               set ai_confidence = ${best?.score ?? null},
+                   ai_band = ${result.band},
+                   flagged_reason = ${
+                     disagrees
+                       ? "the model and the reporter name different species"
+                       : null
+                   }
              where id = ${job.report_id}::uuid`;
         } else {
           // Not confident enough to name a species. Publish it as an unidentified
