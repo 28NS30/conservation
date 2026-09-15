@@ -18,7 +18,8 @@
     "map": "地圖",
     "mine": "我的通報",
     "contact": "聯絡",
-    "season": "本季目標"
+    "season": "本季目標",
+    "team": "團隊"
   },
   "categories": {
     "roadkill": "路殺",
@@ -477,5 +478,20 @@
       "published": "已發布",
       "open": "開放資料"
     }
+  },
+  "team": {
+    "title": "團隊成員",
+    "lede": "FormosaWatch 的成員，以及與我們並肩合作的哥倫比亞團隊。",
+    "group": {
+      "leadership": "領導團隊",
+      "formosawatch": "FormosaWatch",
+      "flamawatch": "FlamaWatch"
+    },
+    "place": {
+      "leadership": "跨計畫",
+      "formosawatch": "臺灣",
+      "flamawatch": "哥倫比亞 大西洋省"
+    },
+    "email": "電子郵件"
   }
 }

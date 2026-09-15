@@ -18,7 +18,8 @@
     "map": "Map",
     "mine": "My reports",
     "contact": "Contact",
-    "season": "This season's goal"
+    "season": "This season's goal",
+    "team": "Team"
   },
   "categories": {
     "roadkill": "Roadkill",
@@ -477,5 +478,20 @@
       "published": "Published",
       "open": "Open data"
     }
+  },
+  "team": {
+    "title": "Who runs this",
+    "lede": "The people behind FormosaWatch, and the project we work alongside in Colombia.",
+    "group": {
+      "leadership": "Leadership",
+      "formosawatch": "FormosaWatch",
+      "flamawatch": "FlamaWatch"
+    },
+    "place": {
+      "leadership": "Across both projects",
+      "formosawatch": "Taiwan",
+      "flamawatch": "Atlántico, Colombia"
+    },
+    "email": "Email"
   }
 }
