@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server";
+import { teamPublished } from "@/lib/team";
 import { Link } from "@/i18n/navigation";
 import Wordmark from "@/components/brand/Wordmark";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
@@ -35,6 +36,11 @@ export default async function SiteFooter({
 
   const legal = [
     { href: "/about", label: t("nav.about") },
+    // Only once there are real people on it; see lib/team.ts. An empty team
+    // page says something worse about a project than no team page at all.
+    ...(teamPublished()
+      ? ([{ href: "/team", label: t("nav.team") }] as const)
+      : []),
     { href: "/attribution", label: t("nav.attribution") },
     { href: "/privacy", label: t("nav.privacy") },
   ] as const;
