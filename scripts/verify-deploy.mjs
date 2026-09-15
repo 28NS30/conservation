@@ -110,6 +110,17 @@ try {
     Number(body.reports) > 0,
     `${Number(body.reports).toLocaleString()}`,
   );
+  // Deploys are automatic; migrations are applied by hand. A deployment whose
+  // database is behind the code renders perfectly and rejects every submission,
+  // which is invisible from outside — and on a site that has not had its first
+  // submission yet, invisible for a long time.
+  check(
+    "database schema matches the deployed code",
+    body.schemaCurrent === true,
+    body.schemaCurrent === true
+      ? ""
+      : `missing: ${(body.schemaMissing ?? ["unknown"]).join(", ")} — run npm run db:migrate against production`,
+  );
 } catch (e) {
   check("database reachable (/api/health)", false, e.message.slice(0, 60));
 }
