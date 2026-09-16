@@ -1,6 +1,5 @@
 import type { Map as MLMap, StyleSpecification } from "maplibre-gl";
 import { TAIWAN_BOUNDS, TAIWAN_CENTER } from "@conservation/shared";
-import { withBase } from "@/lib/basePath";
 import {
   FALLBACK_STYLE,
   OPENFREEMAP_DARK,
@@ -26,8 +25,7 @@ import {
  */
 export type MapLibre = typeof import("maplibre-gl");
 
-const MAPLIBRE_URL = withBase("/maplibre/maplibre-gl.mjs");
-const WORKER_URL = withBase("/maplibre/maplibre-gl-worker.mjs");
+import { MAPLIBRE_URL, WORKER_URL } from "@/lib/maplibreUrls";
 
 let modulePromise: Promise<MapLibre> | null = null;
 
