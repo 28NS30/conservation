@@ -325,19 +325,28 @@ describe("transfer", () => {
     });
   };
 
-  test("a tile with data is gzipped when the client accepts it", async () => {
+  test("a tile with data is gzipped unless the client refuses it", async () => {
     // Vercel does not compress application/vnd.mapbox-vector-tile, so tiles went
-    // out raw: 77 KB for this one, about 14 KB gzipped.
-    const plain = await raw(`${Z6.z}/${Z6.x}/${Z6.y}`);
-    const zipped = await raw(`${Z6.z}/${Z6.x}/${Z6.y}`, { "accept-encoding": "gzip" });
-    assert.equal(zipped.headers["content-encoding"], "gzip");
-    assert.ok(zipped.body.length < plain.body.length / 3, "should compress well");
-    assert.deepEqual(
-      gunzipSync(zipped.body),
-      plain.body,
-      "decoded, it must be exactly the tile a client without gzip receives",
-    );
-    assert.match(zipped.headers.vary ?? "", /accept-encoding/i);
+    // out raw: 77 KB for this one, about 14 KB gzipped. No header means no
+    // preference, and gzip is acceptable then too.
+    const refused = await raw(`${Z6.z}/${Z6.x}/${Z6.y}`, { "accept-encoding": "identity" });
+    for (const headers of [{}, { "accept-encoding": "gzip" }, { "accept-encoding": "gzip, deflate, br, zstd" }]) {
+      const zipped = await raw(`${Z6.z}/${Z6.x}/${Z6.y}`, headers);
+      assert.equal(zipped.headers["content-encoding"], "gzip", JSON.stringify(headers));
+      assert.ok(zipped.body.length < refused.body.length / 3, "should compress well");
+      assert.deepEqual(
+        gunzipSync(zipped.body),
+        refused.body,
+        "decoded, it must be exactly the tile a client refusing gzip receives",
+      );
+    }
+  });
+
+  test("responses carry no Vary, so the CDN keeps one copy of each tile", async () => {
+    // With Vary: accept-encoding, Vercel's CDN keyed on the exact header value:
+    // Chrome, Safari and a bare "gzip" each missed the same tile separately.
+    const res = await raw(`${Z6.z}/${Z6.x}/${Z6.y}`, { "accept-encoding": "gzip, deflate, br" });
+    assert.equal(res.headers.vary?.match(/accept-encoding/i) ?? null, null);
   });
 
   test("an empty tile is never gzipped", async () => {
@@ -385,18 +394,20 @@ describe("transfer", () => {
     }
   });
 
-  test("a client that refuses gzip is not sent gzip", async () => {
-    // gzip;q=0 says gzip is NOT acceptable. A substring test for "gzip" sent it
-    // anyway.
+  test("a client that refuses gzip is sent raw bytes nothing may cache", async () => {
+    // gzip;q=0 says gzip is NOT acceptable. The raw answer must not be stored
+    // by the CDN either, or it would be served to every browser in its place.
     const at = `${Z6.z}/${Z6.x}/${Z6.y}`;
     for (const header of ["gzip;q=0, identity", "identity", "*;q=0, identity", "br"]) {
       const res = await raw(at, { "accept-encoding": header });
       assert.equal(res.headers["content-encoding"], undefined, `accept-encoding: ${header}`);
       assert.ok(res.body.length > 0 && res.body[0] !== 0x1f, `raw tile for ${header}`);
+      assert.match(res.headers["cache-control"] ?? "", /no-store/, `uncacheable for ${header}`);
     }
-    for (const header of ["gzip", "br, gzip;q=0.5", "*"]) {
-      const res = await raw(at, { "accept-encoding": header });
-      assert.equal(res.headers["content-encoding"], "gzip", `accept-encoding: ${header}`);
+    for (const header of ["gzip", "br, gzip;q=0.5", "*", ""]) {
+      const res = await raw(at, header ? { "accept-encoding": header } : {});
+      assert.equal(res.headers["content-encoding"], "gzip", `accept-encoding: ${header || "(none)"}`);
+      assert.match(res.headers["cache-control"] ?? "", /s-maxage/, "shared-cacheable");
     }
   });
 });
