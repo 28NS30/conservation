@@ -86,10 +86,10 @@ export default function ReportMap({
         static: true,
         // Nothing can pan this, and maxBounds would fight the fitBounds below.
         bounded: false,
-        // addSource/addLayer throw if the style has not settled, so the obscured
-        // circle goes through onReady rather than running straight after the
-        // promise resolves. Must stay idempotent — onReady can fire more than
-        // once as the style loads.
+        // addSource/addLayer throw until the style has been applied, so the
+        // obscured circle goes through onReady rather than running straight
+        // after the promise resolves. onReady fires once, at style.load; the
+        // guard below stays as cheap insurance against a duplicate id.
         onReady: (map) => {
           if (!radiusKm || map.getSource("area")) return;
           // A pin asserts a point. An obscured record is a circle of

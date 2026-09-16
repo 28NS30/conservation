@@ -127,7 +127,10 @@ export async function createMap(
      * thing a full-bleed map can do.
      */
     static?: boolean;
-    /** Runs once the style is ready for addSource/addLayer. Must be idempotent. */
+    /**
+     * Runs exactly once, at `style.load`: the style has been applied and
+     * addSource/addLayer are legal, but basemap tiles may still be arriving.
+     */
     onReady?: (map: MLMap) => void;
   } = {},
 ): Promise<MapHandle> {
@@ -190,16 +193,29 @@ export async function createMap(
     );
   }
 
+  // onReady fires once, at `style.load` — when the style JSON has been applied
+  // and sources and layers may be added — and NOT when the style has finished
+  // loading.
+  //
+  // It used to wait on `isStyleLoaded()`, which in MapLibre 6 stays false until
+  // every basemap tile in view has arrived, the sprite has loaded and the first
+  // frame has drawn. So our report sources were only added after OpenFreeMap
+  // had delivered everything, and the dots queued behind the whole basemap.
+  // Measured on production, style.load to first dot: desktop 1036 → 237 ms,
+  // phone at 4x CPU 1298 → 396 ms, slow 4G first dot 7.3 → 5.3 s. Our sources
+  // use inline `tiles`, so they have no TileJSON of their own to wait for.
+  //
+  // No synchronous call is needed and none is safe: Style.loadJSON defers to the
+  // next animation frame, so this listener is always registered before the
+  // event can fire.
   let disposed = false;
   let done = false;
   const fire = () => {
-    if (disposed || done || !map.isStyleLoaded()) return;
+    if (disposed || done) return;
     done = true;
     opts.onReady?.(map);
   };
-  map.on("load", fire);
-  map.on("style.load", fire);
-  fire();
+  map.once("style.load", fire);
 
   const ro = new ResizeObserver(() => map.resize());
   ro.observe(container);
