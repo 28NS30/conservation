@@ -16,6 +16,7 @@ import { currentUserId } from "@/lib/supabase/server";
 export default async function SiteHeader({
   variant = "site",
   stats,
+  wide = false,
 }: {
   /**
    * `site`  — transparent, laid over the home hero.
@@ -24,6 +25,12 @@ export default async function SiteHeader({
    */
   variant?: "site" | "page" | "app";
   stats?: { reports: string; species: string; range: string | null };
+  /**
+   * Match the homepage's 1100px column. At max-w-5xl the logo in the header and
+   * the badge below it started 38px apart on a desktop, which read as a mistake
+   * right where the page is most looked at.
+   */
+  wide?: boolean;
 }) {
   const t = await getTranslations();
   // Only shown when there is something behind it. An always-visible "my reports"
@@ -61,7 +68,7 @@ export default async function SiteHeader({
             ? "contents"
             : overlay
               ? "flex items-center justify-between gap-6 px-5 py-4 sm:px-8"
-              : "mx-auto flex w-full max-w-5xl items-center justify-between gap-6 px-6 py-3"
+              : `mx-auto flex w-full ${wide ? "max-w-[1100px]" : "max-w-5xl"} items-center justify-between gap-3 px-4 py-3 sm:gap-6 sm:px-6`
         }
       >
         <Link
@@ -83,7 +90,13 @@ export default async function SiteHeader({
             </div>
           )}
 
-          <nav className="hidden items-center gap-5 sm:flex">
+          {/* Inline from md, not sm, on every header but the map's. In
+              English — Map, Species, Statistics, About, the language switch
+              and the report button — this row needs about 660px, and at
+              640px it pushed every page 21px sideways. */}
+          <nav
+            className={`hidden items-center gap-5 ${app ? "sm:flex" : "md:flex"}`}
+          >
             {nav.map((l) => (
               <Link
                 key={l.href}
@@ -96,27 +109,27 @@ export default async function SiteHeader({
           </nav>
 
           <LanguageSwitcher
-            className={`hidden sm:flex ${overlay ? "text-parchment-100" : "text-ink-700"}`}
+            className={`hidden ${app ? "sm:flex" : "md:flex"} ${overlay ? "text-parchment-100" : "text-ink-700"}`}
           />
 
           <Link
             href="/report"
-            className="rounded-full bg-ember-500 px-4 py-1.5 text-xs font-semibold text-bark-950 transition hover:bg-ember-400"
+            className="rounded-full bg-ember-500 px-3 py-1.5 text-xs font-semibold text-bark-950 transition hover:bg-ember-400 sm:px-4"
           >
             + {t("nav.report")}
           </Link>
         </div>
       </div>
 
-      {/* Phone navigation.
-          The links above are hidden below `sm`, where the wordmark and the
+      {/* Phone and small-tablet navigation.
+          The links above are hidden below `md`, where the wordmark and the
           report button already fill a 390px row — which left the whole site
           reachable only from the footer. A second row costs one line of height
           and needs no menu button, no JS, and no focus trap. The map's own
           header stays single-row: there, vertical space is the instrument. */}
       {!app && (
         <div
-          className={`flex items-center justify-between gap-4 border-t px-5 py-2 sm:hidden ${
+          className={`flex items-center justify-between gap-4 border-t px-4 py-2 sm:px-5 md:hidden ${
             overlay ? "border-parchment-200/15" : "border-ink-900/10"
           }`}
         >

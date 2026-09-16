@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
   CATEGORIES,
   REPORT_GROUPS,
@@ -10,7 +10,7 @@ import {
   type MapFilter,
 } from "@conservation/shared";
 
-type SpeciesHit = {
+export type SpeciesHit = {
   id: number;
   scientificName: string;
   commonNameZh: string | null;
@@ -28,17 +28,35 @@ export default function MapFilters({
   value,
   onChange,
   years,
+  initialSpecies = null,
 }: {
   value: MapFilter;
   onChange: (next: MapFilter) => void;
   years: { first: number; last: number } | null;
+  /**
+   * The species a link arrived filtered to, resolved on the server. Without it
+   * a link such as /map?taxonId=28758 filtered the map correctly and said
+   * nothing about it: the panel was closed and the chip that names the species
+   * is only ever filled by picking from search.
+   */
+  initialSpecies?: SpeciesHit | null;
 }) {
   const t = useTranslations();
+  const zhFirst = useLocale().startsWith("zh");
   const [speciesQuery, setSpeciesQuery] = useState("");
   const [hits, setHits] = useState<SpeciesHit[]>([]);
-  const [chosen, setChosen] = useState<SpeciesHit | null>(null);
+  const [chosen, setChosen] = useState<SpeciesHit | null>(initialSpecies);
   const [open, setOpen] = useState(false);
-  const [panelOpen, setPanelOpen] = useState(false);
+  // Open when a link arrived carrying a filter, so what is being shown is on
+  // screen rather than folded behind a count on a button.
+  const [panelOpen, setPanelOpen] = useState(
+    Boolean(
+      initialSpecies ||
+        value.group ||
+        value.from ||
+        value.to,
+    ),
+  );
   const boxRef = useRef<HTMLDivElement>(null);
 
   // Debounced: a short Chinese query is a sequential scan server-side (~18 ms),
@@ -178,7 +196,14 @@ export default function MapFilters({
                   }}
                   className="flex items-center gap-1.5 rounded-full border border-ember-400/60 bg-ember-400/15 px-3 py-1.5 text-xs text-ember-400 backdrop-blur"
                 >
-                  {chosen.commonNameZh ?? chosen.scientificName}
+                  {/* In the page's language, as the homepage link that opens
+                      it is: an English reader arriving from "Duttaphrynus
+                      melanostictus" found a chip naming it only in Chinese. */}
+                  {zhFirst && chosen.commonNameZh ? (
+                    <span lang="zh-TW">{chosen.commonNameZh}</span>
+                  ) : (
+                    <span className="italic">{chosen.scientificName}</span>
+                  )}
                   <span aria-hidden>×</span>
                 </button>
               ) : (

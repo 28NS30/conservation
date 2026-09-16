@@ -26,7 +26,7 @@ import {
 } from "@conservation/shared";
 import { createMap, type MapHandle } from "@/lib/map";
 import { withBase } from "@/lib/basePath";
-import MapFilters from "./MapFilters";
+import MapFilters, { type SpeciesHit } from "./MapFilters";
 import MapModeToggle from "./MapModeToggle";
 import MapColourToggle from "./MapColourToggle";
 import ReportPanel from "./ReportPanel";
@@ -365,6 +365,7 @@ export default function HeatmapView({
   years,
   initialView,
   initialFilter,
+  initialSpecies = null,
   presentation = false,
 }: {
   maptilerKey?: string;
@@ -381,6 +382,8 @@ export default function HeatmapView({
   initialView?: { center: [number, number]; zoom: number } | null;
   /** Parsed server-side with mapFilterSchema, so it is already trustworthy. */
   initialFilter?: MapFilter;
+  /** The taxon in initialFilter, named, so the filter panel can say what it is. */
+  initialSpecies?: SpeciesHit | null;
 }) {
   const t = useTranslations();
   // The popup is built imperatively inside a MapLibre event handler, which closes
@@ -992,7 +995,12 @@ export default function HeatmapView({
           outside the && — as its first child it parses as an object literal.) */}
       {!presentation && (
         <div className="pointer-events-none absolute left-0 right-0 top-0 p-3 pr-14 sm:p-4 sm:pr-16">
-          <MapFilters value={filter} onChange={setFilter} years={years} />
+          <MapFilters
+            value={filter}
+            onChange={setFilter}
+            years={years}
+            initialSpecies={initialSpecies}
+          />
         </div>
       )}
 

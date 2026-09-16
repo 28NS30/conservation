@@ -72,7 +72,7 @@ for (const path of PAGES) {
     viewport: { width: 1100, height: 850 },
   });
   await page.goto(BASE + path, { waitUntil: "load" });
-  await page.waitForTimeout(path === "/map" || path === "/" ? 12000 : 3500);
+  await page.waitForTimeout(path === "/map" ? 12000 : 3500);
 
   // One pass. Tabbing past the last control wraps into browser chrome and
   // back, and the second lap measures states no person would see.

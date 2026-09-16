@@ -407,8 +407,6 @@
   "home": {
     "ctaReport": "通報一筆",
     "ctaMap": "查看完整地圖",
-    "statsRecords": "筆公開紀錄",
-    "statsSpecies": "個物種",
     "speciesLink": "瀏覽全部物種",
     "howTitle": "怎麼運作",
     "howHeading": "從一張照片，到一筆公開資料",
@@ -434,8 +432,6 @@
     "doorInvasive": "綠鬣蜥、福壽螺、埃及聖䴉。",
     "doorSighting": "活著、健康，剛好被你看到。",
     "firstTime": "第一次來？先看這是什麼、誰在做",
-    "plateTitle": "{count, number} 筆紀錄，就是這座島的形狀。",
-    "plateCaption": "每一點是一個 500 公尺方格，顏色越深表示紀錄越多。中央山脈只看得到幾條橫貫公路的線——有路的地方才會有路殺紀錄。左下角是金門、馬祖與澎湖。",
     "whatTitle": "這是什麼",
     "whatBody": "一個公開的臺灣野生動物紀錄資料庫。任何人都可以通報路殺、外來入侵種、受傷動物或一般目擊；所有紀錄公開，並以 Darwin Core 標準回饋給 GBIF。",
     "whoTitle": "誰在做",
@@ -446,9 +442,19 @@
     "ledgerHint": "2011–2017 年間，與今天相近日期的真實紀錄，一個日期一筆。第一列是空的。",
     "ledgerBlank": "通報第一筆",
     "ledgerAll": "全部 {count, number} 筆紀錄",
-    "ledgerMap": "在地圖上看",
     "closeTitle": "看到了，就花一分鐘。",
-    "closeBody": "一張照片、一個位置。這筆紀錄就會成為臺灣公開科學資料的一部分；敏感物種的位置會先模糊化。"
+    "closeBody": "一張照片、一個位置。這筆紀錄就會成為臺灣公開科學資料的一部分；敏感物種的位置會先模糊化。",
+    "tagline": "臺灣的公開野生動物紀錄，任何人都能補上一筆。",
+    "mapKicker": "地圖",
+    "mapLine": "<ph>每一筆公開紀錄都在地圖上，</ph><ph>放大到你每天經過的那條路。</ph>",
+    "mapSpeciesLabel": "從一種動物看起",
+    "mapPlacesLabel": "從一個地方看起",
+    "places": {
+      "yangmingshan": "陽明山",
+      "taichung": "臺中",
+      "hualien": "花蓮",
+      "kenting": "墾丁"
+    }
   },
   "me": {
     "title": "我的通報",

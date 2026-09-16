@@ -22,8 +22,8 @@ import { chromium } from "playwright";
 const BASE = process.env.TEST_BASE_URL ?? "http://localhost:3000";
 
 const PAGES = [
-  { path: "/", name: "home (zh-TW)", settle: 9000 },
-  { path: "/en", name: "home (en)", settle: 9000 },
+  { path: "/", name: "home (zh-TW)", home: true },
+  { path: "/en", name: "home (en)", home: true },
   { path: "/map", name: "map (zh-TW)", settle: 9000, layers: true },
   { path: "/en/map", name: "map (en)", settle: 9000, layers: true },
   { path: "/stats", name: "stats (zh-TW)" },
@@ -77,15 +77,116 @@ const LEAKED_KEY = new RegExp(
 /** Data layers that must exist on any page showing a map. */
 const REQUIRED_LAYERS = ["reports-cells", "reports-dots", "reports-points"];
 
+/**
+ * The front page's layout promises, at the sizes people actually use.
+ *
+ * The owner asked for a much larger badge with only a little text beside it,
+ * and the doors still have to be reachable without scrolling. Each of these
+ * broke at least once while the page was being built.
+ */
+async function checkHome(page, pg, plate) {
+  const errs = [];
+  // [width, height, expected badge width or null to skip, Latin name must be one line]
+  const sizes = [
+    [1440, 900, 320, true],
+    [1366, 700, 272, true], // a short laptop screen gets the smaller badge
+    [640, 900, 272, true], // the narrowest sm layout, where the name once broke mid-word
+    [390, 844, 172, true],
+    [360, 740, null, true], // min(44vw, 172px) — about 158
+    [320, 640, null, false], // the WCAG reflow width; no fold or one-line promise here
+  ];
+  for (const [w, h, badge, oneLine] of sizes) {
+    await page.setViewportSize({ width: w, height: h });
+    await page.waitForTimeout(300);
+    const m = await page.evaluate(() => {
+      const img = document.querySelector("main section img");
+      const doors = [...document.querySelectorAll('a[href*="/report?category="]')];
+      const h1 = document.querySelector("main h1");
+      const latin = [...(h1?.querySelectorAll("span") ?? [])].find((e) =>
+        /^\s*Project FormosaWatch\s*$/i.test(e.textContent ?? ""),
+      );
+      // Lines of TEXT, from the text's own boxes. The element's box is one
+      // rect whether or not the words inside it wrap, which is why an earlier
+      // version of this check could never fail.
+      const lineTops = (el) => {
+        if (!el) return 0;
+        // Text nodes only: the decorative dot beside the Latin name is an
+        // element with its own box at a different height, and counted as a
+        // second line of text.
+        const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+        const tops = [];
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+          if (!n.textContent.trim()) continue;
+          const range = document.createRange();
+          range.selectNodeContents(n);
+          for (const r of range.getClientRects()) if (r.width > 0) tops.push(r.top);
+        }
+        tops.sort((a, b) => a - b);
+        // Rects on one line can differ by a pixel; a new line is at least half
+        // a line-height further down.
+        let lines = 0;
+        let last = -Infinity;
+        for (const t of tops) if (t - last > 4) { lines++; last = t; }
+        return lines;
+      };
+      const halves = [...(h1?.querySelectorAll('[lang="zh-TW"] > span') ?? [])];
+      return {
+        overflow: document.documentElement.scrollWidth > innerWidth,
+        badge: img ? Math.round(img.getBoundingClientRect().width) : 0,
+        doorsBottom: Math.max(...doors.map((d) => d.getBoundingClientRect().bottom)),
+        doors: doors.length,
+        latinLines: lineTops(latin),
+        latinOverflows: latin ? latin.scrollWidth > latin.clientWidth + 1 : true,
+        // Neither half of the name may itself break across lines.
+        brokenHalves: halves.filter((el) => lineTops(el) > 1).map((el) => el.textContent),
+      };
+    });
+    const at = `${w}x${h}`;
+    if (m.overflow) errs.push(`home scrolls sideways at ${at}`);
+    if (badge !== null && m.badge !== badge)
+      errs.push(`badge is ${m.badge}px at ${at}, expected ${badge}`);
+    if (badge === null && m.badge > 158)
+      errs.push(`badge is ${m.badge}px at ${at}, expected 158 or less`);
+    if (m.doors !== 3) errs.push(`${m.doors} report doors at ${at}, expected 3`);
+    if (w >= 360 && m.doorsBottom > h)
+      errs.push(`report doors fall below the fold at ${at}`);
+    if (oneLine && m.latinLines !== 1)
+      errs.push(`"Project FormosaWatch" is on ${m.latinLines} lines at ${at}`);
+    if (oneLine && m.latinOverflows)
+      errs.push(`"Project FormosaWatch" overflows its column at ${at}`);
+    if (m.brokenHalves.length)
+      errs.push(`the name breaks inside ${m.brokenHalves.join(", ")} at ${at}`);
+  }
+  await page.setViewportSize({ width: 1000, height: 800 });
+  if (plate.length) errs.push("home still requests /field.svg");
+  if (pg.path.startsWith("/en")) {
+    const marked = await page.evaluate(() => !!document.querySelector('h1 [lang="zh-TW"]'));
+    if (!marked) errs.push("the Chinese name in the English h1 is not marked lang=zh-TW");
+  }
+  return errs;
+}
+
 const browser = await chromium.launch();
 const failures = [];
 
 for (const pg of PAGES) {
+  // The browser's language set deliberately, to match the path. Playwright's
+  // default context sends no Accept-Language at all, so unprefixed paths did
+  // render Chinese before this; but that rested on a default, and next-intl
+  // redirects an English-preferring browser from "/" to "/en" — which a
+  // Playwright upgrade or a CI image with a locale set would have turned on
+  // silently.
   const ctx = await browser.newContext({
     viewport: { width: 1000, height: 800 },
+    locale: pg.path.startsWith("/en") ? "en-US" : "zh-TW",
   });
   const page = await ctx.newPage();
   const errs = [];
+  // Before navigation, or the first load's requests are never seen.
+  const plate = [];
+  page.on("request", (r) => {
+    if (r.url().includes("/field.svg")) plate.push(r.url());
+  });
 
   page.on("pageerror", (e) =>
     errs.push("uncaught: " + e.message.slice(0, 180)),
@@ -126,6 +227,8 @@ for (const pg of PAGES) {
   const leaked = body.match(LEAKED_KEY);
   if (leaked)
     errs.push("unresolved translations: " + [...new Set(leaked)].join(", "));
+
+  if (pg.home) errs.push(...(await checkHome(page, pg, plate)));
 
   if (pg.layers) {
     const missing = await page.evaluate((ids) => {

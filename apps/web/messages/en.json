@@ -407,8 +407,6 @@
   "home": {
     "ctaReport": "File a report",
     "ctaMap": "Open the full map",
-    "statsRecords": "public records",
-    "statsSpecies": "species",
     "speciesLink": "Browse all species",
     "howTitle": "How it works",
     "howHeading": "From one photo to one public record",
@@ -434,8 +432,6 @@
     "doorInvasive": "Green iguana, apple snail, sacred ibis.",
     "doorSighting": "Alive and well — you just saw it.",
     "firstTime": "First time here? What this is, and who runs it",
-    "plateTitle": "{count, number} records, in the shape of the island.",
-    "plateCaption": "Each dot is a 500-metre square; the darker it is, the more records it holds. Across the Central Mountain Range only the cross-island highways show, because roadkill is recorded where there are roads. Kinmen, Matsu and Penghu are inset at lower left.",
     "whatTitle": "What this is",
     "whatBody": "An open database of wildlife records for Taiwan. Anyone can report roadkill, an invasive species, an injured animal or a sighting; every record is public, and they are published back to GBIF as a Darwin Core Archive.",
     "whoTitle": "Who runs it",
@@ -446,9 +442,19 @@
     "ledgerHint": "One real record for each date, from within a few days of today across 2011–2017. The first line is blank.",
     "ledgerBlank": "File the first one",
     "ledgerAll": "All {count, number} records",
-    "ledgerMap": "See them on the map",
     "closeTitle": "If you see one, take a minute.",
-    "closeBody": "One photo and a dropped pin. The record becomes part of the open scientific record for Taiwan, under your terms and with sensitive locations blurred."
+    "closeBody": "One photo and a dropped pin. The record becomes part of the open scientific record for Taiwan, under your terms and with sensitive locations blurred.",
+    "tagline": "Taiwan's open wildlife record. Anyone can add to it.",
+    "mapKicker": "The map",
+    "mapLine": "<ph>Every public record is on the map,</ph> <ph>down to the road you take every day.</ph>",
+    "mapSpeciesLabel": "By animal",
+    "mapPlacesLabel": "By place",
+    "places": {
+      "yangmingshan": "Yangmingshan",
+      "taichung": "Taichung",
+      "hualien": "Hualien",
+      "kenting": "Kenting"
+    }
   },
   "me": {
     "title": "My reports",

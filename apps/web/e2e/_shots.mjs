@@ -25,7 +25,7 @@ mkdirSync(SP, { recursive: true });
 // canvas and looked exactly like a layout regression. Better slow than lying.
 const MAP_WAIT = 15000;
 const PAGES = [
-  ["/", "home", MAP_WAIT],
+  ["/", "home", 2500],
   ["/map", "map", MAP_WAIT],
   ["/report", "report", MAP_WAIT],
   ["/species/28758-duttaphrynus-melanostictus", "detail", MAP_WAIT],
