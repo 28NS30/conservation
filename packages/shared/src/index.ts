@@ -102,6 +102,27 @@ export const TAIWAN_MAIN_BOUNDS: [[number, number], [number, number]] = [
   [122.2, 25.4],
 ];
 
+/**
+ * Where report tiles can have anything in them, as [west, south, east, north].
+ *
+ * Handed to MapLibre as a vector source's `bounds`, so it never requests a tile
+ * that cannot contain a report. At the default desktop view a third of the
+ * first tiles requested were open sea or Fujian: empty answers, each a function
+ * call on a cold CDN.
+ *
+ * TAIWAN_BOUNDS padded by 0.5°, which is the largest obscuring cell — a record
+ * of a 重度/縣市 species is published up to half a degree from where it was
+ * recorded, so its public point can sit outside the island's own envelope. This
+ * margin must never shrink below the largest cell precision_cell_deg() returns;
+ * a test checks every published point falls inside it.
+ */
+export const TILE_SOURCE_BOUNDS: [number, number, number, number] = [
+  TAIWAN_BOUNDS[0][0] - 0.5,
+  TAIWAN_BOUNDS[0][1] - 0.5,
+  TAIWAN_BOUNDS[1][0] + 0.5,
+  TAIWAN_BOUNDS[1][1] + 0.5,
+];
+
 /** Main island centre, a sensible default view. */
 export const TAIWAN_CENTER: [number, number] = [120.98, 23.7];
 

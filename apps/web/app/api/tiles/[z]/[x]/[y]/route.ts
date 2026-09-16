@@ -1,7 +1,10 @@
+import { gzip } from "node:zlib";
+import { promisify } from "node:util";
 import { asPublic } from "@/lib/db";
 import {
   CATEGORY_KEYS,
   categoriesIn,
+  filterToQuery,
   groupOf,
   mapFilterSchema,
   TILE_AGGREGATION_MAX_ZOOM,
@@ -23,6 +26,37 @@ import {
  */
 
 const MAX_ZOOM = 16;
+const gz = promisify(gzip);
+
+/**
+ * Whether the client will take a gzipped body, by the q-values it sent.
+ *
+ * A substring test for "gzip" also matched `gzip;q=0`, which is a client saying
+ * it will NOT accept gzip — and it got gzip anyway. Browsers never send that,
+ * but a proxy or a hand-written client can, and would hand compressed bytes to
+ * a tile parser.
+ */
+function acceptsGzip(header: string | null): boolean {
+  if (!header) return false;
+  let gzip: number | undefined;
+  let any: number | undefined;
+  for (const part of header.split(",")) {
+    const [coding, ...params] = part.trim().toLowerCase().split(";");
+    const qParam = params.map((x) => x.trim()).find((x) => x.startsWith("q="));
+    const q = qParam === undefined ? 1 : Number(qParam.slice(2));
+    const weight = Number.isFinite(q) ? q : 0;
+    if (coding === "gzip" || coding === "x-gzip") gzip = weight;
+    else if (coding === "*") any = weight;
+  }
+  return (gzip ?? any ?? 0) > 0;
+}
+
+/** The headers every tile response shares, empty or not. */
+const TILE_HEADERS = {
+  "content-type": "application/vnd.mapbox-vector-tile",
+  // Filters live in the query string, so the CDN keys on them automatically.
+  "cache-control": "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400",
+};
 /** Safety valve so a pathological viewport can't stream unbounded rows. */
 const POINT_LIMIT = 20_000;
 
@@ -53,6 +87,20 @@ export async function GET(
   const parsed = mapFilterSchema.safeParse(Object.fromEntries(params));
   if (!parsed.success) return new Response("bad filter", { status: 400 });
   const f = parsed.data;
+
+  // Only the exact query the map builds is served: filterToQuery is what
+  // tileUrl() uses on the client, so its output is the one canonical form. An
+  // ignored key, a repeated key whose first value is discarded, another
+  // spelling of the same id, or the same keys in another order would each
+  // fetch a tile the CDN already holds under a key it has never seen.
+  //
+  // This keeps the cache to the URLs the site actually requests. It is NOT a
+  // defence against deliberate load, and should not be mistaken for one: the
+  // tile grid itself offers millions of legitimate, uncached URLs. And it
+  // cannot see everything — Next.js strips any nxtP*/nxtI* key before this
+  // handler runs, while the CDN still keys on the URL as sent.
+  if (params.toString() !== filterToQuery(f))
+    return new Response("tile query is not in canonical form", { status: 400 });
 
   // Bound params are interpolated by the driver, never string-concatenated.
   //
@@ -104,8 +152,12 @@ export async function GET(
         select st_snaptogrid(r.geom_3857, ${cell}::float8) as pt,
                ${tx.unsafe(groupOfCategory)}               as grp,
                count(*)::int                               as n
-          from reports_public r, env
-         where r.geom_3857 && st_expand(env.e, ${cell}::float8)
+          from reports_public r
+         -- The envelope inline rather than through the env CTE. Joined, the
+         -- planner cannot see it as a constant and reads far more of the table;
+         -- inline, the same tile touches about a tenth of the buffers. Output
+         -- verified byte-identical.
+         where r.geom_3857 && st_expand(st_tileenvelope(${z}, ${x}, ${y}), ${cell}::float8)
            and (${categories}::text[] is null or r.category = any(${categories}))
            and (${taxonId}::bigint is null or r.taxon_id = ${taxonId})
            and (${from}::date is null or r.observed_at >= ${from}::date)
@@ -190,22 +242,33 @@ export async function GET(
   // bodyless 204 varies by version — a source that receives one can stay
   // permanently "not loaded", which renders as a silently empty layer over a
   // perfectly healthy basemap. An empty 200 is unambiguous and just as cheap.
+  //
+  // Never gzipped: an empty buffer compresses to twenty bytes, and "zero-length"
+  // is the whole contract.
   if (!tile || tile.length === 0) {
     return new Response(new Uint8Array(0), {
       status: 200,
+      headers: { ...TILE_HEADERS, vary: "accept-encoding" },
+    });
+  }
+
+  // Compressed here because nothing else will. Vercel compresses the types it
+  // recognises, and application/vnd.mapbox-vector-tile is not one of them, so
+  // tiles went out raw: the default desktop view was 212 KB on the wire and is
+  // about 36 KB gzipped. MapLibre fetches through the browser, which decodes it.
+  if (acceptsGzip(req.headers.get("accept-encoding"))) {
+    return new Response(new Uint8Array(await gz(tile, { level: 6 })), {
+      status: 200,
       headers: {
-        "content-type": "application/vnd.mapbox-vector-tile",
-        "cache-control": "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400",
+        ...TILE_HEADERS,
+        "content-encoding": "gzip",
+        vary: "accept-encoding",
       },
     });
   }
 
   return new Response(new Uint8Array(tile), {
     status: 200,
-    headers: {
-      "content-type": "application/vnd.mapbox-vector-tile",
-      // Filters live in the query string, so the CDN keys on them automatically.
-      "cache-control": "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400",
-    },
+    headers: { ...TILE_HEADERS, vary: "accept-encoding" },
   });
 }

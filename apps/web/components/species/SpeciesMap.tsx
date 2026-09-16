@@ -13,6 +13,7 @@ import {
   TAIWAN_CENTER,
   TAIWAN_MAIN_BOUNDS,
   TILE_AGGREGATION_MAX_ZOOM,
+  TILE_SOURCE_BOUNDS,
 } from "@conservation/shared";
 
 const SOURCE_ID = "species-reports";
@@ -125,6 +126,7 @@ export default function SpeciesMap({
         map.addSource(SOURCE_ID, {
           type: "vector",
           tiles: [tiles],
+          bounds: TILE_SOURCE_BOUNDS,
           minzoom: 0,
           maxzoom: 16,
         });
