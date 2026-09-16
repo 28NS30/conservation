@@ -88,6 +88,36 @@ export async function topSpecies(limit = 15): Promise<TopSpecies[]> {
   );
 }
 
+export type EntrySpecies = {
+  id: number;
+  scientificName: string;
+  commonNameZh: string;
+};
+
+/**
+ * Animals to offer as a way into the map, from the homepage.
+ *
+ * The most-recorded species, which are also the ones a stranger has most likely
+ * seen. Restricted to species with no sensitivity rating: each becomes a link
+ * to that species' records on the map, and a front-page button that leads
+ * straight to where a sensitive animal is found would be a strange thing to
+ * build, blurred or not. Chinese name required, because the button is the name.
+ */
+export async function mapEntrySpecies(limit = 3): Promise<EntrySpecies[]> {
+  return asPublic(
+    (tx) => tx<EntrySpecies[]>`
+      select t.id, t.scientific_name as "scientificName",
+             t.common_name_zh as "commonNameZh"
+        from species_report_stats s
+        join taxa t on t.id = s.taxon_id
+       where t.sensitivity is null
+         and t.protected_status is null
+         and t.common_name_zh is not null
+       order by s.report_count desc, t.scientific_name
+       limit ${limit}`,
+  );
+}
+
 export type LedgerRow = {
   id: string;
   observedAt: string;
@@ -133,10 +163,20 @@ export async function anniversaryLedger(limit = 12): Promise<LedgerRow[]> {
           from reports_public r
           join taxa t on t.id = r.taxon_id
          where not r.is_obscured
-           and abs(
-                 extract(doy from r.observed_at)
-                 - extract(doy from now() at time zone 'Asia/Taipei')
-               ) <= 3
+           -- The same seven calendar dates as this week, in any year. Day
+           -- numbers were wrong twice over: a straight difference put 30
+           -- December and 1 January 363 days apart, so the ledger lost every
+           -- record across New Year for a week each year; and a leap year
+           -- shifts every day number after 28 February by one, so the window
+           -- was off by a day for ten months of it. Month-and-day strings have
+           -- neither problem.
+           and to_char(r.observed_at, 'MM-DD') in (
+                 select to_char(d, 'MM-DD')
+                   from generate_series(
+                          (now() at time zone 'Asia/Taipei')::date - 3,
+                          (now() at time zone 'Asia/Taipei')::date + 3,
+                          interval '1 day') d
+               )
       )
       select id, "observedAt", lat, lng, "commonNameZh", "scientificName"
         from near where rn = 1

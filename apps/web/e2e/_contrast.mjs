@@ -32,7 +32,7 @@ for (const path of PAGES) {
   });
   await p.goto("http://localhost:3000" + path, { waitUntil: "load" });
   await p.waitForTimeout(
-    path === "/" || path === "/map" || path === "/report" ? 12000 : 3500,
+    path === "/map" || path === "/report" ? 12000 : 3500,
   );
   const rows = await p.evaluate(() => {
     const lum = (c) => {

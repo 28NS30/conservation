@@ -18,9 +18,16 @@ export default function Badge({
   size = 128,
   className = "",
   priority = false,
+  sizes,
 }: {
   size?: number;
   className?: string;
+  /**
+   * The rendered width per breakpoint, for next/image to choose a source. Needed
+   * whenever CSS sizes the badge differently from `size`, or a phone downloads
+   * the desktop image.
+   */
+  sizes?: string;
   /** Set on the one above the fold; leave off elsewhere. */
   priority?: boolean;
 }) {
@@ -31,6 +38,7 @@ export default function Badge({
       width={size}
       height={size}
       priority={priority}
+      sizes={sizes}
       className={`rounded-full ${className}`}
     />
   );

@@ -1,5 +1,5 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { sql } from "@/lib/db";
+import { asPublic, sql } from "@/lib/db";
 import { mapFilterSchema } from "@conservation/shared";
 import HeatmapView from "@/components/map/HeatmapView";
 import SiteHeader from "@/components/site/SiteHeader";
@@ -15,6 +15,34 @@ type Stats = {
   earliest: string | null;
   latest: string | null;
 };
+
+type NamedTaxon = {
+  id: number;
+  scientificName: string;
+  commonNameZh: string | null;
+  reportCount: number;
+};
+
+/**
+ * The taxon a link arrived filtered to, named, for the filter panel.
+ *
+ * Read as the public role and joined to species_report_stats, like everything
+ * the map shows: a taxon rated 座標不開放 has no rows in reports_public, and
+ * naming one above an empty map would be the only thing on the page confirming
+ * it had been recorded here.
+ */
+async function namedTaxon(id: number): Promise<NamedTaxon | null> {
+  const rows = await asPublic(
+    (tx) => tx<NamedTaxon[]>`
+      select t.id, t.scientific_name as "scientificName",
+             t.common_name_zh as "commonNameZh",
+             s.report_count as "reportCount"
+        from taxa t
+        join species_report_stats s on s.taxon_id = t.id
+       where t.id = ${id}`,
+  );
+  return rows[0] ?? null;
+}
 
 async function getStats(): Promise<Stats> {
   const [row] = await sql<Stats[]>`
@@ -66,6 +94,8 @@ export default async function MapPage({
 
   const t = await getTranslations();
   const s = await getStats();
+  const taxonId = initialFilter.taxonId;
+  const initialSpecies = taxonId ? await namedTaxon(taxonId) : null;
   const n = (v: string) => Number(v).toLocaleString(locale);
 
   return (
@@ -87,6 +117,7 @@ export default async function MapPage({
           maptilerKey={process.env.NEXT_PUBLIC_MAPTILER_KEY || undefined}
           initialView={view}
           initialFilter={initialFilter}
+          initialSpecies={initialSpecies}
           years={
             s.earliest && s.latest
               ? { first: Number(s.earliest), last: Number(s.latest) }
