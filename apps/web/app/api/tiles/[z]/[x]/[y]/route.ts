@@ -29,15 +29,14 @@ const MAX_ZOOM = 16;
 const gz = promisify(gzip);
 
 /**
- * Whether the client will take a gzipped body, by the q-values it sent.
+ * Whether the client has explicitly refused gzip.
  *
- * A substring test for "gzip" also matched `gzip;q=0`, which is a client saying
- * it will NOT accept gzip — and it got gzip anyway. Browsers never send that,
- * but a proxy or a hand-written client can, and would hand compressed bytes to
- * a tile parser.
+ * No header at all means no preference, and gzip is acceptable (RFC 9110
+ * §12.5.3). Only a header that gives gzip — or `*`, with gzip unlisted — a
+ * weight of zero, or lists codings without gzip or `*`, is a refusal.
  */
-function acceptsGzip(header: string | null): boolean {
-  if (!header) return false;
+function refusesGzip(header: string | null): boolean {
+  if (header === null || header.trim() === "") return false;
   let gzip: number | undefined;
   let any: number | undefined;
   for (const part of header.split(",")) {
@@ -48,7 +47,7 @@ function acceptsGzip(header: string | null): boolean {
     if (coding === "gzip" || coding === "x-gzip") gzip = weight;
     else if (coding === "*") any = weight;
   }
-  return (gzip ?? any ?? 0) > 0;
+  return (gzip ?? any ?? 0) <= 0;
 }
 
 /** The headers every tile response shares, empty or not. */
@@ -246,29 +245,34 @@ export async function GET(
   // Never gzipped: an empty buffer compresses to twenty bytes, and "zero-length"
   // is the whole contract.
   if (!tile || tile.length === 0) {
-    return new Response(new Uint8Array(0), {
-      status: 200,
-      headers: { ...TILE_HEADERS, vary: "accept-encoding" },
-    });
+    return new Response(new Uint8Array(0), { status: 200, headers: TILE_HEADERS });
   }
 
   // Compressed here because nothing else will. Vercel compresses the types it
   // recognises, and application/vnd.mapbox-vector-tile is not one of them, so
   // tiles went out raw: the default desktop view was 212 KB on the wire and is
   // about 36 KB gzipped. MapLibre fetches through the browser, which decodes it.
-  if (acceptsGzip(req.headers.get("accept-encoding"))) {
-    return new Response(new Uint8Array(await gz(tile, { level: 6 })), {
+  //
+  // Gzipped for every client that has not refused it, with no Vary header, so
+  // the CDN holds ONE copy of each tile. With `Vary: accept-encoding` it keyed
+  // on the exact header value — measured on production, the same tile missed
+  // for `gzip, deflate, br, zstd` (Chrome, Firefox), again for
+  // `gzip, deflate, br` (Safari) and again for `gzip` — so every browser family
+  // paid for its own cold cache.
+  //
+  // The cost is a client that explicitly refuses gzip. It gets raw bytes marked
+  // uncacheable when this function answers, but a CDN hit can still hand it the
+  // shared gzipped copy. No browser sends such a header; no client of this
+  // endpoint does.
+  if (refusesGzip(req.headers.get("accept-encoding"))) {
+    return new Response(new Uint8Array(tile), {
       status: 200,
-      headers: {
-        ...TILE_HEADERS,
-        "content-encoding": "gzip",
-        vary: "accept-encoding",
-      },
+      headers: { ...TILE_HEADERS, "cache-control": "private, no-store" },
     });
   }
 
-  return new Response(new Uint8Array(tile), {
+  return new Response(new Uint8Array(await gz(tile, { level: 6 })), {
     status: 200,
-    headers: { ...TILE_HEADERS, vary: "accept-encoding" },
+    headers: { ...TILE_HEADERS, "content-encoding": "gzip" },
   });
 }
