@@ -42,6 +42,18 @@ even then, `.env` is gitignored and must stay that way.
 <https://supabase.com/dashboard> → New project. Pick the **Singapore** or **Tokyo**
 region — closest to Taiwan, and latency here is user-visible on every map tile.
 
+**Then run the functions in the same place.** Production's database is Tokyo
+(ap-northeast-1), and `apps/web/vercel.json` pins functions to `hnd1` to match.
+Until 17 September 2026 they ran in Vercel's default, `iad1` in Virginia, so every
+tile the CDN had not cached crossed the Pacific five times — about 150 ms a round
+trip — before it could answer a visitor in Taiwan. If the database ever moves,
+move `regions` with it.
+
+**That file has to live in `apps/web`, not at the repo root.** The Vercel
+project's Root Directory is `apps/web`, and Vercel reads `vercel.json` only from
+there. The root `vercel.json` is ignored entirely — which is why the crons it
+declares have never been deployed.
+
 Save the database password it shows you; it is displayed once.
 
 Connection strings live behind the **Connect** button in the top bar of the
