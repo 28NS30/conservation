@@ -128,12 +128,40 @@ try {
 /* ---------------- tiles, which are the map ---------------- */
 
 try {
+  // fetch decodes content-encoding once, the way a browser does. What arrives
+  // must then be a vector tile with our layer in it, not merely some bytes: a
+  // tile gzipped twice — once by the route, once by a platform that started
+  // compressing this type — would still be "more than zero bytes", and would
+  // draw nothing.
   const res = await get("/api/tiles/6/53/27");
-  const buf = await res.arrayBuffer();
+  const buf = new Uint8Array(await res.arrayBuffer());
+  const gzippedTwice = buf[0] === 0x1f && buf[1] === 0x8b;
+  let layers = [];
+  try {
+    const { VectorTile } = await import("@mapbox/vector-tile");
+    const { PbfReader } = await import("pbf");
+    layers = Object.keys(new VectorTile(new PbfReader(buf)).layers);
+  } catch {
+    /* unparseable: reported below */
+  }
   check(
     "vector tiles served",
-    res.status === 200 && buf.byteLength > 0,
-    `${res.status}, ${buf.byteLength} bytes`,
+    res.status === 200 && !gzippedTwice && layers.includes("reports"),
+    `${res.status}, ${buf.byteLength} bytes decoded` +
+      (gzippedTwice ? ", STILL GZIPPED after decoding" : "") +
+      (layers.length ? `, layers: ${layers.join(" ")}` : ", not a parseable tile"),
+  );
+
+  // And compressed on the wire. The platform does not compress this content
+  // type itself, so the route does; losing that is a 5x regression in bytes
+  // that no functional check would notice.
+  const wire = await fetch(`${BASE}/api/tiles/6/53/27`, {
+    headers: { "accept-encoding": "gzip" },
+  });
+  check(
+    "vector tiles compressed on the wire",
+    wire.headers.get("content-encoding") === "gzip",
+    wire.headers.get("content-encoding") ?? "no content-encoding",
   );
 } catch (e) {
   check("vector tiles served", false, e.message.slice(0, 60));

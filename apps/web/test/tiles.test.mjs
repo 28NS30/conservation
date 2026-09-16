@@ -10,10 +10,12 @@ import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { VectorTile } from "@mapbox/vector-tile";
 import { PbfReader } from "pbf";
+import { gunzipSync } from "node:zlib";
 import { sql, BASE_URL } from "./helpers.mjs";
 import {
   aggregationCellMeters,
   TILE_AGGREGATION_MAX_ZOOM,
+  TILE_SOURCE_BOUNDS,
 } from "@conservation/shared";
 
 after(() => sql.end());
@@ -302,5 +304,130 @@ describe("input validation", () => {
       `${Z6.z}/${Z6.x}/${Z6.y}?category=roadkill`,
     );
     assert.equal(status, 400);
+  });
+});
+
+describe("transfer", () => {
+  // Raw, because Node's fetch would decode for us and hide what went on the wire.
+  const raw = async (path, headers = {}) => {
+    const { request } = await import("node:http");
+    const url = new URL(`${BASE_URL}/api/tiles/${path}`);
+    return new Promise((resolve, reject) => {
+      request(url, { headers }, (res) => {
+        const chunks = [];
+        res.on("data", (c) => chunks.push(c));
+        res.on("end", () =>
+          resolve({ status: res.statusCode, headers: res.headers, body: Buffer.concat(chunks) }),
+        );
+      })
+        .on("error", reject)
+        .end();
+    });
+  };
+
+  test("a tile with data is gzipped when the client accepts it", async () => {
+    // Vercel does not compress application/vnd.mapbox-vector-tile, so tiles went
+    // out raw: 77 KB for this one, about 14 KB gzipped.
+    const plain = await raw(`${Z6.z}/${Z6.x}/${Z6.y}`);
+    const zipped = await raw(`${Z6.z}/${Z6.x}/${Z6.y}`, { "accept-encoding": "gzip" });
+    assert.equal(zipped.headers["content-encoding"], "gzip");
+    assert.ok(zipped.body.length < plain.body.length / 3, "should compress well");
+    assert.deepEqual(
+      gunzipSync(zipped.body),
+      plain.body,
+      "decoded, it must be exactly the tile a client without gzip receives",
+    );
+    assert.match(zipped.headers.vary ?? "", /accept-encoding/i);
+  });
+
+  test("an empty tile is never gzipped", async () => {
+    // Twenty bytes of gzip header would break the zero-length contract above.
+    const res = await raw(`${Z6.z}/${Z6.x}/${Z6.y}?group=sighting`, {
+      "accept-encoding": "gzip",
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.length, 0);
+    assert.equal(res.headers["content-encoding"], undefined);
+  });
+
+  test("only the canonical query is served", async () => {
+    // Anything that fetches the same tile under a different query string would
+    // sit in the CDN under a key the map never uses. This keeps the cache tidy;
+    // it is not load protection (the tile grid offers millions of legitimate
+    // uncached URLs). nxtP*/nxtI* keys are not listed: Next.js strips them
+    // before the handler runs, so they cannot be refused here.
+    const at = `${Z6.z}/${Z6.x}/${Z6.y}`;
+    const refused = {
+      "an ignored key": `?cb=12345`,
+      "a repeated key": `?group=invasive&group=roadkill`,
+      "another spelling of the same id": `?taxonId=0032116`,
+      "the right keys in another order": `?taxonId=32116&group=roadkill`,
+    };
+    for (const [what, q] of Object.entries(refused)) {
+      const { status } = await getTile(at + q);
+      assert.equal(status, 400, `${what} (${q}) must be refused`);
+    }
+  });
+
+  test("every query the map itself builds is accepted", async () => {
+    // filterToQuery's order: group, taxonId, from, to. The species page builds
+    // ?taxonId=<n> on its own, which is the same form.
+    const at = `${Z6.z}/${Z6.x}/${Z6.y}`;
+    for (const q of [
+      "",
+      "?group=roadkill",
+      "?taxonId=32116",
+      "?group=roadkill&taxonId=32116&from=2014-01-01&to=2015-01-01",
+      "?from=2014-01-01",
+    ]) {
+      const { status } = await getTile(at + q);
+      assert.equal(status, 200, `${q || "(no query)"} must be served`);
+    }
+  });
+
+  test("a client that refuses gzip is not sent gzip", async () => {
+    // gzip;q=0 says gzip is NOT acceptable. A substring test for "gzip" sent it
+    // anyway.
+    const at = `${Z6.z}/${Z6.x}/${Z6.y}`;
+    for (const header of ["gzip;q=0, identity", "identity", "*;q=0, identity", "br"]) {
+      const res = await raw(at, { "accept-encoding": header });
+      assert.equal(res.headers["content-encoding"], undefined, `accept-encoding: ${header}`);
+      assert.ok(res.body.length > 0 && res.body[0] !== 0x1f, `raw tile for ${header}`);
+    }
+    for (const header of ["gzip", "br, gzip;q=0.5", "*"]) {
+      const res = await raw(at, { "accept-encoding": header });
+      assert.equal(res.headers["content-encoding"], "gzip", `accept-encoding: ${header}`);
+    }
+  });
+});
+
+describe("tile source bounds", () => {
+  test("every published point falls inside them", async () => {
+    // The map never requests a tile outside TILE_SOURCE_BOUNDS, so a published
+    // point outside it would simply never be drawn. The margin exists for
+    // obscured records, whose public point can sit half a degree from the
+    // island's own envelope.
+    const [w, s, e, n] = TILE_SOURCE_BOUNDS;
+    const [row] = await sql`
+      select count(*) filter (
+               where st_x(location_public::geometry) < ${w}
+                  or st_x(location_public::geometry) > ${e}
+                  or st_y(location_public::geometry) < ${s}
+                  or st_y(location_public::geometry) > ${n})::int as outside,
+             count(*)::int as total
+        from reports_public`;
+    assert.ok(row.total > 0);
+    assert.equal(row.outside, 0, `${row.outside} published points fall outside`);
+  });
+
+  test("the margin covers the largest obscuring cell", async () => {
+    // precision_cell_deg() is what the trigger uses to size the obscuring cell.
+    // Suppressed records are excluded from reports_public outright, so the
+    // largest cell a published point can have moved within is coarse_50km's.
+    const [{ cell }] = await sql`
+      select max(precision_cell_deg(p)) as cell
+        from unnest(array['exact','coarse_10km','coarse_50km']) p`;
+    const [w] = TILE_SOURCE_BOUNDS;
+    assert.ok(118.0 - w >= cell, `margin ${118.0 - w} is smaller than a ${cell}° cell`);
   });
 });

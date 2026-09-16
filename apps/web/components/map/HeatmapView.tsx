@@ -22,6 +22,7 @@ import {
   filterToQuery,
   TILE_AGGREGATION_MAX_ZOOM,
   TAIWAN_MAIN_BOUNDS,
+  TILE_SOURCE_BOUNDS,
   type MapFilter,
 } from "@conservation/shared";
 import { createMap, type MapHandle } from "@/lib/map";
@@ -534,6 +535,8 @@ export default function HeatmapView({
         map.addSource(SOURCE_AGG, {
           type: "vector",
           tiles: [firstUrl],
+          // Never ask for a tile that cannot hold a report. See TILE_SOURCE_BOUNDS.
+          bounds: TILE_SOURCE_BOUNDS,
           minzoom: 0,
           // Stops here on purpose: beyond this the endpoint serves points, so
           // MapLibre should overzoom the last aggregated tile rather than fetch
@@ -543,6 +546,7 @@ export default function HeatmapView({
         map.addSource(SOURCE_PTS, {
           type: "vector",
           tiles: [firstUrl],
+          bounds: TILE_SOURCE_BOUNDS,
           minzoom: TILE_AGGREGATION_MAX_ZOOM + 1,
           maxzoom: 16,
         });
