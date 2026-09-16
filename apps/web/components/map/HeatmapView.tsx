@@ -398,6 +398,13 @@ export default function HeatmapView({
   const handleRef = useRef<MapHandle | null>(null);
   const [ready, setReady] = useState(false);
   const [filter, setFilter] = useState<MapFilter>(initialFilter ?? {});
+  // Read by addReportLayers, which is created once inside the init effect and
+  // would otherwise see only the first render's filter. A chip tapped before
+  // the style arrives must still decide which tiles are requested first.
+  const filterRef = useRef<MapFilter>(filter);
+  useEffect(() => {
+    filterRef.current = filter;
+  }, [filter]);
   const [hint, setHint] = useState<string | null>(null);
   /** The report whose details are open beside the map, if any. */
   const [selected, setSelected] = useState<string | null>(null);
@@ -502,18 +509,31 @@ export default function HeatmapView({
         cleanupRef.current = () => map.off("resize", onResizeFit);
       }
 
-      // Idempotent: may be invoked more than once as the style settles.
+      // Runs once, at style.load — before the basemap has finished arriving.
+      // Guarded anyway, since a second call would throw on duplicate ids.
       function addReportLayers(map: MLMap) {
         // Before the report layers, so the density cells draw over it. Called
         // from here rather than beside frameIsland because addLayer throws
-        // "Style is not done loading" until this callback fires.
+        // "Style is not done loading" until this callback fires. Since onReady
+        // moved to style.load this mask can paint before the basemap does; the
+        // presentation map is unused today, but fade it in if it returns.
         if (presentationRef.current) addMainlandMask(map);
 
         if (map.getSource(SOURCE_AGG)) return;
 
+        // Created in their final state: the current filter, display mode and
+        // colour. They were created with no filter, bins visible and density
+        // colours, and the effects below corrected all three once `ready` was
+        // set — so a first visit painted the wrong mode for a moment, and every
+        // load re-requested the tiles it had just fetched when setTiles fired
+        // with an identical URL.
+        const firstUrl = tileUrl(filterRef.current);
+        const firstMode = modeStore.get();
+        const byType = colourStore.get() === "type";
+
         map.addSource(SOURCE_AGG, {
           type: "vector",
-          tiles: [tileUrl({})],
+          tiles: [firstUrl],
           minzoom: 0,
           // Stops here on purpose: beyond this the endpoint serves points, so
           // MapLibre should overzoom the last aggregated tile rather than fetch
@@ -522,7 +542,7 @@ export default function HeatmapView({
         });
         map.addSource(SOURCE_PTS, {
           type: "vector",
-          tiles: [tileUrl({})],
+          tiles: [firstUrl],
           minzoom: TILE_AGGREGATION_MAX_ZOOM + 1,
           maxzoom: 16,
         });
@@ -543,8 +563,9 @@ export default function HeatmapView({
           // Outlives the handoff by a little, fading, so it covers the moment the
           // point tiles are still loading.
           maxzoom: TILE_AGGREGATION_MAX_ZOOM + 2,
+          layout: { visibility: firstMode === "bins" ? "visible" : "none" },
           paint: {
-            "fill-color": densityStep,
+            "fill-color": byType ? groupColor : densityStep,
             // Antialiasing is off deliberately. Neighbouring cells share an exact
             // edge, and an antialiased seam between two same-coloured fills shows
             // up as a faint grid of hairlines across the whole country.
@@ -576,7 +597,7 @@ export default function HeatmapView({
           source: SOURCE_AGG,
           "source-layer": DOT_SOURCE_LAYER,
           maxzoom: TILE_AGGREGATION_MAX_ZOOM + 2,
-          layout: { visibility: "none" },
+          layout: { visibility: firstMode === "heat" ? "visible" : "none" },
           paint: {
             // Weighted by the cell's own count, so a cell holding 300 reports
             // pushes far harder than one holding 2. Capped so a single hotspot
@@ -654,10 +675,10 @@ export default function HeatmapView({
           // vertex of a polygon and a square would produce four.
           "source-layer": DOT_SOURCE_LAYER,
           maxzoom: TILE_AGGREGATION_MAX_ZOOM + 2,
-          layout: { visibility: "none" },
+          layout: { visibility: firstMode === "dots" ? "visible" : "none" },
           paint: {
             "circle-radius": dotRadius,
-            "circle-color": dotColor,
+            "circle-color": byType ? groupColor : dotColor,
             "circle-opacity": [
               "interpolate",
               ["linear"],
@@ -894,9 +915,18 @@ export default function HeatmapView({
     if (!map || !ready) return;
     // Both sources point at the same endpoint and must be repointed together, or
     // the two zoom regimes end up showing different filters.
+    //
+    // Only when the URL actually changed. setTiles with an identical URL still
+    // throws away every loaded tile and fetches them again — which is what
+    // happened on every visit, the moment `ready` was set.
+    //
+    // Compared through serialize() rather than `src.tiles`: the latter lags a
+    // frame behind setTiles, so toggling A→B→A within one frame would compare
+    // against stale state and leave B's tiles on screen under A's chips.
+    const url = tileUrl(filter);
     for (const id of [SOURCE_AGG, SOURCE_PTS]) {
       const src = map.getSource(id) as VectorTileSource | undefined;
-      src?.setTiles([tileUrl(filter)]);
+      if (src && src.serialize().tiles?.[0] !== url) src.setTiles([url]);
     }
     // Every filter lives in the tile query string, so the CDN keys on it too.
     // Depending on the individual fields rather than the `filter` object avoids
