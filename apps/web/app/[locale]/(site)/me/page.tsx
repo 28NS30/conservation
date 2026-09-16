@@ -308,7 +308,7 @@ function Journey({
           )}
           <span
             className={`text-[11px] ${
-              s.done ? "font-medium text-moss-700" : "text-ink-400"
+              s.done ? "font-medium text-moss-700" : "text-ink-500"
             }`}
           >
             {s.done && (

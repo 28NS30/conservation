@@ -458,7 +458,7 @@ export default function ReportForm({
         <p className="mt-1.5 text-[11px] text-ink-500">
           {t("tapToAdjust")}
           {accuracyM != null && (
-            <span className="ml-1.5 tabular-nums text-ink-400">
+            <span className="ml-1.5 tabular-nums text-ink-500">
               · {t("accuracy", { m: accuracyM })}
             </span>
           )}

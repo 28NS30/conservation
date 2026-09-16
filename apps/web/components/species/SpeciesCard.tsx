@@ -71,7 +71,7 @@ export default function SpeciesCard({
             {zhFirst ? s.scientificName : (s.commonNameZh ?? "")}
           </span>
           {s.nameAuthor && (
-            <span className="ml-1.5 text-ink-400">{s.nameAuthor}</span>
+            <span className="ml-1.5 text-ink-500">{s.nameAuthor}</span>
           )}
         </p>
         <StatusBadges {...s} />
