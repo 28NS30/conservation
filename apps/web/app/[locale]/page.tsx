@@ -289,7 +289,7 @@ export default async function HomePage({
                       </span>
                     )}
                   </span>
-                  <span className="hidden font-mono text-[11px] tabular-nums text-ink-400 sm:inline">
+                  <span className="hidden font-mono text-[11px] tabular-nums text-ink-500 sm:inline">
                     {r.lat.toFixed(4)}, {r.lng.toFixed(4)}
                   </span>
                 </Link>
@@ -329,7 +329,7 @@ export default async function HomePage({
             ["how3", "how3Body"],
           ].map(([h, b], i) => (
             <li key={h} className="border-t border-ink-900/12 pt-5">
-              <span className="font-mono text-[11px] tabular-nums text-ink-400">
+              <span className="font-mono text-[11px] tabular-nums text-ink-500">
                 {String(i + 1).padStart(2, "0")}
               </span>
               <h3 className="mt-2 text-base font-semibold text-ink-900">

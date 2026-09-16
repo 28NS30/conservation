@@ -12,6 +12,13 @@ export const config = {
    * `/api` must be excluded: tile and submission endpoints are locale-independent,
    * and prefixing them would break MapLibre's tile URLs and every fetch in the app.
    *
+   * `/auth` must be excluded for the same reason, and forgetting it broke sign-in
+   * outright. The magic-link callback lives at app/auth/callback, outside
+   * [locale], and Supabase sends people to exactly that URL. The proxy rewrote it
+   * to the default locale's /zh-TW/auth/callback, which does not exist — so every
+   * magic link in production landed on a 404 and nobody could sign in. Nothing
+   * had exercised the callback, because nobody has signed in yet.
+   *
    * `"/"` is listed separately and is load-bearing under a basePath. A request to
    * a prefixed root arrives here with its pathname normalised to the empty string,
    * which
@@ -19,5 +26,5 @@ export const config = {
    * then never ran for the site's own front page, so the default locale was never
    * rewritten in and that one path 404'd while every route under it worked.
    */
-  matcher: ["/", "/((?!api|_next|maplibre|.*\\..*).*)"],
+  matcher: ["/", "/((?!api|auth/|_next|maplibre|.*\\..*).*)"],
 };

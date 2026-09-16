@@ -133,7 +133,7 @@ export default function SpeciesPicker({
     <section>
       <h2 className="mb-2 text-sm font-medium text-ink-700">
         {t("species")}{" "}
-        <span className="font-normal text-ink-400">{t("optional")}</span>
+        <span className="font-normal text-ink-500">{t("optional")}</span>
       </h2>
 
       <div ref={boxRef} className="relative">
@@ -148,7 +148,7 @@ export default function SpeciesPicker({
           onFocus={() => setOpen(true)}
           placeholder={scoped ? t("speciesSearchInvasive") : t("speciesSearch")}
           aria-label={t("species")}
-          className="w-full rounded-lg border border-ink-900/12 bg-paper-100 px-3.5 py-3 text-[15px] text-ink-900 placeholder:text-ink-400 disabled:opacity-50"
+          className="w-full rounded-lg border border-ink-900/12 bg-paper-100 px-3.5 py-3 text-[15px] text-ink-900 placeholder:text-ink-500 disabled:opacity-50"
         />
 
         {/*
@@ -239,7 +239,7 @@ export default function SpeciesPicker({
         />
         <span>
           {t("speciesUnsure")}
-          <span className="block text-ink-400">{t("speciesUnsureHint")}</span>
+          <span className="block text-ink-500">{t("speciesUnsureHint")}</span>
         </span>
       </label>
     </section>
