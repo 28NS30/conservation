@@ -342,11 +342,16 @@ describe("transfer", () => {
     }
   });
 
-  test("responses carry no Vary, so the CDN keeps one copy of each tile", async () => {
-    // With Vary: accept-encoding, Vercel's CDN keyed on the exact header value:
-    // Chrome, Safari and a bare "gzip" each missed the same tile separately.
-    const res = await raw(`${Z6.z}/${Z6.x}/${Z6.y}`, { "accept-encoding": "gzip, deflate, br" });
-    assert.equal(res.headers.vary?.match(/accept-encoding/i) ?? null, null);
+  test("a tile with data varies by Accept-Encoding; an empty one does not", async () => {
+    // Without Vary, Vercel's CDN cached the body it had decompressed for a
+    // client that sent no Accept-Encoding, and served that raw copy to every
+    // browser afterwards — 39 KB where the gzipped tile is 6.5 KB, measured on
+    // production. An empty tile is identical in every encoding.
+    const data = await raw(`${Z6.z}/${Z6.x}/${Z6.y}`, { "accept-encoding": "gzip, deflate, br" });
+    assert.match(data.headers.vary ?? "", /accept-encoding/i);
+    const empty = await raw(`${Z6.z}/${Z6.x}/${Z6.y}?group=sighting`, { "accept-encoding": "gzip" });
+    assert.equal(empty.body.length, 0);
+    assert.equal((empty.headers.vary ?? "").match(/accept-encoding/i), null);
   });
 
   test("an empty tile is never gzipped", async () => {

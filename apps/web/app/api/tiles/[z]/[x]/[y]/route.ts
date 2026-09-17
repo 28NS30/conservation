@@ -243,7 +243,8 @@ export async function GET(
   // perfectly healthy basemap. An empty 200 is unambiguous and just as cheap.
   //
   // Never gzipped: an empty buffer compresses to twenty bytes, and "zero-length"
-  // is the whole contract.
+  // is the whole contract. No Vary either: an empty body is the same in every
+  // encoding, so there is nothing for separate cache entries to separate.
   if (!tile || tile.length === 0) {
     return new Response(new Uint8Array(0), { status: 200, headers: TILE_HEADERS });
   }
@@ -253,26 +254,38 @@ export async function GET(
   // tiles went out raw: the default desktop view was 212 KB on the wire and is
   // about 36 KB gzipped. MapLibre fetches through the browser, which decodes it.
   //
-  // Gzipped for every client that has not refused it, with no Vary header, so
-  // the CDN holds ONE copy of each tile. With `Vary: accept-encoding` it keyed
-  // on the exact header value — measured on production, the same tile missed
-  // for `gzip, deflate, br, zstd` (Chrome, Firefox), again for
-  // `gzip, deflate, br` (Safari) and again for `gzip` — so every browser family
-  // paid for its own cold cache.
+  // Gzipped for every client that has not refused it, with `Vary:
+  // accept-encoding`. The Vary is load-bearing, and removing it was tried.
   //
-  // The cost is a client that explicitly refuses gzip. It gets raw bytes marked
-  // uncacheable when this function answers, but a CDN hit can still hand it the
-  // shared gzipped copy. No browser sends such a header; no client of this
-  // endpoint does.
+  // Vercel's CDN transcodes: a client that sends no Accept-Encoding, or
+  // `identity`, is handed a decompressed body — and without Vary that
+  // decompressed copy is what gets cached and served to every browser after it.
+  // Measured on production: a tile whose first request came from a client with
+  // no header went on to serve 39 KB raw to Chrome and Safari, where the
+  // gzipped copy is 6.5 KB, for as long as the cache held it. One crawler or
+  // curl was enough.
+  //
+  // The price of Vary is that the CDN keys on the exact header string, so a
+  // tile is cached once per distinct value. In practice that is two: Chrome,
+  // Edge and Firefox send `gzip, deflate, br, zstd`; Safari sends
+  // `gzip, deflate, br`.
   if (refusesGzip(req.headers.get("accept-encoding"))) {
     return new Response(new Uint8Array(tile), {
       status: 200,
-      headers: { ...TILE_HEADERS, "cache-control": "private, no-store" },
+      headers: {
+        ...TILE_HEADERS,
+        "cache-control": "private, no-store",
+        vary: "accept-encoding",
+      },
     });
   }
 
   return new Response(new Uint8Array(await gz(tile, { level: 6 })), {
     status: 200,
-    headers: { ...TILE_HEADERS, "content-encoding": "gzip" },
+    headers: {
+      ...TILE_HEADERS,
+      "content-encoding": "gzip",
+      vary: "accept-encoding",
+    },
   });
 }
