@@ -198,6 +198,59 @@ for (const path of LOCALES) {
   await ctx.close();
 }
 
+/**
+ * Links a person can actually see and hit.
+ *
+ * The map's escape hatch to the list has always existed as a skip link, which
+ * `sr-only` renders as a 1px box — so "the link is in the DOM" was true the
+ * whole time it was undiscoverable. Everything here is measured, and at the
+ * 24x24 floor WCAG 2.5.8 sets rather than at "larger than a pixel".
+ */
+const visibleLinks = (page) =>
+  page.evaluate(() =>
+    [...document.querySelectorAll("a[href]")]
+      .map((a) => ({ href: a.getAttribute("href"), box: a.getBoundingClientRect() }))
+      .filter(({ box }) => box.width >= 24 && box.height >= 24)
+      .map(({ href }) => href),
+  );
+
+/* ---- the map and the list are two views of one question ---- */
+for (const [path, list] of [
+  ["/map?group=roadkill", "/reports?group=roadkill"],
+  ["/en/map?group=roadkill", "/en/reports?group=roadkill"],
+]) {
+  const { ctx, page } = await openMap(path, { mode: "dots", colour: "density" });
+  const links = await visibleLinks(page);
+  check(
+    `${path} offers the list where it can be seen`,
+    links.includes(list),
+    `visible links: ${links.join(" ")}`,
+  );
+  await ctx.close();
+}
+
+for (const [path, map] of [
+  ["/reports?group=roadkill&page=2", "/map?group=roadkill"],
+  ["/en/reports?group=roadkill&page=2", "/en/map?group=roadkill"],
+]) {
+  const ctx = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    locale: path.startsWith("/en") ? "en-US" : "zh-TW",
+  });
+  const page = await ctx.newPage();
+  await page.goto(BASE + path, { waitUntil: "load" });
+  // Boxes are measured, so the stylesheet has to have arrived: `load` can fire
+  // first on a cold dev compile and every link then measures as bare inline text.
+  await page.waitForTimeout(2000);
+  const links = await visibleLinks(page);
+  check(
+    `${path} offers the map, carrying the filter and not the page`,
+    links.includes(map),
+    `visible links: ${links.join(" ")}`,
+  );
+  await ctx.close();
+}
+
 await browser.close();
 
 if (failures.length) {
