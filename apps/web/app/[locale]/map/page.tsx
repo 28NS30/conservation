@@ -112,7 +112,12 @@ export default async function MapPage({
         }}
       />
 
-      <div className="relative min-h-0 flex-1">
+      {/* `on-dark` scopes the dark colour scheme to the one thing on the site
+          that actually is dark. The root used to declare it for every page,
+          which painted the report form's checkbox and date picker dark on
+          cream; here it is what makes the year <select>s' <option> lists
+          legible, since an <option> cannot be styled by us on most platforms. */}
+      <div className="on-dark relative min-h-0 flex-1">
         <HeatmapView
           maptilerKey={process.env.NEXT_PUBLIC_MAPTILER_KEY || undefined}
           initialView={view}

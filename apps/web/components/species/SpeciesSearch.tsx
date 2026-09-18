@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
-import { useRouter, usePathname } from "@/i18n/navigation";
+import { useRouter } from "@/i18n/navigation";
 
 /**
  * Search box for the species directory.
@@ -10,11 +10,23 @@ import { useRouter, usePathname } from "@/i18n/navigation";
  * Debounced because a bare substring query over 66k taxa is a sequential scan
  * for short Chinese input — ~18 ms, which is fine per keystroke-pause but not
  * per keystroke. See 0005_taxa_search.sql for why that scan is deliberate.
+ *
+ * The URL is rebuilt from the whole state, not from `q` alone. Rebuilding it
+ * from the query string dropped `filter`, so typing into the box while
+ * "Invasive species" was chosen silently widened the search to all 66,201 taxa
+ * while the chip stayed drawn as if it were still on. The filter arrives as a
+ * prop because the page has already validated it against its own list — the
+ * box must not be the second place that decides what a legal filter is.
  */
-export default function SpeciesSearch({ initialQuery }: { initialQuery: string }) {
+export default function SpeciesSearch({
+  initialQuery,
+  filter,
+}: {
+  initialQuery: string;
+  filter: string;
+}) {
   const t = useTranslations("species");
   const router = useRouter();
-  const pathname = usePathname();
   const [value, setValue] = useState(initialQuery);
   const first = useRef(true);
 
@@ -26,10 +38,15 @@ export default function SpeciesSearch({ initialQuery }: { initialQuery: string }
     }
     const id = setTimeout(() => {
       const q = value.trim();
-      router.replace(q ? `${pathname}?q=${encodeURIComponent(q)}` : pathname);
+      // No `page`: a new search is a new result set, and keeping the old page
+      // number lands the reader past the end of it.
+      router.replace({
+        pathname: "/species",
+        query: { ...(q ? { q } : {}), filter },
+      });
     }, 250);
     return () => clearTimeout(id);
-  }, [value, pathname, router]);
+  }, [value, filter, router]);
 
   return (
     <label className="block">
