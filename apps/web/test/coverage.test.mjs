@@ -72,12 +72,20 @@ async function covered(tx) {
 }
 
 describe("map coverage", () => {
+  // A square is only claimed by a record whose location is exact, so every
+  // fixture that expects the count to MOVE has to be identified. Since 0011 an
+  // untaxoned record is blurred — the sensitivity of an unidentified animal is
+  // unknown — and blurred records are excluded a few tests below. Planting one
+  // here would be testing the blur, not the counting.
+  const plain = () => taxonWhere("scientific_name = 'Paguma larvata'");
+
   test("a second record in the same square does not move the number", async () => {
     await inRollback(async (tx) => {
+      const taxonId = await plain();
       const before = await covered(tx);
       // Somewhere in the sea off Taiwan's west coast: guaranteed to be a square
       // nothing else occupies, so the delta is unambiguous.
-      const at = { lng: 119.2, lat: 24.1 };
+      const at = { lng: 119.2, lat: 24.1, taxonId };
       await insertReport(tx, at);
       const afterFirst = await covered(tx);
       assert.equal(afterFirst, before + 1, "a new square should count once");
@@ -94,10 +102,22 @@ describe("map coverage", () => {
 
   test("a record in a different square does move it", async () => {
     await inRollback(async (tx) => {
+      const taxonId = await plain();
       const before = await covered(tx);
-      await insertReport(tx, { lng: 119.2, lat: 24.1 });
-      await insertReport(tx, { lng: 119.4, lat: 24.4 });
+      await insertReport(tx, { lng: 119.2, lat: 24.1, taxonId });
+      await insertReport(tx, { lng: 119.4, lat: 24.4, taxonId });
       assert.equal(await covered(tx), before + 2);
+    });
+  });
+
+  test("an unidentified record cannot claim a square either", async () => {
+    // The same rule as the obscured-taxon case below, reached by not knowing
+    // the species rather than by knowing a sensitive one.
+    await inRollback(async (tx) => {
+      const before = await covered(tx);
+      const r = await insertReport(tx, { taxonId: null, lng: 119.2, lat: 24.1 });
+      assert.ok(r.is_obscured, "an unidentified record must be blurred");
+      assert.equal(await covered(tx), before);
     });
   });
 
@@ -136,12 +156,13 @@ describe("map coverage", () => {
     // would have been announced as reaching a square that "had no record at all",
     // of a square with records since 2011.
     await inRollback(async (tx) => {
+      const taxonId = await plain();
       const before = await newThisSeason(tx);
       const [ex] = await tx`
         select st_x(location_public::geometry) as lng,
                st_y(location_public::geometry) as lat
           from reports_public where not is_obscured limit 1`;
-      await insertReport(tx, { lng: ex.lng, lat: ex.lat });
+      await insertReport(tx, { lng: ex.lng, lat: ex.lat, taxonId });
       assert.equal(
         await newThisSeason(tx),
         before,
@@ -152,8 +173,9 @@ describe("map coverage", () => {
 
   test("a report on an empty square is newly reached", async () => {
     await inRollback(async (tx) => {
+      const taxonId = await plain();
       const before = await newThisSeason(tx);
-      await insertReport(tx, { lng: 119.2, lat: 24.1 });
+      await insertReport(tx, { lng: 119.2, lat: 24.1, taxonId });
       assert.equal(await newThisSeason(tx), before + 1);
     });
   });
