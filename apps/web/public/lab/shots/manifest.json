@@ -14,7 +14,7 @@
       "href": "/lab/journal",
       "width": 1440,
       "height": 900,
-      "bytes": 59748
+      "bytes": 56242
     },
     {
       "file": "home-journal-en-1440-full.webp",
@@ -28,7 +28,7 @@
       "href": "/lab/journal",
       "width": 1440,
       "height": 2951,
-      "bytes": 127994
+      "bytes": 122538
     },
     {
       "file": "home-journal-en-390-fold.webp",
@@ -42,7 +42,7 @@
       "href": "/lab/journal",
       "width": 780,
       "height": 1688,
-      "bytes": 71272
+      "bytes": 70044
     },
     {
       "file": "home-journal-zh-1440-fold.webp",
@@ -70,7 +70,7 @@
       "href": "/lab/journal",
       "width": 1440,
       "height": 2842,
-      "bytes": 112128
+      "bytes": 111296
     },
     {
       "file": "home-journal-zh-390-fold.webp",
@@ -98,7 +98,7 @@
       "href": "/lab/roundel",
       "width": 1440,
       "height": 900,
-      "bytes": 57062
+      "bytes": 54390
     },
     {
       "file": "home-roundel-en-1440-full.webp",
@@ -112,7 +112,7 @@
       "href": "/lab/roundel",
       "width": 1440,
       "height": 2972,
-      "bytes": 121730
+      "bytes": 117748
     },
     {
       "file": "home-roundel-en-390-fold.webp",
@@ -126,7 +126,7 @@
       "href": "/lab/roundel",
       "width": 780,
       "height": 1688,
-      "bytes": 72502
+      "bytes": 70252
     },
     {
       "file": "home-roundel-zh-1440-fold.webp",
@@ -154,7 +154,7 @@
       "href": "/lab/roundel",
       "width": 1440,
       "height": 2922,
-      "bytes": 108306
+      "bytes": 107304
     },
     {
       "file": "home-roundel-zh-390-fold.webp",
@@ -196,7 +196,7 @@
       "href": "/",
       "width": 1440,
       "height": 3502,
-      "bytes": 176168
+      "bytes": 176218
     },
     {
       "file": "home-today-en-390-fold.webp",
@@ -238,7 +238,7 @@
       "href": "/",
       "width": 1440,
       "height": 3355,
-      "bytes": 157520
+      "bytes": 157730
     },
     {
       "file": "home-today-zh-390-fold.webp",
@@ -266,7 +266,7 @@
       "href": "/lab/roundel/map",
       "width": 1440,
       "height": 900,
-      "bytes": 46532
+      "bytes": 46526
     },
     {
       "file": "map-roundel-en-390-fold.webp",
@@ -308,7 +308,7 @@
       "href": "/lab/roundel/map",
       "width": 780,
       "height": 1688,
-      "bytes": 50700
+      "bytes": 40370
     },
     {
       "file": "map-today-en-1440-fold.webp",
@@ -350,7 +350,7 @@
       "href": "/map",
       "width": 1440,
       "height": 900,
-      "bytes": 68176
+      "bytes": 63656
     },
     {
       "file": "map-today-zh-390-fold.webp",
@@ -490,7 +490,7 @@
       "href": "/lab/roundel/report/photo-first",
       "width": 1440,
       "height": 900,
-      "bytes": 13832
+      "bytes": 13488
     },
     {
       "file": "report-roundel-photo-first-en-390-fold.webp",
@@ -504,7 +504,7 @@
       "href": "/lab/roundel/report/photo-first",
       "width": 780,
       "height": 1688,
-      "bytes": 27074
+      "bytes": 26296
     },
     {
       "file": "report-roundel-photo-first-zh-1440-fold.webp",
@@ -518,7 +518,7 @@
       "href": "/lab/roundel/report/photo-first",
       "width": 1440,
       "height": 900,
-      "bytes": 11612
+      "bytes": 11400
     },
     {
       "file": "report-roundel-photo-first-zh-390-fold.webp",
@@ -532,7 +532,7 @@
       "href": "/lab/roundel/report/photo-first",
       "width": 780,
       "height": 1688,
-      "bytes": 23068
+      "bytes": 22152
     },
     {
       "file": "report-roundel-stepper-en-1440-fold.webp",
@@ -546,7 +546,7 @@
       "href": "/lab/roundel/report/stepper",
       "width": 1440,
       "height": 900,
-      "bytes": 15646
+      "bytes": 15270
     },
     {
       "file": "report-roundel-stepper-en-390-fold.webp",
@@ -560,7 +560,7 @@
       "href": "/lab/roundel/report/stepper",
       "width": 780,
       "height": 1688,
-      "bytes": 27074
+      "bytes": 26296
     },
     {
       "file": "report-roundel-stepper-zh-1440-fold.webp",
@@ -574,7 +574,7 @@
       "href": "/lab/roundel/report/stepper",
       "width": 1440,
       "height": 900,
-      "bytes": 13566
+      "bytes": 13436
     },
     {
       "file": "report-roundel-stepper-zh-390-fold.webp",
@@ -588,7 +588,7 @@
       "href": "/lab/roundel/report/stepper",
       "width": 780,
       "height": 1688,
-      "bytes": 23068
+      "bytes": 22152
     },
     {
       "file": "report-today-en-1440-fold.webp",
@@ -602,7 +602,7 @@
       "href": "/report",
       "width": 1440,
       "height": 900,
-      "bytes": 30002
+      "bytes": 26460
     },
     {
       "file": "report-today-en-1440-full.webp",
@@ -616,7 +616,7 @@
       "href": "/report",
       "width": 1440,
       "height": 1847,
-      "bytes": 53014
+      "bytes": 49028
     },
     {
       "file": "report-today-en-390-fold.webp",
@@ -658,7 +658,7 @@
       "href": "/report",
       "width": 1440,
       "height": 1829,
-      "bytes": 47402
+      "bytes": 47456
     },
     {
       "file": "report-today-zh-390-fold.webp",
@@ -882,7 +882,7 @@
       "href": "/species/28758",
       "width": 1440,
       "height": 900,
-      "bytes": 31612
+      "bytes": 30088
     },
     {
       "file": "species-28758-today-en-1440-full.webp",
@@ -896,7 +896,7 @@
       "href": "/species/28758",
       "width": 1440,
       "height": 1331,
-      "bytes": 42436
+      "bytes": 40986
     },
     {
       "file": "species-28758-today-en-390-fold.webp",
@@ -910,7 +910,7 @@
       "href": "/species/28758",
       "width": 780,
       "height": 1688,
-      "bytes": 62358
+      "bytes": 56320
     },
     {
       "file": "species-28758-today-zh-1440-fold.webp",
@@ -924,7 +924,7 @@
       "href": "/species/28758",
       "width": 1440,
       "height": 900,
-      "bytes": 30170
+      "bytes": 19118
     },
     {
       "file": "species-28758-today-zh-1440-full.webp",
@@ -938,7 +938,7 @@
       "href": "/species/28758",
       "width": 1440,
       "height": 1331,
-      "bytes": 39700
+      "bytes": 28932
     },
     {
       "file": "species-28758-today-zh-390-fold.webp",
@@ -952,7 +952,7 @@
       "href": "/species/28758",
       "width": 780,
       "height": 1688,
-      "bytes": 63198
+      "bytes": 42054
     },
     {
       "file": "species-37689-roundel-en-1440-fold.webp",
@@ -966,7 +966,7 @@
       "href": "/lab/roundel/species/37689",
       "width": 1440,
       "height": 900,
-      "bytes": 40258
+      "bytes": 38974
     },
     {
       "file": "species-37689-roundel-en-390-fold.webp",
@@ -1022,7 +1022,7 @@
       "href": "/species/37689",
       "width": 1440,
       "height": 900,
-      "bytes": 30200
+      "bytes": 32996
     },
     {
       "file": "species-37689-today-en-390-fold.webp",
@@ -1036,7 +1036,7 @@
       "href": "/species/37689",
       "width": 780,
       "height": 1688,
-      "bytes": 69924
+      "bytes": 65080
     },
     {
       "file": "species-37689-today-zh-1440-fold.webp",
