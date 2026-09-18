@@ -127,6 +127,24 @@ for (const path of LOCALES) {
   );
   check(`${at} locks the type option`, l?.type.disabled === "true");
   check(`${at} leaves it focusable`, l?.type.focusable === true);
+  // `aria-disabled` keeps it in the tab order, so it still has to show where
+  // focus is. A real `disabled` would have removed it and this would be moot —
+  // which is the trade being made: reachable and explained, not hidden.
+  check(
+    `${at} rings the locked option when it takes focus`,
+    await page.evaluate(() => {
+      const card = document.querySelector("[data-legend]");
+      const btn = card?.querySelector('button[aria-disabled="true"]');
+      if (!btn) return false;
+      btn.focus();
+      if (document.activeElement !== btn) return false;
+      const cs = getComputedStyle(btn);
+      return (
+        (cs.outlineStyle !== "none" && parseFloat(cs.outlineWidth) > 0) ||
+        (!!cs.boxShadow && cs.boxShadow !== "none")
+      );
+    }),
+  );
   check(`${at} says why it is locked`, l?.type.reason === true);
   check(`${at} shows density as the colour in use`, l?.density.pressed === "true");
   check(
