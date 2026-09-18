@@ -59,7 +59,7 @@ export default async function SpeciesDirectory({
     <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-12">
       <PageHeader title={t("directory")} lede={t("directoryHint")}>
         <div className="mt-6 max-w-xl">
-          <SpeciesSearch initialQuery={q ?? ""} />
+          <SpeciesSearch initialQuery={q ?? ""} filter={filter} />
         </div>
 
         <nav className="mt-4 flex flex-wrap gap-1.5">
