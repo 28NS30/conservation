@@ -13,30 +13,46 @@ import { withBase } from "@/lib/basePath";
  * is a circle on a white field, so without the clip it shows four white corners
  * against cream and reads as a rendering fault rather than a decision.
  *
- * Still today's PNG, which letters 生態守望計畫 / PROJECT ECOWATCH — two names
- * behind. PR2 swaps in the one-time 1040px upscale at `/lab/emblem-1040.png`;
- * showing it soft and out of date is the agreed fallback, because the redraw is
- * on the critical path and the design question cannot wait for it.
+ * THE ARTWORK IS WRONG AND IS SHOWN ANYWAY. It still letters 生態守望計畫 /
+ * PROJECT ECOWATCH, two renames out of date, and `public/brand-badge.png` is
+ * 512px — half of what a 520px hero needs on a 2x screen. `/lab/emblem-1040.png`
+ * is that same file resampled once to 1040px and committed; it is soft at hero
+ * size and it still reads ECOWATCH. That is brief W1's decision 4, taken the
+ * agreed way: the redraw is on the critical path and the design question cannot
+ * wait for it, so the prototype shows the emblem at the size the design calls
+ * for and says out loud that the picture is out of date. `/lab` carries the
+ * sentence the owner reads before they open either direction.
+ *
+ * When the redraw lands it drops in here and nothing else changes.
  */
 export default function Emblem({
   size,
-  priority = false,
+  eager = false,
   sizes,
   className = "",
 }: {
   size: number;
-  /** Set on the one above the fold, and nowhere else. */
-  priority?: boolean;
+  /**
+   * Set on the one above the fold, and nowhere else.
+   *
+   * Next 16 deprecated `priority` in favour of `preload`, and its own guidance
+   * is to reach for `loading="eager"` with `fetchPriority="high"` before either:
+   * the emblem is the hero's only image and is discovered in the first few
+   * hundred bytes of the body, so a `<link rel=preload>` in the head buys
+   * nothing a high-priority eager fetch does not.
+   */
+  eager?: boolean;
   sizes?: string;
   className?: string;
 }) {
   return (
     <Image
-      src={withBase("/brand-badge.png")}
+      src={withBase("/lab/emblem-1040.png")}
       alt=""
       width={size}
       height={size}
-      priority={priority}
+      loading={eager ? "eager" : "lazy"}
+      fetchPriority={eager ? "high" : undefined}
       sizes={sizes}
       className={`rounded-full ${className}`}
     />

@@ -61,6 +61,12 @@ export default async function LabIndexPage({
       <Container width="prose">
         <PageTitle>{copy.lab.indexTitle}</PageTitle>
         <p className="t-lead mt-6 text-(--fg-quiet)">{copy.lab.indexLead}</p>
+        {/* Said once, here, before either design is opened. Both heroes carry
+            the badge at 520px, and at that size the only artwork there is is
+            visibly soft and still lettered with a name the project stopped
+            using two renames ago. A reviewer who is not told that judges the
+            picture instead of the layout. */}
+        <p className="t-body mt-4 text-(--fg-quiet)">{copy.lab.emblemNote}</p>
 
         {LAB_DIRECTIONS.map((direction: LabDirection) => {
           const routes = LAB_ROUTES.filter((route) =>
