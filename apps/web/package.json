@@ -16,7 +16,8 @@
     "test:e2e": "npm run test:map && npm run test:offline && npm run test:focus",
     "lint": "eslint .",
     "test:pages": "node e2e/pages.spec.mjs",
-    "test:focus": "node e2e/focus.spec.mjs"
+    "test:focus": "node e2e/focus.spec.mjs",
+    "lab:fonts": "node scripts/lab-subset-fonts.mjs"
   },
   "dependencies": {
     "@conservation/shared": "*",
@@ -43,6 +44,7 @@
     "eslint-config-next": "^16.3.0",
     "pbf": "^5.1.2",
     "playwright": "^1.62.1",
+    "subset-font": "^2.7.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.0",
     "wait-on": "^9.1.0"
