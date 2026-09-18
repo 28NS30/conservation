@@ -225,3 +225,28 @@ describe("reporting a hurt animal", () => {
     );
   });
 });
+
+describe("the blocked submit button", () => {
+  test("the reason is attached to the button, not merely near it", async () => {
+    // A screen reader heard a disabled button and no reason at all: the
+    // sentence saying what was missing was a sibling with nothing linking it.
+    assert.match(FORM, /aria-describedby=\{blocker \? "submit-blocker" : undefined\}/);
+    assert.match(FORM, /id="submit-blocker"/);
+
+    const html = await (await fetch(`${BASE_URL}/report`)).text();
+    const id = /id="submit-blocker"/.test(html);
+    assert.ok(id, "the blocker must be rendered before anything is chosen");
+    assert.match(html, /aria-describedby="submit-blocker"/);
+  });
+
+  test("their spacing comes from a group, not a negative margin", () => {
+    // `-mb-1` cancelled part of the parent's `space-y-6`, so the gap between
+    // the two changed whenever the page's spacing scale did — a relationship
+    // expressed as an override of the thing it depends on.
+    assert.ok(
+      !/-mb-1[^"]*">\{blocker\}/.test(FORM),
+      "the blocker must not pull itself towards the button",
+    );
+    assert.match(FORM, /<div className="space-y-2">\s*\{blocker &&/);
+  });
+});

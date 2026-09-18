@@ -652,24 +652,36 @@ function ReportFormFields({
           the form looks complete while `location` is still null — the button
           greys out and nothing on screen explains why. That is a dead end on the
           one page whose entire job is collecting a report.
-      */}
-      {blocker && (
-        <p className="-mb-1 text-center text-xs text-ink-500">{blocker}</p>
-      )}
 
-      <button
-        type="button"
-        onClick={submit}
-        disabled={
-          phase === "submitting" ||
-          preparing ||
-          !location ||
-          (turnstileEnabled && !turnstileToken)
-        }
-        className="w-full rounded-xl bg-ember-500 px-4 py-3 text-sm font-semibold text-bark-950 transition disabled:cursor-not-allowed disabled:bg-paper-200 disabled:text-ink-600"
-      >
-        {phase === "submitting" ? t("submitting") : t("submit")}
-      </button>
+          Its own group, rather than two children of `space-y-6` with a negative
+          margin pulling them together. `-mb-1` did not merely tighten the gap:
+          it cancelled the parent's spacing outright, and at 390px the button's
+          box rose into the sentence explaining why the button was disabled. The
+          group owns the relationship, and `aria-describedby` states it to a
+          screen reader, which previously heard a disabled button and no reason.
+      */}
+      <div className="space-y-2">
+        {blocker && (
+          <p id="submit-blocker" className="text-center text-xs text-ink-500">
+            {blocker}
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={submit}
+          aria-describedby={blocker ? "submit-blocker" : undefined}
+          disabled={
+            phase === "submitting" ||
+            preparing ||
+            !location ||
+            (turnstileEnabled && !turnstileToken)
+          }
+          className="w-full rounded-xl bg-ember-500 px-4 py-3 text-sm font-semibold text-bark-950 transition disabled:cursor-not-allowed disabled:bg-paper-200 disabled:text-ink-600"
+        >
+          {phase === "submitting" ? t("submitting") : t("submit")}
+        </button>
+      </div>
     </div>
   );
 }
