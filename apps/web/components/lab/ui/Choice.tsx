@@ -34,6 +34,7 @@ export default function Choice({
   value,
   defaultValue,
   onChange,
+  onCommit,
   hideLegend = false,
   className = "",
 }: {
@@ -44,6 +45,18 @@ export default function Choice({
   value?: string;
   defaultValue?: string;
   onChange?: (value: string) => void;
+  /**
+   * Fired only when a row is actually pressed — a tap, or Enter or Space on a
+   * focused row — and never when an arrow key moves the selection.
+   *
+   * That distinction is the whole reason this exists. The report stepper
+   * advances the moment the condition is answered, which is right for a thumb
+   * and wrong for a keyboard: in a radiogroup, arrowing down the list would
+   * pick each option in turn and shoot the reporter through the flow on the
+   * first key press. `onChange` is "the selection is now this"; `onCommit` is
+   * "this is my answer".
+   */
+  onCommit?: (value: string) => void;
   hideLegend?: boolean;
   className?: string;
 }) {
@@ -95,7 +108,10 @@ export default function Choice({
               ref={(node) => {
                 refs.current[index] = node;
               }}
-              onClick={() => pick(option.value)}
+              onClick={() => {
+                pick(option.value);
+                onCommit?.(option.value);
+              }}
               onKeyDown={(event) => onKeyDown(event, index)}
               className={`rule-quiet flex min-h-16 w-full items-center gap-4 border-b px-4 py-3 text-left transition-colors duration-150 ${
                 checked

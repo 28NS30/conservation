@@ -199,6 +199,7 @@ export type LabCopy = {
     injuredTitle: string;
     injuredBody: string;
     injuredAck: string;
+    captionInjured: string;
     speciesTitle: string;
     speciesPlaceholder: string;
     speciesUnsure: string;
@@ -437,6 +438,7 @@ const zhTW: LabCopy = {
     // out loud that the words are missing.
     injuredBody: "文字待提供",
     injuredAck: "知道了，繼續",
+    captionInjured: "先看過上面那段，再送出。",
     speciesTitle: "是什麼動物？",
     speciesPlaceholder: "輸入名稱，例如：石虎",
     speciesUnsure: "不確定",
@@ -675,6 +677,7 @@ const en: LabCopy = {
     injuredTitle: "Nobody will be sent",
     injuredBody: "Wording pending",
     injuredAck: "Understood, continue",
+    captionInjured: "Read the notice above before sending.",
     speciesTitle: "What animal?",
     speciesPlaceholder: "Type a name, e.g. leopard cat",
     speciesUnsure: "Not sure",

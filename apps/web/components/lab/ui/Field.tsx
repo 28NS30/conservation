@@ -23,6 +23,16 @@ type Common = {
   errorAction?: React.ReactNode;
   required?: boolean;
   disabled?: boolean;
+  /**
+   * Keeps the label for a screen reader and takes it off the screen.
+   *
+   * For the one case where the visible label is already there: a step whose
+   * whole heading is the question, where printing it again above the box says
+   * the same thing twice in two sizes. NOT a way to fall back on a placeholder
+   * — the label still has to be written, it is still read out, and it still
+   * says the same thing as the heading.
+   */
+  hideLabel?: boolean;
   className?: string;
 };
 
@@ -35,6 +45,7 @@ export default function Field({
   errorAction,
   required,
   disabled,
+  hideLabel = false,
   className = "",
   as = "input",
   type = "text",
@@ -86,7 +97,14 @@ export default function Field({
 
   return (
     <div className={className}>
-      <label htmlFor={id} className="t-body t-label block font-bold text-(--fg)">
+      <label
+        htmlFor={id}
+        className={
+          hideLabel
+            ? "sr-only"
+            : "t-body t-label block font-bold text-(--fg)"
+        }
+      >
         {label}
       </label>
       {hint ? (
