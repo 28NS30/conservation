@@ -192,9 +192,9 @@ function frameIsland(map: MLMap, mode: "hero" | "browse") {
  *
  * With a single source, crossing into the point regime hid the cells (their tiles
  * simply stop carrying polygons) while the first point tiles were still in
- * flight, and the z10 parent tile has no points to fall back on — so there was
- * genuinely nothing to draw. Measured on a continuous wheel zoom, that produced a
- * frame with 0% of the view painted.
+ * flight, and the last aggregated parent tile has no points to fall back on — so
+ * there was genuinely nothing to draw. Measured on a continuous wheel zoom, that
+ * produced a frame with 0% of the view painted.
  *
  * Capping the aggregate source at TILE_AGGREGATION_MAX_ZOOM makes MapLibre
  * *overzoom* the last aggregated tile instead of requesting one that does not
@@ -733,12 +733,18 @@ export default function HeatmapView({
             "circle-stroke-color": "rgba(255,255,255,0.65)",
             // Visible the instant this layer takes over.
             //
-            // This ramp used to start at 0 and only reach 0.9 by z12.5, which was
-            // fine when a heatmap stayed painted until z13.5 and cross-faded with
-            // it. Once the heatmap was replaced by cells that stop dead at z10, it
-            // left roughly z10-11.5 looking empty: the points were all there and
-            // drawn at near-zero opacity. Zooming in made the map go blank and
-            // only "come back" much later.
+            // This ramp used to start at 0 and climb over several zoom levels,
+            // which was fine while a heatmap stayed painted across the same band
+            // and cross-faded with it. Once that heatmap was replaced by
+            // aggregated cells, which stop where TILE_AGGREGATION_MAX_ZOOM says
+            // they stop, it left a band of zooms looking empty: the points were
+            // all there, drawn at near-zero opacity. Zooming in made the map go
+            // blank and only "come back" much later.
+            //
+            // Both stops now sit below this layer's own minzoom, so the
+            // interpolate is clamped to 0.9 from its very first frame. They are
+            // kept as the floor rather than as a fade, and as the record of why
+            // a floor is needed at all.
             "circle-opacity": [
               "interpolate",
               ["linear"],
