@@ -1,0 +1,107 @@
+/*
+ * What the display faces are attached to, and what keeps them off the map.
+ *
+ * `faces.css` beside this file declares six `@font-face` blocks and is
+ * generated; this one is the hand-written half: which family each direction
+ * asks for, what happens to a title the subsets cannot draw, and the two
+ * italic rules a Hanzi face needs.
+ *
+ * ONE VARIABLE DOES ALL THE WIRING. base.css sets the family of `.t-head`,
+ * `.t-title`, `.t-display`, `.t-hero` and `.t-masthead` from `--font-display`
+ * and nothing else, so putting the subset family at the front of that one value
+ * is the whole of "the lab now has a typeface". Nothing below 28px is touched:
+ * `.t-body` and `.t-label` read `--font-body` on purpose, because the lab's map
+ * route must load no web font and the map's one visible control is a sign.
+ *
+ * SPECIFICITY, NOT IMPORT ORDER. `html [data-direction="…"]` beats the
+ * direction files' own `[data-direction="…"]` whichever way the CSS chunks come
+ * out of the bundler, which is the same reason base.css beats the live sheet
+ * with an extra `html`. Betting on the order of two stylesheets in a route's
+ * chunk is how a theme silently stops applying on a production build.
+ *
+ * WHAT MAKES THE MAP FREE. Declaring a face costs nothing; only text set in it
+ * costs a fetch. So these declarations reach every lab route and only the
+ * routes with a heading on them pay. `data-display-face="system"` below is the
+ * belt to that braces, for a route whose budget is a number somebody checks.
+ */
+
+html [data-direction="roundel"] {
+  /* Roundel's display face is a heavy Hei, so its fallback is the system sans
+     the whole lab already reads for prose. */
+  --font-display-fallback: var(--font-body);
+  --font-display: "FW Sign", var(--font-display-fallback);
+}
+
+html [data-direction="journal"] {
+  /* The stack journal.css declares, with the subset face in front of it. It is
+     spelled out rather than referenced because a custom property cannot be
+     defined in terms of itself; `test/lab.test.mjs` pins the two copies equal
+     so the duplication cannot drift. */
+  --font-display-fallback:
+    "Noto Serif TC", "Source Serif 4", "Songti TC", "PMingLiU",
+    "Times New Roman", ui-serif, serif;
+  --font-display: "FW Ming", var(--font-display-fallback);
+}
+
+/*
+ * A NAME THE SUBSETS CANNOT DRAW IS SET WHOLLY IN THE SYSTEM FACE.
+ *
+ * The subsets cover the catalogues, the lab's own copy and the four species the
+ * lab routes name — about eight hundred characters. Taiwan's checklist runs to
+ * tens of thousands of Hanzi, so a species h1 will eventually contain one that
+ * is in no face. `unicode-range` makes that safe at the level of a paragraph:
+ * the browser falls back per character and the result is legible. It is NOT
+ * safe in a title at 56px, where one system glyph beside six subset ones reads
+ * as a mistake in the design rather than a gap in a font.
+ *
+ * So direction.md §2.2 gives the rule: all or nothing, per title. The decision
+ * is `labFaceClass()` in `lib/lab/fonts.ts`, which reads the same charset.json
+ * the faces were cut from; this is the class it returns.
+ *
+ * Two hooks, because they are two different jobs:
+ *   .face-system                  — one element. A title, a name, a heading.
+ *   [data-display-face="system"]  — a subtree. Every heading under it drops to
+ *                                   the system face and the route loads no
+ *                                   font at all. The map route sets this.
+ *
+ * 700, not 900: no platform ships a Black system Hanzi, and asking for one gets
+ * either the Bold or a synthesised smear.
+ */
+html [data-lab] .face-system,
+html [data-lab] [data-display-face="system"] {
+  --font-display: var(--font-display-fallback);
+  --weight-display: 700;
+}
+
+html [data-lab] .face-system {
+  font-family: var(--font-display-fallback);
+  font-weight: 700;
+}
+
+/*
+ * Italics, which on a Hanzi face are two separate problems.
+ *
+ * Chinese does not italicise for emphasis, so `em` and `i` inside Chinese text
+ * are set upright — the live sheet does this and the lab must too, or a `<em>`
+ * in a zh-TW paragraph gets a slanted Ming that no Chinese reader expects.
+ * A binomial is the exception and marks itself `lang="la"`; the second rule is
+ * more specific than the first, so it wins wherever both apply.
+ *
+ * `font-synthesis-style`, not `font-synthesis`. Turning the whole property off
+ * also turns off synthesised WEIGHT, and Android draws bold Hanzi by
+ * synthesising it from the one system face it has — so `font-synthesis: none`
+ * is how every bold Chinese word on the site quietly goes back to regular on
+ * half the phones the owner will hand this to. base.css sets this too; it is
+ * repeated here because it is a property of these faces, not of the palette.
+ */
+html [data-lab] {
+  font-synthesis-style: none;
+}
+
+html [data-lab] :lang(zh) :is(em, i) {
+  font-style: normal;
+}
+
+html [data-lab] :lang(zh) :is(em, i):lang(la) {
+  font-style: italic;
+}

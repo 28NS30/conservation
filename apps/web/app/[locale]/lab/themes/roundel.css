@@ -1,0 +1,105 @@
+/*
+ * Roundel — the site wears the badge like a ranger service patch.
+ *
+ * Every hex below is transcribed from direction.md §2.1, including the contrast
+ * figures in the comments, which were computed (WCAG 2.x) rather than guessed.
+ * Do not round them off: the ramp in particular is lightness-monotonic with a
+ * measured 1.31 step between neighbours, and nudging one value to taste breaks
+ * the only thing that makes six density classes readable at once.
+ *
+ * The idea in one line: blocks of forest and cream instead of bordered beige
+ * boxes. A filled rectangle means action, an underlined word means filter, a
+ * glyph plus words means status, and nothing is a pill.
+ */
+
+[data-direction="roundel"] {
+  /* Badge ring. Chrome bands, map land, panels, and the secondary sign.
+     Against parchment-50 13.07, parchment-200 9.33, parchment-300 6.62. */
+  --lab-field: #112c1e;
+  --lab-field-hover: #1a3d2b;
+  /* Rules and roads on forest. 1.88:1 — decorative, never text. */
+  --lab-field-rule: #2a5a41;
+  --lab-field-fg: #f6efe0;
+  --lab-field-fg-quiet: #d8cbb0;
+  /* Map place labels only; the one parchment step that may sit on forest as
+     small type and nowhere else. */
+  --lab-field-label: #b8ab94;
+
+  /* Cream block: heroes, receipt, closing block. ink-900 12.53, ink-700 7.55. */
+  --lab-plate: #ece2cd;
+  --lab-plate-hover: #d8cbb0;
+
+  /* Page ground. ink-900 15.06, ink-700 9.08, ink-600 6.91. */
+  --lab-paper: #faf7f0;
+  --lab-paper-hover: #f3ece0;
+  --lab-skeleton: #f3ece0;
+
+  /* Headings / body / meta and input borders. */
+  --lab-ink-900: #16241c;
+  --lab-ink-700: #2f4a3a;
+  --lab-ink-600: #435b4c;
+
+  /* The two dots on the badge: the only saturated colour in the mark, so the
+     only thing that shouts. One ember element per content viewport.
+     ember-700 carries a paper-50 label at 5.63; ember-800 is the hover and the
+     only ember allowed as a word on the cream plate (6.34). */
+  --lab-action: #9a4e22;
+  --lab-action-hover: #7d3e1a;
+  --lab-focus-light: #9a4e22;
+  /* On forest the sign inverts: ember-400 block, field-900 label, 5.64. */
+  --lab-action-field: #e08a4f;
+  --lab-action-field-hover: #eda471;
+  --lab-focus-field: #e08a4f;
+
+  /* Secondary on paper and plate is a forest block with a cream label — a
+     second material rather than a second colour of button. */
+  --lab-secondary-bg: #112c1e;
+  --lab-secondary-fg: #f6efe0;
+
+  --lab-endemic: #4a6835;
+  --lab-endemic-field: #a8c48a;
+  --lab-alert: #8f2d1f;
+
+  /* Density, grass to sky: one hue, lightness-monotonic. On the forest land
+     3.36, 4.39, 5.80, 7.60, 9.92, 13.07, and every step 1.31 from its
+     neighbour, so the lowest class clears 3:1 by fill and no two classes
+     collapse into each other in sunlight. */
+  --ramp-1: #4f8264;
+  --ramp-2: #6a9663;
+  --ramp-3: #87ac6a;
+  --ramp-4: #a5c287;
+  --ramp-5: #dad593;
+  --ramp-6: #f6efe0;
+
+  /* The basemap repaint, applied to the same style URL the live map already
+     preloads. The island is the inside of the emblem: land takes the badge's
+     ring colour and the sea goes to the map's near-black. */
+  --map-water: #0b1410;
+  --map-land: #112c1e;
+  --map-road: #2a5a41;
+  --map-label: #b8ab94;
+  --map-halo: #0b1410;
+  --map-coast: transparent;
+  /* A 3px ember ring separated from the dot by a 2px near-black halo, so a
+     selected record reads on top of six density classes. */
+  --map-select-ring: #e08a4f;
+  --map-select-halo: #0b1410;
+
+  /* A cell that is not mostly any one type. Grey is a real answer here, not a
+     fallback, and it has to clear the land while staying apart from all three
+     marks: the lowest density step is the one colour in this theme already
+     proved at 3.36:1 on forest, and it sits at least 1.68:1 from ember-400,
+     moss-300 and parchment-50. */
+  --map-mixed: var(--ramp-1);
+  /* Type mode differs by form first: solid, solid, hollow ring. */
+  --mark-roadkill: #e08a4f;
+  --mark-injured: #e08a4f;
+  --mark-invasive: #f6efe0;
+  --mark-sighting: #a8c48a;
+
+  /* Noto Sans TC 900 arrives in PR2 as three subset faces; until then the
+     system stack carries the weight. Black below 28px clogs 灣 and 蟾蜍 at 1x,
+     which is why nothing under `t-head` uses the display face at all. */
+  --weight-display: 900;
+  --radius-sign: 4px;
+}

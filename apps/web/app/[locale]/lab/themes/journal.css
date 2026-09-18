@@ -1,0 +1,149 @@
+/*
+ * Field journal — the runner-up, built on home only.
+ *
+ * Hexes from direction.md §3. Three defining moves, and the theme file can only
+ * carry two of them: paper instead of surfaces, and a light survey-sheet map.
+ * The third — rules with margin headings instead of blocks — is structural, and
+ * lives in how the home page composes `Section`, not here.
+ *
+ * Home is the page the owner has rejected twice, so it is the page that settles
+ * taste. That is the whole argument for building this direction once rather
+ * than four times.
+ */
+
+[data-direction="journal"] {
+  /* Sheet, and the map's land. */
+  --lab-paper: #fbfaf6;
+  /* One tinted band per page is the whole of this direction's hierarchy. */
+  --lab-plate: #f1eee4;
+  --lab-paper-hover: #f1eee4;
+  --lab-plate-hover: #d9d4c5;
+  --lab-skeleton: #f1eee4;
+
+  /* 15.43 / 7.08 / 5.71 on the sheet. */
+  --lab-ink-900: #16241c;
+  --lab-ink-700: #435b4c;
+  --lab-ink-600: #435b4c;
+  --lab-ink-500: #51695b;
+
+  /* Primary fill with a paper label, 5.77. The focus ring is a step lighter so
+     it is visible against the fill it usually sits on (4.51 on paper). */
+  --lab-action: #9a4e22;
+  --lab-action-hover: #7d3e1a;
+  --lab-focus-light: #b25c28;
+
+  /* Nothing is boxed here except inputs, maps and pictures, so the secondary
+     sign is an outlined word rather than a second filled block. */
+  --lab-secondary-bg: transparent;
+  --lab-secondary-fg: #16241c;
+  --lab-secondary-rule: #16241c;
+  /* …which leaves the picked row needing a fill of its own, since an outline
+     that is already the button's shape cannot also mean "chosen". */
+  --lab-selected-bg: #16241c;
+  --lab-selected-fg: #fbfaf6;
+
+  /* The dark ground is the footer and nothing else. */
+  --lab-field: #0b1410;
+  --lab-field-fg: #fbfaf6;
+  --lab-field-fg-quiet: #d9d4c5;
+  --lab-field-label: #d9d4c5;
+  --lab-field-rule: color-mix(in srgb, #fbfaf6 24%, transparent);
+  --lab-field-hover: #16241c;
+  --lab-action-field: #9a4e22;
+  --lab-action-field-fg: #fbfaf6;
+  --lab-action-field-hover: #b25c28;
+  --lab-focus-field: #fbfaf6;
+
+  /* Status and type marks by hue as well as form: madder, ochre, indigo. */
+  --lab-alert: #8c2a2a;
+  --lab-endemic: #4a6835;
+  --lab-endemic-field: #a8c48a;
+  --lab-invasive: #2c5a85;
+  --lab-blurred: #51695b;
+
+  /* Corrected to clear 3:1 by fill on the pale land: 3.06, 4.24, 5.94, 8.20,
+     11.44, 15.91, neighbours 1.38–1.40. It runs the other way from Roundel's —
+     dark means many — because on a light map the eye reads ink as weight. */
+  --ramp-1: #6e9b6c;
+  --ramp-2: #528358;
+  --ramp-3: #3c6b47;
+  --ramp-4: #295538;
+  --ramp-5: #173e29;
+  --ramp-6: #092316;
+
+  /* A survey sheet: pale water, a drawn coast, data under the labels. This
+     reverses the recorded dark-map decision, which is why it is allowed in the
+     lab and nowhere else until the owner picks this direction. */
+  --map-water: #e2e8e4;
+  --map-land: #fbfaf6;
+  --map-road: #d9d4c5;
+  --map-label: #16241c;
+  --map-halo: #fbfaf6;
+  --map-coast: #51695b;
+  --map-select-ring: #16241c;
+  --map-select-halo: #fbfaf6;
+
+  /* The mixed cell, on the same rule as Roundel's: the lowest density step,
+     which is the one colour already proved against this land. */
+  --map-mixed: var(--ramp-1);
+  --mark-roadkill: #8c2a2a;
+  --mark-injured: #76560a;
+  --mark-invasive: #2c5a85;
+  --mark-sighting: #4a6835;
+
+  /* Noto Serif TC 700 and Source Serif 4 arrive in PR2. The system serif stack
+     is the stand-in, and it is the honest one: a Ming face is the direction's
+     entire voice, so a reviewer should be told the real one is not loaded yet
+     rather than shown a sans and asked to imagine it. */
+  --font-display:
+    "Noto Serif TC", "Source Serif 4", "Songti TC", "PMingLiU", "Times New Roman",
+    ui-serif, serif;
+  --weight-display: 700;
+
+  /* Nothing is rounded. */
+  --radius-sign: 0px;
+
+  /* The masthead is this direction's one picture, so it does not step down on a
+     phone the way Roundel's does: 48px at every width (§3, "masthead 48/88").
+     Eight Hanzi at 48px is 384px and a 390px screen offers 342, so the name has
+     to break — and 4em of measure is what makes it break in the only place it
+     is allowed to, between 福爾摩沙 and 守望計畫. Imported after base.css, so
+     these win at both widths on source order. */
+  --text-masthead: var(--text-hero);
+  --lh-masthead: var(--lh-hero);
+  --masthead-measure: 4em;
+
+  /* Phone. Serif never below 24px; no Hanzi under 14px anywhere. */
+  --text-note: 14px;
+  --text-body: 16px;
+  --text-lead: 19px;
+  --text-head: 24px;
+  --text-title: 34px;
+  --text-display: 40px;
+  --text-hero: 48px;
+
+  --lh-note: 1.6;
+  --lh-body: 1.75;
+  --lh-lead: 1.5;
+  --lh-head: 1.35;
+  --lh-title: 1.2;
+  --lh-display: 1.15;
+  --lh-hero: 1.1;
+}
+
+@media (min-width: 768px) {
+  [data-direction="journal"] {
+    --text-body: 17px;
+    --text-lead: 22px;
+    --text-head: 32px;
+    --text-title: 56px;
+    --text-display: 72px;
+    --text-hero: 88px;
+  }
+}
+
+html:lang(en) [data-direction="journal"] {
+  --lh-body: 1.6;
+  --lh-title: 1.15;
+  --lh-display: 1.08;
+}
