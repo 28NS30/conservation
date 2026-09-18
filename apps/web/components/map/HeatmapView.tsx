@@ -32,6 +32,7 @@ import MapModeToggle from "./MapModeToggle";
 import MapColourToggle from "./MapColourToggle";
 import ReportPanel from "./ReportPanel";
 import { colourStore, modeStore, type MapMode } from "./mapMode";
+import { heatColorExpression } from "./legend";
 import { Link } from "@/i18n/navigation";
 
 /**
@@ -631,25 +632,10 @@ export default function HeatmapView({
               12,
               2.4,
             ],
-            // Same blue -> cyan -> green -> amber -> red progression as
-            // DENSITY_CLASSES, so switching modes does not relearn the colours.
-            "heatmap-color": [
-              "interpolate",
-              ["linear"],
-              ["heatmap-density"],
-              0,
-              "rgba(0,0,0,0)",
-              0.15,
-              "rgba(56,132,255,0.55)",
-              0.35,
-              "rgba(34,211,238,0.7)",
-              0.55,
-              "rgba(52,211,153,0.8)",
-              0.75,
-              "rgba(251,146,60,0.88)",
-              1,
-              "rgba(244,63,94,0.95)",
-            ],
+            // Built from HEAT_STOPS, which the legend's gradient bar is drawn
+            // from too. Written out here, the bar beside it could only ever
+            // have been an approximation of it.
+            "heatmap-color": heatColorExpression(),
             "heatmap-radius": [
               "interpolate",
               ["linear"],
