@@ -1,0 +1,353 @@
+/*
+ * The lab's semantic layer: what the primitives are allowed to know about.
+ *
+ * Plain CSS custom properties, NOT Tailwind's `@theme`. `@theme` registers
+ * tokens globally and emits utilities for them, which would put the lab's
+ * colours on every live page and into every live class name — the one thing
+ * this whole directory promises not to do. Everything here is scoped to
+ * `[data-lab]` (the lab layout's wrapper) or `[data-direction="…"]` (the
+ * direction layout's), so nothing leaks past a lab route.
+ *
+ * THE CONTRACT. A primitive reads only the names in the "surface" blocks below
+ * plus `--ramp-1…6` and the type scale. It never names a direction's colour.
+ * That is what makes a direction a single CSS file rather than a rebuild: swap
+ * roundel.css for journal.css and every component changes without being touched.
+ * The map schemes (`--map-*`) are the same bargain for the basemap repaint.
+ *
+ * Surfaces, not modes. `data-surface="paper|plate|field"` is direction.md's
+ * `.on-paper` / `.on-plate` / `.on-field`: three materials a component can sit
+ * on, each carrying its own text, rule, focus and action colours. It is not a
+ * light/dark pair — both lab directions are light — so a component belongs to a
+ * surface, and nesting one inside another re-points every variable it reads.
+ *
+ * The `var(--color-…)` fallbacks are the live palette. `/lab` itself belongs to
+ * no direction, and rendering the index in today's colours is honest: it is not
+ * one of the two designs.
+ */
+
+[data-lab] {
+  /* The live `:root` sets `color-scheme: dark` for the map's benefit. Both lab
+     directions are light documents, and getting this wrong means the form
+     controls and scrollbars inside them are drawn dark by the browser. */
+  color-scheme: light;
+
+  --container-page: 1200px;
+  --container-prose: 680px;
+  --gutter: 16px;
+
+  /* 4px base; the gaps the compositions use are 8 16 24 40 64 96. */
+  --radius-sign: 4px;
+
+  /* Seven sizes, no more (direction.md §2.3). A direction may change the
+     numbers but not the count, so a heading can only ever be one of these. */
+  --text-note: 14px;
+  --text-body: 16px;
+  --text-lead: 20px;
+  --text-head: 28px;
+  --text-title: 40px;
+  --text-display: 56px;
+  --text-hero: 80px;
+
+  --lh-note: 1.6;
+  --lh-body: 1.75;
+  --lh-lead: 1.6;
+  --lh-head: 1.3;
+  --lh-title: 1.15;
+  --lh-display: 1.15;
+  --lh-hero: 1.1;
+
+  /* PR2 replaces these with the committed subsets. Until then both directions
+     run on the system stack, which is the right default anyway: /lab/*/map must
+     load no web font at all, so a primitive that reaches for a family name
+     directly would break the budget the moment the fonts land. */
+  --font-body:
+    ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", "PingFang TC",
+    "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+  --font-display: var(--font-body);
+  --weight-display: 700;
+  --weight-body: 400;
+}
+
+@media (min-width: 768px) {
+  [data-lab] {
+    --gutter: 32px;
+  }
+}
+
+html:lang(en) [data-lab] {
+  /* Latin sets tighter than Hanzi at the same size; direction.md gives both. */
+  --lh-body: 1.6;
+  --lh-title: 1.1;
+  --lh-display: 1.05;
+}
+
+/* ---- surfaces ---------------------------------------------------------- */
+
+[data-lab],
+[data-lab] [data-surface="paper"] {
+  --ground: var(--lab-paper, var(--color-paper-50));
+  --fg: var(--lab-ink-900, var(--color-ink-900));
+  --fg-quiet: var(--lab-ink-700, var(--color-ink-700));
+  --rule: var(--lab-ink-900, var(--color-ink-900));
+  --focus: var(--lab-focus-light, var(--color-ember-700));
+  --action: var(--lab-action, var(--color-ember-700));
+  --action-fg: var(--lab-paper, var(--color-paper-50));
+  --action-hover: var(--lab-action-hover, var(--color-ember-700));
+  /* The one ember step allowed as text on this surface; on plate it is darker,
+     on field it is lighter. Underlines and inline actions read this. */
+  --accent-text: var(--lab-action, var(--color-ember-700));
+  --secondary-bg: var(--lab-secondary-bg, var(--color-ink-900));
+  --secondary-fg: var(--lab-secondary-fg, var(--color-paper-50));
+  --secondary-rule: var(--lab-secondary-rule, transparent);
+  /* The row you picked. On paper that is a forest block with a cream label —
+     a second material, not a second colour of button. */
+  --selected-bg: var(--lab-selected-bg, var(--lab-secondary-bg, var(--color-ink-900)));
+  --selected-fg: var(--lab-selected-fg, var(--lab-secondary-fg, var(--color-paper-50)));
+  --hover: var(--lab-paper-hover, var(--color-paper-100));
+  --alert: var(--lab-alert, var(--color-ember-700));
+  --input-bg: var(--lab-paper, var(--color-paper-50));
+  --input-fg: var(--lab-ink-900, var(--color-ink-900));
+  --input-rule: var(--lab-ink-600, var(--color-ink-600));
+  --skeleton: var(--lab-skeleton, var(--color-paper-100));
+  --status-protected: var(--lab-alert, var(--color-ember-700));
+  --status-endemic: var(--lab-endemic, var(--color-moss-700));
+  --status-invasive: var(--lab-invasive, var(--lab-ink-900, var(--color-ink-900)));
+  --status-blurred: var(--lab-blurred, var(--lab-ink-600, var(--color-ink-600)));
+}
+
+[data-lab] [data-surface="plate"] {
+  --ground: var(--lab-plate, var(--color-paper-100));
+  --hover: var(--lab-plate-hover, var(--color-paper-200));
+  /* ember-700 is 4.68:1 against the plate — fine as a filled sign with a pale
+     label on it, not fine as text. The darker step is the only ember that may
+     be a word here. */
+  --accent-text: var(--lab-action-hover, var(--color-ember-700));
+  --skeleton: var(--lab-plate-hover, var(--color-paper-200));
+}
+
+[data-lab] [data-surface="field"] {
+  --ground: var(--lab-field, var(--color-bark-950));
+  --fg: var(--lab-field-fg, var(--color-parchment-50));
+  --fg-quiet: var(--lab-field-fg-quiet, var(--color-parchment-200));
+  --rule: var(--lab-field-rule, var(--color-bark-700));
+  --focus: var(--lab-focus-field, var(--color-ember-400));
+  --action: var(--lab-action-field, var(--color-ember-400));
+  --action-fg: var(--lab-action-field-fg, var(--lab-field, var(--color-bark-950)));
+  --action-hover: var(--lab-action-field-hover, var(--color-ember-300));
+  --accent-text: var(--lab-action-field, var(--color-ember-400));
+  /* On forest, "secondary" is an outline of the text colour: a second filled
+     block next to the ember one reads as a second primary action. */
+  --secondary-bg: transparent;
+  --secondary-fg: var(--lab-field-fg, var(--color-parchment-50));
+  --secondary-rule: var(--lab-field-fg, var(--color-parchment-50));
+  --hover: var(--lab-field-hover, var(--color-bark-800));
+  /* On forest the picked row goes ember: rule 1 allows ember for "press here"
+     OR "the one you selected", and a forest block on forest says nothing. */
+  --selected-bg: var(--lab-selected-bg-field, var(--action));
+  --selected-fg: var(--lab-selected-fg-field, var(--action-fg));
+  --alert: var(--lab-field-fg, var(--color-parchment-50));
+  --skeleton: var(--lab-field-hover, var(--color-bark-800));
+  /* Status marks differ by FORM first and hue second, which is what lets them
+     survive a surface this dark: the shapes stay, the fills go pale. */
+  --status-protected: var(--lab-field-fg, var(--color-parchment-50));
+  --status-endemic: var(--lab-endemic-field, var(--color-moss-300));
+  --status-invasive: var(--lab-field-fg-quiet, var(--color-parchment-200));
+  --status-blurred: var(--lab-field-label, var(--color-parchment-300));
+}
+
+/* Forms are filled on paper or plate even when the block around them is forest
+   (direction.md §2.6 rule 6), so an input keeps its light fill on every
+   surface rather than inverting with the block. */
+[data-lab] [data-surface="field"] {
+  --input-bg: var(--lab-paper, var(--color-paper-50));
+  --input-fg: var(--lab-ink-900, var(--color-ink-900));
+  --input-rule: var(--lab-ink-600, var(--color-ink-600));
+}
+
+/* ---- type -------------------------------------------------------------- */
+
+/*
+ * Seven classes rather than seven Tailwind utilities, because a size here is a
+ * size, a line-height, a family, a weight and a set of font features that only
+ * make sense together — `palt` opens up CJK punctuation at display sizes and
+ * ruins it in prose, and nothing should be able to take one without the others.
+ */
+[data-lab] .t-note,
+[data-lab] .t-body,
+[data-lab] .t-lead,
+[data-lab] .t-head,
+[data-lab] .t-title,
+[data-lab] .t-display,
+[data-lab] .t-hero {
+  font-family: var(--font-body);
+  font-weight: inherit;
+  letter-spacing: 0;
+  line-break: strict;
+}
+
+[data-lab] .t-note {
+  font-size: var(--text-note);
+  line-height: var(--lh-note);
+}
+[data-lab] .t-body {
+  font-size: var(--text-body);
+  line-height: var(--lh-body);
+}
+[data-lab] .t-lead {
+  font-size: var(--text-lead);
+  line-height: var(--lh-lead);
+}
+
+/* From here up the display face takes over, and every one of these is a
+   heading, a step title or a sign label — never prose. */
+[data-lab] .t-head,
+[data-lab] .t-title,
+[data-lab] .t-display,
+[data-lab] .t-hero {
+  font-family: var(--font-display);
+  font-weight: var(--weight-display);
+  font-feature-settings: "palt" 1;
+  text-wrap: balance;
+}
+
+[data-lab] .t-head {
+  font-size: var(--text-head);
+  line-height: var(--lh-head);
+}
+[data-lab] .t-title {
+  font-size: var(--text-title);
+  line-height: var(--lh-title);
+}
+[data-lab] .t-display {
+  font-size: var(--text-display);
+  line-height: var(--lh-display);
+}
+[data-lab] .t-hero {
+  font-size: var(--text-hero);
+  line-height: var(--lh-hero);
+}
+
+/*
+ * A label — a sign's words, a table head, a legend break. It takes `palt` with
+ * the headings because it is not prose, but it does NOT take the display face:
+ * /lab/*/map must load no web font at all, and the map's one visible control is
+ * a sign. A label that reached for the display family would put a font request
+ * on the map the day PR2 lands the subsets.
+ */
+[data-lab] .t-label {
+  font-feature-settings: "palt" 1;
+  letter-spacing: 0;
+}
+
+/*
+ * `palt` off in prose. The live stylesheet turns it on for every Chinese
+ * element on the site; at 16px in a paragraph it tightens the punctuation
+ * enough to make a line look badly spaced. The extra `html` is there to beat
+ * `:lang(zh-TW)` on specificity rather than on import order, which is not
+ * something a route's CSS should be betting on.
+ */
+html [data-lab] {
+  font-feature-settings: normal;
+  font-synthesis-style: none;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Scientific names stay italic. The live rule uprights `em` and `i` inside
+   Chinese text — correct for emphasis, wrong for a binomial — so Binomial
+   marks itself as Latin and this lets it back out. */
+html [data-lab] :lang(la) {
+  font-style: italic;
+}
+
+/* ---- focus ------------------------------------------------------------- */
+
+/*
+ * One ring, in the surface's own focus colour. The live sheet paints every
+ * focus ring in ember-400, which is 2.48:1 on paper and invisible in sunlight,
+ * and gives form controls a two-layer box-shadow that assumes a paper ground.
+ * Both are overridden by specificity here, not by import order.
+ */
+[data-lab] :focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+[data-lab] input:focus,
+[data-lab] textarea:focus,
+[data-lab] select:focus,
+[data-lab] input:focus-visible,
+[data-lab] textarea:focus-visible,
+[data-lab] select:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  box-shadow: none;
+  border-color: var(--input-rule);
+}
+
+/* ---- page furniture ---------------------------------------------------- */
+
+/* Room for the fixed phone tab bar, which is 64px plus the safe area. Written
+   here rather than as an arbitrary Tailwind value because `env()` inside one
+   is a syntax minefield for the sake of no benefit. */
+[data-lab] .lab-page-bottom {
+  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 768px) {
+  [data-lab] .lab-page-bottom {
+    padding-bottom: 0;
+  }
+}
+
+[data-lab] .lab-tabbar {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/*
+ * The compare strip is deliberately NOT themed. It is scaffolding — which
+ * direction is on screen, how to get to the other one, how to get to today's
+ * page — and if it took its colours from the theme the owner would read it as
+ * part of the design they are being asked to judge.
+ */
+.lab-strip {
+  background: #14181b;
+  color: #e9edf0;
+  color-scheme: dark;
+}
+
+.lab-strip a:focus-visible,
+.lab-strip button:focus-visible {
+  outline: 2px solid #e9edf0;
+  outline-offset: 2px;
+}
+
+/* ---- rules ------------------------------------------------------------- */
+
+/*
+ * Two weights of line and nothing else: 2px in the surface's rule colour opens
+ * a section, 1px of the same colour at 20% separates rows. They are classes
+ * rather than a `--rule-soft` variable because a custom property resolves
+ * `var(--rule)` on the element that declares it — a soft rule declared on the
+ * paper surface would inherit paper's ink into a forest block and disappear.
+ * Width comes from the utility beside them (`border-t-2`, `border-b`).
+ */
+[data-lab] .rule-strong {
+  border-color: var(--rule);
+}
+
+[data-lab] .rule-quiet {
+  border-color: color-mix(in srgb, var(--rule) 20%, transparent);
+}
+
+/*
+ * The underline that means "this word is an action". Its colour is the one
+ * ember step each surface allows as a line, which Tailwind cannot express
+ * without a `decoration-(color:--x)` cast that is easy to get silently wrong.
+ */
+[data-lab] .lab-underline {
+  text-decoration-color: var(--accent-text);
+}
+
+[data-lab] .lab-underline:hover {
+  text-decoration-color: var(--action-hover);
+}
