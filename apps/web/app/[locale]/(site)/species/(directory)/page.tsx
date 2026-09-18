@@ -219,7 +219,12 @@ export default async function SpeciesDirectory({
             })}
           </ul>
 
-          <Pager window={win} hrefFor={hrefFor} />
+          <Pager
+            page={win.page}
+            hasPrev={win.hasPrev}
+            hasNext={win.hasNext}
+            hrefFor={hrefFor}
+          />
         </>
       )}
     </main>

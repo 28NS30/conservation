@@ -263,6 +263,34 @@ export async function listSpecies(opts: {
   );
 }
 
+/**
+ * The name of a taxon a list or a map arrived filtered to.
+ *
+ * Joined to `species_report_stats`, not merely read from `taxa`, and that is the
+ * privacy rule rather than a convenience: a taxon rated 座標不開放 has no rows in
+ * `reports_public` and therefore none in the view, so naming it above an empty
+ * list would be the only thing on the page confirming it had ever been recorded
+ * in Taiwan. An unrecorded or withheld id answers null and the page says
+ * nothing about it.
+ */
+export async function publicSpeciesName(id: number): Promise<{
+  id: number;
+  scientificName: string;
+  commonNameZh: string | null;
+} | null> {
+  const rows = await asPublic(
+    (tx) => tx<
+      { id: number; scientificName: string; commonNameZh: string | null }[]
+    >`
+      select t.id, t.scientific_name as "scientificName",
+             t.common_name_zh as "commonNameZh"
+        from taxa t
+        join species_report_stats s on s.taxon_id = t.id
+       where t.id = ${id}`,
+  );
+  return rows[0] ?? null;
+}
+
 /** Monthly distribution — roadkill is strongly seasonal, so this is the most scientifically useful chart on the page. */
 export async function monthlyCounts(taxonId: number): Promise<number[]> {
   const rows = await asPublic(
