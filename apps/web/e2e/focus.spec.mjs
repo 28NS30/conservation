@@ -20,6 +20,7 @@ const PAGES = [
   "/stats",
   "/reports",
   "/report",
+  "/login",
   "/about",
 ];
 const BASE = process.env.TEST_BASE_URL ?? "http://localhost:3000";

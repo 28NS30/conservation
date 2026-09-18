@@ -172,9 +172,17 @@
   "login": {
     "heading": "登入",
     "explain": "通報不需要帳號，登入只是為了查看自己的紀錄。",
+    "emailLabel": "電子信箱",
     "send": "寄送登入連結",
     "sending": "寄送中…",
-    "sent": "已寄出登入連結，請查看信箱。"
+    "sent": "已寄出登入連結，請查看信箱。",
+    "sentTo": "已寄到 {email}",
+    "resend": "重新寄送",
+    "resendIn": "重新寄送（{seconds} 秒）",
+    "changeEmail": "換一個信箱",
+    "failed": "寄不出去，請稍後再試。",
+    "tooMany": "嘗試次數太多，請等幾分鐘再試。",
+    "linkExpired": "登入連結已失效，請重新寄送。"
   },
   "species": {
     "directory": "物種名錄",
