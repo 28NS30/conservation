@@ -100,6 +100,7 @@
     "useMyLocation": "使用目前位置",
     "locating": "定位中…",
     "tapToAdjust": "點地圖可調整位置",
+    "tapToMark": "點地圖標出位置",
     "outsideTaiwan": "不在台灣範圍內",
     "exifOffer": "照片內含拍攝地點，要使用嗎？",
     "exifUse": "使用",
@@ -112,13 +113,29 @@
     "submit": "送出通報",
     "submitting": "送出中…",
     "needLocation": "請先在地圖上點選發現地點",
-    "photoFailed": "無法處理照片",
+    "locationError": "拿不到你的位置，請在地圖上點選。",
+    "errors": {
+      "rate_limited": "送出太多次了，請過幾分鐘再試。",
+      "challenge_failed": "瀏覽器驗證沒有通過，請再試一次。",
+      "photo": "照片傳不上去。可以重試，或拿掉照片再送。",
+      "photoUnreadable": "這張照片讀不了，換一張或重拍。",
+      "taxon_not_found": "找不到這個物種，請重新選一次。",
+      "validation_failed": "有欄位的內容不對，請檢查後再送。",
+      "server": "伺服器出了問題，通報沒有送出。內容還在。"
+    },
     "privacyNote": "敏感或保育類物種的座標會自動模糊化後才公開，避免成為盜獵線索。",
-    "thanks": "感謝您的通報！",
-    "received": "我們已收到您的通報。",
-    "identifying": "AI 正在辨識物種，完成後就會顯示在地圖上（通常一兩分鐘）。",
-    "published": "已發布至地圖。",
-    "viewReport": "查看這筆通報",
+    "receipt": {
+      "onMap": "已經在地圖上了",
+      "held": "收到了，還沒公開",
+      "withheld": "已收到，但不會公開顯示",
+      "heldForIdentification": "沒有物種名稱，要先確認是什麼動物才會公開。這是人工處理，時間不一定。",
+      "heldNoPhoto": "沒有照片的通報，會先由人看過才公開。",
+      "heldForReview": "這筆通報會先由人看過才公開。",
+      "withheldSpecies": "臺灣物種名錄將這個物種的座標列為不公開。這筆紀錄會保存下來，但不會出現在地圖、通報列表或任何統計裡。",
+      "viewRecord": "看這筆紀錄",
+      "checkStatus": "看目前狀態",
+      "another": "再通報一筆"
+    },
     "needChallenge": "請先完成人機驗證",
     "preparingPhotos": "照片處理中…",
     "group": {
@@ -131,6 +148,7 @@
       "roadkill": "已死亡",
       "injured": "還活著，但受傷"
     },
+    "noDispatch": "這裡只做紀錄，不會有人前往現場。",
     "species": "物種",
     "speciesSearch": "輸入名稱搜尋 — 石虎、Prionailurus",
     "speciesSearchInvasive": "搜尋外來入侵種名錄",
@@ -153,7 +171,11 @@
     "suggestions": "AI 建議",
     "pickCorrect": "選擇正確的物種以修正這筆紀錄。",
     "confirmedBy": "由通報者或審核人員確認。",
-    "source": "資料來源"
+    "source": "資料來源",
+    "receipt": {
+      "title": "收到了，目前沒有公開",
+      "body": "沒有照片或沒有物種名稱的通報，會先由人看過。部分物種的位置不會公開。"
+    }
   },
   "admin": {
     "heading": "審核佇列",
@@ -269,10 +291,9 @@
     "sendNow": "立即送出",
     "sending": "送出中…",
     "discard": "刪除",
-    "sentCount": "已送出 {count} 筆通報。",
-    "queueFailed": "無法存到裝置",
-    "verifying": "送出前正在驗證瀏覽器，請稍候。",
-    "viewSent": "開啟"
+    "sentCount": "{count, plural, other {已送出 # 筆通報。}}",
+    "queueFailed": "這筆通報沒辦法存在你的裝置上，也還沒送出。請確認瀏覽器沒有封鎖儲存空間，或空間是否已滿。",
+    "verifying": "送出前正在驗證瀏覽器，請稍候。"
   },
   "errors": {
     "title": "發生錯誤",
