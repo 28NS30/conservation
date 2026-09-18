@@ -17,6 +17,7 @@
     "test:e2e": "npm run test:map && npm run test:mapchrome && npm run test:offline && npm run test:focus",
     "lint": "eslint .",
     "test:pages": "node e2e/pages.spec.mjs",
+    "test:receipt": "node e2e/receipt.spec.mjs",
     "test:focus": "node e2e/focus.spec.mjs"
   },
   "dependencies": {

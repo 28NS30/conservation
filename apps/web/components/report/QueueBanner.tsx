@@ -14,6 +14,8 @@ import { Link } from "@/i18n/navigation";
 import { flushQueue, startFlushTriggers } from "@/lib/offline/flush";
 import Turnstile from "@/components/report/Turnstile";
 import { turnstileEnabled } from "@/lib/turnstile";
+import { receiptLinkFor } from "@/lib/report/outcome";
+import { errorKey } from "@/lib/report/errors";
 
 /**
  * Shows what is still waiting to be sent.
@@ -35,6 +37,9 @@ import { turnstileEnabled } from "@/lib/turnstile";
  */
 export default function QueueBanner() {
   const t = useTranslations("offline");
+  /** The submission vocabulary is shared with the form; see lib/report. */
+  const tReport = useTranslations("report");
+  const tCategory = useTranslations("categories");
   const locale = useLocale();
   const [items, setItems] = useState<QueuedReport[]>([]);
   /** Reports that have landed, kept as receipts. See markUploaded. */
@@ -151,20 +156,39 @@ export default function QueueBanner() {
           just sent and two receipts still on screen, "1 sent" above three links
           was a banner arguing with itself. */}
       <p>{t("sentCount", { count: sent.length })}</p>
-      <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
-        {sent.map(
-          (r) =>
-            r.reportId && (
-              <li key={r.id}>
+      {/*
+        One row each, and each one says which report it is.
+
+        This was N identical 開啟 links in a row. Someone who queued three
+        reports on a hill and came down to town had no way to tell which was
+        which, and every one of them led to /reports/{id} whether or not that
+        report had been published — so a held one was a 404. The date and
+        category come from the payload the queue already holds; the link is
+        offered only for a status that has a page behind it, and a row queued by
+        an older build has no stored status and so is plain text.
+      */}
+      <ul className="mt-1.5 space-y-1 text-[11px]">
+        {sent.map((r) => {
+          const link = r.reportId ? receiptLinkFor(r.serverStatus) : null;
+          const label = `${new Date(r.payload.observedAt).toLocaleDateString(
+            locale,
+            { timeZone: "Asia/Taipei" },
+          )} · ${tCategory(r.payload.category)}`;
+          return (
+            <li key={r.id} className="flex min-h-6 items-center gap-2">
+              {link ? (
                 <Link
                   href={`/reports/${r.reportId}`}
-                  className="underline decoration-ember-700/30 underline-offset-2"
+                  className="inline-flex min-h-6 items-center underline decoration-ember-700/30 underline-offset-2"
                 >
-                  {t("viewSent")}
+                  {label} — {tReport(`receipt.${link}`)}
                 </Link>
-              </li>
-            ),
-        )}
+              ) : (
+                <span>{label}</span>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
@@ -221,9 +245,17 @@ export default function QueueBanner() {
               className="flex items-center justify-between gap-3 text-[11px] text-amber-800/80"
             >
               <span className="truncate">
-                {new Date(i.createdAt).toLocaleString()}
+                {new Date(i.createdAt).toLocaleString(locale, {
+                  timeZone: "Asia/Taipei",
+                })}
+                {/* `lastError` holds a code now, and a code gets translated.
+                    It used to hold whatever English sentence flush.ts had
+                    assembled — "upload signing failed (500)" — printed
+                    verbatim under a Chinese banner. */}
                 {i.lastError && (
-                  <span className="ml-2 text-rose-700">{i.lastError}</span>
+                  <span className="ml-2 text-ember-700">
+                    {tReport(`errors.${errorKey(i.lastError)}`)}
+                  </span>
                 )}
               </span>
               <button

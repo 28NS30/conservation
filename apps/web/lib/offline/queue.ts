@@ -64,8 +64,22 @@ export type QueuedReport = {
    * and watches it go deserves to see that it went.
    */
   status: "queued" | "sending" | "uploaded" | "failed";
-  /** Set once accepted, so the banner can link to the published record. */
+  /** Set once accepted, so the banner can link to the record. */
   reportId?: string;
+  /**
+   * What the server said it did with it: `published` or `pending`.
+   *
+   * Kept because the banner's receipt link used to go to `/reports/{id}` for
+   * every accepted report, and that page has no row for one that was held — so
+   * a reporter who watched their queue drain on a mountain road followed the
+   * link and got a 404. Optional, and absent on rows queued by an older build,
+   * which is why the banner treats "no status" as "do not offer a link".
+   *
+   * No VERSION bump: IndexedDB stores structured clones and enforces no schema,
+   * so a new field on the stored object needs no upgrade. Only a new store or
+   * index would.
+   */
+  serverStatus?: string;
   sentAt?: number;
 };
 
@@ -128,7 +142,11 @@ export async function removeQueued(id: string): Promise<void> {
  * server now, so holding them to show a tick would trade the user's storage for
  * a line of text. The row that remains is an id, a timestamp and a link.
  */
-export async function markUploaded(id: string, reportId: string): Promise<void> {
+export async function markUploaded(
+  id: string,
+  reportId: string,
+  serverStatus?: string,
+): Promise<void> {
   const conn = await db();
   const existing = (await conn.get(STORE, id)) as QueuedReport | undefined;
   if (!existing) return;
@@ -136,6 +154,7 @@ export async function markUploaded(id: string, reportId: string): Promise<void> 
     ...existing,
     status: "uploaded",
     reportId,
+    serverStatus,
     sentAt: Date.now(),
     photos: [],
     lastError: undefined,
