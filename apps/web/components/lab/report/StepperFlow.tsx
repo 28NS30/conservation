@@ -260,6 +260,17 @@ export default function StepperFlow({
           <Button
             block
             size="hero"
+            // "ember means press here", and on the photo step the thing to
+            // press is the camera. While there is no photograph this pinned
+            // control says "continue without one" — so painting it ember made
+            // the loudest element on a screen headed 先拍一張 the argument
+            // against the heading. It steps back to the outline until there is
+            // something to go forward with.
+            variant={
+              step === "photo" && state.photos.length === 0
+                ? "tertiary"
+                : "primary"
+            }
             disabled={Boolean(missing)}
             onClick={press}
             id="lab-flow-action"

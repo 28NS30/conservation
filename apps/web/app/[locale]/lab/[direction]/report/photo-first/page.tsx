@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { setRequestLocale } from "next-intl/server";
 import PhotoFirstFlow from "@/components/lab/report/PhotoFirstFlow";
 import { getLabCopy } from "@/lib/lab/copy";
-import { isLabDirection, labPath } from "@/lib/lab/directions";
+import {
+  isLabDirection,
+  labPath,
+  labRouteExists,
+} from "@/lib/lab/directions";
 
 export async function generateMetadata({
   params,
@@ -31,7 +36,10 @@ export default async function LabReportPhotoFirstPage({
 }) {
   const { locale, direction } = await params;
   setRequestLocale(locale);
-  if (!isLabDirection(direction)) return null;
+  // `notFound()`, not `return null`: a blank 200 for a route that was never
+  // built in this direction is indistinguishable from a broken page.
+  if (!isLabDirection(direction)) notFound();
+  if (!labRouteExists("/report/photo-first", direction)) notFound();
 
   const receipt = (await searchParams).receipt;
 

@@ -186,3 +186,38 @@ export const COMPARE_ROWS = [
 export function otherDirection(direction: LabDirection): LabDirection {
   return direction === "roundel" ? "journal" : "roundel";
 }
+
+/**
+ * Whether this page was built in this direction, for the page to call before it
+ * renders.
+ *
+ * Only home exists in both looks. Nothing links to, say, `/lab/journal/species`
+ * — the strip offers the twin only where one was built — but a hand-typed or
+ * shared URL reached it anyway and got the Roundel composition wearing the
+ * journal's tokens, which is a design nobody proposed and which the compare
+ * page explicitly tells the owner does not exist. A wrong URL should be a 404,
+ * not a fourth opinion.
+ */
+export function labRouteExists(sub: string, direction: string): boolean {
+  const route = LAB_ROUTES.find((r) => r.sub === sub);
+  return Boolean(
+    route && (route.directions as readonly string[]).includes(direction),
+  );
+}
+
+/**
+ * The same question for a section rather than one page.
+ *
+ * The species pages are listed per taxon — `/species/28758` and two others, each
+ * chosen for an edge it shows — so there is no `/species` row to look up, and
+ * the id in the URL need not be one of the three. What the page actually needs
+ * to know is whether this DIRECTION got a species page at all, which is what
+ * this answers.
+ */
+export function labSectionBuilt(prefix: string, direction: string): boolean {
+  return LAB_ROUTES.some(
+    (r) =>
+      r.sub.startsWith(prefix) &&
+      (r.directions as readonly string[]).includes(direction),
+  );
+}

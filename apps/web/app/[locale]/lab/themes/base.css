@@ -377,6 +377,29 @@ html:lang(en) [data-lab] {
   max-width: var(--masthead-measure);
 }
 
+/* The Latin masthead is one unbreakable word, and it has to fit.
+   "FormosaWatch" at the 80px hero step is about 600px of a 557px column, so
+   the safety rule above did what it is for and broke the product's own name
+   mid-word — "FormosaWatc / h", an orphaned letter on its own line, as the
+   largest thing on the page. Hanzi never hits this: it breaks between
+   characters, so 福爾摩沙守望計畫 wraps wherever it likes and keeps the full
+   step.
+
+   So Latin is sized to the viewport instead of to the scale, capped at the
+   step it would otherwise take. It lands on 72px at 1440 and 40px on a phone,
+   both of which fit with room to spare — measured, not estimated. The
+   overflow rule stays as the last resort for a 320px screen with larger text
+   turned on, where nothing fits and breaking is better than scrolling
+   sideways. */
+[data-lab] .t-masthead:not(:lang(zh-TW)) {
+  font-size: min(var(--text-masthead), 5.2vw);
+}
+@media (max-width: 767px) {
+  [data-lab] .t-masthead:not(:lang(zh-TW)) {
+    font-size: min(var(--text-masthead), 11vw);
+  }
+}
+
 /* Body on a phone, lead on a desktop (§4). One sentence under the name; at
    `lead` on a 390px screen it costs a third line and pushes the sign down. */
 [data-lab] .t-tagline {
@@ -467,6 +490,16 @@ html [data-lab] :lang(la) {
  * names exactly what is being raised, in the one file that is allowed to have
  * an opinion about a live component's colours.
  */
+/* The live switcher is an 11px label in a 22px box. The lab's own rule is that
+   nothing is a target under 24px and the compare page prints "targets 44px or
+   more" as a measured claim, so the claim has to be true of the control the lab
+   renders on every one of its pages. Height only: padding would widen
+   "English" and the phone band has no spare room. */
+[data-lab] .lab-lang button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
 [data-lab] .lab-lang button:not([aria-current="true"]),
 [data-lab] .lab-lang .opacity-40 {
   opacity: 0.75;

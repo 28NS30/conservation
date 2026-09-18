@@ -23,7 +23,7 @@ import {
   type StatusKind,
 } from "@/components/lab/ui";
 import { getLabCopy } from "@/lib/lab/copy";
-import { isLabDirection, labHref } from "@/lib/lab/directions";
+import { isLabDirection, labHref, labSectionBuilt } from "@/lib/lab/directions";
 import {
   chartFinding,
   findingSentence,
@@ -115,6 +115,7 @@ export default async function LabSpeciesPage({
   const { locale, direction, id } = await params;
   setRequestLocale(locale);
   if (!isLabDirection(direction)) notFound();
+  if (!labSectionBuilt("/species/", direction)) notFound();
 
   const taxonId = parseSpeciesId(id);
   if (!taxonId) notFound();

@@ -61,11 +61,21 @@ export default function LabStrip({
 
   return (
     <nav className="lab-strip" aria-label={copy.lab.indexTitle}>
+      {/* One row on a phone, deliberately. At 390px the full strip wrapped to
+          four rows and took 180px off the top of the page — which pushed the
+          hero's single ember action under the fixed tab bar, so the one thing
+          the whole composition is arguing for was the one thing you could not
+          see. The lab's own furniture was making the design look worse than it
+          is. Below `sm` only the two controls that are actually used survive:
+          the switch to the other direction, and the way back to the index. The
+          language switch goes too, because the band right underneath has one. */}
       <div className="mx-auto flex w-full max-w-(--container-page) flex-wrap items-center gap-x-6 gap-y-1 px-(--gutter) py-1">
-        <span className="t-note py-2 opacity-80">{copy.lab.banner}</span>
+        <span className="t-note hidden py-2 opacity-80 sm:inline">
+          {copy.lab.banner}
+        </span>
         {direction ? (
           <>
-            <span className="t-note py-2">
+            <span className="t-note hidden py-2 sm:inline">
               {copy.lab.directionOnScreen}：
               {LAB_DIRECTION_LABELS[direction][locale]}
             </span>
@@ -81,7 +91,7 @@ export default function LabStrip({
         ) : null}
         <Link
           href={live}
-          className="t-note inline-flex min-h-11 items-center underline underline-offset-4"
+          className="t-note hidden min-h-11 items-center underline underline-offset-4 sm:inline-flex"
         >
           {copy.lab.todaysPage}
         </Link>
@@ -91,7 +101,7 @@ export default function LabStrip({
         >
           {copy.lab.indexTitle}
         </Link>
-        <LanguageSwitcher className="t-note lab-lang ml-auto" />
+        <LanguageSwitcher className="t-note lab-lang ml-auto hidden sm:flex" />
       </div>
     </nav>
   );

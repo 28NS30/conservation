@@ -199,6 +199,12 @@ export default function PhotoFirstFlow({
           <Button
             block
             size="hero"
+            // The same rule as the stepper: while this control still reads
+            // "continue without a photo", it is not the thing to press, so it
+            // is not the one ember element on a screen headed 先拍一張.
+            variant={
+              !opened && state.photos.length === 0 ? "tertiary" : "primary"
+            }
             disabled={opened && !ready}
             onClick={press}
             id="lab-flow-action"

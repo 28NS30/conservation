@@ -6,6 +6,9 @@ import LinkAction from "@/components/lab/ui/LinkAction";
 import { getLabCopy } from "@/lib/lab/copy";
 import { labHref, type LabDirection } from "@/lib/lab/directions";
 
+/** The project's Latin name without the "Project" prefix the masthead omits. */
+const SHORT_NAME_EN = "FormosaWatch";
+
 /**
  * The first viewport: the badge, the name, one line, and what to do.
  *
@@ -67,7 +70,17 @@ export default async function HomeHero({
             className="h-auto w-[300px] shrink-0 md:w-[360px] xl:w-[520px]"
           />
           <div className="min-w-0 md:max-w-[640px]">
-            <h1 className="t-masthead text-(--fg)">{site("title")}</h1>
+            {/* "FormosaWatch", not "Project FormosaWatch". §4 asks for the
+                bare name here, and the reason shows up the moment you render
+                the other one: at 80px the two words do not fit the 640px
+                column, and the heading's own overflow rule then breaks the
+                product's name mid-word — "Project / FormosaWatc / h", with an
+                orphaned letter on a line of its own, as the loudest thing on
+                the page. The word is the masthead; the sentence is the
+                tagline underneath. */}
+            <h1 className="t-masthead text-(--fg)">
+              {inEnglish ? SHORT_NAME_EN : site("title")}
+            </h1>
             {inEnglish ? (
               // §4: on /en the Latin name is the masthead and the Chinese name
               // sits under it at `head`. It is not a translation — it is the
