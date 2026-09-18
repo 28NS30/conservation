@@ -192,6 +192,14 @@ export function repaintBasemap(
           // Enough to keep a place name legible over six density classes. The
           // stock style haloes for a near-black ground it no longer has.
           "text-halo-width": 1.4,
+          // Roads stay a step behind places, which is the hierarchy the stock
+          // style has and the site's own label pass preserves. Done with
+          // opacity rather than a second colour token: it is the same ink, and
+          // a street map at z14 with every name at full strength buries the
+          // records, which are the reason anyone is down there.
+          ...(source === "transportation_name"
+            ? { "text-opacity": 0.7 }
+            : {}),
         },
       };
     }

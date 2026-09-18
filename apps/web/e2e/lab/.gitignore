@@ -1,0 +1,6 @@
+# Working output, not a baseline.
+#
+# `map-shots.mjs` writes PNGs here so they can be looked at; the shots the owner
+# is actually shown are the committed WebP folds under `public/lab/shots`, and a
+# directory of near-identical screenshots in the history helps nobody.
+shots/
