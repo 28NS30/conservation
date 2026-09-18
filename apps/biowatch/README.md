@@ -38,8 +38,8 @@ All optional; each has a working default.
 
 | Variable | Default | Why you would set it |
 |---|---|---|
-| `NEXT_PUBLIC_FORMOSAWATCH_URL` | `https://formosawatch.biowatchintl.org` | Point a preview at a Vercel URL before DNS is cut over. |
-| `NEXT_PUBLIC_FIREWATCH_URL` | `https://firewatch.biowatchintl.org` | As above. |
+| `NEXT_PUBLIC_FORMOSAWATCH_URL` | `https://formosawatch.biowatchintl.org` | Point a preview at a Vercel URL before DNS is cut over. **The default does not resolve yet**, so until it does, every FormosaWatch figure on the page falls back to its approximation and says so. |
+| `NEXT_PUBLIC_FLAMAWATCH_URL` | `https://flamawatch.biowatchintl.org` | Point at FlamaWatch's real address once its organisation confirms it. |
 | `NEXT_PUBLIC_CONTACT_EMAIL` | `hello@biowatchintl.org` | Until the real address exists. |
 
 ## Known gaps
@@ -47,8 +47,10 @@ All optional; each has a working default.
 - **No BioWatch badge.** The two project badges were drawn by hand as a set; the
   parent has a typographic lockup standing in. A third in the same family should
   be drawn, then wired in here, as the favicon, and into an OG card.
-- **The Colombia figures are static**, taken from that project's own home page.
+- **The Colombia figures are static**, transcribed from that project's own home
+  page on 11 August 2026, which is what the card now says beneath them.
   FormosaWatch's are read live from `/api/health`. A live count would need the
   other project to publish an equivalent endpoint, and it is run by a separate
-  organisation, so that is a request rather than a task.
+  organisation, so that is a request rather than a task. Every figure on this
+  page carries a note saying which of those it is; if you add one, add its note.
 - **No OG card for the apex**, so links preview as a bare URL.

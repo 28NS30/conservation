@@ -230,16 +230,24 @@ Then **Settings → Environment Variables**, for Production *and* Preview:
 The `service_role` key bypasses every access rule in the database. It belongs in
 Vercel's environment and nowhere else — never in `NEXT_PUBLIC_*`, never in git.
 
-### One thing to check about the cron
+### The crons are not deployed at all
 
-`vercel.json` asks for the classification worker to run **every minute**.
-Vercel's Hobby plan restricts cron frequency (roughly daily); minute-level
-scheduling needs Pro. Check what your plan actually gives you, because if the
-cron does not fire, reports are accepted and held but never identified — and
-nothing surfaces an error.
+Both of them — `/api/jobs/classify` and `/api/jobs/cleanup-orphans` — are
+declared in the **repo-root** `vercel.json`, which Vercel never reads. The
+project's Root Directory is `apps/web` and `vercel.json` is only honoured from
+there (step 2 says the same thing about `regions`). `apps/web/vercel.json`
+declares no crons, so neither job has ever run in production: reports with no
+species are accepted and held, and nothing has ever identified them.
 
-If you are on Hobby, either upgrade, or drive the endpoint from anything else that
-can make an authenticated request on a schedule:
+They are also declared **daily** — `0 3 * * *` and `0 4 * * *` — not every
+minute, as this page said until now. Daily is what Vercel's Hobby plan allows;
+minute-level scheduling needs Pro. So moving the block into
+`apps/web/vercel.json` is enough to make it fire, but a report will then wait up
+to a day rather than a minute, which is not the behaviour the rest of this
+document assumes.
+
+Until that move happens — or instead of it — drive the endpoint from anything
+that can make an authenticated request on a schedule:
 
 ```bash
 curl -X POST https://<your-domain>/api/jobs/classify \
