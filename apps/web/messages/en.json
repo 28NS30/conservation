@@ -159,7 +159,11 @@
     "suggestions": "Suggestions",
     "pickCorrect": "Pick the correct species to fix this record.",
     "confirmedBy": "Confirmed by the reporter or a moderator.",
-    "source": "Source"
+    "source": "Source",
+    "receipt": {
+      "title": "Received. Not public right now.",
+      "body": "A person looks at reports without a photo or species name first. Some species' locations are never shown."
+    }
   },
   "admin": {
     "heading": "Moderation queue",

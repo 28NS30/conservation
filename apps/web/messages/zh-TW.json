@@ -159,7 +159,11 @@
     "suggestions": "AI 建議",
     "pickCorrect": "選擇正確的物種以修正這筆紀錄。",
     "confirmedBy": "由通報者或審核人員確認。",
-    "source": "資料來源"
+    "source": "資料來源",
+    "receipt": {
+      "title": "收到了，目前沒有公開",
+      "body": "沒有照片或沒有物種名稱的通報，會先由人看過。部分物種的位置不會公開。"
+    }
   },
   "admin": {
     "heading": "審核佇列",
