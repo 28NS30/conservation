@@ -161,6 +161,27 @@ export function labHref(direction: LabDirection, sub: string): string {
   return route.built && here ? labPath(direction, sub) : route.live;
 }
 
+/**
+ * The rows the compare page lays out, in the order the owner should meet them.
+ *
+ * Home first because it is the page that was rejected twice and the only one
+ * built in both directions, so it is the page that settles the question. Then
+ * the map, which is the one whose look had to change completely while its cost
+ * did not change at all. Then the report flow, where the two proofs differ from
+ * each other rather than from today. Then a species page.
+ *
+ * Deliberately not every route: the other three species pages and the component
+ * specimen are edge cases and a developer's tool, and putting nine rows of
+ * thumbnails in front of somebody who has two questions to answer is how a
+ * decision page becomes a gallery. They are listed as links at the foot.
+ */
+export const COMPARE_ROWS = [
+  { page: "home", note: "home" },
+  { page: "map", note: "map" },
+  { page: "report", note: "report" },
+  { page: "species-28758", note: "species" },
+] as const satisfies readonly { page: string; note: string }[];
+
 /** The same page in the other direction, for the compare strip. */
 export function otherDirection(direction: LabDirection): LabDirection {
   return direction === "roundel" ? "journal" : "roundel";

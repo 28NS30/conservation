@@ -48,6 +48,56 @@ export type LabCopy = {
     pageSpecies: string;
   };
   /**
+   * The compare page: the one page in the lab that is not one of the designs.
+   *
+   * It is an argument for making a decision, so its words are plain and every
+   * claim on it is either something a script measured or something openly
+   * marked as needing the owner's own eyes. Nothing here may say "clean" or
+   * "fast" without a number beside it.
+   */
+  compare: {
+    lead: string;
+    howTitle: string;
+    how: string;
+    decisionTitle: string;
+    decisionLead: string;
+    questionDirection: string;
+    questionFlow: string;
+    questionLightMap: string;
+    rowNote: { home: string; map: string; report: string; species: string };
+    flowStepper: string;
+    flowPhotoFirst: string;
+    mustTitle: string;
+    mustLead: string;
+    columnCriterion: string;
+    columnRoundel: string;
+    columnJournal: string;
+    measured: string;
+    needsEyes: string;
+    notBuiltHere: string;
+    must: Record<
+      "identity" | "map" | "species" | "surfaces" | "budgets" | "access" | "sun",
+      { label: string; roundel: string; journal: string; verdict: string }
+    >;
+    numbersTitle: string;
+    numbersLead: string;
+    numberAxe: string;
+    numberSmall: string;
+    numberContrast: string;
+    numberHomeFont: string;
+    numberMapFont: string;
+    numberTiles: string;
+    fakesTitle: string;
+    fakeSend: string;
+    fakeReal: string;
+    fakeCopy: string;
+    fakeJournal: string;
+    fakeInjured: string;
+    fakeStrip: string;
+    routesTitle: string;
+    routesLead: string;
+  };
+  /**
    * The seam: things on screen because this is a prototype, in the lab's own
    * voice rather than either design's. A reader must never have to guess which
    * of the two they are being asked to judge.
@@ -275,6 +325,113 @@ const zhTW: LabCopy = {
     pageReportStepper: "通報（一次一題）",
     pageReportPhotoFirst: "通報（照片優先）",
     pageSpecies: "物種頁",
+  },
+  compare: {
+    lead: "同樣的四個頁面，兩種完整的外觀，跟今天的版本擺在一起。每一張圖都可以點開真正的頁面。",
+    howTitle: "怎麼看這一頁",
+    how: "每一列是網站的一個頁面：左邊是今天的，右邊是重新設計的。圖片是首屏，寬度跟著你手上的螢幕走；點一張就會打開那個頁面本身。每個原型最上面那條黑色橫條是實驗室自己的工具列，不屬於任何一個設計，所以圖片裡沒有它。",
+    decisionTitle: "要決定的是",
+    decisionLead: "兩個答案就能讓接下來三週的工作開始。其他都可以等。",
+    questionDirection:
+      "選哪一個方向：徽章版、田野筆記版，或兩個都不要——以及為什麼。",
+    questionFlow:
+      "選哪一種通報流程：一次問一題，或拍完照之後整頁往下填。兩種背後的邏輯完全一樣，差別只在畫面的形狀。",
+    questionLightMap:
+      "田野筆記版的地圖是淺色的。這推翻了先前「地圖維持深色」的決定，所以選了田野筆記版，就等於同意那個推翻。",
+    rowNote: {
+      home:
+        "手機上徽章 300px，今天是 172px。第一屏只剩名字、一句話和一個動作。三個分類入口、「你看到了什麼？」、紀錄總數和拉丁文第二行都不在了；它們解釋的事情移到了「關於」。",
+      map:
+        "同樣的圖磚、同樣的端點、同樣的請求種類。陸地改成徽章外環的綠，所以島嶼讀起來像徽章的裡面；浮在資料上的圓角膠囊變成靠邊的面板；紀錄面板從物種名開始，而不是從你剛剛點進來時就已經知道的分類。",
+      report:
+        "什麼都不會送出。今天的表單第一題就問「這是哪一種通報」；這兩種流程都不問——分類是從牠的狀況和牠是什麼推出來的。",
+      species:
+        "黑眶蟾蜍，3,978 筆紀錄。名字就是主視覺；一排數字方塊變成一句話；沒有插畫欄位，也沒有任何等著被填滿的空格。",
+    },
+    flowStepper: "一次一題",
+    flowPhotoFirst: "照片優先",
+    mustTitle: "每個方向必須通過的檢查",
+    mustLead:
+      "這是設計文件自己列的表。三項是機器量出來的，四項需要人親眼看。",
+    columnCriterion: "項目",
+    columnRoundel: "徽章版要做到",
+    columnJournal: "田野筆記版要做到",
+    measured: "已量測",
+    needsEyes: "需要你親眼看",
+    notBuiltHere: "這個方向沒有做這一頁。",
+    must: {
+      identity: {
+        label: "識別",
+        roundel: "三位沒看過的中文讀者第一眼看到首頁，不會說「這是政府機關」。",
+        journal: "縮圖不會被誤認成今天的網站；明體標題和徽章讀起來是同一個聲音。",
+        verdict: "還沒有人在完全不知情的狀況下看過這兩頁。",
+      },
+      map: {
+        label: "地圖",
+        roundel: "手機上在 z11、陽光下仍看得見最低的一級密度；島嶼在海的襯托下讀得出來。",
+        journal: "沒有做。地圖只有徽章版。",
+        verdict:
+          "色階可以量：最低一級在陸地上是 3.36:1，每一級跟下一級差 1.31 倍。但在直射陽光下會掉到大約 1.22:1，這是這個方向唯一可能不及格的地方，也是要到戶外看一次的原因。",
+      },
+      species: {
+        label: "物種頁",
+        roundel: "完全沒有插畫也看起來是做完的。",
+        journal: "沒有做。",
+        verdict: "零紀錄、九個字的名字、座標不開放三種情況都做了，但「看起來完成了沒有」只能用看的。",
+      },
+      surfaces: {
+        label: "色塊",
+        roundel: "森林綠和米色放在一起不會變濁。",
+        journal: "每頁一條淺色帶，層次就夠了。",
+        verdict: "對比度都過，但「會不會變濁」不是對比度的問題。",
+      },
+      budgets: {
+        label: "載入量",
+        roundel: "首頁預載的字型 60 KB 以內，地圖 0，第一張圖磚的時間不變。",
+        journal: "明體核心 190 KB 以內，地圖 0。",
+        verdict:
+          "首頁抓一個 37 KB 的字檔，田野筆記版 51 KB；兩個地圖路由都是 0；桌機地圖第一屏 4 次圖磚請求，今天的 /map 是 6 次。第一張圖磚的時間要在正式環境上才量得準。",
+      },
+      access: {
+        label: "可用性",
+        roundel: "axe 沒有違規、對比通過、點擊區 44px 以上、鍵盤能走完整個表單。",
+        journal: "同上。",
+        verdict:
+          "axe 與對比在 128 個路由／寬度組合上全過。鍵盤走完流程上一次驗證是在回執畫面改動之前，需要重跑。",
+      },
+      sun: {
+        label: "正午的戶外",
+        roundel:
+          "深色地圖最低一級在陽光的漫射下大約是 1.22:1，淺色地圖大約是 1.7:1。這是維持深色地圖的代價，而且是明明白白記下來的代價。",
+        journal: "淺色地圖在這一項比較輕鬆，這也是這一列存在的原因。",
+        verdict: "只有你自己的手機、在戶外、在正午，才能回答這一題。",
+      },
+    },
+    numbersTitle: "量到的數字",
+    numbersLead:
+      "這些都是對著本機開發伺服器實際跑出來的，不是估的。正式環境的第一張圖磚時間還沒有量。",
+    numberAxe: "axe 違規（所有實驗室路由）",
+    numberSmall: "小於 14px 的文字",
+    numberContrast: "整個實驗室的對比下限",
+    numberHomeFont: "首頁字型（徽章版／田野筆記版）",
+    numberMapFont: "地圖字型",
+    numberTiles: "桌機地圖第一屏圖磚請求（原型／今天）",
+    fakesTitle: "這些原型哪些是假的",
+    fakeSend:
+      "什麼都不會送出。送出鍵只是把對照表算出來的回執顯示出來，三種結果都可以用連結直接看。",
+    fakeReal:
+      "其他都是真的：照片處理、物種搜尋、圖磚、紀錄和地圖都是線上那一套，而且只讀公開視圖，所以模糊化是繼承下來的。",
+    fakeCopy:
+      "這裡每一句新的文字都是做這幾頁的人寫的初稿，還沒有母語者看過。",
+    fakeJournal:
+      "田野筆記版只做了首頁。首頁是被退回兩次的那一頁，所以是決定品味的那一頁；把另外三頁也做完要再五天，而首頁的答案會讓那五天變得沒有必要。",
+    fakeInjured:
+      "受傷動物的那段文字寫的是「文字待提供」。要找哪個機關、哪支電話、用誰的措辭，是計畫主持人的決定；原型自己編一個，就會被測試、被核可，然後帶著一支沒有人答應要接的電話上線。",
+    fakeStrip:
+      "圖片裡沒有最上面那條黑色橫條，但你點進去就會看到它——它是你回來的路。",
+    routesTitle: "全部的頁面",
+    routesLead:
+      "上面四列之外的其他路由：兩個零紀錄的物種頁、一個座標不開放的物種頁，以及元件樣張。",
   },
   seam: {
     static: "靜態原型：送出鍵只會顯示回執，不會送出任何資料。",
@@ -514,6 +671,119 @@ const en: LabCopy = {
     pageReportStepper: "Report (one question at a time)",
     pageReportPhotoFirst: "Report (photo first)",
     pageSpecies: "Species page",
+  },
+  compare: {
+    lead: "The same four pages in two complete looks, beside the pages you have today. Every picture opens the real thing.",
+    howTitle: "How to read this page",
+    how: "Each row is one page of the site: today's on the left, the redesign beside it. The pictures are first screens at the width of the screen you are holding — tap one to open that page for real. The black bar across the top of every prototype is the lab's own furniture, not part of either design, so it is not in the pictures.",
+    decisionTitle: "What is being asked",
+    decisionLead: "Two answers unblock the next three weeks. Everything else can wait.",
+    questionDirection:
+      "Which direction: Roundel, Field journal, or neither — and why.",
+    questionFlow:
+      "Which report flow: one question at a time, or everything down one page after the photo. The logic underneath is identical; the only difference is the shape of the screen.",
+    questionLightMap:
+      "Field journal's map is light. That reverses the recorded decision to keep the map dark, so choosing Field journal is approving the reversal.",
+    rowNote: {
+      home:
+        "The badge at 300px on a phone against 172px today. The first screen is the name, one line and one thing to do. The three category doors, the question 你看到了什麼？, the record count and the Latin second line are gone; what they explained moved to /about.",
+      map:
+        "Same tiles, same endpoints, same kinds of request. The land is repainted to the badge's ring colour so the island reads as the inside of the emblem; the capsules floating over the data become a panel beside it; the record panel is led by the species name rather than by the category you already knew when you tapped the dot.",
+      report:
+        "Nothing is submitted. Today's form opens by asking which of three kinds of report this is. Neither of these ever asks — the category is derived from the animal's condition and what it was.",
+      species:
+        "黑眶蟾蜍, 3,978 records. The name is the picture; a row of stat tiles becomes one sentence; there is no artwork slot and nothing waiting to be filled in.",
+    },
+    flowStepper: "One question at a time",
+    flowPhotoFirst: "Photo first",
+    mustTitle: "The test each direction has to pass",
+    mustLead:
+      "The design document's own table. Three rows were measured; four need a person looking at the thing.",
+    columnCriterion: "Criterion",
+    columnRoundel: "Roundel must show",
+    columnJournal: "Field journal must show",
+    measured: "Measured",
+    needsEyes: "Needs your eyes",
+    notBuiltHere: "Not built in this direction.",
+    must: {
+      identity: {
+        label: "Identity",
+        roundel:
+          "Three zh-TW readers shown home cold do not say \u201Ca government agency\u201D.",
+        journal:
+          "Thumbnails are not mistaken for today's site; Ming masthead and gothic badge read as one voice.",
+        verdict: "Nobody has been shown either page cold yet.",
+      },
+      map: {
+        label: "Map",
+        roundel:
+          "The lowest density class is visible at z11 on a phone in sunlight; the island reads against the sea.",
+        journal: "Not built. The map is Roundel only.",
+        verdict:
+          "The ramp can be measured: the lowest class is 3.36:1 on land and every step is 1.31 from the one below. Through a sunlight veil that falls to about 1.22:1, which is the one test this direction can fail and the reason for going outside with it.",
+      },
+      species: {
+        label: "Species page",
+        roundel: "Looks finished with zero artwork.",
+        journal: "Not built.",
+        verdict:
+          "All three hard cases are built — zero records, a nine-Hanzi name, coordinates withheld — but \u201Cdoes it look finished\u201D is not a thing a script can answer.",
+      },
+      surfaces: {
+        label: "Surfaces",
+        roundel: "Forest and cream never look muddy.",
+        journal: "One tinted band per page is hierarchy enough.",
+        verdict: "Every pairing clears contrast, but muddy is not a contrast problem.",
+      },
+      budgets: {
+        label: "Budgets",
+        roundel:
+          "60 KB of font or less preloaded on home, none at all on the map, first tile unchanged.",
+        journal: "190 KB serif core or less, none on the map.",
+        verdict:
+          "Home fetches one 37 KB face, Field journal one of 51 KB; both map routes fetch none; the desktop map's first view costs 4 tile requests against today's 6. First-tile timing needs production to mean anything.",
+      },
+      access: {
+        label: "Access",
+        roundel:
+          "axe-clean, contrast passes, targets 44px or more, both flows completable by keyboard.",
+        journal: "The same.",
+        verdict:
+          "axe and contrast pass on all 128 route/width pairs. Keyboard completion was last verified before the receipt screens changed and needs re-running.",
+      },
+      sun: {
+        label: "Outdoors at midday",
+        roundel:
+          "Through a sunlight veil the dark map's lowest class is about 1.22:1, against about 1.7:1 on a light one. That is the price of keeping the dark map, and it is a price that was written down rather than discovered.",
+        journal: "The light map has an easier time here, which is why this row exists.",
+        verdict: "Only your own phone, outside, at midday, answers this one.",
+      },
+    },
+    numbersTitle: "The numbers",
+    numbersLead:
+      "Measured against the running dev server, not estimated. First-tile timing on production has not been measured.",
+    numberAxe: "axe violations, every lab route",
+    numberSmall: "Text under 14px",
+    numberContrast: "Contrast floor across the lab",
+    numberHomeFont: "Home font (Roundel / Field journal)",
+    numberMapFont: "Font on the map",
+    numberTiles: "Desktop map first-view tile requests (prototype / today)",
+    fakesTitle: "What these prototypes fake",
+    fakeSend:
+      "Nothing is ever submitted. Send shows the receipt the outcome table gives, and all three endings are reachable by link.",
+    fakeReal:
+      "Everything else is real: the photo pipeline, the species search, the tiles, the records and the map are the live ones, read through the public views only, so blurring is inherited.",
+    fakeCopy:
+      "Every new string here is a first draft by the people who built the page. None of it has had a native read.",
+    fakeJournal:
+      "Field journal is home only. Home is the page that has been rejected twice, so it is the page that settles taste; the other three are five more days that the answer to this one makes unnecessary.",
+    fakeInjured:
+      "The injured-wildlife notice reads \u201Cwording pending\u201D. Which agency, which number and in whose words is the owner's to give. A prototype that invented one would be tested, approved and shipped carrying a phone number nobody has agreed to answer.",
+    fakeStrip:
+      "The black bar is not in the pictures, but it is there when you tap through — it is how you get back.",
+    routesTitle: "Every route",
+    routesLead:
+      "What is not in the four rows above: two zero-record species pages, one whose coordinates are withheld, and the component specimen.",
   },
   seam: {
     static:

@@ -4,7 +4,13 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import { labEnabled } from "../lib/lab/gate.ts";
-import { LAB_DIRECTIONS, LAB_ROUTES, isLabDirection } from "../lib/lab/directions.ts";
+import {
+  COMPARE_ROWS,
+  LAB_DIRECTIONS,
+  LAB_ROUTES,
+  isLabDirection,
+  labPath,
+} from "../lib/lab/directions.ts";
 import { LAB_COPY } from "../lib/lab/copy.ts";
 import {
   LAB_FONT_PRELOAD,
@@ -403,6 +409,92 @@ const pointsIn = (range) => {
     for (let point = start; point <= end; point += 1) points.push(point);
   return points;
 };
+
+/**
+ * The compare page's pictures.
+ *
+ * A screenshot that was never taken is not an error anywhere: `<img>` with a
+ * src that 404s is a gap in a layout, and the one place this matters is the one
+ * page whose entire job is a side-by-side comparison. A missing column reads as
+ * "that direction has no such page" rather than as "nobody ran the script", and
+ * the owner makes a decision from a row with a hole in it.
+ *
+ * The manifest is read from disk rather than imported, because `lib/lab/shots.ts`
+ * pulls the JSON in through the `@/` alias and this file is plain Node.
+ */
+describe("lab compare shots", () => {
+  const SHOTS = join(WEB, "public/lab/shots");
+  const manifest = JSON.parse(
+    readFileSync(join(SHOTS, "manifest.json"), "utf8"),
+  ).shots;
+
+  test("every shot the manifest names is on disk at the size it records", () => {
+    for (const shot of manifest) {
+      const path = join(SHOTS, shot.file);
+      assert.ok(statSync(path).isFile(), `${shot.file} is missing`);
+      assert.equal(
+        statSync(path).size,
+        shot.bytes,
+        `${shot.file} is not the file the manifest describes`,
+      );
+    }
+  });
+
+  test("every row the compare page draws is complete in both locales", () => {
+    for (const row of COMPARE_ROWS) {
+      const inRow = manifest.filter((shot) => shot.page === row.page);
+      const variants = [...new Set(inRow.map((shot) => shot.variant))];
+      assert.ok(
+        variants.includes("today"),
+        `${row.page} has no column of today's page to compare against`,
+      );
+      assert.ok(
+        variants.length >= 2,
+        `${row.page} has only one column, so it is not a comparison`,
+      );
+      // Both widths, because the card art-directs: a phone gets the 390 shot
+      // and a desktop the 1440 one, and a row that has only one of them is
+      // blank on exactly one kind of device.
+      for (const variant of variants)
+        for (const locale of ["zh-TW", "en"])
+          for (const viewport of [390, 1440])
+            assert.ok(
+              inRow.some(
+                (shot) =>
+                  shot.variant === variant &&
+                  shot.locale === locale &&
+                  shot.viewport === viewport &&
+                  shot.cut === "fold",
+              ),
+              `${row.page}/${variant} has no ${locale} fold at ${viewport}`,
+            );
+    }
+  });
+
+  test("every shot is a picture of a route that exists", () => {
+    const live = new Set(LAB_ROUTES.map((route) => route.live));
+    const lab = new Set(
+      LAB_ROUTES.flatMap((route) =>
+        route.directions.map((direction) => labPath(direction, route.sub)),
+      ),
+    );
+    for (const shot of manifest)
+      assert.ok(
+        shot.direction ? lab.has(shot.href) : live.has(shot.href),
+        `${shot.file} points at ${shot.href}, which is not a route`,
+      );
+  });
+
+  test("the committed pictures stay inside the budget they were allowed", () => {
+    // Brief W1 bounds this directory at 5 MB, once. It is throwaway art for a
+    // throwaway route, and the repository keeps it forever.
+    const bytes = manifest.reduce((sum, shot) => sum + shot.bytes, 0);
+    assert.ok(
+      bytes <= 5 * 1024 * 1024,
+      `${(bytes / 1024 / 1024).toFixed(2)} MB of screenshots, budget 5 MB`,
+    );
+  });
+});
 
 describe("lab display faces", () => {
   const allFaces = Object.values(charset.families).flatMap((f) => f.faces);

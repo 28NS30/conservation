@@ -335,8 +335,19 @@ const browser = await chromium.launch();
 const rows = [];
 const failures = [];
 
+// A prefix, but only at a path boundary: bare `startsWith` made `ONLY=/lab`
+// match every route in the lab rather than the compare page it names.
+const wanted = (path) =>
+  !ONLY.length ||
+  ONLY.some(
+    (only) =>
+      path === only ||
+      path.startsWith(`${only}/`) ||
+      path.startsWith(`${only}?`),
+  );
+
 for (const path of PATHS) {
-  if (ONLY.length && !ONLY.some((only) => path.startsWith(only))) continue;
+  if (!wanted(path)) continue;
   for (const prefix of LOCALES) {
     const url = BASE + prefix + path;
     for (const size of WIDTHS) {
