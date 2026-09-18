@@ -32,7 +32,12 @@ import MapModeToggle from "./MapModeToggle";
 import MapColourToggle from "./MapColourToggle";
 import ReportPanel from "./ReportPanel";
 import { colourStore, modeStore, type MapMode } from "./mapMode";
-import { heatColorExpression } from "./legend";
+import {
+  heatColorExpression,
+  heatGradientCss,
+  legendFor,
+  POINTS_FROM_ZOOM,
+} from "./legend";
 import { Link } from "@/i18n/navigation";
 
 /**
@@ -411,6 +416,17 @@ export default function HeatmapView({
     filterRef.current = filter;
   }, [filter]);
   const [hint, setHint] = useState<string | null>(null);
+  /**
+   * The zoom the legend is describing.
+   *
+   * Held here rather than read from the map because the legend is rendered by
+   * React and the camera is not. It moves ONLY when the zoom crosses
+   * POINTS_FROM_ZOOM — which is the only thing legendFor() asks of it — so a
+   * wheel gesture costs one re-render at the handoff instead of one per frame.
+   * Seeded from the deep-linked view so `?z=15` never paints the density
+   * legend first and corrects itself a moment later.
+   */
+  const [legendZoom, setLegendZoom] = useState(initialView?.zoom ?? 0);
   /** The report whose details are open beside the map, if any. */
   const [selected, setSelected] = useState<string | null>(null);
   // See mapMode.ts for why this is a store rather than useState.
@@ -736,6 +752,10 @@ export default function HeatmapView({
         });
 
         setReady(true);
+        // Once, here: a shared link carrying ?z=15 opens straight into the
+        // record regime, and the legend has to be right on the first paint
+        // rather than at the reader's first gesture.
+        setLegendZoom(map.getZoom());
       }
 
       // A click on an individual report opens the panel rather than a popup.
@@ -801,6 +821,18 @@ export default function HeatmapView({
           map.getZoom() >= TILE_AGGREGATION_MAX_ZOOM + 0.5
             ? null
             : tRef.current("map.zoomHint"),
+        );
+      });
+
+      // `zoom`, not `zoomend`, unlike the hint above. The hint is advice and can
+      // wait for the gesture to finish; the legend is a claim about what is on
+      // screen, and for the length of a slow wheel zoom it would be describing
+      // the regime the map has already left. The bail-out keeps that cheap: the
+      // state only moves when the zoom crosses the handoff.
+      map.on("zoom", () => {
+        const z = map.getZoom();
+        setLegendZoom((prev) =>
+          (prev >= POINTS_FROM_ZOOM) === (z >= POINTS_FROM_ZOOM) ? prev : z,
         );
       });
     })();
@@ -927,6 +959,20 @@ export default function HeatmapView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, filter.group, filter.taxonId, filter.from, filter.to]);
 
+  /* ---- what the legend is entitled to claim ---- */
+  // Derived in one place, from the pure rule in legend.ts, rather than from the
+  // colour switch alone as it used to be. The switch is what the reader asked
+  // for; this is what the map did with it.
+  const legend = legendFor({ mode, colour, zoom: legendZoom });
+  const legendCaption =
+    legend.kind === "points"
+      ? t("map.perRecord")
+      : legend.kind === "heat"
+        ? null
+        : legend.kind === "type"
+          ? t("map.typePerCell")
+          : t("map.perCell");
+
   return (
     <div className="relative h-full w-full">
       {/*
@@ -1007,24 +1053,74 @@ export default function HeatmapView({
             selected ? "hidden sm:block sm:right-[21rem]" : "sm:right-4"
           }`}
         >
-          <div className="rounded-lg border border-parchment-200/15 bg-bark-900/92 px-3 py-2 text-[11px] text-parchment-300 backdrop-blur">
+          <div
+            // What the legend is claiming, for the end-to-end spec: it has to
+            // assert on the state rather than on the words, which are
+            // translated, or on the classes, which a later restyle replaces.
+            data-legend={legend.kind}
+            className="rounded-lg border border-parchment-200/15 bg-bark-900/92 px-3 py-2 text-[11px] text-parchment-300 backdrop-blur"
+          >
             <MapModeToggle mode={mode} onChange={setMode} className="mb-1.5" />
             <MapColourToggle
               colour={colour}
+              effective={legend.colour}
+              locked={legend.reason ? t(legend.reason) : null}
               onChange={setColour}
               className="mb-2"
             />
 
             <div className="mb-1 font-medium text-parchment-200">
-              {colour === "type" ? t("map.reportType") : t("map.density")}
+              {legend.colour === "type" ? t("map.reportType") : t("map.density")}
             </div>
 
-            {/* Swatches with real counts, not a gradient bar. The gradient was
-                unreadable by design: you could see that one area was hotter than
-                another but had no way to recover a number. In dots mode the same
-                classes are shown at their actual circle size, so the legend
-                explains both channels the symbol uses. */}
-            {colour === "type" ? (
+            {/* Four bodies, one per thing the map can be drawing.
+                Swatches with real counts wherever there are real counts: the
+                bins and the dots are discrete features with a number in them,
+                and a gradient there would be unreadable by design — you could
+                see that one area was hotter than another but had no way to
+                recover a number. In dots mode the same classes are shown at
+                their actual circle size, so the legend explains both channels
+                the symbol uses.
+
+                The heat surface is the one case where there is no number to
+                recover. It is a kernel density estimate: the colour at a pixel
+                is a sum over neighbouring blobs and corresponds to no feature's
+                count. Six numeric classes beside it were naming quantities that
+                are not on screen, so it gets the bar it actually is. */}
+            {legend.kind === "points" ? (
+              /* Past the handoff the map draws one circle per record, from
+                 `category` — all four stored ones, not the three groups the
+                 form offers, because injured has its own paint here. */
+              <ul className="space-y-0.5">
+                {CATEGORY_KEYS.map((k) => (
+                  <li key={k} className="flex items-center gap-1.5">
+                    <span className="flex w-4 shrink-0 justify-center">
+                      <span
+                        aria-hidden
+                        className="size-2.5 rounded-full"
+                        style={{ background: CATEGORIES[k].color }}
+                      />
+                    </span>
+                    <span className="text-parchment-300">
+                      {t(`categories.${k}`)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : legend.kind === "heat" ? (
+              /* Text at both ends, not colour alone: a bar whose only meaning
+                 is its hue says nothing to a reader who cannot separate the
+                 hues. No numbers, because there are none to give. */
+              <div className="flex items-center gap-1.5">
+                <span className="text-parchment-300">{t("map.low")}</span>
+                <span
+                  aria-hidden
+                  className="h-2 w-24 shrink-0 rounded-full"
+                  style={{ background: heatGradientCss() }}
+                />
+                <span className="text-parchment-300">{t("map.high")}</span>
+              </div>
+            ) : legend.kind === "type" ? (
               /* The three the form offers, plus the cell that is not mostly any
                  of them. Grey is a real answer here, not a fallback. */
               <ul className="space-y-0.5">
@@ -1098,9 +1194,14 @@ export default function HeatmapView({
               })}
             </ul>
             )}
-            <div className="mt-1 border-t border-parchment-200/10 pt-1 text-[10px] text-parchment-500">
-              {colour === "type" ? t("map.typePerCell") : t("map.perCell")}
-            </div>
+            {/* The caption says what one symbol stands for. The heat surface
+                has no symbol and no unit, so it gets none rather than a
+                sentence about cells it is not drawing. */}
+            {legendCaption && (
+              <div className="mt-1 border-t border-parchment-200/10 pt-1 text-[10px] text-parchment-500">
+                {legendCaption}
+              </div>
+            )}
           </div>
         </div>
       )}
