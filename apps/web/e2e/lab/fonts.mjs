@@ -99,6 +99,11 @@ for (const route of ROUTES) {
     page.on("response", async (response) => {
       const url = response.url();
       if (!/\.(woff2?|ttf|otf)(\?|$)/.test(url)) return;
+      // `next dev` serves its own error overlay in Geist from this path. It
+      // does not exist in a production build, it arrives on whichever route
+      // happened to open the overlay, and counting it makes a budget of zero
+      // fail at random on a developer's machine.
+      if (url.includes("/__nextjs_font/")) return;
       // A 404 is not a font: an href that no longer resolves would otherwise
       // read as a healthy fetch here and as a missing typeface on screen.
       fonts.push({
