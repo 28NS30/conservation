@@ -8,6 +8,8 @@ import { getLabCopy } from "@/lib/lab/copy";
 import { labEnabled } from "@/lib/lab/gate";
 
 import "./themes/base.css";
+import "./themes/faces.css";
+import "./themes/fonts.css";
 import "./themes/roundel.css";
 import "./themes/journal.css";
 
