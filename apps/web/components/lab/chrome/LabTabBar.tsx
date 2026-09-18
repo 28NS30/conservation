@@ -1,7 +1,7 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { getLabCopy } from "@/lib/lab/copy";
-import { labPath, type LabDirection } from "@/lib/lab/directions";
+import { labHref, type LabDirection } from "@/lib/lab/directions";
 
 /**
  * The phone's navigation: fixed, five items, thumb-height.
@@ -19,10 +19,13 @@ import { labPath, type LabDirection } from "@/lib/lab/directions";
 export default async function LabTabBar({
   direction,
   current,
+  surface = "field",
   reportVariant = "primary",
 }: {
   direction: LabDirection;
   current?: "map" | "species" | "report" | "stats" | "about";
+  /** Forest for Roundel; the sheet with a 2px rule for the Field journal. */
+  surface?: "paper" | "plate" | "field";
   /** `outline` on home, where the hero is already the ember element. */
   reportVariant?: "primary" | "outline";
 }) {
@@ -30,15 +33,15 @@ export default async function LabTabBar({
   const copy = getLabCopy(await getLocale());
 
   const items = [
-    { key: "map" as const, href: labPath(direction, "/map"), label: t("map") },
+    { key: "map" as const, href: labHref(direction, "/map"), label: t("map") },
     {
       key: "species" as const,
-      href: labPath(direction, "/species/28758"),
+      href: labHref(direction, "/species/28758"),
       label: t("species"),
     },
     {
       key: "report" as const,
-      href: labPath(direction, "/report/stepper"),
+      href: labHref(direction, "/report/stepper"),
       label: t("report"),
     },
     { key: "stats" as const, href: "/stats", label: t("stats") },
@@ -47,9 +50,11 @@ export default async function LabTabBar({
 
   return (
     <nav
-      data-surface="field"
+      data-surface={surface}
       aria-label={copy.common.nav}
-      className="lab-tabbar fixed inset-x-0 bottom-0 z-40 bg-(--ground) text-(--fg) md:hidden"
+      className={`lab-tabbar fixed inset-x-0 bottom-0 z-40 bg-(--ground) text-(--fg) md:hidden ${
+        surface === "field" ? "" : "rule-strong border-t-2"
+      }`}
     >
       <ul className="flex items-stretch">
         {items.map((item) => {

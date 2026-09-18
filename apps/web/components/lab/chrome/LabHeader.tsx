@@ -5,7 +5,7 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import Button from "@/components/lab/ui/Button";
 import Container from "@/components/lab/ui/Container";
 import Emblem from "@/components/lab/ui/Emblem";
-import { labPath, type LabDirection } from "@/lib/lab/directions";
+import { labHref, labPath, type LabDirection } from "@/lib/lab/directions";
 
 /**
  * The forest band across the top (direction.md §4, "Shared chrome").
@@ -32,11 +32,20 @@ export type LabNavKey = "map" | "species" | "stats" | "about";
 export default async function LabHeader({
   direction,
   variant = "site",
+  surface = "field",
   current,
 }: {
   direction: LabDirection;
   /** `home` drops the mark and name; `map` drops 16px of band. */
   variant?: "site" | "home" | "map";
+  /**
+   * The band's material. Forest is the Roundel chrome — the badge's ring, worn
+   * across the top of every page. The Field journal has no blocks at all
+   * (§3: "nothing is boxed except inputs, maps and pictures"), so there the
+   * band is the same sheet as the page with a 2px rule under it; a near-black
+   * bar above a paper hero would be read as part of a design it is not.
+   */
+  surface?: "paper" | "plate" | "field";
   current?: LabNavKey;
 }) {
   const t = await getTranslations("nav");
@@ -44,23 +53,35 @@ export default async function LabHeader({
   const copy = getLabCopy(await getLocale());
 
   const nav: { key: LabNavKey; href: string; label: string }[] = [
-    { key: "map", href: labPath(direction, "/map"), label: t("map") },
-    { key: "species", href: labPath(direction, "/species/28758"), label: t("species") },
+    { key: "map", href: labHref(direction, "/map"), label: t("map") },
+    {
+      key: "species",
+      href: labHref(direction, "/species/28758"),
+      label: t("species"),
+    },
     { key: "stats", href: "/stats", label: t("stats") },
     { key: "about", href: "/about", label: t("about") },
   ];
 
   return (
-    <header data-surface="field" className="bg-(--ground) text-(--fg)">
+    <header
+      data-surface={surface}
+      className={`bg-(--ground) text-(--fg) ${
+        surface === "field" ? "" : "rule-strong border-b-2"
+      }`}
+    >
       <Container>
         <div
           className={`flex items-center justify-between gap-6 ${
             variant === "map" ? "h-14" : "h-14 md:h-18"
           }`}
         >
-          {variant === "home" ? (
-            <span />
-          ) : (
+          {/* Home renders nothing here at all rather than an empty box: with a
+              placeholder, `justify-between` floats the nav in the middle of the
+              band with a void where the mark would be, which reads as a mark
+              that failed to load. With nothing, the nav simply starts at the
+              left margin. */}
+          {variant === "home" ? null : (
             <Link
               href={labPath(direction)}
               className="flex shrink-0 items-center gap-3"
@@ -94,13 +115,28 @@ export default async function LabHeader({
           </nav>
 
           <div className="flex shrink-0 items-center gap-4">
-            <LanguageSwitcher className="t-note" />
-            <Button
-              href={labPath(direction, "/report/stepper")}
-              className="hidden md:inline-flex"
-            >
-              {t("report")}
-            </Button>
+            {/* `lab-lang` raises the inactive locale's opacity; see base.css.
+                At the live 60% it is 3.1:1 on the journal's paper band. */}
+            <LanguageSwitcher className="t-note lab-lang" />
+            {/* Desktop only — a phone has the tab bar, and a sign in a 56px
+                band is the `map-mobile-nav` defect this replaces. Hidden by a
+                wrapper rather than by a `hidden` class on the sign: Button's
+                own `inline-flex` is a display utility too, and which of the two
+                wins depends on the order Tailwind emits them in. It was the
+                wrong one, and this sign was appearing on every phone band.
+
+                Outlined on home, for the same reason the tab bar's is: the hero
+                already carries the viewport's one ember rectangle (§2.6 rule 1),
+                and a second one in the band above it halves the weight of the
+                only thing this page is asking anyone to do. */}
+            <span className="hidden md:contents">
+              <Button
+                href={labHref(direction, "/report/stepper")}
+                variant={variant === "home" ? "secondary" : "primary"}
+              >
+                {t("report")}
+              </Button>
+            </span>
           </div>
         </div>
       </Container>

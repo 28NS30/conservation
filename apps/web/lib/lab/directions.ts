@@ -70,47 +70,63 @@ export type LabRoute = {
 };
 
 export const LAB_ROUTES = [
-  { sub: "", live: "/", directions: LAB_DIRECTIONS, built: false },
-  { sub: "/map", live: "/map", directions: ["roundel"], built: false },
+  { sub: "", live: "/", directions: LAB_DIRECTIONS, built: true },
+  { sub: "/map", live: "/map", directions: ["roundel"], built: true },
   {
     sub: "/report/stepper",
     live: "/report",
     directions: ["roundel"],
-    built: false,
+    built: true,
   },
   {
     sub: "/report/photo-first",
     live: "/report",
     directions: ["roundel"],
-    built: false,
+    built: true,
   },
   // 黑眶蟾蜍, 3,978 records — the species page with everything filled in.
   {
     sub: "/species/28758",
     live: "/species/28758",
     directions: ["roundel"],
-    built: false,
+    built: true,
   },
-  // 斯文豪氏頸槽蛇, seven Hanzi, 90 records — the long-name case.
+  // 斯文豪氏頸槽蛇, seven Hanzi, 90 records, sensitivity 輕度 — the long-name case,
+  // and the only one of these that carries the blurred-location Notice.
   {
     sub: "/species/37689",
     live: "/species/37689",
     directions: ["roundel"],
-    built: false,
+    built: true,
   },
-  // Nine Hanzi and no records at all — the page that must still look finished.
+  // 中國石龍子臺灣亞種: nine Hanzi and no records at all — the page that must
+  // still look finished with nothing in it.
   {
     sub: "/species/102062",
     live: "/species/102062",
     directions: ["roundel"],
-    built: false,
+    built: true,
   },
-  // 臺灣穿山甲 — protected, withheld: a notice, no map, no count.
+  // 臺灣穿山甲 — protected and endemic, and no public records. Listed here as
+  // "withheld" in the first draft of this table, which was wrong: TaiCOL rates
+  // it with no sensitivity at all, so it is a second zero-record page rather
+  // than a withheld one. Kept, because a zero-record page that carries two
+  // status tags is a different-looking page from one that carries one.
   {
     sub: "/species/85879",
     live: "/species/85879",
     directions: ["roundel"],
-    built: false,
+    built: true,
+  },
+  // 食蛇龜 — protected I and rated 座標不開放, which is the case the page has to
+  // handle honestly: no rows reach `reports_public`, so its count reads 0 and
+  // "no reports yet" would be a lie. A Notice, no map, no count. This is the
+  // real one; there are seven such taxa in the whole checklist.
+  {
+    sub: "/species/79876",
+    live: "/species/79876",
+    directions: ["roundel"],
+    built: true,
   },
   // The primitives themselves, rendered under whichever theme is on. Not a page
   // of the site; it is how a page owner sees what they are building with, and
@@ -121,6 +137,28 @@ export const LAB_ROUTES = [
 /** A path inside the lab, locale-prefixed later by the i18n `Link`. */
 export function labPath(direction: LabDirection, sub = ""): string {
   return `/lab/${direction}${sub}`;
+}
+
+/**
+ * Where a link out of a lab page should actually go, today.
+ *
+ * The pages land over several weeks, so for most of that time a prototype's
+ * header, tab bar and hero point at lab routes that do not exist yet. A 404 is
+ * the worst possible answer: the person tapping it is the owner, on a phone,
+ * deciding whether a design is any good, and a dead link reads as "the design
+ * is broken" rather than "that page is next week's".
+ *
+ * So a link goes to the lab's own page when this direction has built it, and to
+ * the live page it is a redesign of when it has not. Leaving the prototype is
+ * honest — the compare strip is titled "today's page" and does the same thing —
+ * and the link starts pointing inside the lab on its own the day that page's
+ * `built` flag flips. Nobody has to remember to come back and change it.
+ */
+export function labHref(direction: LabDirection, sub: string): string {
+  const route = LAB_ROUTES.find((candidate) => candidate.sub === sub);
+  if (!route) return sub;
+  const here = (route.directions as readonly string[]).includes(direction);
+  return route.built && here ? labPath(direction, sub) : route.live;
 }
 
 /** The same page in the other direction, for the compare strip. */

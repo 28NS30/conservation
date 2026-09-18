@@ -3,7 +3,7 @@ import { Link } from "@/i18n/navigation";
 import Container from "@/components/lab/ui/Container";
 import Emblem from "@/components/lab/ui/Emblem";
 import { getLabCopy } from "@/lib/lab/copy";
-import { labPath, type LabDirection } from "@/lib/lab/directions";
+import { labHref, type LabDirection } from "@/lib/lab/directions";
 
 /**
  * Forest, a 160px emblem, and the credit that is a licence condition.
@@ -25,8 +25,11 @@ export default async function LabFooter({
   const copy = getLabCopy(await getLocale());
 
   const links = [
-    { href: labPath(direction, "/map"), label: t("nav.map") },
-    { href: labPath(direction, "/species/28758"), label: t("nav.species") },
+    { href: labHref(direction, "/map"), label: t("nav.map") },
+    {
+      href: labHref(direction, "/species/28758"),
+      label: t("nav.species"),
+    },
     { href: "/about", label: t("nav.about") },
     { href: "/attribution", label: t("nav.attribution") },
     { href: "/privacy", label: t("nav.privacy") },
