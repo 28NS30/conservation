@@ -94,7 +94,12 @@ export default async function SpeciesDirectory({
         // Two columns on desktop. At one column the directory was a 640px ribbon
         // down the middle of a 1180px page, and 80 results meant six screens of
         // scrolling past a mostly empty viewport.
-        <ul className="mt-5 grid gap-1.5 sm:grid-cols-2 sm:gap-x-4">
+        //
+        // `grid-cols-1` before that, because a grid with no column template has
+        // one implicit column sized to its content: the longest scientific name
+        // in the results set the width of the page, and /en/species laid out
+        // 364px inside a 320px viewport.
+        <ul className="mt-5 grid grid-cols-1 gap-1.5 sm:grid-cols-2 sm:gap-x-4">
           {species.map((s) => {
             const headline =
               zhFirst && s.commonNameZh ? s.commonNameZh : s.scientificName;

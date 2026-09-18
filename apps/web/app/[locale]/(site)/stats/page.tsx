@@ -141,7 +141,13 @@ export default async function StatsPage({
           stacking them single-file made a 640px ribbon down a 1180px page with
           six screens of scrolling. `items-start` keeps a short panel from being
           stretched to match a tall one beside it. */}
-      <div className="mt-4 grid items-start gap-3 lg:grid-cols-2">
+      {/* `grid-cols-1` is not decoration. A grid with no column template at all
+          falls back to one implicit column sized to its content, so the widest
+          thing inside — a long Latin name, a hotspot's count — pushed the whole
+          page wider than the phone it was on: /en/stats laid out 421px inside a
+          390px viewport and scrolled sideways. Naming one column makes it
+          minmax(0, 1fr), which is what every child here already assumes. */}
+      <div className="mt-4 grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
         {/* One category means one 100% bar, which tells the reader nothing. The
             seed corpus is entirely roadkill; this appears once people report
             other things. */}

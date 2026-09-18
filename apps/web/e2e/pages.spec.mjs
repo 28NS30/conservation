@@ -27,16 +27,18 @@ const PAGES = [
   { path: "/map", name: "map (zh-TW)", settle: 9000, layers: true },
   { path: "/en/map", name: "map (en)", settle: 9000, layers: true },
   { path: "/stats", name: "stats (zh-TW)" },
-  { path: "/en/stats", name: "stats (en)" },
+  { path: "/en/stats", name: "stats (en)", widths: true },
   { path: "/season", name: "season goal (zh-TW)" },
   { path: "/en/season", name: "season goal (en)" },
   { path: "/species", name: "species directory" },
+  { path: "/en/species", name: "species directory (en)", widths: true },
   {
     path: "/species/28758-duttaphrynus-melanostictus",
     name: "species detail",
     settle: 7000,
   },
-  { path: "/reports", name: "reports list" },
+  { path: "/reports", name: "reports list", widths: true },
+  { path: "/login", name: "sign in", widths: true },
   { path: "/report", name: "submission form" },
   { path: "/about", name: "about" },
   { path: "/me", name: "my reports (signed out)" },
@@ -166,6 +168,44 @@ async function checkHome(page, pg, plate) {
   return errs;
 }
 
+/**
+ * Nothing may scroll sideways on a phone.
+ *
+ * Horizontal overflow is invisible on a laptop and unusable on a handset: the
+ * reader drags the page left to read the end of a line and everything else goes
+ * with it. It is also silent — no error, no warning, the page returns 200 — and
+ * it was live on two English pages, which is the other half of the point: these
+ * widths are checked in English because Latin binomials are two or three times
+ * the width of the Chinese names beside them, so the Chinese pages were clean
+ * while /en/stats laid out 421px inside a 390px viewport.
+ *
+ * 320px is the WCAG reflow width; 360 and 390 are the two commonest phones.
+ */
+async function checkWidths(page) {
+  const errs = [];
+  for (const w of [320, 360, 390]) {
+    await page.setViewportSize({ width: w, height: 844 });
+    await page.waitForTimeout(400);
+    const m = await page.evaluate(() => {
+      const doc = document.documentElement;
+      if (doc.scrollWidth <= innerWidth) return null;
+      // Name what is actually sticking out, or the failure is a number with
+      // nowhere to start looking.
+      const culprits = [...document.querySelectorAll("body *")]
+        .filter((el) => el.getBoundingClientRect().right > innerWidth + 1)
+        .slice(-3)
+        .map((el) => `<${el.tagName.toLowerCase()} class="${el.className}">`);
+      return { sw: doc.scrollWidth, iw: innerWidth, culprits };
+    });
+    if (m)
+      errs.push(
+        `scrolls sideways at ${w}px: ${m.sw} > ${m.iw} — ${m.culprits.join(" ")}`,
+      );
+  }
+  await page.setViewportSize({ width: 1000, height: 800 });
+  return errs;
+}
+
 const browser = await chromium.launch();
 const failures = [];
 
@@ -229,6 +269,7 @@ for (const pg of PAGES) {
     errs.push("unresolved translations: " + [...new Set(leaked)].join(", "));
 
   if (pg.home) errs.push(...(await checkHome(page, pg, plate)));
+  if (pg.widths) errs.push(...(await checkWidths(page)));
 
   if (pg.layers) {
     const missing = await page.evaluate((ids) => {

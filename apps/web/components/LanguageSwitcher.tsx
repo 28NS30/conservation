@@ -57,10 +57,12 @@ export default function LanguageSwitcher({
             lang={l}
             aria-current={l === locale ? "true" : undefined}
             onClick={() => switchTo(l)}
-            // A 22x17 tap target at the bottom of every page. The label is set
-            // at 11px by the surrounding chrome and has to stay there, so the
-            // box is grown around it instead.
-            className={`inline-flex min-h-6 min-w-6 items-center justify-center px-1 ${
+            // A 22x17 tap target, on every page. The label is set at 11px by
+            // the chrome around it and has to stay there, so the box grows
+            // around the text instead — a minimum box rather than padding,
+            // because padding would also widen "English", and the phone
+            // header's link row has no spare width at 320px.
+            className={`inline-flex min-h-6 min-w-6 items-center justify-center ${
               l === locale
                 ? "font-medium"
                 : "opacity-60 transition hover:opacity-100"
