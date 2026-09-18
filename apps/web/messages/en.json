@@ -41,8 +41,8 @@
   "map": {
     "all": "All",
     "density": "Density",
-    "low": "Low",
-    "high": "High",
+    "low": "Fewer",
+    "high": "More",
     "zoomHint": "Zoom in for individual records",
     "blurred": "Location blurred — sensitive species",
     "filterSpecies": "Filter by species…",
@@ -78,7 +78,10 @@
     "unidentified": "Not identified",
     "openReport": "Open the full record",
     "observedOn": "Observed",
-    "cellSizeM": "about {m} m per cell"
+    "cellSizeM": "about {m} m per cell",
+    "perRecord": "Each dot is one record",
+    "colourLockedHeat": "Heat shows density only",
+    "colourLockedPoints": "Single records are always coloured by type"
   },
   "footer": {
     "dataSource": "Data",
@@ -351,6 +354,7 @@
     "next": "Next",
     "pageN": "Page {page}",
     "viewAsList": "View as list",
+    "viewOnMap": "View on map",
     "obscuredLegend": "Coordinates with this mark belong to protected or sensitive species, and are published only after being generalised.",
     "photo": "Photo"
   },
