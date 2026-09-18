@@ -251,6 +251,81 @@ for (const [path, map] of [
   await ctx.close();
 }
 
+/* ---- the rest of the site is reachable from the map on a phone ---- */
+for (const path of LOCALES) {
+  const { ctx, page } = await openMap(path, { mode: "dots", colour: "density" });
+  const at = `${path} at 390`;
+  const m = await page.evaluate(() => {
+    // The site header, not PageHeader further down the page.
+    const header = document.querySelector("header");
+    const vis = (el) => {
+      const r = el.getBoundingClientRect();
+      return (
+        r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== "hidden"
+      );
+    };
+    const links = [...header.querySelectorAll("nav a")].filter(vis);
+    return {
+      headerHeight: Math.round(header.getBoundingClientRect().height),
+      // Both navs are in the DOM at every width; only one of them is shown.
+      current: links.filter((a) => a.getAttribute("aria-current") === "page")
+        .length,
+      hrefs: links.map((a) => a.getAttribute("href")),
+      tooSmall: links
+        .map((a) => [a.getAttribute("href"), a.getBoundingClientRect()])
+        .filter(([, r]) => r.width < 24 || r.height < 24)
+        .map(([href, r]) => `${href} ${Math.round(r.width)}x${Math.round(r.height)}`),
+    };
+  });
+  const prefix = path === "/map" ? "" : "/en";
+  for (const dest of ["/species", "/stats"])
+    check(
+      `${at} links to ${dest}`,
+      m.hrefs.includes(`${prefix}${dest}`),
+      `visible header nav: ${m.hrefs.join(" ")}`,
+    );
+  check(
+    `${at} marks exactly one link as the current page`,
+    m.current === 1,
+    `found ${m.current}`,
+  );
+  check(
+    `${at} gives every nav link a 24px target`,
+    m.tooSmall.length === 0,
+    m.tooSmall.join(", "),
+  );
+  // The map's header was 49px with no nav row at all. The row is a stopgap
+  // until W3's tab bar, and the whole argument for it is that it is cheap: on
+  // this page every pixel of chrome is a pixel of Taiwan.
+  check(
+    `${at} spends at most 40px of map on the row`,
+    m.headerHeight <= 89,
+    `header is ${m.headerHeight}px`,
+  );
+  await ctx.close();
+}
+
+/* ---- and nothing anywhere scrolls sideways ---- */
+for (const path of LOCALES)
+  for (const width of [390, 320]) {
+    const { ctx, page } = await openMap(path, {
+      mode: "dots",
+      colour: "density",
+      width,
+      height: 640,
+    });
+    const over = await page.evaluate(() => ({
+      scroll: document.documentElement.scrollWidth,
+      inner: window.innerWidth,
+    }));
+    check(
+      `${path} does not scroll sideways at ${width}`,
+      over.scroll <= over.inner,
+      `${over.scroll} > ${over.inner}`,
+    );
+    await ctx.close();
+  }
+
 await browser.close();
 
 if (failures.length) {
