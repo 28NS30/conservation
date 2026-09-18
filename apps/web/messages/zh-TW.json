@@ -114,11 +114,16 @@
     "needLocation": "請先在地圖上點選發現地點",
     "photoFailed": "無法處理照片",
     "privacyNote": "敏感或保育類物種的座標會自動模糊化後才公開，避免成為盜獵線索。",
-    "thanks": "感謝您的通報！",
-    "received": "我們已收到您的通報。",
-    "identifying": "AI 正在辨識物種，完成後就會顯示在地圖上（通常一兩分鐘）。",
-    "published": "已發布至地圖。",
-    "viewReport": "查看這筆通報",
+    "receipt": {
+      "onMap": "已經在地圖上了",
+      "held": "收到了，還沒公開",
+      "heldForIdentification": "沒有物種名稱，要先確認是什麼動物才會公開。這是人工處理，時間不一定。",
+      "heldNoPhoto": "沒有照片的通報，會先由人看過才公開。",
+      "heldForReview": "這筆通報會先由人看過才公開。",
+      "viewRecord": "看這筆紀錄",
+      "checkStatus": "看目前狀態",
+      "another": "再通報一筆"
+    },
     "needChallenge": "請先完成人機驗證",
     "preparingPhotos": "照片處理中…",
     "group": {

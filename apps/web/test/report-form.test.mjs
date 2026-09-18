@@ -127,3 +127,58 @@ describe("report groups", () => {
     assert.deepEqual(selected(html), ["路殺或受傷"]);
   });
 });
+
+/**
+ * What the reporter is handed after pressing send.
+ *
+ * These are source-level on purpose. The card only exists after a successful
+ * POST, which needs a location, a challenge and a photo pipeline; and the
+ * failure being guarded against is not "the card looks wrong" but "the card
+ * says published about a pending row and links to a 404", which is a question
+ * about which branch runs, not about pixels. `e2e/receipt.spec.mjs` drives the
+ * rendered card.
+ */
+describe("the receipt on the success card", () => {
+  test("the card is built from the server's answer, not from the id alone", () => {
+    assert.match(
+      FORM,
+      /outcomeOf\(\s*result\.status,/,
+      "the status the API returns must decide what the card says",
+    );
+    assert.match(
+      FORM,
+      /status: data\.status/,
+      "the form must keep the status instead of discarding it",
+    );
+  });
+
+  test("the link appears only when there is a page behind it", () => {
+    // The whole defect: `<a href={`/reports/${result.id}`}>` was
+    // unconditional, and that page reads reports_public, which excludes every
+    // pending report. Most reports are pending, so most receipts were 404s.
+    assert.ok(
+      !/<a\s[^>]*href=\{`\/reports\//.test(FORM),
+      "no bare, unconditional anchor to a report page",
+    );
+    assert.match(
+      FORM,
+      /\{outcome\.link && \(\s*<Link/,
+      "the link must be gated on the outcome having one",
+    );
+  });
+
+  test("the link keeps the reader's language", () => {
+    // A bare <a href="/reports/x"> drops /en and bounces an English reader
+    // back into Chinese.
+    assert.match(FORM, /import \{ Link \} from "@\/i18n\/navigation"/);
+  });
+
+  test("the copy that promised a timetable is gone from the form", () => {
+    for (const key of ["thanks", "received", "identifying", "published", "viewReport"]) {
+      assert.ok(
+        !new RegExp(`t\\("${key}"\\)`).test(FORM),
+        `report.${key} no longer exists; the form must not ask for it`,
+      );
+    }
+  });
+});

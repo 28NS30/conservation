@@ -17,20 +17,14 @@ import {
 import { preparePhoto, type PreparedPhoto } from "@/lib/image";
 import { browserSupabase, PHOTO_BUCKET } from "@/lib/supabase/client";
 import { enqueue } from "@/lib/offline/queue";
+import { outcomeOf } from "@/lib/report/outcome";
+import { Link } from "@/i18n/navigation";
 import LocationPicker, { useGeolocate, type LatLng } from "./LocationPicker";
 
 type Photo = PreparedPhoto & { previewUrl: string; id: string };
 type Phase = "editing" | "submitting" | "done" | "queued" | "error";
 
-function toLocalInput(d: Date) {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-export default function ReportForm({
-  maptilerKey,
-  initialCategory,
-}: {
+type ReportFormProps = {
   maptilerKey?: string;
   /**
    * Preselected from the front page's category doors, so that choosing one there
@@ -38,6 +32,41 @@ export default function ReportForm({
    * Validated against CATEGORY_KEYS by the page, never trusted raw.
    */
   initialCategory?: Category;
+};
+
+function toLocalInput(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/**
+ * A keyed host, so that "report another" is a new form rather than a cleared one.
+ *
+ * Clearing the fields in place would keep the bits that are not fields: the
+ * submission nonce, which the API's duplicate check keys on — a second report
+ * filed under the first one's nonce is answered with the first one's id and
+ * never stored — and the solved Turnstile token, which is single-use. Bumping
+ * the key throws both away with the rest of the state, which is what starting
+ * again actually means.
+ */
+export default function ReportForm(props: ReportFormProps) {
+  const [attempt, setAttempt] = useState(0);
+  return (
+    <ReportFormFields
+      key={attempt}
+      {...props}
+      onReportAnother={() => setAttempt((n) => n + 1)}
+    />
+  );
+}
+
+function ReportFormFields({
+  maptilerKey,
+  initialCategory,
+  onReportAnother,
+}: ReportFormProps & {
+  /** Discard this form and mount a fresh one. See ReportForm above. */
+  onReportAnother: () => void;
 }) {
   const t = useTranslations("report");
   const locale = useLocale();
@@ -66,9 +95,22 @@ export default function ReportForm({
   const [email, setEmail] = useState("");
   const [phase, setPhase] = useState<Phase>("editing");
   const [error, setError] = useState<string | null>(null);
+  /**
+   * The server's whole answer, not just the id.
+   *
+   * `status` used to be dropped on the floor and the card said "已發布至地圖" to
+   * everyone. Most reports are `pending` — anything the classifier would have to
+   * look at arrives without a photo far more often than not — so most reporters
+   * were told their report was on the map when it was not. `photoCount` is taken
+   * here rather than read from `photos` at render time because it is part of the
+   * answer being explained, and the photo list is state the reporter can still
+   * change afterwards.
+   */
   const [result, setResult] = useState<{
     id: string;
+    status: string;
     awaitingIdentification: boolean;
+    photoCount: number;
   } | null>(null);
   const [exifOffer, setExifOffer] = useState<LatLng | null>(null);
   const [preparing, setPreparing] = useState(false);
@@ -168,7 +210,9 @@ export default function ReportForm({
 
       setResult({
         id: data.id,
+        status: data.status,
         awaitingIdentification: data.awaitingIdentification,
+        photoCount: photos.length,
       });
       setPhase("done");
     } catch (e) {
@@ -211,6 +255,18 @@ export default function ReportForm({
     }
   }
 
+  // A function, not a value: the editing phase renders neither card, and
+  // resolving a message it will not show is work done on every keystroke.
+  const another = () => (
+    <button
+      type="button"
+      onClick={onReportAnother}
+      className="inline-flex min-h-6 items-center text-xs text-ink-600 underline decoration-ink-900/25 underline-offset-2 hover:text-ink-900"
+    >
+      {t("receipt.another")}
+    </button>
+  );
+
   if (phase === "queued") {
     return (
       <div className="rounded-xl border border-amber-500/30 bg-amber-600/10 p-5">
@@ -220,26 +276,48 @@ export default function ReportForm({
         <p className="mt-2 text-xs leading-relaxed text-amber-800/80">
           {tOffline("queuedBody")}
         </p>
+        <div className="mt-4">{another()}</div>
       </div>
     );
   }
 
   if (phase === "done" && result) {
+    // What the server actually said, rather than a congratulation that fits one
+    // of the two cases. See lib/report/outcome.ts.
+    const outcome = outcomeOf(
+      result.status,
+      result.awaitingIdentification,
+      result.photoCount,
+    );
     return (
       <div className="rounded-xl border border-ember-500/30 bg-ember-500/10 p-5">
         <h2 className="text-base font-semibold text-ember-700">
-          {t("thanks")}
+          {t(`receipt.${outcome.title}`)}
         </h2>
-        <p className="mt-1 text-sm text-ink-600">{t("received")}</p>
-        <p className="mt-3 text-xs leading-relaxed text-ink-500">
-          {result.awaitingIdentification ? t("identifying") : t("published")}
-        </p>
-        <a
-          href={`/reports/${result.id}`}
-          className="mt-4 inline-block text-xs text-ember-700 underline"
-        >
-          {t("viewReport")}
-        </a>
+        {outcome.body && (
+          <p className="mt-2 text-sm leading-relaxed text-ink-700">
+            {t(`receipt.${outcome.body}`)}
+          </p>
+        )}
+        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+          {/*
+            Offered only where there is something to open. The old card always
+            linked to /reports/{id}, and that page reads `reports_public`, which
+            by design excludes every pending report — so the majority of
+            reporters were handed a link to a 404 as their receipt. `Link` from
+            @/i18n/navigation, not a bare <a>, or an English reader is bounced
+            out of /en and back into Chinese.
+          */}
+          {outcome.link && (
+            <Link
+              href={`/reports/${result.id}`}
+              className="inline-flex min-h-6 items-center text-xs text-ember-700 underline underline-offset-2"
+            >
+              {t(`receipt.${outcome.link}`)}
+            </Link>
+          )}
+          {another()}
+        </div>
       </div>
     );
   }
