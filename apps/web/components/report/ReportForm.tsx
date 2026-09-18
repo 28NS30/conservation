@@ -255,6 +255,33 @@ function ReportFormFields({
     }
   }
 
+  /**
+   * What reporting a hurt animal here does, and does not, set in motion.
+   *
+   * Nothing on this page said it. Someone who picks 還活著，但受傷 is by
+   * definition standing next to a suffering animal, and the form's silence
+   * reads as a dispatch: they submit, they wait, and nobody comes, because
+   * nobody was ever going to. Saying so is not a nicety — it is the difference
+   * between an animal that gets help from somewhere else and one that does not.
+   *
+   * SEAM — THE REFERRAL SENTENCE GOES HERE. What this cannot yet say is who to
+   * call instead, because the owner has not supplied a channel: which agency,
+   * which number, which hours, and whether it differs by county. That is
+   * decision 1 in docs/redesign/briefs/W0a.md and it is the only thing missing.
+   * When the answer arrives, add `report.referral` to both catalogues and a
+   * second <p> below this one; nothing else here has to change. Inventing a
+   * hotline in the meantime would be worse than the silence this replaces —
+   * a wrong number costs an hour that the animal does not have.
+   */
+  const noDispatchNote = () => (
+    <p
+      role="note"
+      className="border-l-4 border-ink-600 pl-3 text-sm leading-relaxed text-ink-700"
+    >
+      {t("noDispatch")}
+    </p>
+  );
+
   // A function, not a value: the editing phase renders neither card, and
   // resolving a message it will not show is work done on every keystroke.
   const another = () => (
@@ -276,6 +303,10 @@ function ReportFormFields({
         <p className="mt-2 text-xs leading-relaxed text-amber-800/80">
           {tOffline("queuedBody")}
         </p>
+        {/* Repeated on the cards, not only beside the choice. A queued report
+            is the case where waiting for a response is most plausible and
+            least warranted: it has not even left the phone yet. */}
+        {category === "injured" && <div className="mt-3">{noDispatchNote()}</div>}
         <div className="mt-4">{another()}</div>
       </div>
     );
@@ -299,6 +330,7 @@ function ReportFormFields({
             {t(`receipt.${outcome.body}`)}
           </p>
         )}
+        {category === "injured" && <div className="mt-3">{noDispatchNote()}</div>}
         <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
           {/*
             Offered only where there is something to open. The old card always
@@ -395,6 +427,9 @@ function ReportFormFields({
                 </button>
               ))}
             </div>
+            {category === "injured" && (
+              <div className="mt-3">{noDispatchNote()}</div>
+            )}
           </div>
         )}
       </section>

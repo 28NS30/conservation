@@ -136,6 +136,7 @@
       "roadkill": "Dead",
       "injured": "Alive, but hurt"
     },
+    "noDispatch": "This only records what you saw. Nobody will be sent.",
     "species": "Species",
     "speciesSearch": "Search by name — 石虎, leopard cat, Prionailurus",
     "speciesSearchInvasive": "Search the invasive species register",

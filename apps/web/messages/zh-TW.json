@@ -136,6 +136,7 @@
       "roadkill": "已死亡",
       "injured": "還活著，但受傷"
     },
+    "noDispatch": "這裡只做紀錄，不會有人前往現場。",
     "species": "物種",
     "speciesSearch": "輸入名稱搜尋 — 石虎、Prionailurus",
     "speciesSearchInvasive": "搜尋外來入侵種名錄",

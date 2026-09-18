@@ -182,3 +182,46 @@ describe("the receipt on the success card", () => {
     }
   });
 });
+
+describe("reporting a hurt animal", () => {
+  test("the form says plainly that nobody is dispatched", () => {
+    // Someone choosing 還活著，但受傷 is standing next to a suffering animal.
+    // The form used to say nothing at all, which reads as a dispatch.
+    assert.match(
+      FORM,
+      /category === "injured" &&/,
+      "the sentence must be tied to the injured category",
+    );
+    assert.match(FORM, /t\("noDispatch"\)/);
+    assert.match(
+      FORM,
+      /role="note"/,
+      "it is a note beside the choice, not an error",
+    );
+  });
+
+  test("it invents no agency, number or hotline", () => {
+    // Decision 1 is still with the owner. A wrong number costs an hour the
+    // animal does not have, so the referral sentence is a marked seam and
+    // nothing more until the channel is supplied.
+    const en = JSON.parse(
+      readFileSync(join(import.meta.dirname, "..", "messages", "en.json"), "utf8"),
+    );
+    const zh = JSON.parse(
+      readFileSync(join(import.meta.dirname, "..", "messages", "zh-TW.json"), "utf8"),
+    );
+    for (const [locale, text] of [
+      ["en", en.report.noDispatch],
+      ["zh-TW", zh.report.noDispatch],
+    ]) {
+      assert.ok(
+        !/\d{3}/.test(text),
+        `${locale} report.noDispatch must not carry a phone number`,
+      );
+    }
+    assert.ok(
+      !/1959|0800|防治所|農業部|hotline/i.test(JSON.stringify({ en: en.report, zh: zh.report })),
+      "no agency or hotline may be invented before the owner supplies one",
+    );
+  });
+});
