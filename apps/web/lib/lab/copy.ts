@@ -161,6 +161,7 @@ export type LabCopy = {
     blurred: string;
   };
   common: {
+    nav: string;
     loading: string;
     skipToContent: string;
   };
@@ -309,6 +310,7 @@ const zhTW: LabCopy = {
     blurred: "位置已模糊化",
   },
   common: {
+    nav: "網站導覽",
     loading: "載入中",
     skipToContent: "跳到主要內容",
   },
@@ -456,6 +458,7 @@ const en: LabCopy = {
     blurred: "Location blurred",
   },
   common: {
+    nav: "Site navigation",
     loading: "Loading",
     skipToContent: "Skip to content",
   },

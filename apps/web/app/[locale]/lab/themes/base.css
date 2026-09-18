@@ -57,7 +57,7 @@
   --lh-hero: 1.1;
 
   /* PR2 replaces these with the committed subsets. Until then both directions
-     run on the system stack, which is the right default anyway: /lab/*/map must
+     run on the system stack, which is the right default anyway: a lab map route must
      load no web font at all, so a primitive that reaches for a family name
      directly would break the budget the moment the fonts land. */
   --font-body:
@@ -230,7 +230,7 @@ html:lang(en) [data-lab] {
 /*
  * A label — a sign's words, a table head, a legend break. It takes `palt` with
  * the headings because it is not prose, but it does NOT take the display face:
- * /lab/*/map must load no web font at all, and the map's one visible control is
+ * a lab map route must load no web font at all, and the map's one visible control is
  * a sign. A label that reached for the display family would put a font request
  * on the map the day PR2 lands the subsets.
  */

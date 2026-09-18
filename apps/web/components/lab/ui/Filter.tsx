@@ -56,6 +56,10 @@ export default function Filter(
 
   if (props.mode === "multi") {
     const values = props.values ?? [];
+    // Only attach a handler when there is one. A function reaching a DOM
+    // element inside a server component is a render error, not a no-op, so a
+    // filter rendered on the server has to be links or checked defaults.
+    const change = props.onChange;
     return (
       <fieldset className={className}>
         <legend className={legendClass}>{legend}</legend>
@@ -68,15 +72,17 @@ export default function Filter(
             >
               <input
                 type="checkbox"
-                checked={props.onChange ? checked : undefined}
-                defaultChecked={props.onChange ? undefined : checked}
-                onChange={() =>
-                  props.onChange?.(
-                    checked
-                      ? values.filter((v) => v !== option.value)
-                      : [...values, option.value],
-                  )
-                }
+                {...(change
+                  ? {
+                      checked,
+                      onChange: () =>
+                        change(
+                          checked
+                            ? values.filter((v) => v !== option.value)
+                            : [...values, option.value],
+                        ),
+                    }
+                  : { defaultChecked: checked })}
                 className="h-6 w-6 shrink-0"
                 style={{ accentColor: "var(--accent-text)" }}
               />
@@ -89,6 +95,7 @@ export default function Filter(
   }
 
   const selected = props.value;
+  const change = props.onChange;
 
   return (
     <div className={className}>
@@ -119,7 +126,7 @@ export default function Filter(
               key={option.value}
               type="button"
               aria-pressed={on}
-              onClick={() => props.onChange?.(option.value)}
+              onClick={change ? () => change(option.value) : undefined}
               className={shape}
               style={underline}
             >
