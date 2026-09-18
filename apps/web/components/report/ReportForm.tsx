@@ -30,6 +30,7 @@ function toLocalInput(d: Date) {
 export default function ReportForm({
   maptilerKey,
   initialCategory,
+  initialSpecies,
 }: {
   maptilerKey?: string;
   /**
@@ -38,6 +39,12 @@ export default function ReportForm({
    * Validated against CATEGORY_KEYS by the page, never trusted raw.
    */
   initialCategory?: Category;
+  /**
+   * Preselected from a species page's "report this species" link, for the same
+   * reason. Looked up in the database by the page, so an unknown or malformed
+   * ?taxonId= arrives here as undefined rather than as a name nobody checked.
+   */
+  initialSpecies?: SpeciesHit;
 }) {
   const t = useTranslations("report");
   const locale = useLocale();
@@ -50,7 +57,9 @@ export default function ReportForm({
   const group = groupOf(category);
   // What the reporter says it is. `unsure` is a judgement, not an empty field:
   // it separates "nobody could name this" from "nobody has looked yet".
-  const [species, setSpecies] = useState<SpeciesHit | null>(null);
+  const [species, setSpecies] = useState<SpeciesHit | null>(
+    initialSpecies ?? null,
+  );
   const [unsure, setUnsure] = useState(false);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [location, setLocation] = useState<LatLng | null>(null);

@@ -190,7 +190,7 @@ export default async function SpeciesPage({
           <div className="mt-2 rounded-lg border border-ink-900/10 bg-paper-100 px-3 py-4 text-center">
             <p className="text-sm text-ink-500">{t("noRecords")}</p>
             <Link
-              href="/report"
+              href={{ pathname: "/report", query: { taxonId: s.id } }}
               className="mt-3 inline-block rounded-full bg-ember-500 px-3.5 py-1.5 text-xs font-semibold text-bark-950 hover:bg-ember-400"
             >
               + {t("beFirst")}
@@ -259,7 +259,7 @@ export default async function SpeciesPage({
 
       {!withheld && s.reportCount > 0 && (
         <Link
-          href="/report"
+          href={{ pathname: "/report", query: { taxonId: s.id } }}
           className="mt-6 inline-block rounded-full border border-ink-900/12 px-3.5 py-1.5 text-xs text-ink-600 hover:bg-paper-200"
         >
           + {t("seenOne")}
