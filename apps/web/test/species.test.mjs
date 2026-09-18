@@ -72,6 +72,116 @@ describe("directory", () => {
   });
 });
 
+describe("directory paging", () => {
+  /** Species ids linked from the rows. Nothing else on the page links one. */
+  const listed = (body) =>
+    [...body.matchAll(/href="\/species\/(\d+)[-"]/g)].map((m) => Number(m[1]));
+
+  /** The rendered empty state, not the message catalogue every page inlines. */
+  const emptyState = (body) =>
+    /<div class="mt-8 text-center text-sm text-ink-500">([\s\S]*?)<\/div>/.exec(
+      body,
+    )?.[1] ?? "";
+
+  test("walking the pages reaches every recorded species, once each", async () => {
+    /*
+     * The bug this replaces: the directory asked for 80 rows and rendered
+     * whatever came back, with no count, no pager and nothing admitting there
+     * was more. So it silently stopped partway through the alphabet at a place
+     * that looked like the end of the list.
+     *
+     * Counted from the database rather than written down, because the CI
+     * fixture is a fraction of the imported dataset and may well fit on one
+     * page — the property under test is that walking the pager visits every
+     * matching taxon exactly once, whatever the number happens to be.
+     */
+    const [{ n }] = await sql`
+      select count(*)::int as n
+        from taxa t
+        left join species_report_stats s on s.taxon_id = t.id
+       where t.is_in_taiwan
+         and t.rank in ('Species','Subspecies')
+         and s.report_count is not null`;
+
+    const seen = [];
+    for (let page = 1; ; page++) {
+      assert.ok(page < 500, "the pager never stopped offering a next page");
+      const { status, body } = await get(`/species?page=${page}`);
+      assert.equal(status, 200, `page ${page}`);
+      seen.push(...listed(body));
+      if (!/rel="next"/.test(body)) break;
+    }
+
+    assert.equal(
+      new Set(seen).size,
+      seen.length,
+      "a species appeared on two pages",
+    );
+    assert.equal(seen.length, n, "the walk did not reach every species");
+  });
+
+  test("a page number past the end renders the last page", async () => {
+    // Not a redirect and not a 404: this route sits under a loading.tsx, and
+    // redirect() or notFound() beneath one answers 200 with the skeleton.
+    const { status, body } = await get("/species?page=99");
+    assert.equal(status, 200);
+    assert.ok(listed(body).length > 0, "expected the last page to have rows");
+    assert.ok(!/rel="next"/.test(body), "the last page offers no next");
+  });
+
+  test("paging keeps the search and the filter", async () => {
+    const { body } = await get("/species?filter=all&q=a&page=2");
+    for (const m of body.matchAll(/href="([^"]*\bpage=\d+[^"]*)"/g)) {
+      assert.match(m[1], /filter=all/, "a pager link dropped the filter");
+      assert.match(m[1], /q=a/, "a pager link dropped the search");
+    }
+  });
+
+  test("a species hidden by the filter is not reported as nonexistent", async () => {
+    // The default filter is "with records" and most species have none, so
+    // searching for a real checklist species answered "no matching species" —
+    // a directory built on the national checklist denying a checklist entry.
+    const [hidden] = await sql`
+      select t.common_name_zh as name from taxa t
+        left join species_report_stats s on s.taxon_id = t.id
+       where s.taxon_id is null and t.is_in_taiwan
+         and t.rank = 'Species' and t.common_name_zh is not null
+       limit 1`;
+    assert.ok(hidden, "expected a species with no records");
+    const { status, body } = await get(
+      `/species?q=${encodeURIComponent(hidden.name)}`,
+    );
+    assert.equal(status, 200);
+    assert.ok(emptyState(body), "expected an empty state");
+    // The offer to widen the search, matched by its own styling rather than by
+    // its words: next-intl's Link is async, so React streams the anchor in
+    // after the block that contains it, and the filter chips link filter=all
+    // too. Only this one is set in the accent colour.
+    const offers = [
+      ...body.matchAll(/<a class="[^"]*text-ember-700[^"]*" href="([^"]*)"/g),
+    ].map((m) => m[1]);
+    assert.ok(
+      offers.some((h) => h.includes("filter=all")),
+      "the empty state must offer to search all species",
+    );
+  });
+
+  test("no empty state tells the reader there is nothing yet", async () => {
+    // 還沒有 / 目前沒有 describe the project, not the query: they say the site is
+    // empty when what happened is that this filter matched nothing.
+    for (const path of [
+      "/species?q=zzzzznotaspeciesname",
+      "/species?q=zzzzznotaspeciesname&filter=all",
+    ]) {
+      const { body } = await get(path);
+      const state = emptyState(body);
+      assert.ok(state, `expected an empty state at ${path}`);
+      for (const banned of ["還沒有", "目前沒有"])
+        assert.ok(!state.includes(banned), `${path} says ${banned}`);
+    }
+  });
+});
+
 describe("search endpoint", () => {
   test("finds a species by scientific name", async () => {
     const res = await fetch(`${BASE_URL}/api/species/search?q=Prionailurus`);

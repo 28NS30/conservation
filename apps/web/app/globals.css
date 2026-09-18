@@ -96,8 +96,33 @@
     "Noto Sans TC", "Microsoft JhengHei", sans-serif;
 }
 
+/*
+ * The site is light. `color-scheme: dark` here was a leftover from the
+ * slate-blue dashboard, and it is not a colour — it tells the browser which
+ * palette to paint the parts of a control we do not draw. So on cream pages the
+ * report form's checkbox rendered black on black, its date picker opened a dark
+ * panel, and every scrollbar was inverted, none of which is visible in the
+ * stylesheet or in any class name.
+ *
+ * The map keeps the dark scheme, scoped to the element that actually is dark.
+ * Its year <select>s deliberately style their <option>s for a dark ground, and
+ * an <option> cannot be styled by us at all on most platforms — the scheme is
+ * the only lever there is.
+ *
+ * `--focus-halo` is the inner ring of the focus shadow: a band of the surface
+ * colour that separates the accent ring from the control. It was hard-coded to
+ * paper on one rule and to bark on another, which is the same value declared
+ * twice and correct in one place each. Declared per surface instead, so a
+ * control inherits the halo of whatever it is sitting on.
+ */
 :root {
+  color-scheme: light;
+  --focus-halo: var(--color-paper-50);
+}
+
+.on-dark {
   color-scheme: dark;
+  --focus-halo: var(--color-bark-950);
 }
 
 html,
@@ -210,7 +235,7 @@ input[type="time"]:focus {
 .maplibregl-ctrl button:focus-visible {
   outline: none;
   box-shadow:
-    0 0 0 2px var(--color-bark-950),
+    0 0 0 2px var(--focus-halo),
     0 0 0 4px var(--color-ember-400);
   border-radius: 4px;
   position: relative;
@@ -243,7 +268,35 @@ textarea:focus-visible,
 select:focus-visible {
   outline: none;
   box-shadow:
-    0 0 0 2px var(--color-paper-50),
+    0 0 0 2px var(--focus-halo),
     0 0 0 4px var(--color-ember-500);
   border-color: transparent;
+}
+
+/*
+ * Honour a reader who has asked the operating system for less movement.
+ *
+ * Nothing on the site respected this. Almost every interactive element carries
+ * a Tailwind `transition`, the skeletons pulse, and for someone with a
+ * vestibular disorder that is not a preference setting — it is the difference
+ * between using the site and feeling ill. Declared once, globally, because the
+ * alternative is remembering it at each of the ~200 places a transition is
+ * written, and nobody will.
+ *
+ * 0.01ms rather than 0: a zero-length transition never fires transitionend, and
+ * a handler waiting for one would hang. The animation count is pinned to 1 so
+ * an infinite loop stops after its first (now instant) pass instead of spinning.
+ *
+ * MapLibre's own easing is not covered here; it is set in JS, and belongs with
+ * the map work.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

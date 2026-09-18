@@ -36,7 +36,11 @@
   "stats": {
     "records": "筆紀錄",
     "species": "個物種",
-    "range": "資料期間"
+    "range": "資料期間",
+    "month": "月份",
+    "year": "年份",
+    "count": "筆數",
+    "showNumbers": "顯示數字"
   },
   "map": {
     "all": "全部",
@@ -172,9 +176,17 @@
   "login": {
     "heading": "登入",
     "explain": "通報不需要帳號，登入只是為了查看自己的紀錄。",
+    "emailLabel": "電子信箱",
     "send": "寄送登入連結",
     "sending": "寄送中…",
-    "sent": "已寄出登入連結，請查看信箱。"
+    "sent": "已寄出登入連結，請查看信箱。",
+    "sentTo": "已寄到 {email}",
+    "resend": "重新寄送",
+    "resendIn": "重新寄送（{seconds} 秒）",
+    "changeEmail": "換一個信箱",
+    "failed": "寄不出去，請稍後再試。",
+    "tooMany": "嘗試次數太多，請等幾分鐘再試。",
+    "linkExpired": "登入連結已失效，請重新寄送。"
   },
   "species": {
     "directory": "物種名錄",
@@ -182,6 +194,9 @@
     "searchLabel": "搜尋物種",
     "searchPlaceholder": "搜尋中文名、學名或俗名…",
     "noMatches": "找不到符合的物種。",
+    "noMatchesInFilter": "「{filter}」裡沒有符合「{q}」的物種。",
+    "searchAllSpecies": "改搜尋全部物種",
+    "range": "第 {from}–{to} 種，共 {total} 種",
     "records": "通報紀錄",
     "recordsShort": "筆",
     "recordCount": "{count, number} 筆通報紀錄",
@@ -340,7 +355,11 @@
     "subtitle": "最近的通報紀錄。這是地圖的文字版本，適合螢幕閱讀器使用。",
     "all": "全部",
     "filterByCategory": "依類型篩選",
-    "empty": "目前沒有通報。",
+    "empty": "沒有符合的紀錄。",
+    "filteredBy": "目前篩選",
+    "dateRange": "{from} 至 {to}",
+    "dateFrom": "{from} 起",
+    "dateTo": "{to} 以前",
     "tableCaption": "依時間排序的通報紀錄",
     "date": "日期",
     "category": "類型",
