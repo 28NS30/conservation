@@ -176,3 +176,55 @@ describe("what every other id gets is the same 404", () => {
     );
   });
 });
+
+describe("nothing moves a row back into `pending`", () => {
+  /*
+   * The receipt confirms an id only when its row is `pending`, and that is safe
+   * only because a pending row has been pending since it was written: its id has
+   * never been in `reports_public`, so nobody but the reporter can be holding
+   * it. A write that set `status = 'pending'` on an already-published row would
+   * break that silently — the page would start confirming ids that had been
+   * public, which is the oracle lib/receipt.ts's docblock rules out.
+   *
+   * It nearly happened: the classifier's give-up path set `status = 'pending'`
+   * unguarded, and a reporter-identified report is inserted `published` and
+   * still queued for classification, so a model outage would have demoted one.
+   *
+   * Source-level, because it is a rule about code that may not exist yet and no
+   * runtime test can reach a branch nobody has written.
+   */
+  const SQL_WRITES = [
+    ["app/api/jobs/classify/route.ts", read("app", "api", "jobs", "classify", "route.ts")],
+    ["app/[locale]/(site)/admin/actions.ts", read("app", "[locale]", "(site)", "admin", "actions.ts")],
+    ["app/api/reports/route.ts", read("app", "api", "reports", "route.ts")],
+  ];
+
+  test("every write of status='pending' outside the insert is guarded", () => {
+    for (const [name, src] of SQL_WRITES) {
+      // `update reports ... set ... status = 'pending'` — the insert in
+      // api/reports/route.ts is a values list, not an update, so it is not
+      // matched and does not need to be.
+      const updates = src.match(/update\s+reports\b[\s\S]*?`/gi) ?? [];
+      for (const stmt of updates) {
+        if (!/status\s*=\s*'pending'/i.test(stmt)) continue;
+        assert.match(
+          stmt,
+          /and\s+status\s*=\s*'pending'/i,
+          `${name}: an update sets status='pending' without \`and status = 'pending'\`, ` +
+            "which would let a published row be demoted and make the receipt an oracle",
+        );
+      }
+    }
+  });
+
+  test("the give-up path still blurs and flags, and still cannot demote", () => {
+    const [, classify] = SQL_WRITES[0];
+    // The give-up path specifically, not the three earlier writes that record a
+    // successful classification.
+    const stmt = (classify.match(/update\s+reports\b[\s\S]*?classification unavailable[\s\S]*?`/i) ?? [""])[0];
+    assert.ok(stmt, "the give-up update should still exist");
+    assert.match(stmt, /precision_override/, "it must still blur");
+    assert.match(stmt, /flagged_reason/, "it must still flag for a human");
+    assert.match(stmt, /and\s+status\s*=\s*'pending'/i, "and must not touch a published row");
+  });
+});

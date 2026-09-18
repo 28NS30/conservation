@@ -36,9 +36,14 @@ export type ReceiptLink = "viewRecord" | "checkStatus";
 
 export type ReportOutcome = {
   /** Key under `report.receipt` for the heading. */
-  title: "onMap" | "held";
+  title: "onMap" | "held" | "withheld";
   /** Key under `report.receipt` for the sentence below it, when there is one. */
-  body: "heldForIdentification" | "heldNoPhoto" | "heldForReview" | null;
+  body:
+    | "heldForIdentification"
+    | "heldNoPhoto"
+    | "heldForReview"
+    | "withheldSpecies"
+    | null;
   link: ReceiptLink | null;
 };
 
@@ -52,8 +57,15 @@ export type ReportOutcome = {
  * behind it but a 404, and a 404 is what this whole module exists to stop
  * handing people.
  */
-export function receiptLinkFor(status: string | undefined | null): ReceiptLink | null {
-  if (status === "published") return "viewRecord";
+export function receiptLinkFor(
+  status: string | undefined | null,
+  visible = true,
+): ReceiptLink | null {
+  // A published-but-withheld record has no page of either kind: it is absent
+  // from `reports_public`, so the record page 404s, and `lib/receipt.ts`
+  // answers for `pending` alone, so the receipt does not cover it either. That
+  // is deliberate — see `withheld` below — and it means no link.
+  if (status === "published") return visible ? "viewRecord" : null;
   if (status === "pending") return "checkStatus";
   return null;
 }
@@ -68,10 +80,28 @@ export function outcomeOf(
   status: string | undefined | null,
   awaitingIdentification: boolean | undefined,
   photoCount: number,
+  /**
+   * Whether the row actually reached `reports_public`. False for a report whose
+   * species TaiCOL rates 座標不開放: the trigger stamps `suppressed` from the
+   * taxon the reporter themselves chose, the view drops it, and the record is
+   * then absent from the map, the list and every statistic while its stored
+   * status still reads `published`. The API sends this rather than letting the
+   * client infer it from a status that does not carry the fact.
+   */
+  visible = true,
 ): ReportOutcome {
-  const link = receiptLinkFor(status);
+  const link = receiptLinkFor(status, visible);
 
-  if (status === "published") return { title: "onMap", body: null, link };
+  if (status === "published") {
+    // Published and shown.
+    if (visible) return { title: "onMap", body: null, link };
+    // Published and deliberately not shown. Saying "it's on the map" here would
+    // be false, and saying "not public yet" would be worse — it implies a wait
+    // that never ends. The reporter did nothing wrong and nothing is pending;
+    // the animal they named is one whose coordinates this project never
+    // publishes, which is a rule they can be told plainly.
+    return { title: "withheld", body: "withheldSpecies", link };
+  }
 
   // Why it is held, in the reporter's terms. The two specific reasons are the
   // two the API itself can produce; the third covers a screening flag, whose

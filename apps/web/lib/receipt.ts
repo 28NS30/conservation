@@ -26,12 +26,20 @@ import { sql } from "@/lib/db";
  * the only person handed one is the reporter, at the moment they submit.
  *
  * The state that matters is `pending`, and the reason it is safe to confirm is
- * an invariant of how a row reaches it. `pending` is only ever set at insert
- * (app/api/reports/route.ts), and the moderation actions move rows OUT of it
- * and never back in (admin/actions.ts publishes or rejects). A row that is
- * pending now has therefore been pending since it was written, and has never
- * appeared in `reports_public`, so its id has never been public either: there
- * is no one holding it but the person who filed it.
+ * an invariant of how a row reaches it: nothing moves a row INTO `pending`
+ * after insert. Three places write `reports.status` and all three respect it —
+ * app/api/reports/route.ts sets it at insert; admin/actions.ts moves rows out
+ * of it, publishing or rejecting; and the classifier's give-up path
+ * (app/api/jobs/classify/route.ts) carries `and status = 'pending'` so that a
+ * model outage cannot demote a published record. A row that is pending now has
+ * therefore been pending since it was written, and has never appeared in
+ * `reports_public`, so its id has never been public either: there is no one
+ * holding it but the person who filed it.
+ *
+ * That guard is this file's invariant, enforced elsewhere. If a fourth writer
+ * ever appears, it belongs on this list or this page becomes an oracle — see
+ * test/receipt.test.mjs, which fails when an unguarded write to `status` is
+ * added.
  *
  * That invariant is also why no other state answers. A record that was public
  * and is not any more — rejected by a moderator, or re-identified as a species

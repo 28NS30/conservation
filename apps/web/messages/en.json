@@ -135,9 +135,11 @@
     "receipt": {
       "onMap": "It's on the map",
       "held": "Received. Not public yet.",
+      "withheld": "Received, and deliberately not shown",
       "heldForIdentification": "Someone has to identify the animal first. That is done by hand, with no timetable.",
       "heldNoPhoto": "A person looks at reports without a photo first.",
       "heldForReview": "A person will look at this report first.",
+      "withheldSpecies": "TaiCOL rates this species' coordinates as not for publication. The record is kept, but it does not appear on the map, in the report list or in any statistic.",
       "viewRecord": "View this record",
       "checkStatus": "Check its status",
       "another": "Report another"

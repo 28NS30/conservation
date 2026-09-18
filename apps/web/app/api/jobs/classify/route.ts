@@ -259,14 +259,23 @@ export async function POST(req: Request) {
            where id = ${job.job_id}::bigint`;
 
         if (giveUp) {
-          // Never lose a report because the model was unavailable. Publish it
-          // unidentified and blurred, and flag it for a human.
+          // Never lose a report because the model was unavailable: blur it,
+          // flag it for a human, and leave it held.
+          //
+          // `and status = 'pending'` is load-bearing, not defensive. A report
+          // the reporter identified themselves is inserted `published` and is
+          // STILL queued for classification (the model's opinion is worth
+          // recording beside theirs), so without the guard a model outage would
+          // pull a record off the public map hours after it appeared — and,
+          // worse, would falsify the invariant lib/receipt.ts relies on to
+          // decide whose id it may confirm. A row that is pending must have
+          // been pending since it was written.
           await tx`
             update reports
                set precision_override = ${UNIDENTIFIED_PRECISION},
-                   status = 'pending',
                    flagged_reason = 'classification unavailable'
-             where id = ${job.report_id}::uuid`;
+             where id = ${job.report_id}::uuid
+               and status = 'pending'`;
         }
       });
 
