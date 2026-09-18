@@ -362,7 +362,12 @@ export default function ReportForm({
                   URL.revokeObjectURL(p.previewUrl);
                   setPhotos((prev) => prev.filter((x) => x.id !== p.id));
                 }}
-                className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-paper-200 text-xs text-ink-700 ring-1 ring-white/20"
+                // 20px was under any target guideline, and it sits at the
+                // corner of a thumbnail with the "+" tile 8px away. The disc is
+                // 24px and a pseudo-element carries the rest of the 44px hit
+                // area inwards and downwards, over the photograph it belongs
+                // to, so growing it cannot steal a tap from the next tile.
+                className="absolute -right-1.5 -top-1.5 grid h-6 w-6 place-items-center rounded-full bg-paper-200 text-xs text-ink-700 ring-1 ring-ink-900/15 after:absolute after:-bottom-5 after:-left-5 after:right-0 after:top-0 after:content-['']"
                 aria-label={t("removePhoto")}
               >
                 ×
@@ -431,12 +436,16 @@ export default function ReportForm({
         </div>
 
         {exifOffer && (
-          <div className="mb-2 flex items-center justify-between gap-3 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-[11px] text-sky-200">
+          // Was sky: a hue from the default palette that nothing else on the
+          // site uses, and it set its text at 1.02–1.28:1 on cream — invisible
+          // rather than merely low-contrast, on the one strip that asks whether
+          // to take a location out of a photograph.
+          <div className="mb-2 flex items-center justify-between gap-3 rounded-lg border border-ink-900/12 bg-paper-100 px-3 py-2 text-[11px] text-ink-700">
             <span>{t("exifOffer")}</span>
             <span className="flex shrink-0 gap-2">
               <button
                 type="button"
-                className="rounded bg-sky-400/20 px-2 py-1 font-medium"
+                className="inline-flex min-h-8 items-center rounded bg-ember-500/15 px-2.5 font-medium text-ember-700"
                 onClick={() => {
                   setLocation(exifOffer);
                   setAccuracyM(null);
@@ -447,7 +456,7 @@ export default function ReportForm({
               </button>
               <button
                 type="button"
-                className="px-1 text-sky-300/70"
+                className="inline-flex min-h-8 items-center px-2 text-ink-600"
                 onClick={() => setExifOffer(null)}
               >
                 {t("exifSkip")}

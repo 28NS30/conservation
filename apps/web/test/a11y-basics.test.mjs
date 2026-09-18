@@ -9,6 +9,8 @@
  */
 import { test, describe, after } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { BASE_URL, sql } from "./helpers.mjs";
 
 after(() => sql.end());
@@ -88,5 +90,47 @@ describe("charts give their numbers without a hover", () => {
       axis.length,
       `axis labels repeat: ${axis.join(",")}`,
     );
+  });
+});
+
+describe("the page surfaces are light", () => {
+  const WEB = new URL("..", import.meta.url).pathname;
+  const css = readFileSync(join(WEB, "app/globals.css"), "utf8");
+
+  test("the root colour scheme is light", () => {
+    /*
+     * `color-scheme` is not a colour: it tells the browser which palette to
+     * paint the parts of a control we do not draw. Declared dark at the root,
+     * on a site whose pages are cream, it rendered the report form's checkbox
+     * black on black and opened its date picker as a dark panel — invisible in
+     * the stylesheet and in every class name.
+     */
+    const root = /:root\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    assert.match(root, /color-scheme:\s*light/);
+    assert.ok(
+      !/color-scheme:\s*dark/.test(root),
+      ":root must not declare the dark scheme",
+    );
+    // The map still needs it, scoped to the element that is actually dark.
+    assert.match(css, /\.on-dark\s*\{[^}]*color-scheme:\s*dark/);
+  });
+
+  test("a reader who asked for less motion gets it", () => {
+    assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
+  });
+
+  test("the report form carries no map-palette classes", () => {
+    // `parchment` and `sky` belong to the dark map and to the default Tailwind
+    // palette respectively. On cream they measured 2.90:1 and 1.02–1.28:1 —
+    // the second is invisible rather than merely low-contrast.
+    const dir = join(WEB, "components/report");
+    const offenders = [];
+    for (const name of readdirSync(dir)) {
+      if (!/\.tsx?$/.test(name)) continue;
+      const text = readFileSync(join(dir, name), "utf8");
+      for (const m of text.matchAll(/\b[a-z-]*-(sky|parchment)-\d+\b/g))
+        offenders.push(`${name}: ${m[0]}`);
+    }
+    assert.deepEqual([...new Set(offenders)], []);
   });
 });
