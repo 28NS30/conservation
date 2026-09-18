@@ -24,6 +24,29 @@ plainly that they could not load the site and worked from code plus one screensh
 
 So the aesthetic critique and the bug list are now on the same footing: both looked at.
 
+## Status
+
+The trust tier is built. It was written after this plan, from these briefs, and the pull requests are
+the record of what actually shipped — including the places where a brief turned out to be wrong.
+
+| | | |
+|---|---|---|
+| W0e | Blur records nobody has identified | [#44](https://github.com/28NS30/conservation/pull/44) |
+| W0b | Map legend describes what the map draws | [#46](https://github.com/28NS30/conservation/pull/46) |
+| W0c | Stop telling visitors untrue things | [#47](https://github.com/28NS30/conservation/pull/47) |
+| W0d | Stop throwing away what the reader chose | [#48](https://github.com/28NS30/conservation/pull/48) |
+| W0a | Tell the reporter what the server actually said | [#49](https://github.com/28NS30/conservation/pull/49) |
+| — | All five merged and verified together | [#50](https://github.com/28NS30/conservation/pull/50) |
+
+Two things changed against the plan. **W0c is short of its brief**: the GBIF taxon remap (its steps
+7–9) was cut, because it is the largest and riskiest work in the tier and W0e already contains the
+privacy consequence. The naming fault it fixes is still live — 狼 still holds 14 dog records, 鼬獾 is
+still both the 11th most-reported animal and absent from the species directory — and it needs its own
+change. **W0a gained two fixes a reviewer found**: an unguarded write that would have turned the new
+receipt page into an oracle, and the discovery that `published` does not mean publicly visible.
+
+Everything below this line is as planned on 18 September and has not been rewritten to match.
+
 ## Before anything else: a live privacy exposure
 
 Checking the plan turned up something that is not a design problem at all, and it should be fixed
