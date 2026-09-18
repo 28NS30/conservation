@@ -205,13 +205,19 @@ describe("filters discriminate", () => {
     // to show them — and nothing else would notice, because every seeded record
     // is roadkill. So one is planted, committed (the endpoint reads on its own
     // connection and could not see a transaction), and removed afterwards.
+    //
+    // It is identified, and has to be: since 0011 an untaxoned record is blurred
+    // to a 10 km cell, which would carry it out of the tile under test and fail
+    // this for a reason that has nothing to do with grouping.
+    const [{ id: taxonId }] = await sql`
+      select id from taxa where scientific_name = 'Paguma larvata' limit 1`;
     const [{ id }] = await sql`
       insert into reports (category, location, location_public, observed_at,
-                           taxon_source, status, source)
+                           taxon_id, taxon_source, status, source)
       values ('injured',
               st_setsrid(st_makepoint(121.0, 23.7), 4326)::geography,
               st_setsrid(st_makepoint(121.0, 23.7), 4326)::geography,
-              now(), 'unknown', 'published', 'user')
+              now(), ${taxonId}, 'imported', 'published', 'user')
       returning id`;
     try {
       const high = { z: 12, x: 3424, y: 1770 };

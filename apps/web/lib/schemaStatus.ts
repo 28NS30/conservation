@@ -39,6 +39,18 @@ export const REQUIRED_SCHEMA: SchemaCheck[] = [
              where table_name = 'reports_public'
                and column_name = 'location_accuracy_m') as ok`,
   },
+  {
+    // Not a shape check like the others: this one asks whether the rule holds.
+    // A missing 0011 is invisible in the schema — the trigger still exists and
+    // still runs — and only shows up as published rows sitting at their true
+    // coordinates with nothing that could have vouched for them.
+    name: "0011 unidentified records are blurred",
+    sql: `select not exists (
+            select 1 from reports
+             where status = 'published'
+               and taxon_id is null
+               and location_precision = 'exact') as ok`,
+  },
 ];
 
 /**
