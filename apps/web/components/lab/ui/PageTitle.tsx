@@ -11,19 +11,32 @@
 export default function PageTitle({
   children,
   size = "title",
+  phoneSize,
   id,
   lang,
   className = "",
 }: {
   children: React.ReactNode;
   size?: "head" | "title" | "display" | "hero";
+  /**
+   * The step it takes below 768px. Not a smaller eighth size: direction.md
+   * gives a phone column for every row of the scale, and every h1 on a phone is
+   * `title` or below. Omitted, the desktop step is used at both widths.
+   */
+  phoneSize?: "body" | "lead" | "head" | "title" | "display";
   id?: string;
   /** Set when the title is in the other language, e.g. the Chinese name on /en. */
   lang?: string;
   className?: string;
 }) {
   return (
-    <h1 id={id} lang={lang} className={`t-${size} text-(--fg) ${className}`}>
+    <h1
+      id={id}
+      lang={lang}
+      className={`t-${size} ${
+        phoneSize ? `t-sm-${phoneSize}` : ""
+      } text-(--fg) ${className}`}
+    >
       {children}
     </h1>
   );

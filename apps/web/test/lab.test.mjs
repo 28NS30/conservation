@@ -6,6 +6,11 @@ import { join } from "node:path";
 import { labEnabled } from "../lib/lab/gate.ts";
 import { LAB_DIRECTIONS, LAB_ROUTES, isLabDirection } from "../lib/lab/directions.ts";
 import { LAB_COPY } from "../lib/lab/copy.ts";
+import {
+  LAB_FONT_PRELOAD,
+  inLabCharset,
+  labFaceClass,
+} from "../lib/lab/fonts.ts";
 
 /**
  * The design lab's four load-bearing promises.
@@ -212,5 +217,169 @@ describe("lab components name no colours", () => {
       [],
       "these name a direction's own palette; read the semantic layer instead",
     );
+  });
+});
+
+/**
+ * The display faces.
+ *
+ * Every one of these fails silently. A face whose `unicode-range` claims a
+ * character its file does not hold is a blank rectangle; one that omits a
+ * character the file does hold is a file nobody ever fetches; a catalogue
+ * string outside both faces is a heading that comes out in two typefaces on an
+ * iPhone and in one on the machine it was built on. None of it throws, and
+ * none of it is visible in a diff — the woff2 files are binary and the ranges
+ * are four thousand characters of hex.
+ *
+ * Between them these and `e2e/lab/fonts.mjs` cover the contract: this file
+ * checks that what was cut matches what is declared, and that one checks what a
+ * real browser actually fetches per route.
+ */
+const FONTS = join(WEB, "public/lab/fonts");
+const charset = JSON.parse(readFileSync(join(FONTS, "charset.json"), "utf8"));
+
+/** `U+4e00-4e03, U+4e07` back into sorted [first, last] pairs. */
+const parseRange = (range) =>
+  range.split(",").map((part) => {
+    const [first, last] = part.trim().replace(/^U\+/i, "").split("-");
+    const start = parseInt(first, 16);
+    return [start, last === undefined ? start : parseInt(last, 16)];
+  });
+
+const pointsIn = (range) => {
+  const points = [];
+  for (const [start, end] of parseRange(range))
+    for (let point = start; point <= end; point += 1) points.push(point);
+  return points;
+};
+
+describe("lab display faces", () => {
+  const allFaces = Object.values(charset.families).flatMap((f) => f.faces);
+
+  test("every face charset.json names is on disk at the size it records", () => {
+    // The outputs are committed rather than built on Vercel, so the file and
+    // the manifest can only agree if someone re-ran the subsetter after the
+    // last edit to the copy.
+    for (const face of allFaces) {
+      const size = statSync(join(FONTS, face.file)).size;
+      assert.equal(size, face.bytes, `${face.file} is ${size}, not ${face.bytes}`);
+    }
+  });
+
+  test("the preloaded face fits the budget the owner's phone has", () => {
+    // direction.md's prototype test: 60 KB for Roundel, 190 KB for the journal
+    // (a Ming face carries more outline per glyph). This is the one font
+    // request the home page makes, on a phone, outdoors, on mobile data.
+    const budgets = { roundel: 60 * 1024, journal: 190 * 1024 };
+    for (const [direction, budget] of Object.entries(budgets)) {
+      const file = LAB_FONT_PRELOAD[direction].split("/").pop();
+      const face = allFaces.find((f) => f.file === file);
+      assert.ok(face, `no face for ${direction}`);
+      assert.ok(
+        face.bytes <= budget,
+        `${direction} preloads ${(face.bytes / 1024).toFixed(1)} KB, over ${budget / 1024} KB`,
+      );
+    }
+  });
+
+  test("the three faces of a family never claim the same character", () => {
+    // Two faces claiming one code point is a coin toss decided by declaration
+    // order, which is a thing nobody debugging a wrong glyph would think to
+    // look at.
+    for (const [prefix, family] of Object.entries(charset.families)) {
+      const seen = new Map();
+      for (const face of family.faces)
+        for (const point of pointsIn(face.unicodeRange)) {
+          const other = seen.get(point);
+          assert.equal(
+            other,
+            undefined,
+            `${prefix}: U+${point.toString(16)} is in both ${other} and ${face.id}`,
+          );
+          seen.set(point, face.id);
+        }
+      assert.deepEqual(
+        [...seen.keys()].sort((a, b) => a - b),
+        pointsIn(charset.covered),
+        `${prefix}: its faces and the published charset disagree`,
+      );
+    }
+  });
+
+  test("every catalogue character is in a face", () => {
+    // direction.md §2.2: "A test fails if a catalogue Hanzi is outside home ∪
+    // ui." The symptom otherwise is a heading that mixes typefaces — and only
+    // for the one string nobody happened to look at.
+    const catalogues = ["messages/zh-TW.json", "messages/en.json"].map((p) =>
+      readFileSync(join(WEB, p), "utf8"),
+    );
+    const missing = new Set();
+    for (const text of [...catalogues, JSON.stringify(LAB_COPY)])
+      for (const character of text)
+        if (character.codePointAt(0) > 0x7e && !inLabCharset(character))
+          missing.add(character);
+    assert.deepEqual(
+      [...missing],
+      [],
+      "re-run `npm run lab:fonts` — these are set in the system face",
+    );
+  });
+
+  test("faces.css declares what charset.json says it cut", () => {
+    const css = readFileSync(join(THEMES, "faces.css"), "utf8");
+    for (const [prefix, family] of Object.entries(charset.families))
+      for (const face of family.faces) {
+        assert.ok(
+          css.includes(`url("/lab/fonts/${face.file}")`),
+          `faces.css never names ${face.file}`,
+        );
+        assert.ok(
+          css.includes(`unicode-range: ${face.unicodeRange};`),
+          `${prefix} ${face.id}: the declared range is not the one it was cut to`,
+        );
+      }
+    // swap, not optional or block: outdoors on a slow connection the owner
+    // should read the page in the system face and watch it change, not sit in
+    // front of invisible text or a page that silently never applied its font.
+    const swaps = css.match(/font-display: swap;/g) ?? [];
+    assert.equal(swaps.length, allFaces.length);
+  });
+
+  test("the journal's fallback stack is the one journal.css names", () => {
+    // fonts.css spells the serif stack out a second time because a custom
+    // property cannot be defined in terms of itself. This is the pin that keeps
+    // the copy honest: drift shows up as a title in the wrong serif, only on a
+    // machine that has none of the named fonts installed.
+    const journalBlock = (file, selector) => {
+      const css = readFileSync(join(THEMES, file), "utf8");
+      const at = css.indexOf(selector);
+      assert.ok(at >= 0, `${file} has no ${selector} block`);
+      return css.slice(at, css.indexOf("}", at));
+    };
+    const stack = (block, name) =>
+      new RegExp(`--${name}:([^;]+);`).exec(block)[1].replace(/\s+/g, " ").trim();
+    assert.equal(
+      stack(
+        journalBlock("fonts.css", 'html [data-direction="journal"]'),
+        "font-display-fallback",
+      ),
+      stack(
+        journalBlock("journal.css", '[data-direction="journal"]'),
+        "font-display",
+      ),
+    );
+  });
+
+  test("a name the subsets cannot draw is set wholly in the system face", () => {
+    // The species the lab's own routes name are in the subset; the rest of
+    // Taiwan's checklist is not, and direction.md §2.2 says such a title goes
+    // to the system face entirely rather than mixing per glyph.
+    for (const name of ["黑眶蟾蜍", "斯文豪氏頸槽蛇", "臺灣穿山甲"])
+      assert.equal(labFaceClass(name), "", `${name} should be in the subset`);
+    assert.equal(labFaceClass("貓"), "face-system");
+    // One character out of six is enough: it is all or nothing, per title.
+    assert.equal(labFaceClass("黑眶蟾蜍貓"), "face-system");
+    // Latin, digits and the space between words never drop a title.
+    assert.equal(labFaceClass("FormosaWatch 2011–2017"), "");
   });
 });
