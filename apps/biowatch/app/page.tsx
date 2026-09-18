@@ -1,5 +1,5 @@
 import ProjectCard from "@/components/Project";
-import { formosawatchCounts, projects } from "@/lib/projects";
+import { FORMOSAWATCH, formosawatchCounts, projects } from "@/lib/projects";
 
 export const revalidate = 3600;
 
@@ -89,6 +89,12 @@ export default async function Home() {
             against the threat that matters most there. They share an approach,
             not a template.
           </p>
+          {/* Two cards side by side read as two things one organisation runs.
+              Only the first is. */}
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-500">
+            FlamaWatch is run independently by its own organisation; BioWatch
+            links to it and does not operate it.
+          </p>
 
           <div className="mt-10 grid gap-6 lg:grid-cols-2">
             {list.map((p) => (
@@ -123,7 +129,7 @@ export default async function Home() {
               {
                 n: "3",
                 h: "It becomes public data",
-                b: "Everything lands on an open map and open statistics, published back to the global biodiversity record. Sensitive locations are coarsened first, because a precise map of an endangered animal is a map for poachers.",
+                b: "Everything lands on an open map and open statistics, free for anyone to reuse under CC BY. Sensitive locations are coarsened first, because a precise map of an endangered animal is a map for poachers.",
               },
             ].map((s) => (
               <li key={s.n}>
@@ -165,7 +171,7 @@ export default async function Home() {
             </div>
             <dl className="grid grid-cols-2 gap-6 self-start">
               {[
-                { v: "Open data", k: "CC BY, published back to GBIF" },
+                { v: "Open data", k: "CC BY; GBIF publication planned" },
                 { v: "Open models", k: "No proprietary classifier" },
                 { v: "No accounts", k: "Reporting needs no sign-up" },
                 { v: "Local first", k: "Each project in its own language" },
@@ -196,20 +202,24 @@ export default async function Home() {
               {
                 h: "Report something",
                 b: "The most useful thing anyone can do. Pick the project for where you are — it takes about a minute.",
-                cta: "Taiwan · Colombia",
-                href: "#projects",
+                links: [{ cta: "Taiwan · Colombia", href: "#projects" }],
               },
               {
                 h: "Use the data",
-                b: "Everything published is open and attributed. Researchers, journalists and agencies are welcome to it, and we would like to hear what you do with it.",
-                cta: `Write to us`,
-                href: `mailto:${CONTACT}`,
+                b: "Everything published is open and attributed. FormosaWatch's licence and sources are on its attribution page; tell us what you do with it and we will be glad to hear.",
+                // The licence someone needs in order to use the data is a page,
+                // not a conversation. Asking a researcher to email for terms
+                // that are already written down is a door that looks open and
+                // is not, so the page goes first and the invitation second.
+                links: [
+                  { cta: "Licence and sources", href: `${FORMOSAWATCH}/attribution` },
+                  { cta: "Write to us", href: `mailto:${CONTACT}` },
+                ],
               },
               {
                 h: "Start one where you are",
                 b: "If this method fits a threat in your region, get in touch. Everything we have learned is yours.",
-                cta: "Write to us",
-                href: `mailto:${CONTACT}`,
+                links: [{ cta: "Write to us", href: `mailto:${CONTACT}` }],
               },
             ].map((x) => (
               <div
@@ -220,12 +230,17 @@ export default async function Home() {
                 <p className="mt-2 flex-1 text-sm leading-relaxed text-ink-600">
                   {x.b}
                 </p>
-                <a
-                  href={x.href}
-                  className="mt-5 text-sm font-medium text-ember-700 transition hover:underline"
-                >
-                  {x.cta} →
-                </a>
+                <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2">
+                  {x.links.map((l) => (
+                    <a
+                      key={l.href}
+                      href={l.href}
+                      className="text-sm font-medium text-ember-700 transition hover:underline"
+                    >
+                      {l.cta} →
+                    </a>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
@@ -251,6 +266,9 @@ export default async function Home() {
             {list.map((p) => (
               <a key={p.key} href={p.href} className="hover:text-ink-900">
                 {p.latin} · {p.place}
+                {p.partner && (
+                  <span className="ml-2 text-ink-500">Partner project</span>
+                )}
               </a>
             ))}
             <a href={`mailto:${CONTACT}`} className="hover:text-ink-900">

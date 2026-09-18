@@ -11,9 +11,17 @@ export type Project = {
   /** What it watches, in one line. */
   watches: string;
   body: string;
-  /** Headline figures. `note` marks anything not read live from the project. */
-  stats: { value: string; label: string }[];
-  live: boolean;
+  /**
+   * Headline figures. Every one carries a `note` saying where it came from —
+   * live, approximate, imported, or transcribed from someone else's page — and
+   * the card prints the distinct notes beneath them. A figure with no
+   * provenance is the thing this type exists to make impossible: `live: boolean`
+   * used to say the same thing for a whole card and was never rendered at all,
+   * so "46,000+" and "46,334" reached the reader looking identical.
+   */
+  stats: { value: string; label: string; note: string }[];
+  /** True if another organisation runs it and BioWatch only links to it. */
+  partner: boolean;
   cta: string;
 };
 
@@ -64,6 +72,14 @@ export default function ProjectCard({ p }: { p: Project }) {
           </div>
         ))}
       </dl>
+
+      {/* The distinct notes, in the order their figures appear. Two stats read
+          from the same source say so once; three from three sources say so
+          three times. Same style as the labels above, because it is the same
+          kind of small print about the same numbers. */}
+      <p className="mt-3 text-[11px] leading-tight text-ink-500">
+        {[...new Set(p.stats.map((s) => s.note))].join(" · ")}
+      </p>
 
       <span className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-ember-700">
         {p.cta}
