@@ -36,7 +36,11 @@
   "stats": {
     "records": "筆紀錄",
     "species": "個物種",
-    "range": "資料期間"
+    "range": "資料期間",
+    "month": "月份",
+    "year": "年份",
+    "count": "筆數",
+    "showNumbers": "顯示數字"
   },
   "map": {
     "all": "全部",

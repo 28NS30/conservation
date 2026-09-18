@@ -36,7 +36,11 @@
   "stats": {
     "records": "records",
     "species": "species",
-    "range": "range"
+    "range": "range",
+    "month": "Month",
+    "year": "Year",
+    "count": "Records",
+    "showNumbers": "Show the numbers"
   },
   "map": {
     "all": "All",

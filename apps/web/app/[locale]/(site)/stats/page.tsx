@@ -77,12 +77,31 @@ export default async function StatsPage({
 
   const n = (v: number) => v.toLocaleString(locale);
   const zhFirst = locale.startsWith("zh");
+  /*
+   * Numerals on the axis, month names in the table.
+   *
+   * `month: "narrow"` gives zh-TW 1–12 and English J F M A M J J A S O N D —
+   * seven letters for twelve months, three of them repeated, on a chart whose
+   * whole claim is that May and June differ. Columns are 16–26px wide on a
+   * phone, so "January" was never going to fit; the long names go where there
+   * is room for them, which is the table underneath and the hover.
+   */
+  const monthAxis = Array.from({ length: 12 }, (_, i) =>
+    (i + 1).toLocaleString(locale),
+  );
   const monthNames = Array.from({ length: 12 }, (_, i) =>
-    new Intl.DateTimeFormat(locale, { month: "narrow" }).format(
+    new Intl.DateTimeFormat(locale, { month: "long" }).format(
       new Date(Date.UTC(2021, i, 1)),
     ),
   );
   const peak = months.indexOf(Math.max(...months));
+  const ts = await getTranslations("stats");
+  const monthTable = {
+    keyHeader: ts("month"),
+    valueHeader: ts("count"),
+    summary: ts("showNumbers"),
+  };
+  const yearTable = { ...monthTable, keyHeader: ts("year") };
 
   return (
     <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-12">
@@ -170,7 +189,13 @@ export default async function StatsPage({
           <Columns
             label={t("seasonality")}
             highlight={peak}
-            data={months.map((v, i) => ({ key: monthNames[i], n: v }))}
+            locale={locale}
+            table={monthTable}
+            data={months.map((v, i) => ({
+              key: monthAxis[i],
+              label: monthNames[i],
+              n: v,
+            }))}
           />
           <p className="mt-2 text-[11px] text-ink-500">
             {t("peakMonth", {
@@ -185,6 +210,8 @@ export default async function StatsPage({
           <Section title={t("byYear")} hint={t("byYearHint")}>
             <Columns
               label={t("byYear")}
+              locale={locale}
+              table={yearTable}
               data={years.map((y) => ({ key: String(y.year), n: y.n }))}
             />
           </Section>
