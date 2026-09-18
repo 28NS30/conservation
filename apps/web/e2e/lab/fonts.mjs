@@ -61,6 +61,18 @@ const ROUTES = [
   { path: "/en/lab/journal", name: "journal home (en)", atLeast: 1, budget: 1 },
   { path: "/lab/roundel/primitives", name: "roundel primitives", atLeast: 1 },
   { path: "/lab/journal/primitives", name: "journal primitives", atLeast: 1 },
+  // 黑眶蟾蜍 and 中國石龍子臺灣亞種: both names are in the `names` face, so both
+  // h1s should be in the display face. A species page whose name is NOT cut
+  // gets `face-system` from PageTitle and simply asks for one file fewer —
+  // which is the mechanism working, not a failure, so there is no budget here.
+  { path: "/lab/roundel/species/28758", name: "species, 4 Hanzi", atLeast: 1 },
+  { path: "/lab/roundel/species/102062", name: "species, 9 Hanzi", atLeast: 1 },
+  { path: "/lab/roundel/report/stepper", name: "report, stepper", atLeast: 1 },
+  {
+    path: "/lab/roundel/report/photo-first",
+    name: "report, photo first",
+    atLeast: 1,
+  },
   { path: "/lab/roundel/map", name: "roundel map", budget: 0 },
   { path: "/en/lab/roundel/map", name: "roundel map (en)", budget: 0 },
   { path: "/lab/journal/map", name: "journal map", budget: 0 },
@@ -154,11 +166,11 @@ await browser.close();
 
 const pad = (value, width) => String(value).padEnd(width);
 console.log(
-  `${pad("route", 30)}${pad("w", 6)}${pad("HTTP", 6)}${pad("woff2", 7)}${pad("KB", 8)}files`,
+  `${pad("route", 32)}${pad("w", 6)}${pad("HTTP", 6)}${pad("woff2", 7)}${pad("KB", 8)}files`,
 );
 for (const row of rows)
   console.log(
-    pad(row.route, 30) +
+    pad(row.route, 32) +
       pad(row.width, 6) +
       pad(row.status, 6) +
       pad(row.woff2, 7) +
