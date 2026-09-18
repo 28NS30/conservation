@@ -965,6 +965,18 @@ export default function HeatmapView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, filter.group, filter.taxonId, filter.from, filter.to]);
 
+  /**
+   * Where "see this as a list" goes, for both links that offer it.
+   *
+   * Built once. Two hand-built copies of the same query would be the obvious way
+   * for the visible link and the skip link to start disagreeing about which
+   * filters travel, and the skip link is the one nobody sees drift.
+   */
+  const listHref = {
+    pathname: "/reports" as const,
+    query: Object.fromEntries(new URLSearchParams(filterToQuery(filter))),
+  };
+
   /* ---- what the legend is entitled to claim ---- */
   // Derived in one place, from the pure rule in legend.ts, rather than from the
   // colour switch alone as it used to be. The switch is what the reader asked
@@ -1006,12 +1018,7 @@ export default function HeatmapView({
       */}
       {!presentation && (
         <Link
-          href={{
-            pathname: "/reports",
-            query: Object.fromEntries(
-              new URLSearchParams(filterToQuery(filter)),
-            ),
-          }}
+          href={listHref}
           // Every visual utility sits behind `focus:`. Left unqualified they
           // fight `sr-only` — padding overrides its `padding: 0` and leaves a
           // 24x12 phantom box in the layout even though the clip stops it
@@ -1042,6 +1049,18 @@ export default function HeatmapView({
             onChange={setFilter}
             years={years}
             initialSpecies={initialSpecies}
+            // The same destination as the skip link above, which stays: that
+            // one exists so a screen reader reaches the tabular equivalent
+            // without first traversing a canvas, and is offscreen until
+            // focused. Everyone else could only find the list from the footer.
+            trailing={
+              <Link
+                href={listHref}
+                className="rounded-full border border-parchment-200/20 bg-bark-900/90 px-3.5 py-1.5 text-xs font-medium text-parchment-200 backdrop-blur transition hover:bg-bark-800/80"
+              >
+                {t("list.viewAsList")}
+              </Link>
+            }
           />
         </div>
       )}
