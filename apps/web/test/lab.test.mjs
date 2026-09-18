@@ -7,6 +7,16 @@ import { labEnabled } from "../lib/lab/gate.ts";
 import { LAB_DIRECTIONS, LAB_ROUTES, isLabDirection } from "../lib/lab/directions.ts";
 import { LAB_COPY } from "../lib/lab/copy.ts";
 import {
+  findingSentence,
+  hanziCount,
+  isWithheld,
+  lineageRows,
+  nameSizes,
+  peakMonth,
+  speciesLegendItems,
+} from "../lib/lab/species.ts";
+import { SPECIES_DENSITY_CLASSES } from "@conservation/shared";
+import {
   LAB_FONT_PRELOAD,
   inLabCharset,
   labFaceClass,
@@ -381,5 +391,146 @@ describe("lab display faces", () => {
     assert.equal(labFaceClass("黑眶蟾蜍貓"), "face-system");
     // Latin, digits and the space between words never drop a title.
     assert.equal(labFaceClass("FormosaWatch 2011–2017"), "");
+  });
+});
+
+/**
+ * The species page's own three silent failures.
+ *
+ * Same bar as the four above: each of these is wrong in a way nobody sees.
+ *
+ *   1. The name's size is decided by counting HAN CHARACTERS. Count code units
+ *      or code points instead and 中國石龍子臺灣亞種 takes the 56px step on a
+ *      phone, which is 504px of name in a 358px column.
+ *   2. The finding sentence must not exist when there is nothing to find. A
+ *      template rendered with an empty count reads "年間有 筆紀錄" and throws
+ *      nothing at all.
+ *   3. 座標不開放 is not "no records". Those taxa have no rows in
+ *      `reports_public`, so their count is 0, and the one sentence this page
+ *      must never print is "no reports yet" over a species that has plenty.
+ */
+describe("lab species page", () => {
+  const copy = LAB_COPY["zh-TW"];
+
+  test("the name's step is counted in Hanzi, not in characters", () => {
+    assert.equal(hanziCount("黑眶蟾蜍"), 4);
+    assert.equal(hanziCount("中國石龍子臺灣亞種"), 9);
+    // A Latin binomial has none, and a mixed name counts only its Hanzi.
+    assert.equal(hanziCount("Duttaphrynus melanostictus"), 0);
+    assert.equal(hanziCount("臺灣 穿山甲"), 5);
+  });
+
+  test("six Hanzi or fewer takes the top step, and Latin never does", () => {
+    assert.deepEqual(nameSizes("黑眶蟾蜍"), {
+      desktop: "hero",
+      phone: "display",
+    });
+    assert.deepEqual(nameSizes("斯文豪氏頸槽蛇"), {
+      desktop: "display",
+      phone: "title",
+    });
+    assert.deepEqual(nameSizes("中國石龍子臺灣亞種"), {
+      desktop: "display",
+      phone: "title",
+    });
+    // 80px of "Plestiodon chinensis formosensis" is three lines of a foreign
+    // word; the hero step is for a name you take in at a glance.
+    assert.deepEqual(nameSizes("Plestiodon chinensis formosensis"), {
+      desktop: "display",
+      phone: "title",
+    });
+  });
+
+  test("only TaiCOL's own rating withholds coordinates", () => {
+    assert.equal(isWithheld("座標不開放"), true);
+    // The other three sensitivity grades blur a location; they do not hide it,
+    // and treating them as withheld would drop the map from 1,273 pages.
+    for (const grade of ["輕度", "重度", "縣市", null, ""])
+      assert.equal(isWithheld(grade), false, `${grade} is not withheld`);
+  });
+
+  test("the peak month is the month, or nothing", () => {
+    assert.equal(peakMonth(Array(12).fill(0)), null);
+    assert.equal(peakMonth([62, 86, 148, 729, 414, 288, 650, 389, 268, 349, 534, 61]), 3);
+    // First of a tie, so the sentence and the drawn bar always agree.
+    assert.equal(peakMonth([5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), 0);
+  });
+
+  test("the finding sentence says the real numbers, or does not exist", () => {
+    const toad = {
+      reportCount: 3978,
+      firstSeen: "2011-08-31T00:00:00.000Z",
+      lastSeen: "2017-12-20T00:00:00.000Z",
+    };
+    const counts = [62, 86, 148, 729, 414, 288, 650, 389, 268, 349, 534, 61];
+    // Verbatim from direction.md §4, down to the punctuation.
+    assert.equal(
+      findingSentence(copy, "zh-TW", toad, counts),
+      "2011–2017 年間有 3,978 筆紀錄，四月最多。",
+    );
+    assert.equal(
+      findingSentence(LAB_COPY.en, "en", toad, counts),
+      "3,978 records between 2011 and 2017, most of them in April.",
+    );
+    // Nothing to find: no sentence at all, not a sentence about absence.
+    assert.equal(
+      findingSentence(copy, "zh-TW", { ...toad, reportCount: 0 }, Array(12).fill(0)),
+      null,
+    );
+    assert.equal(
+      findingSentence(copy, "zh-TW", { ...toad, firstSeen: null }, counts),
+      null,
+    );
+    // No placeholder survives into anything the reader sees.
+    assert.doesNotMatch(
+      String(findingSentence(copy, "zh-TW", toad, counts)),
+      /[{}]/,
+    );
+  });
+
+  test("the legend is generated from the classes the map paints", () => {
+    const items = speciesLegendItems();
+    assert.equal(items.length, SPECIES_DENSITY_CLASSES.length);
+    assert.deepEqual(
+      items.map((i) => i.label),
+      ["1", "2–4", "5–14", "15–39", "40+"],
+    );
+    // Starts a step up the ramp: on ONE species a single record is the signal,
+    // not the background, so the dimmest class is not used at all.
+    assert.deepEqual(
+      items.map((i) => i.ramp),
+      [2, 3, 4, 5, 6],
+    );
+  });
+
+  test("the lineage stops at genus and italicises only that", () => {
+    const rows = lineageRows(copy, {
+      kingdom: "Animalia",
+      phylum: "Chordata",
+      class: "Amphibia",
+      order: "Anura",
+      family: "Bufonidae",
+      genus: "Duttaphrynus",
+    });
+    assert.deepEqual(
+      rows.map((r) => r.name),
+      ["Animalia", "Chordata", "Amphibia", "Anura", "Bufonidae", "Duttaphrynus"],
+    );
+    assert.deepEqual(
+      rows.map((r) => r.italic),
+      [false, false, false, false, false, true],
+    );
+    // Ranks TaiCOL does not record collapse rather than printing a blank row.
+    assert.equal(
+      lineageRows(copy, {
+        kingdom: "Animalia",
+        phylum: null,
+        class: null,
+        order: null,
+        family: null,
+        genus: null,
+      }).length,
+      1,
+    );
   });
 });
