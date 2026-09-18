@@ -82,6 +82,10 @@
   --map-coast: #51695b;
   --map-select-ring: #16241c;
   --map-select-halo: #fbfaf6;
+
+  /* The mixed cell, on the same rule as Roundel's: the lowest density step,
+     which is the one colour already proved against this land. */
+  --map-mixed: var(--ramp-1);
   --mark-roadkill: #8c2a2a;
   --mark-injured: #76560a;
   --mark-invasive: #2c5a85;

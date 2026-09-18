@@ -70,6 +70,9 @@ export type LabCopy = {
     legendLow: string;
     legendHigh: string;
     legendPoints: string;
+    collapsePanel: string;
+    expandPanel: string;
+    recordSource: string;
     fullRecord: string;
     clearFilters: string;
     noRecords: string;
@@ -213,6 +216,9 @@ const zhTW: LabCopy = {
     legendLow: "少",
     legendHigh: "多",
     legendPoints: "每一點是一筆紀錄",
+    collapsePanel: "收合篩選",
+    expandPanel: "展開篩選",
+    recordSource: "紀錄來源：{source}",
     fullRecord: "完整紀錄",
     clearFilters: "清除篩選",
     noRecords: "這些條件下沒有公開紀錄。",
@@ -362,6 +368,9 @@ const en: LabCopy = {
     legendLow: "Fewer",
     legendHigh: "More",
     legendPoints: "Each dot is one record",
+    collapsePanel: "Collapse filters",
+    expandPanel: "Expand filters",
+    recordSource: "Record source: {source}",
     fullRecord: "Full record",
     clearFilters: "Clear filters",
     noRecords: "No public records match these filters.",

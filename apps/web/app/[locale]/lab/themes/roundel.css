@@ -84,6 +84,13 @@
      selected record reads on top of six density classes. */
   --map-select-ring: #e08a4f;
   --map-select-halo: #0b1410;
+
+  /* A cell that is not mostly any one type. Grey is a real answer here, not a
+     fallback, and it has to clear the land while staying apart from all three
+     marks: the lowest density step is the one colour in this theme already
+     proved at 3.36:1 on forest, and it sits at least 1.68:1 from ember-400,
+     moss-300 and parchment-50. */
+  --map-mixed: var(--ramp-1);
   /* Type mode differs by form first: solid, solid, hollow ring. */
   --mark-roadkill: #e08a4f;
   --mark-injured: #e08a4f;
