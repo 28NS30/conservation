@@ -29,10 +29,17 @@ export default function MapFilters({
   onChange,
   years,
   initialSpecies = null,
+  trailing = null,
 }: {
   value: MapFilter;
   onChange: (next: MapFilter) => void;
   years: { first: number; last: number } | null;
+  /**
+   * Sits beside the collapsed button, inside this component rather than next to
+   * it, so the panel opens beneath BOTH. As a sibling of MapFilters the pair
+   * overflowed a 390px viewport the moment the panel was open.
+   */
+  trailing?: React.ReactNode;
   /**
    * The species a link arrived filtered to, resolved on the server. Without it
    * a link such as /map?taxonId=28758 filtered the map correctly and said
@@ -123,30 +130,33 @@ export default function MapFilters({
           year selects is a lot of furniture to lay over a map whose whole job is
           to be looked at — and most visits never touch any of it. One button
           that says what is filtered, opening the full set on demand. */}
-      <button
-        onClick={() => setPanelOpen((o) => !o)}
-        aria-expanded={panelOpen}
-        className={`flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-medium backdrop-blur transition ${
-          activeCount
-            ? "border-ember-400/60 bg-ember-500/20 text-parchment-50"
-            : "border-parchment-200/20 bg-bark-900/90 text-parchment-200 hover:bg-bark-800/80"
-        }`}
-      >
-        <svg
-          viewBox="0 0 16 16"
-          className="size-3.5"
-          aria-hidden
-          fill="currentColor"
+      <div className="flex flex-wrap items-center gap-1.5">
+        <button
+          onClick={() => setPanelOpen((o) => !o)}
+          aria-expanded={panelOpen}
+          className={`flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-medium backdrop-blur transition ${
+            activeCount
+              ? "border-ember-400/60 bg-ember-500/20 text-parchment-50"
+              : "border-parchment-200/20 bg-bark-900/90 text-parchment-200 hover:bg-bark-800/80"
+          }`}
         >
-          <path d="M1.5 3h13a.5.5 0 0 1 .38.82L10 9.7V14a.5.5 0 0 1-.76.43l-2.5-1.5A.5.5 0 0 1 6.5 12.5V9.7L1.12 3.82A.5.5 0 0 1 1.5 3Z" />
-        </svg>
-        {t("map.filters")}
-        {activeCount > 0 && (
-          <span className="rounded-full bg-ember-500 px-1.5 text-[10px] font-semibold text-bark-950">
-            {activeCount}
-          </span>
-        )}
-      </button>
+          <svg
+            viewBox="0 0 16 16"
+            className="size-3.5"
+            aria-hidden
+            fill="currentColor"
+          >
+            <path d="M1.5 3h13a.5.5 0 0 1 .38.82L10 9.7V14a.5.5 0 0 1-.76.43l-2.5-1.5A.5.5 0 0 1 6.5 12.5V9.7L1.12 3.82A.5.5 0 0 1 1.5 3Z" />
+          </svg>
+          {t("map.filters")}
+          {activeCount > 0 && (
+            <span className="rounded-full bg-ember-500 px-1.5 text-[10px] font-semibold text-bark-950">
+              {activeCount}
+            </span>
+          )}
+        </button>
+        {trailing}
+      </div>
 
       {panelOpen && (
         <div className="flex flex-col gap-1.5 rounded-xl border border-parchment-200/15 bg-bark-900/92 p-2.5 backdrop-blur">
