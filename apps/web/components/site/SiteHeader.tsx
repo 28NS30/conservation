@@ -137,12 +137,21 @@ export default async function SiteHeader({
           In `variant="app"` the header itself is the wrapping flex container —
           the inner div is `contents` — so the row claims a line with
           `basis-full` and bleeds back out through the header's own padding
-          instead of sitting inside it. */}
+          instead of sitting inside it.
+
+          Both variants wrap, and that is load-bearing rather than tidiness.
+          The row holds four nav words plus 中文 / English, the site loads no web
+          font, and the labels are longer in English — so its width is whatever
+          the reader's platform happens to measure. It fits on macOS and
+          overflows 320px by five pixels on CI's Ubuntu. Wrapping cannot
+          overflow on either; shaving a gap would only move the threshold to a
+          different font, and shrinking the 24px targets back would undo the
+          accessibility fix that widened it. */}
       <div
         className={
           app
-            ? `-mx-4 -mb-2.5 flex basis-full items-center justify-between gap-4 border-t border-ink-900/10 px-4 py-1.5 sm:hidden`
-            : `flex items-center justify-between gap-4 border-t px-4 py-2 sm:px-5 md:hidden ${
+            ? `-mx-4 -mb-2.5 flex basis-full flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-ink-900/10 px-4 py-1.5 sm:hidden`
+            : `flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t px-4 py-2 sm:px-5 md:hidden ${
                 overlay ? "border-parchment-200/15" : "border-ink-900/10"
               }`
         }
