@@ -1,4 +1,12 @@
+import type postgres from "postgres";
 import { asPublic } from "@/lib/db";
+
+export type SpeciesFilter =
+  | "recorded"
+  | "all"
+  | "invasive"
+  | "protected"
+  | "endemic";
 
 export type SpeciesSummary = {
   id: number;
@@ -122,6 +130,61 @@ export async function getSpecies(id: number): Promise<SpeciesDetail | null> {
 }
 
 /**
+ * Which taxa a directory query is about.
+ *
+ * Shared by the listing and the count, and shared rather than written twice
+ * because the count is what the pager divides by: a count that selected a
+ * slightly different set from the list would put the reader on a last page that
+ * is empty, or stop the pager one page before the end of the results. Every
+ * such bug is invisible until someone reaches the boundary.
+ *
+ * Both callers join `species_report_stats` as `s` and `taxa` as `t`.
+ */
+function speciesWhere(
+  tx: postgres.TransactionSql,
+  filter: SpeciesFilter,
+  like: string | null,
+) {
+  return tx`
+         t.is_in_taiwan
+     and t.rank in ('Species','Subspecies')
+     and (${filter}::text <> 'recorded'  or s.report_count is not null)
+     and (${filter}::text <> 'invasive'  or t.is_invasive)
+     and (${filter}::text <> 'protected' or t.protected_status is not null)
+     and (${filter}::text <> 'endemic'   or t.is_endemic)
+     and (
+       ${like}::text is null
+       or t.scientific_name ilike ${like}
+       or t.common_name_zh like ${like}
+       -- Matched with LIKE rather than array overlap, which only ever
+       -- matched a whole alternate name. TaiCOL stores the iguana as 綠鬛蜥
+       -- and 綠鬣蜥 only as an alternate, so typing the spelling our own
+       -- front page uses found the species and typing part of it found
+       -- nothing at all.
+       or exists (
+         select 1 from unnest(t.alt_names_zh) a where a like ${like}
+       )
+     )`;
+}
+
+/** How many taxa the same query matches, for the directory's pager. */
+export async function countSpecies(opts: {
+  q?: string;
+  filter?: SpeciesFilter;
+}): Promise<number> {
+  const { q, filter = "recorded" } = opts;
+  const like = q ? `%${q}%` : null;
+  const rows = await asPublic(
+    (tx) => tx<{ n: number }[]>`
+      select count(*)::int as n
+        from taxa t
+        left join species_report_stats s on s.taxon_id = t.id
+       where ${speciesWhere(tx, filter, like)}`,
+  );
+  return rows[0]?.n ?? 0;
+}
+
+/**
  * Directory listing.
  *
  * Defaults to species that actually have records: only 354 of 66,201 taxa do, so
@@ -129,7 +192,7 @@ export async function getSpecies(id: number): Promise<SpeciesDetail | null> {
  */
 export async function listSpecies(opts: {
   q?: string;
-  filter?: "recorded" | "all" | "invasive" | "protected" | "endemic";
+  filter?: SpeciesFilter;
   /**
    * Order native species first without excluding anything else.
    *
@@ -158,25 +221,7 @@ export async function listSpecies(opts: {
       select ${tx.unsafe(SUMMARY_COLS)}
         from taxa t
         left join species_report_stats s on s.taxon_id = t.id
-       where t.is_in_taiwan
-         and t.rank in ('Species','Subspecies')
-         and (${filter}::text <> 'recorded'  or s.report_count is not null)
-         and (${filter}::text <> 'invasive'  or t.is_invasive)
-         and (${filter}::text <> 'protected' or t.protected_status is not null)
-         and (${filter}::text <> 'endemic'   or t.is_endemic)
-         and (
-           ${like}::text is null
-           or t.scientific_name ilike ${like}
-           or t.common_name_zh like ${like}
-           -- Matched with LIKE rather than array overlap, which only ever
-           -- matched a whole alternate name. TaiCOL stores the iguana as 綠鬛蜥
-           -- and 綠鬣蜥 only as an alternate, so typing the spelling our own
-           -- front page uses found the species and typing part of it found
-           -- nothing at all.
-           or exists (
-             select 1 from unnest(t.alt_names_zh) a where a like ${like}
-           )
-         )
+       where ${speciesWhere(tx, filter, like)}
        -- Relevance first, and it has to be: searching 石虎 returned 豹貓 (its own
        -- alternate name) and 前鰭吻鮋 above the species actually called 石虎,
        -- because the only ordering was by record count. That is tolerable in a
@@ -205,7 +250,15 @@ export async function listSpecies(opts: {
          -- called that comes before one that merely lists it as an alternate:
          -- 石虎 is also an alternate name for 前鰭吻鮋, a scorpionfish.
          (t.common_name_zh is distinct from ${term}),
-         t.common_name_zh nulls last, t.scientific_name
+         t.common_name_zh nulls last, t.scientific_name,
+         -- The tiebreak that makes paging trustworthy. Every key above can be
+         -- equal between two rows — 1,295 Taiwanese taxa share a scientific
+         -- name with at least one other — and rows that compare equal come
+         -- back in whatever order the plan produced them, which need not be
+         -- the same order across two LIMIT/OFFSET queries. The reader then
+         -- sees one species twice and never sees another. t.id is unique, so
+         -- it makes the ordering total.
+         t.id
        limit ${limit} offset ${offset}`,
   );
 }
