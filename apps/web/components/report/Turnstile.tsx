@@ -63,8 +63,11 @@ export default function Turnstile({
   /**
    * Hands back a `reset`, which discards the solved token and mints another.
    *
-   * The offline queue needs this and the form does not: a token is single-use,
-   * and one flush can carry several queued reports, so each needs its own.
+   * Both callers need it, for the same reason at different moments: a token is
+   * single-use. One flush can carry several queued reports, so the queue banner
+   * takes a fresh token per report; and a rejected submission has already spent
+   * the form's token, so pressing send again would fail the challenge however
+   * sound the second attempt was. Whoever consumes a token resets the widget.
    */
   onReady?: (api: { reset: () => void }) => void;
 }) {

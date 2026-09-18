@@ -18,6 +18,14 @@ import { preparePhoto, type PreparedPhoto } from "@/lib/image";
 import { browserSupabase, PHOTO_BUCKET } from "@/lib/supabase/client";
 import { enqueue } from "@/lib/offline/queue";
 import { outcomeOf } from "@/lib/report/outcome";
+import {
+  ReportError,
+  describeFailure,
+  PHOTO_UNREADABLE,
+  PHOTO_UPLOAD_FAILED,
+  type ErrorKey,
+  type ErrorSlot,
+} from "@/lib/report/errors";
 import { Link } from "@/i18n/navigation";
 import LocationPicker, { useGeolocate, type LatLng } from "./LocationPicker";
 
@@ -94,7 +102,25 @@ function ReportFormFields({
   const [notes, setNotes] = useState("");
   const [email, setEmail] = useState("");
   const [phase, setPhase] = useState<Phase>("editing");
-  const [error, setError] = useState<string | null>(null);
+  /**
+   * What failed, as a sentence to look up and a place to put it.
+   *
+   * Never a string: every path into this state used to carry either a
+   * snake_case code from the API or an English sentence built in the client,
+   * and both were rendered verbatim to a Taiwanese reporter. The codes still
+   * exist — `console.error` gets them — but nothing reaches the screen that was
+   * not written for a person.
+   */
+  const [error, setError] = useState<{ key: ErrorKey; slot: ErrorSlot } | null>(
+    null,
+  );
+
+  /** Show a failure where the reporter can do something about it. */
+  const fail = useCallback((code: string | undefined, detail?: unknown) => {
+    // The identifier, once, for whoever reads a bug report. Not for the screen.
+    console.error("[report] submission failed:", code, detail ?? "");
+    setError(describeFailure(code));
+  }, []);
   /**
    * The server's whole answer, not just the id.
    *
@@ -117,6 +143,17 @@ function ReportFormFields({
   // null until the challenge is solved. Only meaningful when a site key is
   // configured; without one no widget renders and the server does not ask.
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  /** Mint a replacement after a spent token. See the catch in submit(). */
+  const resetTurnstile = useRef<(() => void) | null>(null);
+  /**
+   * The one failure with nowhere else to go: the report could not even be
+   * saved on the device, so there is no queue to point at and no retry that
+   * would behave differently. Its own flag rather than an error code, because
+   * it is the browser's storage refusing, not anything the server said.
+   */
+  const [queueFailed, setQueueFailed] = useState(false);
+  /** The browser refused or could not produce a fix. Says so under the map. */
+  const [locationError, setLocationError] = useState(false);
 
   // Generated once per form instance so a double-tap cannot create two reports.
   // When a submission is queued this same value becomes the queue item's id, so
@@ -148,17 +185,23 @@ function ReportFormFields({
         const withGps = prepared.find((p) => p.gps);
         if (withGps?.gps && !location) setExifOffer(withGps.gps);
       } catch (e) {
-        setError(`${t("photoFailed")}: ${(e as Error).message}`);
+        // A file the browser will not decode: a HEIC from an older iPhone, a
+        // truncated download. Nothing about the network, so it is answered
+        // beside the picker rather than at the bottom of the form.
+        fail(PHOTO_UNREADABLE, e);
       } finally {
         setPreparing(false);
       }
     },
-    [photos.length, location, t],
+    [photos.length, location, fail],
   );
 
   async function submit() {
     setError(null);
-    if (!location) return setError(t("needLocation"));
+    setQueueFailed(false);
+    // Unreachable through the button, which is disabled without one, and the
+    // sentence above it already says which requirement is unmet.
+    if (!location) return;
 
     setPhase("submitting");
     try {
@@ -170,18 +213,32 @@ function ReportFormFields({
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ count: photos.length }),
         });
-        if (!signRes.ok)
-          throw new Error(`upload signing failed (${signRes.status})`);
+        if (!signRes.ok) {
+          // The server's own code, not a sentence assembled here: `sign_failed`
+          // and `rate_limited` mean different things to the reporter, and the
+          // status alone erased that distinction.
+          const body = await signRes.json().catch(() => ({}));
+          throw new ReportError(body.error ?? "sign_failed", signRes.status);
+        }
         const { uploads } = (await signRes.json()) as {
           uploads: { path: string; token: string }[];
         };
 
         const storage = browserSupabase().storage.from(PHOTO_BUCKET);
-        await Promise.all(
+        // The result was thrown away. supabase-js resolves with `{ error }`
+        // rather than rejecting, so a photograph that never reached the bucket
+        // looked exactly like one that did — and the report was then filed with
+        // a path pointing at nothing. flush.ts has always checked this.
+        const results = await Promise.all(
           uploads.map((u, i) =>
             storage.uploadToSignedUrl(u.path, u.token, photos[i].blob),
           ),
         );
+        const bad = results.find((r) => r.error);
+        if (bad) {
+          console.error("[report] photo upload:", bad.error);
+          throw new ReportError(PHOTO_UPLOAD_FAILED);
+        }
         paths = uploads.map((u) => u.path);
       }
 
@@ -204,9 +261,8 @@ function ReportFormFields({
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok)
-        throw new Error(data.error ?? `submission failed (${res.status})`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new ReportError(data.error ?? "unknown", res.status);
 
       setResult({
         id: data.id,
@@ -244,13 +300,27 @@ function ReportFormFields({
           setPhase("queued");
           return;
         } catch (queueErr) {
-          setError(`${t("queueFailed")}: ${(queueErr as Error).message}`);
+          // `t` is the `report` namespace and this key lives in `offline`, so
+          // the old call rendered the literal string "report.queueFailed" to
+          // the one person whose report had just failed to save anywhere at all.
+          console.error("[report] could not queue:", queueErr);
+          setQueueFailed(true);
           setPhase("error");
           return;
         }
       }
 
-      setError((e as Error).message);
+      const code = e instanceof ReportError ? e.code : "unknown";
+      fail(code, e);
+
+      // The token is spent. Turnstile issues single-use tokens, so after any
+      // rejection the one in state is dead: pressing send again produced
+      // `challenge_failed` however sound the second attempt was, and the
+      // reporter was told their browser had failed a check it had passed.
+      // Clearing it disables the button until the widget mints another, which
+      // it starts doing the moment it is reset.
+      setTurnstileToken(null);
+      resetTurnstile.current?.();
       setPhase("error");
     }
   }
@@ -281,6 +351,25 @@ function ReportFormFields({
       {t("noDispatch")}
     </p>
   );
+
+  /**
+   * The failure, beside the control that produced it.
+   *
+   * Everything used to land in one box under the last field: a photograph that
+   * failed to upload was reported half a screen below the photographs, and a
+   * species that no longer exists was reported nowhere near the picker that
+   * chose it. `role="alert"` because it appears in response to an action the
+   * reporter just took and is the answer to it.
+   */
+  const errorIn = (slot: ErrorSlot) =>
+    error?.slot === slot ? (
+      <p
+        role="alert"
+        className="mt-2 rounded-lg border border-ember-700/35 bg-ember-500/10 px-3 py-2 text-xs leading-relaxed text-ember-700"
+      >
+        {t(`errors.${error.key}`)}
+      </p>
+    ) : null;
 
   // A function, not a value: the editing phase renders neither card, and
   // resolving a message it will not show is work done on every keystroke.
@@ -434,13 +523,16 @@ function ReportFormFields({
         )}
       </section>
 
-      <SpeciesPicker
-        group={group}
-        value={species}
-        onChange={setSpecies}
-        unsure={unsure}
-        onUnsure={setUnsure}
-      />
+      <section>
+        <SpeciesPicker
+          group={group}
+          value={species}
+          onChange={setSpecies}
+          unsure={unsure}
+          onUnsure={setUnsure}
+        />
+        {errorIn("species")}
+      </section>
 
       {/* Photos */}
       <section>
@@ -510,6 +602,7 @@ function ReportFormFields({
             {t("noPhotoWarning")}
           </p>
         )}
+        {errorIn("photo")}
       </section>
 
       {/* Location */}
@@ -524,8 +617,13 @@ function ReportFormFields({
                 setLocation({ lat: p.lat, lng: p.lng });
                 setAccuracyM(p.accuracyM);
                 setExifOffer(null);
+                setLocationError(false);
               } else {
-                setError(t("tapToAdjust"));
+                // Was 點地圖可調整位置 — "tap the map to adjust", the helper
+                // text for a pin that already exists. Told to someone who has
+                // just been refused a fix and has no pin at all, it names the
+                // wrong action and does not say that anything failed.
+                setLocationError(true);
               }
             }}
             className="rounded-full border border-ink-900/12 bg-paper-100/70 px-3 py-1.5 text-xs text-ink-600 hover:bg-paper-200"
@@ -568,14 +666,22 @@ function ReportFormFields({
           }}
           maptilerKey={maptilerKey}
         />
+        {/* "Tap to adjust" is about a pin that exists. Before one does, the
+            instruction is to make one — the old text told a reporter with
+            nothing chosen to adjust something that was not there. */}
         <p className="mt-1.5 text-[11px] text-ink-500">
-          {t("tapToAdjust")}
+          {location ? t("tapToAdjust") : t("needLocation")}
           {accuracyM != null && (
             <span className="ml-1.5 tabular-nums text-ink-500">
               · {t("accuracy", { m: accuracyM })}
             </span>
           )}
         </p>
+        {locationError && (
+          <p role="alert" className="mt-1.5 text-[11px] text-ember-700">
+            {t("locationError")}
+          </p>
+        )}
       </section>
 
       {/* Details */}
@@ -635,15 +741,25 @@ function ReportFormFields({
         </div>
       </section>
 
-      {error && (
-        <p className="rounded-lg border border-rose-700/30 bg-rose-600/10 px-3 py-2 text-xs text-rose-700">
-          {error}
+      {errorIn("form")}
+      {queueFailed && (
+        <p
+          role="alert"
+          className="rounded-lg border border-ink-900/25 bg-paper-200 px-3 py-2 text-xs leading-relaxed text-ink-800"
+        >
+          {tOffline("queueFailed")}
         </p>
       )}
 
       {/* Directly above the button it gates, so it reads as part of submitting
           rather than as an unexplained box. Renders nothing without a site key. */}
-      <Turnstile onToken={setTurnstileToken} locale={locale} />
+      <Turnstile
+        onToken={setTurnstileToken}
+        locale={locale}
+        onReady={(api) => {
+          resetTurnstile.current = api.reset;
+        }}
+      />
 
       {/*
           Say what is missing, rather than leaving a dead button.

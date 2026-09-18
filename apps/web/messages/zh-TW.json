@@ -112,7 +112,16 @@
     "submit": "送出通報",
     "submitting": "送出中…",
     "needLocation": "請先在地圖上點選發現地點",
-    "photoFailed": "無法處理照片",
+    "locationError": "拿不到你的位置，請在地圖上點選。",
+    "errors": {
+      "rate_limited": "送出太多次了，請過幾分鐘再試。",
+      "challenge_failed": "瀏覽器驗證沒有通過，請再試一次。",
+      "photo": "照片傳不上去。可以重試，或拿掉照片再送。",
+      "photoUnreadable": "這張照片讀不了，換一張或重拍。",
+      "taxon_not_found": "找不到這個物種，請重新選一次。",
+      "validation_failed": "有欄位的內容不對，請檢查後再送。",
+      "server": "伺服器出了問題，通報沒有送出。內容還在。"
+    },
     "privacyNote": "敏感或保育類物種的座標會自動模糊化後才公開，避免成為盜獵線索。",
     "receipt": {
       "onMap": "已經在地圖上了",
@@ -279,10 +288,9 @@
     "sendNow": "立即送出",
     "sending": "送出中…",
     "discard": "刪除",
-    "sentCount": "已送出 {count} 筆通報。",
-    "queueFailed": "無法存到裝置",
-    "verifying": "送出前正在驗證瀏覽器，請稍候。",
-    "viewSent": "開啟"
+    "sentCount": "{count, plural, other {已送出 # 筆通報。}}",
+    "queueFailed": "這筆通報沒辦法存在你的裝置上，也還沒送出。請確認瀏覽器沒有封鎖儲存空間，或空間是否已滿。",
+    "verifying": "送出前正在驗證瀏覽器，請稍候。"
   },
   "errors": {
     "title": "發生錯誤",

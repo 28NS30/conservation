@@ -112,7 +112,16 @@
     "submit": "Submit report",
     "submitting": "Submitting…",
     "needLocation": "Tap the map to mark where you saw it",
-    "photoFailed": "Could not process photo",
+    "locationError": "Couldn't get your location. Tap the map instead.",
+    "errors": {
+      "rate_limited": "Too many submissions just now. Try again in a few minutes.",
+      "challenge_failed": "The browser check didn't pass. Please try again.",
+      "photo": "The photos couldn't be uploaded. Try again, or take them off and send.",
+      "photoUnreadable": "This photo can't be read. Use a different one, or take it again.",
+      "taxon_not_found": "That species can't be found. Please choose it again.",
+      "validation_failed": "Something in the form isn't right. Check it and send again.",
+      "server": "Something went wrong at our end and the report was not sent. What you entered is still here."
+    },
     "privacyNote": "Locations of sensitive and protected species are automatically blurred before publication, so reports cannot be used to find them.",
     "receipt": {
       "onMap": "It's on the map",
@@ -279,10 +288,9 @@
     "sendNow": "Send now",
     "sending": "Sending…",
     "discard": "Discard",
-    "sentCount": "Sent {count} reports.",
-    "queueFailed": "Could not save to this device",
-    "verifying": "Checking your browser before sending — this takes a moment.",
-    "viewSent": "Open it"
+    "sentCount": "{count, plural, one {Sent # report.} other {Sent # reports.}}",
+    "queueFailed": "This report could not be saved on your device, and was not sent. Check that your browser is not blocking storage, or that it is not full.",
+    "verifying": "Checking your browser before sending — this takes a moment."
   },
   "errors": {
     "title": "Something went wrong",
