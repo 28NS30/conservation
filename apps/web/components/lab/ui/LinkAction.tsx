@@ -13,6 +13,13 @@ import { Link } from "@/i18n/navigation";
  * `standalone` gives it a 44px hit height. A link on its own line is a target;
  * one inside a sentence is not, and padding it out would open holes in the
  * paragraph.
+ *
+ * With no `href` it renders a `<button>` and looks identical. Some of these
+ * words genuinely go nowhere — 清除篩選 changes what the map is showing without
+ * changing the page — and the alternatives were both worse: an `<a href="">`
+ * that calls preventDefault is a link a middle-click opens, and a filled
+ * rectangle would say "action" for something the interface language says is a
+ * word (§2.6 rule 2).
  */
 export default function LinkAction({
   href,
@@ -26,7 +33,8 @@ export default function LinkAction({
   lang,
   ...aria
 }: {
-  href: string;
+  /** Omit for a word that acts rather than navigates; it renders a button. */
+  href?: string;
   children: React.ReactNode;
   external?: boolean;
   /** A trailing arrow, for a link that opens another view of the same thing. */
@@ -53,6 +61,21 @@ export default function LinkAction({
       {arrow ? <span aria-hidden="true"> →</span> : null}
     </>
   );
+
+  if (href === undefined) {
+    return (
+      <button
+        id={id}
+        lang={lang}
+        type="button"
+        className={classes}
+        onClick={onClick}
+        {...aria}
+      >
+        {body}
+      </button>
+    );
+  }
 
   if (external) {
     return (

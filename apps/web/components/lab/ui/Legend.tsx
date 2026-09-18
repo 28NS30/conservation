@@ -29,6 +29,7 @@ export default function Legend({
   caption,
   lowLabel,
   highLabel,
+  compact = false,
   className = "",
 }: {
   /** `steps` for grid and dots, `bar` for heat, `marks` for record types. */
@@ -38,6 +39,15 @@ export default function Legend({
   /** The 少 / 多 ends of the heat bar, which carries no numbers. */
   lowLabel?: React.ReactNode;
   highLabel?: React.ReactNode;
+  /**
+   * One row instead of two, for the 32px strip a phone map has room for.
+   *
+   * The swatch keeps its break number, so this is still a legend and not a
+   * gradient — it is the caption and the stacked layout that go, not the
+   * numbers. Anything that dropped the numbers would be the unreadable bar the
+   * live map already has.
+   */
+  compact?: boolean;
   className?: string;
 }) {
   const fill = (s: LegendSwatch) =>
@@ -60,7 +70,9 @@ export default function Legend({
   if (mode === "bar") {
     return (
       <div className={`text-(--fg) ${className}`}>
-        {caption ? <p className="t-note mb-2">{caption}</p> : null}
+        {caption ? (
+          <p className={compact ? "sr-only" : "t-note mb-2"}>{caption}</p>
+        ) : null}
         <div className="flex items-center gap-3">
           <span className="t-note">{lowLabel}</span>
           <span
@@ -79,12 +91,32 @@ export default function Legend({
 
   if (mode === "marks") {
     return (
-      <ul className={`flex flex-wrap gap-x-6 gap-y-2 text-(--fg) ${className}`}>
+      <ul
+        className={`flex text-(--fg) ${
+          compact ? "items-center gap-x-4" : "flex-wrap gap-x-6 gap-y-2"
+        } ${className}`}
+      >
         {caption ? (
-          <li className="t-note basis-full">{caption}</li>
+          <li className={compact ? "sr-only" : "t-note basis-full"}>
+            {caption}
+          </li>
         ) : null}
         {items.map((item, i) => (
           <li key={i} className="t-note flex items-center gap-2">
+            {swatch(item, i)}
+            {item.label}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  if (compact) {
+    return (
+      <ul className={`flex items-center gap-3 text-(--fg) ${className}`}>
+        {caption ? <li className="t-note sr-only">{caption}</li> : null}
+        {items.map((item, i) => (
+          <li key={i} className="t-note flex items-center gap-1.5">
             {swatch(item, i)}
             {item.label}
           </li>

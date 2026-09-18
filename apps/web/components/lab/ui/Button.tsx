@@ -44,6 +44,8 @@ export type LabButtonProps = {
   className?: string;
   "aria-label"?: string;
   "aria-pressed"?: boolean;
+  /** For a sign that opens a sheet rather than going somewhere. */
+  "aria-expanded"?: boolean;
   "aria-describedby"?: string;
   "aria-current"?: "page" | "true";
 };
