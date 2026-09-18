@@ -206,8 +206,112 @@ async function checkWidths(page) {
   return errs;
 }
 
+/**
+ * What the reader chose has to survive the next thing they do.
+ *
+ * Every one of these was a real loss of state, and all three were silent: the
+ * page reloaded, looked right, and showed a different view of the data from the
+ * one that had been asked for. That is worse than an error, because the reader
+ * has no reason to distrust it.
+ */
+async function checkState(browser) {
+  const errs = [];
+
+  // A language switch keeps the whole address, not just the path.
+  {
+    const ctx = await browser.newContext({
+      viewport: { width: 1100, height: 850 },
+      locale: "en-US",
+    });
+    const page = await ctx.newPage();
+    await page.goto(BASE + "/en/reports?taxonId=28758&from=2015-01-01", {
+      waitUntil: "load",
+    });
+    await page.waitForTimeout(2500);
+    await page.click('button[lang="zh-TW"]');
+    await page.waitForTimeout(2500);
+    const at = await page.evaluate(() => location.pathname + location.search);
+    if (!at.startsWith("/reports"))
+      errs.push(`switching to zh-TW left /en/reports at "${at}"`);
+    for (const want of ["taxonId=28758", "from=2015-01-01"])
+      if (!at.includes(want))
+        errs.push(`switching language dropped ${want} (got "${at}")`);
+    await ctx.close();
+  }
+
+  // Including the map view, which is written with replaceState and so exists
+  // only in `location` — the value has to be read at click time.
+  {
+    const ctx = await browser.newContext({
+      viewport: { width: 1100, height: 850 },
+      locale: "en-US",
+    });
+    const page = await ctx.newPage();
+    await page.goto(BASE + "/en/map?lng=120.5&lat=23.5&z=9", {
+      waitUntil: "load",
+    });
+    await page.waitForTimeout(9000);
+    await page.click('button[lang="zh-TW"]');
+    await page.waitForTimeout(6000);
+    const at = await page.evaluate(() => location.pathname + location.search);
+    const p = new URLSearchParams(at.split("?")[1] ?? "");
+    if (!at.startsWith("/map"))
+      errs.push(`switching to zh-TW left /en/map at "${at}"`);
+    // Within 0.01: the map may settle a fraction off the requested centre, and
+    // the URL is rewritten from where it actually is.
+    for (const [k, want] of [
+      ["lng", 120.5],
+      ["lat", 23.5],
+    ]) {
+      const got = Number(p.get(k));
+      if (!Number.isFinite(got) || Math.abs(got - want) > 0.01)
+        errs.push(`switching language moved the map: ${k}=${p.get(k)}`);
+    }
+    await ctx.close();
+  }
+
+  // The species box rebuilds the whole address, so the filter chip survives
+  // both typing and clearing.
+  {
+    const ctx = await browser.newContext({
+      viewport: { width: 1100, height: 850 },
+      locale: "zh-TW",
+    });
+    const page = await ctx.newPage();
+    await page.goto(BASE + "/species?filter=invasive", { waitUntil: "load" });
+    await page.waitForTimeout(2500);
+    const chosen = () =>
+      page.evaluate(() =>
+        [...document.querySelectorAll("nav a")]
+          .filter((a) => a.className.includes("bg-ink-900"))
+          .map((a) => a.textContent.trim()),
+      );
+    for (const [what, text] of [
+      ["typing", "龜"],
+      ["clearing", ""],
+    ]) {
+      await page.fill('input[type="search"]', text);
+      await page.waitForTimeout(2500);
+      const at = await page.evaluate(() => location.search);
+      if (!at.includes("filter=invasive"))
+        errs.push(`${what} in the species box dropped the filter (got "${at}")`);
+      if (at.includes("page="))
+        errs.push(`${what} in the species box kept a page number ("${at}")`);
+      const chips = await chosen();
+      if (chips.length !== 1 || chips[0] !== "入侵種")
+        errs.push(
+          `after ${what}, the chip drawn as chosen is ${JSON.stringify(chips)}`,
+        );
+    }
+    await ctx.close();
+  }
+
+  return errs;
+}
+
 const browser = await chromium.launch();
 const failures = [];
+const CHECKS = PAGES.length + 1;
 
 for (const pg of PAGES) {
   // The browser's language set deliberately, to match the path. Playwright's
@@ -376,11 +480,16 @@ for (const pg of PAGES) {
   await ctx.close();
 }
 
+const stateErrs = await checkState(browser);
+if (stateErrs.length)
+  failures.push({ page: "URL state", path: "(several)", errs: stateErrs });
+else console.log("  ok   URL state survives a language switch and a search");
+
 await browser.close();
 
 if (failures.length) {
   console.error("\n" + JSON.stringify(failures, null, 2));
-  console.error(`\n${failures.length}/${PAGES.length} pages FAILED`);
+  console.error(`\n${failures.length}/${CHECKS} checks FAILED`);
   process.exit(1);
 }
-console.log(`\n${PAGES.length}/${PAGES.length} pages passed`);
+console.log(`\n${CHECKS}/${CHECKS} checks passed`);
