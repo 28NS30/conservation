@@ -250,3 +250,56 @@ describe("the blocked submit button", () => {
     assert.match(FORM, /<div className="space-y-2">\s*\{blocker &&/);
   });
 });
+
+describe("the location picker before anything is chosen", () => {
+  const PICKER = readFileSync(
+    join(import.meta.dirname, "..", "components", "report", "LocationPicker.tsx"),
+    "utf8",
+  );
+
+  test("no pin is dropped on Taiwan's centre", () => {
+    // One was, the moment the map loaded. The form then looked answered while
+    // `location` was still null: the submit button was greyed out with a pin
+    // visibly on the map, and anyone who did not notice the difference between
+    // "a pin" and "my pin" was one tap from filing a sighting in Nantou.
+    assert.ok(
+      !/setLngLat\(value \? \[value\.lng, value\.lat\] : TAIWAN_CENTER\)/.test(PICKER),
+      "the marker must not be created at the island's centre",
+    );
+    assert.match(
+      PICKER,
+      /place\.current = \(lng, lat\) => \{\s*if \(!marker\.current\)/,
+      "the marker is created on first use, not on mount",
+    );
+    assert.match(
+      PICKER,
+      /center: value \? \[value\.lng, value\.lat\] : TAIWAN_CENTER/,
+      "TAIWAN_CENTER is still where the camera starts",
+    );
+  });
+
+  test("an overlay says what to do, and cannot swallow the tap", () => {
+    assert.match(PICKER, /\{!value && \(/);
+    assert.match(PICKER, /pointer-events-none absolute inset-0/);
+    assert.match(PICKER, /t\("tapToMark"\)/);
+    // The overlay belongs to a wrapper of our own. MapLibre owns the children
+    // of the container it was handed, and that element's `relative` is
+    // answering a different question (see the comment on it).
+    assert.match(PICKER, /<div className="relative">\s*<div\s+ref=\{container\}/);
+  });
+
+  test("the helper under the map matches whether there is a pin", () => {
+    // "Tap the map to adjust" is about a pin that exists; before one does, the
+    // instruction is to make one.
+    assert.match(FORM, /\{location \? t\("tapToAdjust"\) : t\("needLocation"\)\}/);
+  });
+
+  test("a refused fix says so, instead of repeating the helper text", () => {
+    assert.ok(
+      !/setError\(t\("tapToAdjust"\)\)/.test(FORM),
+      "a geolocation failure is not the same sentence as a placement hint",
+    );
+    assert.match(FORM, /setLocationError\(true\)/);
+    assert.match(FORM, /role="alert"[\s\S]{0,120}t\("locationError"\)/);
+  });
+});
