@@ -127,9 +127,11 @@
     "receipt": {
       "onMap": "已經在地圖上了",
       "held": "收到了，還沒公開",
+      "withheld": "已收到，但不會公開顯示",
       "heldForIdentification": "沒有物種名稱，要先確認是什麼動物才會公開。這是人工處理，時間不一定。",
       "heldNoPhoto": "沒有照片的通報，會先由人看過才公開。",
       "heldForReview": "這筆通報會先由人看過才公開。",
+      "withheldSpecies": "臺灣物種名錄將這個物種的座標列為不公開。這筆紀錄會保存下來，但不會出現在地圖、通報列表或任何統計裡。",
       "viewRecord": "看這筆紀錄",
       "checkStatus": "看目前狀態",
       "another": "再通報一筆"

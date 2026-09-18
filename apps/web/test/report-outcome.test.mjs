@@ -61,12 +61,32 @@ describe("outcomeOf", () => {
     for (const status of ["pending", "rejected", "", undefined, null, "PUBLISHED"]) {
       for (const awaiting of [true, false, undefined]) {
         for (const photos of [0, 1, 3]) {
-          const o = outcomeOf(status, awaiting, photos);
-          assert.equal(o.title, "held", `${status} must not read as published`);
-          assert.notEqual(o.link, "viewRecord");
+          for (const visible of [true, false]) {
+            const o = outcomeOf(status, awaiting, photos, visible);
+            assert.equal(o.title, "held", `${status} must not read as published`);
+            assert.notEqual(o.link, "viewRecord");
+          }
         }
       }
     }
+  });
+
+  test("a published record its taxon withholds is not called published", () => {
+    // TaiCOL rates some species 座標不開放. The trigger stamps `suppressed` from
+    // the taxon the REPORTER chose, `reports_public` drops the row, and the
+    // stored status still reads `published` — so before this case existed, the
+    // one reporter who named such a species was told "it's on the map" and
+    // handed a link to a 404. There are 68 such rows in the imported data.
+    const o = outcomeOf("published", false, 2, false);
+    assert.equal(o.title, "withheld");
+    assert.equal(o.body, "withheldSpecies");
+    assert.equal(o.link, null, "there is no page of either kind behind it");
+    assert.notEqual(o.title, "held", "it is not waiting for anything");
+  });
+
+  test("visible defaults to true, so every other caller is unchanged", () => {
+    assert.deepEqual(outcomeOf("published", false, 1), outcomeOf("published", false, 1, true));
+    assert.equal(receiptLinkFor("published"), "viewRecord");
   });
 
   test("a link is offered only where a page exists to open", () => {
@@ -86,10 +106,12 @@ describe("every outcome has words in both languages", () => {
   for (const status of ["published", "pending", "rejected", undefined]) {
     for (const awaiting of [true, false]) {
       for (const photos of [0, 2]) {
-        const o = outcomeOf(status, awaiting, photos);
+        for (const visible of [true, false]) {
+        const o = outcomeOf(status, awaiting, photos, visible);
         RECEIPT_KEYS.add(o.title);
         if (o.body) RECEIPT_KEYS.add(o.body);
         if (o.link) RECEIPT_KEYS.add(o.link);
+        }
       }
     }
   }

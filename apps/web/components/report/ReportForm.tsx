@@ -137,6 +137,8 @@ function ReportFormFields({
     id: string;
     status: string;
     awaitingIdentification: boolean;
+    /** Whether the row reached `reports_public`; see lib/report/outcome.ts. */
+    visible: boolean;
     photoCount: number;
   } | null>(null);
   const [exifOffer, setExifOffer] = useState<LatLng | null>(null);
@@ -269,6 +271,10 @@ function ReportFormFields({
         id: data.id,
         status: data.status,
         awaitingIdentification: data.awaitingIdentification,
+        // An older deployment answering a newer client omits this; treating a
+        // missing field as visible keeps today's behaviour for every report
+        // that is not withheld, which is all but a handful.
+        visible: data.visible !== false,
         photoCount: photos.length,
       });
       setPhase("done");
@@ -413,6 +419,7 @@ function ReportFormFields({
       result.status,
       result.awaitingIdentification,
       result.photoCount,
+      result.visible,
     );
     return (
       <div className="rounded-xl border border-ember-500/30 bg-ember-500/10 p-5">
