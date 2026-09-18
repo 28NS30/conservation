@@ -129,11 +129,17 @@ export default async function SiteHeader({
           header stays single-row: there, vertical space is the instrument. */}
       {!app && (
         <div
-          className={`flex items-center justify-between gap-4 border-t px-4 py-2 sm:px-5 md:hidden ${
+          // flex-wrap, and it is load-bearing rather than tidiness. The row
+          // holds four nav words plus 中文 / English, the site loads no web font,
+          // and the labels are longer in English — so its width is whatever the
+          // reader's platform happens to measure. It fits on macOS and overflows
+          // 320px by 5px on CI's Ubuntu. Wrapping cannot overflow on any of
+          // them; shaving a gap would only move the threshold.
+          className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t px-4 py-2 sm:px-5 md:hidden ${
             overlay ? "border-parchment-200/15" : "border-ink-900/10"
           }`}
         >
-          <nav className="flex items-center gap-5">
+          <nav className="flex flex-wrap items-center gap-x-5 gap-y-1">
             {nav.map((l) => (
               <Link
                 key={l.href}
