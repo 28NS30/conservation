@@ -103,6 +103,16 @@
   /* Nothing is rounded. */
   --radius-sign: 0px;
 
+  /* The masthead is this direction's one picture, so it does not step down on a
+     phone the way Roundel's does: 48px at every width (§3, "masthead 48/88").
+     Eight Hanzi at 48px is 384px and a 390px screen offers 342, so the name has
+     to break — and 4em of measure is what makes it break in the only place it
+     is allowed to, between 福爾摩沙 and 守望計畫. Imported after base.css, so
+     these win at both widths on source order. */
+  --text-masthead: var(--text-hero);
+  --lh-masthead: var(--lh-hero);
+  --masthead-measure: 4em;
+
   /* Phone. Serif never below 24px; no Hanzi under 14px anywhere. */
   --text-note: 14px;
   --text-body: 16px;

@@ -36,6 +36,7 @@ export function DataRow({
   href,
   external = false,
   name,
+  nameSize = "lead",
   binomial,
   authority,
   meta,
@@ -47,6 +48,13 @@ export function DataRow({
   href?: string;
   external?: boolean;
   name: React.ReactNode;
+  /**
+   * `head` is for a row that is a way in rather than an entry in a list — home's
+   * seven route links, which §4 sets at `text-head` in the functional face at
+   * 700 rather than in the display face. `t-plain` is what keeps the size
+   * without the voice; see the note on it in `base.css`.
+   */
+  nameSize?: "lead" | "head";
   binomial?: string;
   authority?: string;
   /** A date, a county, a source — never a coordinate. */
@@ -62,7 +70,15 @@ export function DataRow({
   const body = (
     <>
       <span className="min-w-0">
-        <span className="t-lead block font-bold">{name}</span>
+        <span
+          className={
+            nameSize === "head"
+              ? "t-head t-plain block"
+              : "t-lead block font-bold"
+          }
+        >
+          {name}
+        </span>
         {binomial ? (
           <Binomial authority={authority} className="t-body block text-(--fg-quiet)">
             {binomial}

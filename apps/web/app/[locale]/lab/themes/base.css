@@ -113,6 +113,14 @@ html:lang(en) [data-lab] {
   --status-endemic: var(--lab-endemic, var(--color-moss-700));
   --status-invasive: var(--lab-invasive, var(--lab-ink-900, var(--color-ink-900)));
   --status-blurred: var(--lab-blurred, var(--lab-ink-600, var(--color-ink-600)));
+  /* A bar on a chart, and the one bar that is the finding. direction.md §2.1
+     gives moss the two jobs — the endemic glyph and chart bars — and §2.5 puts
+     the peak in the text colour with its value spelled out, so the shape a
+     reader is meant to notice is the one drawn in ink. Named separately from
+     `--status-endemic` because a bar is not a status: a chart of a taxon that
+     is not endemic still has bars. */
+  --chart-bar: var(--lab-endemic, var(--color-moss-700));
+  --chart-peak: var(--fg);
 }
 
 [data-lab] [data-surface="plate"] {
@@ -228,6 +236,147 @@ html:lang(en) [data-lab] {
 }
 
 /*
+ * The same seven steps, one or two rungs down, below 768px.
+ *
+ * Not an eighth size and not a new idiom: direction.md gives a phone column for
+ * every row of the type scale, and a heading's step genuinely depends on the
+ * viewport AND on the content. A species name of six Hanzi is `hero` on a
+ * desktop and `display` on a phone; a name of nine drops a step on both. Only
+ * the caller knows which, so the caller says both and this picks.
+ *
+ * Declared after the plain steps at equal specificity, so inside the query the
+ * phone step wins on source order. Nothing here may set a family or a weight —
+ * the step it is modifying already did.
+ */
+@media (max-width: 767px) {
+  [data-lab] .t-sm-note {
+    font-size: var(--text-note);
+    line-height: var(--lh-note);
+  }
+  [data-lab] .t-sm-body {
+    font-size: var(--text-body);
+    line-height: var(--lh-body);
+  }
+  [data-lab] .t-sm-lead {
+    font-size: var(--text-lead);
+    line-height: var(--lh-lead);
+  }
+  [data-lab] .t-sm-head {
+    font-size: var(--text-head);
+    line-height: var(--lh-head);
+  }
+  [data-lab] .t-sm-title {
+    font-size: var(--text-title);
+    line-height: var(--lh-title);
+  }
+  [data-lab] .t-sm-display {
+    font-size: var(--text-display);
+    line-height: var(--lh-display);
+  }
+}
+
+/*
+ * A heading's SIZE without a heading's VOICE.
+ *
+ * Home's seven route links are `text-head` in the functional face at 700, not
+ * in the display face (direction.md §4). That is not a detail: the display
+ * weight is allowed on at most two headings per viewport (§2.3), and a block of
+ * seven 28px names all set in it is precisely the forestry-bureau look that
+ * rule exists to prevent. The Field journal reaches the same place from the
+ * other side — the Ming face is that direction's whole voice, so everything
+ * functional is system sans.
+ *
+ * Declared after the seven steps so it wins on source order at equal
+ * specificity; it is only ever worn on top of one of them.
+ */
+[data-lab] .t-plain {
+  font-family: var(--font-body);
+  font-weight: 700;
+}
+
+/*
+ * Tailwind's weight utilities still work in here.
+ *
+ * The shared rule above sets `font-weight: inherit` so a size class cannot
+ * carry a browser's default bold into a paragraph — and at `[data-lab] .t-lead`
+ * that beats a bare `.font-bold` on specificity. Nothing said so: every sign
+ * label, every row name and the project's name in the band were rendering at
+ * 400 while their class list said 700, which is exactly the failure mode a
+ * missing Tailwind token has. Restated here at matching specificity.
+ */
+[data-lab] .font-bold {
+  font-weight: 700;
+}
+
+[data-lab] .font-normal {
+  font-weight: 400;
+}
+
+/* ---- the two steps that change with the viewport ----------------------- */
+
+/*
+ * The project's name on home, and the line under it. Everywhere else a step is
+ * chosen by what the type IS; these two are chosen by how much room there is.
+ *
+ * Still one of the seven sizes — the variables only pick which one. Roundel
+ * takes `title` on a phone and `hero` on a desktop, which is §2.3's rule that
+ * every h1 on a phone is `title` and the home name is the site's one `hero`. A
+ * direction whose hero step is small enough to hold eight Hanzi inside a 390px
+ * screen says so by pointing `--text-masthead` at `--text-hero` at every width.
+ *
+ * `--masthead-measure` is where the name may break. 福爾摩沙守望計畫 breaks only
+ * between 福爾摩沙 and 守望計畫 (§2.3), and four Hanzi is 4em at any step, so a
+ * 4em measure puts the break in that one place and nowhere else. `none` leaves
+ * it on one line, which is what a phone wants when all eight fit inside the
+ * gutters — 320px at 40px against 358px of room.
+ */
+[data-lab] {
+  --text-masthead: var(--text-title);
+  --lh-masthead: var(--lh-title);
+  --masthead-measure: none;
+}
+
+@media (min-width: 768px) {
+  [data-lab] {
+    --text-masthead: var(--text-hero);
+    --lh-masthead: var(--lh-hero);
+    --masthead-measure: 4em;
+  }
+}
+
+[data-lab] .t-masthead {
+  font-family: var(--font-display);
+  font-weight: var(--weight-display);
+  font-feature-settings: "palt" 1;
+  text-wrap: balance;
+  letter-spacing: 0;
+  line-break: strict;
+  font-size: var(--text-masthead);
+  line-height: var(--lh-masthead);
+}
+
+/* Latin takes the column's own measure: 4em of "Project FormosaWatch" is two
+   and a half words, and the name is not Chinese text on the English page. */
+[data-lab] .t-masthead:lang(zh-TW) {
+  max-width: var(--masthead-measure);
+}
+
+/* Body on a phone, lead on a desktop (§4). One sentence under the name; at
+   `lead` on a 390px screen it costs a third line and pushes the sign down. */
+[data-lab] .t-tagline {
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  line-height: var(--lh-body);
+}
+
+@media (min-width: 768px) {
+  [data-lab] .t-tagline {
+    font-size: var(--text-lead);
+    line-height: var(--lh-lead);
+  }
+}
+
+/*
  * A label — a sign's words, a table head, a legend break. It takes `palt` with
  * the headings because it is not prose, but it does NOT take the display face:
  * a lab map route must load no web font at all, and the map's one visible control is
@@ -284,6 +433,21 @@ html [data-lab] :lang(la) {
   border-color: var(--input-rule);
 }
 
+/*
+ * The one live component the lab's chrome borrows, and the one place it fails.
+ *
+ * `LanguageSwitcher` tells the locale you are NOT on apart by opacity alone,
+ * which is a deliberate choice live — it sits on three different grounds there
+ * and any fixed colour is unreadable on one of them. At 60% that is 3.1:1 on
+ * the Field journal's paper band, which axe fails and sunlight fails harder.
+ * The lab may not edit a live file, so it raises the floor for its own copy:
+ * 75% is 6.8:1 on this paper and 7.3:1 on the forest band, and the locale you
+ * are on is still told apart by weight and by `aria-current`.
+ */
+[data-lab] .lab-lang button:not([aria-current="true"]) {
+  opacity: 0.75;
+}
+
 /* ---- page furniture ---------------------------------------------------- */
 
 /* Room for the fixed phone tab bar, which is 64px plus the safe area. Written
@@ -301,6 +465,61 @@ html [data-lab] :lang(la) {
 
 [data-lab] .lab-tabbar {
   padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/*
+ * A map that is a picture of one taxon, not an instrument.
+ *
+ * PORTRAIT, because the island is tall: 480x600 on a desktop and the column
+ * width by 4:5 on a phone (358x448, direction.md's 358x440 to within two
+ * pixels). The landscape panel the live species page uses spends two thirds of
+ * its area on the Taiwan Strait and the Pacific, and shrinks the one thing the
+ * figure is of.
+ *
+ * `aspect-ratio` rather than a height, so there is one number to change and the
+ * phone case falls out of the column width instead of being a second breakpoint.
+ */
+[data-lab] .lab-map-portrait {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+}
+
+/*
+ * MapLibre's own zoom buttons are 29px, which is under every target floor this
+ * design has. They are the only interface inside the frame, so they are sized
+ * here rather than hidden — a figure you cannot zoom is a screenshot.
+ */
+[data-lab] .lab-map-portrait .maplibregl-ctrl-group button {
+  width: 44px;
+  height: 44px;
+}
+
+/*
+ * The report flow's button bar. On a phone it is pinned to the bottom safe
+ * area, so the flow has to leave room for it — a caption line, an 8px gap, a
+ * 56px sign and 16px of padding top and bottom, plus whatever the device keeps
+ * for its home indicator. From 1024px the flow is two panes and the button sits
+ * at the foot of the left one, where nothing overlaps and the reserve is wrong.
+ */
+[data-lab] .lab-flow-bottom {
+  padding-bottom: calc(144px + env(safe-area-inset-bottom, 0px));
+}
+
+[data-lab] .lab-flow-bar {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@media (min-width: 1024px) {
+  [data-lab] .lab-flow-bottom {
+    padding-bottom: 0;
+  }
+
+  [data-lab] .lab-flow-bar {
+    padding-bottom: 0;
+  }
 }
 
 /*
