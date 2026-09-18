@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { setRequestLocale } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { mapFilterSchema } from "@conservation/shared";
 import { asPublic } from "@/lib/db";
 import LabHeader from "@/components/lab/chrome/LabHeader";
@@ -119,6 +119,7 @@ export default async function LabMapPage({
   const parsed = mapFilterSchema.safeParse(sp);
   const initialFilter = parsed.success ? parsed.data : {};
 
+  const nav = await getTranslations("nav");
   const [years, initialSpecies] = await Promise.all([
     getYears(),
     initialFilter.taxonId ? namedTaxon(initialFilter.taxonId) : null,
@@ -130,6 +131,12 @@ export default async function LabMapPage({
     // viewport height that the strip has already spent some of.
     <main className="lab-page-bottom flex min-h-0 flex-1 flex-col">
       <LabHeader direction={direction} variant="map" current="map" />
+      {/* The only page in the lab with nothing on it that could be an h1: the
+          map IS the content, and direction.md §4 deletes the header stats that
+          were standing in for a title. Heard, not seen — and it names the page
+          in the live catalogue's own word, so a prototype is not inventing
+          vocabulary for the one heading a screen reader lands on first. */}
+      <h1 className="sr-only">{nav("map")}</h1>
       <div className="relative min-h-0 flex-1">
         <LabMap
           maptilerKey={process.env.NEXT_PUBLIC_MAPTILER_KEY || undefined}

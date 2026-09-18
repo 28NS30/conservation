@@ -69,7 +69,11 @@ export default function Receipt({
       data-surface="plate"
       className="flex min-h-[100dvh] flex-col bg-(--ground) text-(--fg)"
     >
-      <div className="mx-auto w-full max-w-5xl flex-1 px-(--gutter) py-16">
+      {/* A `<main>`, not a div. The receipt replaces the whole flow — the
+          FlowShell and its own main are gone by the time this renders — so
+          without it the one screen a reporter is left looking at has no main
+          landmark and no content inside any landmark at all. */}
+      <main className="mx-auto w-full max-w-5xl flex-1 px-(--gutter) py-16">
         <Emblem size={160} className="h-40 w-40" />
         <PageTitle size="title" className="mt-10">
           {heading}
@@ -108,7 +112,7 @@ export default function Receipt({
             {copy.receipt.backToMap}
           </Button>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

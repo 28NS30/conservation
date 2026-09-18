@@ -168,9 +168,15 @@ export default function DerivationSeam({
   ];
 
   return (
-    <section className="lab-strip">
+    // Named, because a `<section>` is only a landmark when it has an accessible
+    // name — without one, every word in this panel is content a screen-reader
+    // user can reach only by walking the whole document, which is what axe's
+    // `region` rule was failing on all four report routes.
+    <section className="lab-strip" aria-labelledby="lab-seam-title">
       <div className="mx-auto w-full max-w-5xl px-(--gutter) py-10">
-        <h2 className="t-lead font-bold">{copy.seam.title}</h2>
+        <h2 id="lab-seam-title" className="t-lead font-bold">
+          {copy.seam.title}
+        </h2>
         <p className="t-note mt-2 opacity-80">{copy.seam.lead}</p>
 
         <dl className="mt-6 grid grid-cols-2 gap-x-6">

@@ -216,6 +216,21 @@ html:lang(en) [data-lab] {
   font-weight: var(--weight-display);
   font-feature-settings: "palt" 1;
   text-wrap: balance;
+  /* At 320px — which is not a phone anybody sells, it is a 390px phone whose
+     owner turned on larger text — one Latin word can be wider than the screen.
+     "FormosaWatch" at the journal's 48px masthead is 330px in 272px of column,
+     and *Cuora flavomarginata* does the same to the withheld species page's
+     h1. Hanzi is unaffected: it breaks between characters already. Without
+     this the page scrolls sideways, which is the one layout failure a reader
+     cannot work around.
+
+     `anywhere` rather than `break-word`, which was tried first and did not
+     work. The two behave identically once a line is being laid out; they
+     differ in that only `anywhere` lets the word break count towards the
+     element's MIN-CONTENT size. The heading here is a shrink-to-fit flex item,
+     so its width was still being computed from the unbroken word — the text
+     wrapped and the box stayed 362px wide inside a 320px screen. */
+  overflow-wrap: anywhere;
 }
 
 [data-lab] .t-head {
@@ -351,6 +366,7 @@ html:lang(en) [data-lab] {
   text-wrap: balance;
   letter-spacing: 0;
   line-break: strict;
+  overflow-wrap: anywhere;
   font-size: var(--text-masthead);
   line-height: var(--lh-masthead);
 }
@@ -443,8 +459,16 @@ html [data-lab] :lang(la) {
  * The lab may not edit a live file, so it raises the floor for its own copy:
  * 75% is 6.8:1 on this paper and 7.3:1 on the forest band, and the locale you
  * are on is still told apart by weight and by `aria-current`.
+ *
+ * The separator between the two locales is the same failure one element over,
+ * and it was missed the first time because it is punctuation rather than a
+ * control: `<span class="opacity-40">/</span>` is 3.3:1 on the forest band and
+ * 3.4:1 on the strip. Overriding the utility class by name is deliberate — it
+ * names exactly what is being raised, in the one file that is allowed to have
+ * an opinion about a live component's colours.
  */
-[data-lab] .lab-lang button:not([aria-current="true"]) {
+[data-lab] .lab-lang button:not([aria-current="true"]),
+[data-lab] .lab-lang .opacity-40 {
   opacity: 0.75;
 }
 

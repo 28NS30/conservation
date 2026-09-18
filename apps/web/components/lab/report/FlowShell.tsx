@@ -85,7 +85,10 @@ export default function FlowShell({
             <span className="t-lead t-label font-bold">{t("report")}</span>
           </Link>
           <div className="flex shrink-0 items-center gap-4">
-            <LanguageSwitcher className="t-note" />
+            {/* `lab-lang` raises the inactive locale and the separator between
+                the two out of the 3.3:1 the live component leaves them at on
+                this band; see base.css. */}
+            <LanguageSwitcher className="t-note lab-lang" />
             <Link
               href={home}
               className="t-body inline-flex min-h-11 items-center text-(--fg)"

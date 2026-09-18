@@ -40,6 +40,7 @@
     "@types/node": "^26.1.2",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "axe-core": "^4.13.0",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.0",
     "pbf": "^5.1.2",

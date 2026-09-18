@@ -29,6 +29,11 @@ import type { Locale } from "@/i18n/routing";
  * A client component for one reason: it needs the current path to work out
  * what the same page looks like in the other direction, and which live route
  * this is a redesign of.
+ *
+ * A `<nav>` rather than a `<div>`, because it is four links out of this page
+ * and because content outside every landmark is content a screen-reader user
+ * reaches only by walking the whole document: axe's `region` rule failed every
+ * lab route on exactly this, six nodes at a time.
  */
 export default function LabStrip({
   copy,
@@ -55,7 +60,7 @@ export default function LabStrip({
   const live = LAB_ROUTES.find((route) => route.sub === sub)?.live ?? "/";
 
   return (
-    <div className="lab-strip">
+    <nav className="lab-strip" aria-label={copy.lab.indexTitle}>
       <div className="mx-auto flex w-full max-w-(--container-page) flex-wrap items-center gap-x-6 gap-y-1 px-(--gutter) py-1">
         <span className="t-note py-2 opacity-80">{copy.lab.banner}</span>
         {direction ? (
@@ -86,8 +91,8 @@ export default function LabStrip({
         >
           {copy.lab.indexTitle}
         </Link>
-        <LanguageSwitcher className="t-note ml-auto" />
+        <LanguageSwitcher className="t-note lab-lang ml-auto" />
       </div>
-    </div>
+    </nav>
   );
 }
