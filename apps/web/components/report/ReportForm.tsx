@@ -121,6 +121,7 @@ function ReportFormFields({
     console.error("[report] submission failed:", code, detail ?? "");
     setError(describeFailure(code));
   }, []);
+
   /**
    * The server's whole answer, not just the id.
    *
@@ -360,13 +361,17 @@ function ReportFormFields({
    * species that no longer exists was reported nowhere near the picker that
    * chose it. `role="alert"` because it appears in response to an action the
    * reporter just took and is the answer to it.
+   *
+   * The rule is ember and the words are ink. A filled ember panel is what the
+   * success card is, and the palette has no red, so a failure drawn as one
+   * would have been the good news in the same clothes.
    */
+  const ALERT =
+    "border-l-4 border-ember-700 pl-3 text-sm leading-relaxed text-ink-800";
+
   const errorIn = (slot: ErrorSlot) =>
     error?.slot === slot ? (
-      <p
-        role="alert"
-        className="mt-2 rounded-lg border border-ember-700/35 bg-ember-500/10 px-3 py-2 text-xs leading-relaxed text-ember-700"
-      >
+      <p role="alert" className={`mt-2 ${ALERT}`}>
         {t(`errors.${error.key}`)}
       </p>
     ) : null;
@@ -743,10 +748,7 @@ function ReportFormFields({
 
       {errorIn("form")}
       {queueFailed && (
-        <p
-          role="alert"
-          className="rounded-lg border border-ink-900/25 bg-paper-200 px-3 py-2 text-xs leading-relaxed text-ink-800"
-        >
+        <p role="alert" className={ALERT}>
           {tOffline("queueFailed")}
         </p>
       )}
