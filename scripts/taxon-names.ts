@@ -88,11 +88,20 @@ export function loadCrosswalk(path = CROSSWALK_PATH): Map<string, CrosswalkEntry
 export type TaxonRow = {
   id: number;
   taicol_id: string;
+  parent_taicol_id: string | null;
   scientific_name: string;
   common_name_zh: string | null;
   rank: string | null;
   is_in_taiwan: boolean;
   taxon_status: string | null;
+  /**
+   * The two fields the obscuring trigger reads. The matcher never looks at them
+   * — what an animal is called cannot depend on how closely it is guarded — but
+   * the remap has to compare them across a rename to see whether following a
+   * name has quietly dropped a protection. See remap-gbif-taxa.ts.
+   */
+  sensitivity: string | null;
+  protected_status: string | null;
 };
 
 /** Everything the matcher needs to know about the local `taxa` table. */
@@ -197,8 +206,8 @@ export function matchTaxon(
  */
 export async function loadTaxonIndex(sql: Sql): Promise<TaxonIndex> {
   const rows = await sql<TaxonRow[]>`
-    select id, taicol_id, scientific_name, common_name_zh, rank,
-           is_in_taiwan, taxon_status
+    select id, taicol_id, parent_taicol_id, scientific_name, common_name_zh, rank,
+           is_in_taiwan, taxon_status, sensitivity, protected_status
       from taxa
      order by is_in_taiwan desc, (taxon_status = 'accepted') desc, id`;
   const byName = new Map<string, TaxonRow>();
