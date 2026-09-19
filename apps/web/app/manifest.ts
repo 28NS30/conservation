@@ -11,10 +11,13 @@ import { withBase } from "@/lib/basePath";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
+    // A manifest is served once for the whole site, before any locale is known,
+    // so it cannot read the catalogues and these two lines are `site.description`
+    // in both languages, copied. test/copy-truth.test.mjs keeps them honest.
     name: "福爾摩沙守望計畫 · Project FormosaWatch",
-    short_name: "生態守望",
+    short_name: "福爾摩沙守望",
     description:
-      "台灣路殺、外來入侵種與環境通報的公開熱點地圖。A public heatmap of roadkill, invasive species and environmental reports across Taiwan.",
+      "臺灣的公開野生動物紀錄地圖，資料來自路殺社（TaiRON），任何人都能通報。An open map of wildlife records for Taiwan, built on TaiRON roadkill data. Anyone can add a report.",
     start_url: withBase("/"),
     display: "standalone",
     background_color: "#0b1410",
