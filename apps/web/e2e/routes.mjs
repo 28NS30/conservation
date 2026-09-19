@@ -98,7 +98,14 @@ export const ROUTES = [
       // the public view, so any id it links to is one a visitor may already
       // see. A hardcoded id would be a slice-specific id that CI does not have.
       from: "/reports",
-      pattern: /\/reports\/([A-Za-z0-9-]{6,})(?:["'?#]|$)/,
+      // The full UUID shape, not "six or more of these characters". The loose
+      // pattern half-matched: the streamed RSC payload carries the same href
+      // split across a chunk boundary, so the FIRST match in the document was
+      // `f8bc64fc-b06d-` — a real prefix of a real id, 22 characters long, and
+      // a 404. Every sweep then reported the record page as broken while it
+      // was serving 200 to the whole id.
+      pattern:
+        /\/reports\/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/,
       env: "QA_REPORT_ID",
     },
   },
@@ -114,7 +121,17 @@ export const ROUTES = [
   { name: "stats", path: "/stats", settle: 3500 },
   { name: "season", path: "/season", settle: 2500 },
   { name: "about", path: "/about", settle: 2500 },
-  { name: "team", path: "/team", settle: 2500 },
+  {
+    name: "team",
+    path: "/team",
+    settle: 2500,
+    // 404 today, and correctly: lib/team.ts publishes the page only when the
+    // roster is non-empty, and it is empty until each person has consented
+    // (個資法). Recorded as the expected status rather than dropped, so that the
+    // day the roster lands this check fails and says to change this line —
+    // which is better than a page quietly never being swept again.
+    expectStatus: 404,
+  },
   { name: "attribution", path: "/attribution", settle: 2000 },
   { name: "privacy", path: "/privacy", settle: 2000 },
   { name: "login", path: "/login", settle: 2500 },

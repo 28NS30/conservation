@@ -25,6 +25,8 @@
  */
 import { chromium } from "playwright";
 import { fileURLToPath } from "node:url";
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   BASE,
   LOCALES,
@@ -33,6 +35,8 @@ import {
   resolveIds,
   routesFor,
 } from "./routes.mjs";
+
+const KNOWN_PATH = join(import.meta.dirname, "reflow-known.json");
 
 /**
  * @param page      a Playwright page already loaded at the route
@@ -111,6 +115,10 @@ async function main() {
 
   const browser = await chromium.launch();
   const failures = [];
+  const file = JSON.parse(readFileSync(KNOWN_PATH, "utf8"));
+  const known = file.known ?? {};
+  const seen = new Set();
+  const stale = new Set(Object.keys(known));
   let checked = 0;
   for (const route of routes) {
     for (const locale of LOCALES) {
@@ -137,18 +145,54 @@ async function main() {
       await page.waitForTimeout(route.settle ?? 2500);
       const errs = await checkWidths(page, REFLOW_WIDTHS, null);
       checked += REFLOW_WIDTHS.length;
-      if (errs.length) failures.push({ path, errs });
-      console.log(`  ${errs.length ? "FAIL" : "ok  "} ${path}`);
+      // Split against the recorded list before deciding. An entry is
+      // `path@width`, so a page listed at 320 still fails at 390: the ratchet
+      // forgives the defect that was there, not the page.
+      const fresh = [];
+      for (const e of errs) {
+        const w = /at (\d+)px/.exec(e)?.[1];
+        const key = `${path}@${w}`;
+        if (known[key]) {
+          seen.add(key);
+          stale.delete(key);
+        } else fresh.push(e);
+      }
+      if (fresh.length) failures.push({ path, errs: fresh });
+      console.log(
+        `  ${fresh.length ? "FAIL" : errs.length ? "known" : "ok  "} ${path}`,
+      );
       await ctx.close();
     }
   }
   await browser.close();
+
+  if (process.env.UPDATE_REFLOW === "1") {
+    const next = { note: file.note, known: {} };
+    for (const k of [...seen].sort())
+      next.known[k] = { why: known[k]?.why ?? "RECORDED, NOT EXPLAINED" };
+    for (const f of failures)
+      for (const e of f.errs) {
+        const w = /at (\d+)px/.exec(e)?.[1];
+        next.known[`${f.path}@${w}`] = { why: "RECORDED, NOT EXPLAINED" };
+      }
+    writeFileSync(KNOWN_PATH, JSON.stringify(next, null, 2) + "\n");
+    console.log(`\n  recorded ${Object.keys(next.known).length} known reflow failure(s)`);
+    console.log("  Every RECORDED, NOT EXPLAINED line needs a reason or a fix.");
+    return 0;
+  }
+
+  // A recorded failure that has gone away has to leave the file, or the list
+  // becomes a graveyard nobody trusts and a page can quietly start scrolling
+  // again under an entry that was about something else.
+  for (const k of stale)
+    console.log(`  fixed  ${k} no longer scrolls. Remove it: UPDATE_REFLOW=1 node e2e/reflow.spec.mjs`);
 
   if (failures.length) {
     console.error("\n" + JSON.stringify(failures, null, 2));
     console.error(`\n  ${failures.length} page(s) scroll sideways`);
     return 1;
   }
+  if (stale.size) return 1;
   console.log(`\n  no sideways scroll in ${checked} page/width combinations`);
   return 0;
 }
