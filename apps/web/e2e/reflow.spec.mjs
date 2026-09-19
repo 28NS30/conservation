@@ -181,18 +181,27 @@ async function main() {
     return 0;
   }
 
-  // A recorded failure that has gone away has to leave the file, or the list
+  // A recorded failure that has gone away should leave the file, or the list
   // becomes a graveyard nobody trusts and a page can quietly start scrolling
-  // again under an entry that was about something else.
+  // again under an entry that was about something else. It is a notice rather
+  // than a failure, because whether one of these reproduces depends on the
+  // DATA: /species overflows on a row whose Chinese name is long, and CI runs
+  // against a thin fixture that has no such row. The same entry is therefore
+  // genuinely present locally and genuinely absent in CI, and failing on that
+  // would make the gate red on a difference in the seed rather than in the
+  // markup. What must stay hard is the other direction — a width that scrolls
+  // and is not recorded — and it does.
   for (const k of stale)
-    console.log(`  fixed  ${k} no longer scrolls. Remove it: UPDATE_REFLOW=1 node e2e/reflow.spec.mjs`);
+    console.log(
+      `  fixed  ${k} did not scroll in this run. If it is fixed for good: UPDATE_REFLOW=1 node e2e/reflow.spec.mjs`,
+    );
 
   if (failures.length) {
     console.error("\n" + JSON.stringify(failures, null, 2));
     console.error(`\n  ${failures.length} page(s) scroll sideways`);
     return 1;
   }
-  if (stale.size) return 1;
+
   console.log(`\n  no sideways scroll in ${checked} page/width combinations`);
   return 0;
 }
