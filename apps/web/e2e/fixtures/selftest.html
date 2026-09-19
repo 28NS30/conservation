@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>QA harness self-test fixture</title>
+<!--
+  A page with known defects, so the checks can be checked.
+
+  Every element here is either a defect one of the audits must find, or a
+  lookalike it must NOT report. The lookalikes are the point: the contrast
+  audit's history in this repo is a history of phantom failures — overlay text
+  measured against the page behind a map, opaque colours read as 5% alpha — and
+  a checker that reports six things when three are real is a checker people
+  learn to ignore.
+
+  The colours are the site's own tokens and the ratios beside them are what
+  they measure at, so a change in the arithmetic shows up here rather than on a
+  page nobody was watching.
+-->
+<style>
+  :root { --color-bark-950: #0b1410; }
+  body { background: #faf7f0; color: #14201a; font-family: system-ui, sans-serif; margin: 0; padding: 16px; }
+  /* bark-900 with black text: the shape of the chip that shipped at 1.06:1. */
+  .chip { background: #0f1c16; color: #000000; padding: 4px 8px; border-radius: 99px; font-size: 13px; }
+  /* parchment-500, the token every muted caption and rank number used. */
+  .muted { color: #8b8270; font-size: 14px; }
+  /* ink-600, the body colour. */
+  .fine { color: #435b4c; font-size: 16px; }
+  .overlay { background: transparent; padding: 8px; }
+  /* parchment-100 over the map: 14.6:1 on the ground, 1.19:1 on the page. */
+  .overlay p { color: #ece2cd; font-size: 14px; }
+  .wide { width: 420px; background: #ddd; }
+  .scroller { overflow-x: auto; max-width: 100%; }
+  .scroller .inner { width: 900px; }
+</style>
+</head>
+<body>
+  <h1 class="fine">Self-test fixture</h1>
+
+  <!-- MUST be reported: parchment-500 on paper-50 is 3.55:1 and needs 4.5. This
+       is the caption colour the original audit was written to catch. -->
+  <p class="muted" id="muted-4">A muted caption that looks fine and is not.</p>
+
+  <!-- MUST be reported: 1.20:1. It has an element child, which an earlier
+       version of the audit used to skip — that is how a chip shipped black on
+       near-black at 1.06 with the page reported clean. -->
+  <button class="chip" id="chip-1"><span aria-hidden="true">●</span> 回報</button>
+
+  <!-- MUST NOT be reported: ink-600 on paper is 6.91:1. -->
+  <p class="fine" id="fine-ok">Ordinary body text on the page's own surface.</p>
+
+  <!-- MUST NOT be reported: parchment over the map, 14.6:1 on the ground. The
+       DOM says the background is transparent and the page behind it is light,
+       so without the marker this reads as 1.19:1 — the phantom failure the
+       marker exists to stop. -->
+  <div class="overlay" data-on-dark id="on-dark"><p>Legend over the map canvas</p></div>
+
+  <!-- Same, with W2's renamed marker and an explicit ground. -->
+  <div class="overlay on-field" style="--ground:#0b1410" id="on-field"><p>Legend after the rename</p></div>
+
+  <!-- MUST be reported by the reflow sweep at 320px, by name. -->
+  <div class="wide" id="wide">420px of something that will not fit on a phone.</div>
+
+  <!-- MUST NOT be reported: a wide table inside its own scroller is how a wide
+       table is supposed to behave. -->
+  <div class="scroller"><div class="inner">A table that scrolls inside itself.</div></div>
+
+  <!-- MUST be reported by axe: no label, no accessible name. -->
+  <input type="text" id="unlabelled">
+
+  <!-- MUST NOT be reported by axe. -->
+  <label for="labelled">Species</label>
+  <input type="text" id="labelled">
+
+  <!-- MUST be reported by axe: image-alt. -->
+  <img id="no-alt" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" width="24" height="24">
+</body>
+</html>

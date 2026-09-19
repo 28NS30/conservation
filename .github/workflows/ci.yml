@@ -126,3 +126,39 @@ jobs:
           name: map-render
           path: apps/web/e2e/map-render.png
           if-no-files-found: ignore
+
+      # ---- QA harness (W13) ------------------------------------------------
+      # Appended, not woven in, so the branches adding their own steps above
+      # this line merge without a conflict. Everything here needs the Chromium
+      # installed further up, and everything except the self-test needs the
+      # server started further up.
+      #
+      # axe and contrast are NOT here yet, deliberately. Both ratchet against a
+      # recorded list of today's known issues, and neither list has ever been
+      # recorded, because this harness was written without a server to record
+      # it from. They run nightly in gallery.yml instead. The first nightly run
+      # prints what is actually there; once somebody records it
+      # (UPDATE_A11Y=1 / UPDATE_CONTRAST=1 and a reason per line), move the two
+      # steps here — they are written to be moved, not rewritten.
+
+      - name: The audits still find what they are for
+        # Three seconds, no server, no database: it serves one fixture page with
+        # a chip at 1.20:1, a 420px block and an unlabelled input, and fails if
+        # the contrast, reflow or axe engines stop reporting them. Every bug
+        # these audits have ever had made them report LESS, and a silent audit
+        # is indistinguishable from a clean site.
+        run: npm run test:selftest --workspace @conservation/web
+
+      - name: No page scrolls sideways on a phone
+        # Every route in both locales at 320 and 390. 320 is the WCAG reflow
+        # width — what a 390px phone becomes when its owner turns on larger
+        # text. This was live on two English pages, where a Latin binomial is
+        # three times the width of the Chinese name beside it.
+        run: npm run test:reflow --workspace @conservation/web
+
+      - name: The map's load path is intact
+        # Structural only, and hard: both MapLibre modulepreload hints, the
+        # OpenFreeMap preconnect and style preload, no webfont on /map, every
+        # tile gzipped, CLS under 0.05. The byte and millisecond budgets print
+        # and do not fail until someone records them against production.
+        run: npm run test:perf --workspace @conservation/web
