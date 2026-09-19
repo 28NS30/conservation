@@ -51,6 +51,13 @@
       "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
       "records": 86
     },
+    "Bungarus multicinctus multicinctus": {
+      "taicol_id": "t0076900",
+      "scientific_name": "Bungarus multicinctus",
+      "common_name_zh": "雨傘節",
+      "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
+      "records": 1153
+    },
     "Canis lupus familiaris": {
       "taicol_id": "t0085383",
       "scientific_name": "Canis familiaris",
@@ -86,6 +93,13 @@
       "via": "taicol:nameMatch",
       "records": 47
     },
+    "Cinclidium leucurum montium": {
+      "taicol_id": "t0085957",
+      "scientific_name": "Myiomela leucura montium",
+      "common_name_zh": "白尾鴝",
+      "via": "taicol:nameMatch",
+      "records": 23
+    },
     "Coturnix chinensis": {
       "taicol_id": "t0033180",
       "scientific_name": "Synoicus chinensis",
@@ -99,6 +113,13 @@
       "common_name_zh": "長尾麝鼩",
       "via": "taicol:nameMatch",
       "records": 23
+    },
+    "Crocidura rapax lutaoensis": {
+      "taicol_id": "t0085509",
+      "scientific_name": "Crocidura tadae",
+      "common_name_zh": "長尾麝鼩",
+      "via": "taicol:nameMatch",
+      "records": 5
     },
     "Crocidura rapax tadae": {
       "taicol_id": "t0085509",
@@ -128,12 +149,26 @@
       "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
       "records": 1
     },
+    "Enhydris plumbea": {
+      "taicol_id": "t0029845",
+      "scientific_name": "Hypsiscopus wettsteini",
+      "common_name_zh": "韋氏水蛇",
+      "via": "taicol:nameMatch",
+      "records": 29
+    },
     "Episoriculus fumidus": {
       "taicol_id": "t0028978",
       "scientific_name": "Pseudosoriculus fumidus",
       "common_name_zh": "臺灣長尾鼩",
       "via": "taicol:nameMatch",
       "records": 11
+    },
+    "Eptesicus serotinus horikawai": {
+      "taicol_id": "t0085642",
+      "scientific_name": "Cnephaeus pachyomus horikawai",
+      "common_name_zh": "堀川氏棕蝠",
+      "via": "taicol:nameMatch",
+      "records": 21
     },
     "Eutropis multicarinata borealis": {
       "taicol_id": "t0085662",
@@ -233,6 +268,13 @@
       "via": "taicol:nameMatch",
       "records": 1268
     },
+    "Kaloula pulchra pulchra": {
+      "taicol_id": "t0046131",
+      "scientific_name": "Kaloula pulchra",
+      "common_name_zh": "花狹口蛙",
+      "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
+      "records": 51
+    },
     "Kerivoula titania": {
       "taicol_id": "t0066568",
       "scientific_name": "Kerivoula furva",
@@ -268,12 +310,26 @@
       "via": "taicol:nameMatch",
       "records": 4
     },
+    "Locustella ochotensis": {
+      "taicol_id": "t0097239",
+      "scientific_name": "Helopsaltes ochotensis",
+      "common_name_zh": "北蝗鶯",
+      "via": "taicol:nameMatch",
+      "records": 8
+    },
     "Locustella pleskei": {
       "taicol_id": "t0029576",
       "scientific_name": "Helopsaltes pleskei",
       "common_name_zh": "史氏蝗鶯",
       "via": "taicol:nameMatch",
       "records": 2
+    },
+    "Macropisthodon rudis rudis": {
+      "taicol_id": "t0032205",
+      "scientific_name": "Pseudagkistrodon rudis",
+      "common_name_zh": "擬龜殼花",
+      "via": "taicol:nameMatch",
+      "records": 114
     },
     "Megalaima nuchalis": {
       "taicol_id": "t0037193",
@@ -330,6 +386,20 @@
       "common_name_zh": "田鼷鼠",
       "via": "taicol:nameMatch",
       "records": 64
+    },
+    "Niltava vivida vivida": {
+      "taicol_id": "t0098057",
+      "scientific_name": "Niltava vivida",
+      "common_name_zh": "黃腹琉璃",
+      "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
+      "records": 4
+    },
+    "Ninox japonica totogo": {
+      "taicol_id": "t0085970",
+      "scientific_name": "Ninox japonica japonica",
+      "common_name_zh": "褐鷹鴞",
+      "via": "taicol:nameMatch",
+      "records": 3
     },
     "Ovophis monticola makazayazaya": {
       "taicol_id": "t0086035",
@@ -413,6 +483,13 @@
       "scientific_name": "Pyrrhula owstoni",
       "common_name_zh": "灰鷽",
       "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
+      "records": 1
+    },
+    "Pyrrhula nipalensis uchidae": {
+      "taicol_id": "t0100976",
+      "scientific_name": "Pyrrhula nipalensis uchidai",
+      "common_name_zh": "褐鷽",
+      "via": "taicol:nameMatch",
       "records": 1
     },
     "Python molurus bivittatus": {
@@ -531,6 +608,20 @@
       "taicol_id": "t0070677",
       "scientific_name": "Agropsar philippensis",
       "common_name_zh": "小椋鳥",
+      "via": "taicol:nameMatch",
+      "records": 1
+    },
+    "Sturnus cineraceus": {
+      "taicol_id": "t0103438",
+      "scientific_name": "Spodiopsar cineraceus",
+      "common_name_zh": "灰椋鳥",
+      "via": "taicol:nameMatch",
+      "records": 3
+    },
+    "Sturnus sericeus": {
+      "taicol_id": "t0039487",
+      "scientific_name": "Spodiopsar sericeus",
+      "common_name_zh": "絲光椋鳥",
       "via": "taicol:nameMatch",
       "records": 1
     },

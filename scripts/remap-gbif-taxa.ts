@@ -399,6 +399,8 @@ type Group = {
   newTaxon: TaxonRow | null;
   /** What `verbatim_name` becomes: null once a taxon is known, the name otherwise. */
   verbatim: string | null;
+  /** A rating to preserve as `precision_override`; see blurToKeep(). */
+  keepBlur: string | null;
   via: string;
   sourceIds: string[];
   /** precision → count, filled from the database. */
@@ -591,7 +593,20 @@ async function main() {
     if (!n) continue;
     const want = matchTaxon(idx, live, n.parts);
     const newId = want.taxon?.id ?? null;
-    if (newId === r.taxon_id) continue;
+
+    // Include a record when it disagrees with THIS database OR with what the
+    // original matcher would have produced. The second half is what makes the
+    // hand-over SQL a statement about a freshly imported database rather than a
+    // diff against whatever this one happens to hold: run the script twice and
+    // the first run's own corrections would otherwise drop out of the second
+    // run's output, so the file handed to the owner would silently omit exactly
+    // the records it had already fixed here — 46 bat roosts among them, which
+    // are the ones that most needed to travel.
+    const asImported =
+      (n.parts.species
+        ? (idx.byNameAny.get(n.parts.species.trim().toLowerCase())?.id ?? null)
+        : null) ?? null;
+    if (newId === r.taxon_id && newId === asImported) continue;
 
     const key = `${n.published ?? ""}|${r.taxon_id ?? ""}|${newId ?? ""}`;
     let g = groups.get(key);
@@ -601,6 +616,7 @@ async function main() {
         gbifSpecies: n.parts.species ?? null,
         oldTaxon: r.taxon_id != null ? (taxaById.get(r.taxon_id) ?? null) : null,
         newTaxon: want.taxon,
+        keepBlur: null,
         verbatim: want.verbatim,
         via: want.via,
         sourceIds: [],
@@ -613,6 +629,11 @@ async function main() {
     }
     g.sourceIds.push(r.source_id);
   }
+
+  // Decided once, here, and read by both the transaction below and the SQL the
+  // owner is handed — the two used to compute it separately, which is how they
+  // came to disagree about 29 records of a protected snake.
+  for (const g of groups.values()) g.keepBlur = blurToKeep(idx, g);
 
   const changing = [...groups.values()].reduce((n, g) => n + g.sourceIds.length, 0);
   console.log(`Changes: ${changing.toLocaleString()} records in ${groups.size} groups\n`);
@@ -665,11 +686,24 @@ async function main() {
            -- page as if nobody had identified the animal; dropping it from a row
            -- that loses its taxon would leave the page with nothing to say.
            set taxon_id = m.new_taxon_id,
-               verbatim_name = m.verbatim
+               verbatim_name = m.verbatim,
+               -- Same value the hand-over SQL carries, from the same function,
+               -- so what this measures is what the owner would get. An override
+               -- can only tighten (0003_reporting.sql), so a null here leaves
+               -- whatever the row already had.
+               precision_override = coalesce(m.keep_blur, r.precision_override)
           from remap m
          where r.source = 'gbif'
            and r.source_id = m.source_id
-           and r.taxon_id is distinct from m.new_taxon_id`;
+           -- Also when only the override needs setting. A row can already carry
+           -- the right taxon and still be missing the blur that taxon's parent
+           -- rating demands — which is exactly the state a previous run of this
+           -- script leaves behind — and skipping it here while the hand-over SQL
+           -- (which has no such condition) sets it is how the two files come to
+           -- describe different databases.
+           and (r.taxon_id is distinct from m.new_taxon_id
+                or (m.keep_blur is not null
+                    and r.precision_override is distinct from m.keep_blur))`;
       console.log(`  updated ${res.count.toLocaleString()} rows`);
 
       overallAfter = histogram(
@@ -721,18 +755,20 @@ async function loadRemapTable(tx: postgres.TransactionSql, groups: Map<string, G
              source_id text primary key,
              new_taxon_id bigint,
              verbatim text,
+             keep_blur text,
              grp text not null) on commit drop`;
   const rows = [...groups.entries()].flatMap(([grp, g]) =>
     g.sourceIds.map((source_id) => ({
       source_id,
       new_taxon_id: g.newTaxon?.id ?? null,
       verbatim: g.verbatim,
+      keep_blur: g.keepBlur,
       grp,
     })),
   );
   for (let i = 0; i < rows.length; i += 2000) {
     const slice = rows.slice(i, i + 2000);
-    await tx`insert into remap ${tx(slice, "source_id", "new_taxon_id", "verbatim", "grp")}`;
+    await tx`insert into remap ${tx(slice, "source_id", "new_taxon_id", "verbatim", "keep_blur", "grp")}`;
   }
 }
 
@@ -835,12 +871,79 @@ function direction(g: Group): "loosens" | "tightens" | "unchanged" {
  * carry a rating is not the same situation, and climbing further would sweep in
  * whole families.
  */
+/**
+ * The rating to keep, so that correcting a NAME never weakens a blur.
+ *
+ * Two ways it otherwise would. TaiCOL files sensitivity on the species row, so
+ * following TaiRON's own name down to the subspecies it published lands on an
+ * unrated row: 46 Formosan leaf-nosed bat roosts, 重度, would have been
+ * published at their exact coordinates. And TaiCOL withdraws names —
+ * `Enhydris plumbea` is 座標不開放 on two deleted rows while its accepted
+ * successor `Hypsiscopus wettsteini` carries protected III and nothing else, so
+ * 29 records of a protected snake would have moved from withheld to a 10 km
+ * pin. Withdrawing a name is not a judgement that the animal is safe to map,
+ * and nobody made that judgement.
+ *
+ * So the strictest rating anyone has attached to this animal — the parent
+ * species', the withdrawn row's, whichever wins — is stamped as
+ * `precision_override`. The trigger takes the most conservative of (taxon
+ * policy, override), so the name gets more accurate and the map does not get
+ * more revealing. Where the new taxon is itself stricter, its own policy wins
+ * and this does nothing.
+ *
+ * Records with no old taxon are the exception, and are meant to be: only
+ * migration 0011's blanket blur covered them, nothing ever said that animal was
+ * sensitive, and naming it is exactly how that gets answered.
+ */
+function blurToKeep(idx: TaxonIndex, g: Group): string | null {
+  if (!g.newTaxon) return null;
+  const rated = (c: TaxonRow | null): c is TaxonRow =>
+    Boolean(c && (c.sensitivity || c.protected_status));
+  // `g.oldTaxon` is what THIS database holds, which is not necessarily what the
+  // target database holds: run this twice and the second run sees the first
+  // run's answer as the old one, so a rating that was dropped in between is
+  // invisible to it. The taxon the ORIGINAL matcher would have chosen — GBIF's
+  // `species` field, no filters — is what production is actually sitting on, so
+  // it is the third candidate and the reason this file is safe to re-run.
+  const asImported = g.gbifSpecies
+    ? (idx.byNameAny.get(g.gbifSpecies.trim().toLowerCase()) ?? null)
+    : null;
+  const candidates = [ratingOneRankUp(idx, g.newTaxon), g.oldTaxon, asImported]
+    .filter(rated)
+    .map(precisionFromTaxon)
+    .sort((a, b) => PRECISION_ORDER.indexOf(a) - PRECISION_ORDER.indexOf(b));
+  const strictest = candidates[0];
+  const newPolicy = precisionFromTaxon(g.newTaxon);
+  return strictest &&
+    PRECISION_ORDER.indexOf(strictest) < PRECISION_ORDER.indexOf(newPolicy)
+    ? strictest
+    : null;
+}
+
 function ratingOneRankUp(idx: TaxonIndex, t: TaxonRow | null): TaxonRow | null {
   if (!t || t.rank !== "Subspecies") return null;
   if (t.sensitivity || t.protected_status) return null;
   const parent = t.parent_taicol_id ? idx.byTaicolId.get(t.parent_taicol_id) : null;
   if (!parent) return null;
   return parent.sensitivity || parent.protected_status ? parent : null;
+}
+
+/**
+ * `precision_from_taxon` in TypeScript, so the SQL can carry the blur a
+ * rank-up match would otherwise drop.
+ *
+ * Kept deliberately identical to supabase/migrations/0003_reporting.sql. If that
+ * policy ever changes, this is the second place to change — which is a cost, and
+ * the alternative was worse: asking the database what a taxon's policy would be
+ * means the answer only exists after the UPDATE that needs it.
+ */
+function precisionFromTaxon(t: TaxonRow): string {
+  const s = t.sensitivity;
+  if (s === "座標不開放") return "suppressed";
+  if (s === "重度" || s === "縣市") return "coarse_50km";
+  if (s === "輕度") return "coarse_10km";
+  if (t.protected_status) return "coarse_10km";
+  return "exact";
 }
 
 const rating = (t: TaxonRow | null | undefined) =>
@@ -1036,8 +1139,22 @@ function writeSql(idx: TaxonIndex, groups: Map<string, Group>) {
     );
     const lit = (v: string) => `'${v.replaceAll("'", "''")}'`;
     if (g.newTaxon) {
+      // TaiCOL files sensitivity on the species row, so following TaiRON's own
+      // name down to the subspecies it published lands on a row with no rating
+      // and the trigger would publish a 重度 animal at its exact coordinate —
+      // 46 Formosan leaf-nosed bat roosts, among others. The identification is
+      // right and should stand; what must not happen is a taxonomic refinement
+      // quietly deciding an animal is safe to map. `precision_override` is
+      // exactly the lever for that: the trigger takes the most conservative of
+      // (taxon policy, override), so stamping the PARENT's policy keeps the blur
+      // while the name gets more accurate. Nobody has to sign off a disclosure
+      // that no longer happens.
+      const keepBlur = g.keepBlur;
       out.push(
         `update reports set taxon_id = (select id from taxa where taicol_id = ${lit(g.newTaxon.taicol_id)}),`,
+        keepBlur
+          ? `                   precision_override = ${lit(keepBlur)},`
+          : `                   precision_override = precision_override,`,
         `                   verbatim_name = null`,
         // Without this guard a taicol_id the target database happens not to hold
         // would make the subquery NULL and quietly un-identify every row below.

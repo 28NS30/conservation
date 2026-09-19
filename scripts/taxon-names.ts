@@ -109,6 +109,14 @@ export type TaxonIndex = {
   /** lower-cased scientific name → best taxon under that name. */
   byName: Map<string, TaxonRow>;
   byTaicolId: Map<string, TaxonRow>;
+  /**
+   * The same index WITHOUT the accepted-only filter, for one narrow purpose:
+   * working out what a database that ran the old matcher is holding right now.
+   * Never use it to decide what a record should become — a withdrawn name is
+   * not an identification — only to find the rating that database is applying,
+   * so a correction cannot quietly drop it. See blurToKeep().
+   */
+  byNameAny: Map<string, TaxonRow>;
 };
 
 /**
@@ -211,13 +219,29 @@ export async function loadTaxonIndex(sql: Sql): Promise<TaxonIndex> {
       from taxa
      order by is_in_taiwan desc, (taxon_status = 'accepted') desc, id`;
   const byName = new Map<string, TaxonRow>();
+  const byNameAny = new Map<string, TaxonRow>();
   const byTaicolId = new Map<string, TaxonRow>();
   for (const r of rows) {
-    if (r.rank === "Species" || r.rank === "Subspecies") {
+    // Accepted rows only. The ordering above puts accepted first, which settles
+    // a tie between two rows sharing a name — but 2,405 taxa are `deleted`, and
+    // a deleted row whose name nothing else carries wins outright. That is how a
+    // name match lands on a row TaiCOL has withdrawn, whose parent is usually
+    // withdrawn too, so the rating that should have been inherited is not found
+    // and the record is published precisely. `elevatedSubspecies` already
+    // requires accepted; this is the same rule, twenty lines up, where it was
+    // missing.
+    if (
+      (r.rank === "Species" || r.rank === "Subspecies") &&
+      r.taxon_status === "accepted"
+    ) {
       const k = r.scientific_name.toLowerCase();
       if (!byName.has(k)) byName.set(k, r);
     }
+    if (r.rank === "Species" || r.rank === "Subspecies") {
+      const k = r.scientific_name.toLowerCase();
+      if (!byNameAny.has(k)) byNameAny.set(k, r);
+    }
     if (!byTaicolId.has(r.taicol_id)) byTaicolId.set(r.taicol_id, r);
   }
-  return { byName, byTaicolId };
+  return { byName, byNameAny, byTaicolId };
 }
