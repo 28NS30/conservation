@@ -660,6 +660,21 @@ types without checking them, so until `scripts/tsconfig.json` existed they were
 the only TypeScript in the repo that nothing verified — and they are the code
 that talks to GBIF, TaiCOL and the database.
 
+Since the redesign started there is a second layer, described in full in
+[`docs/qa-harness.md`](docs/qa-harness.md). One route table (`apps/web/e2e/routes.mjs`)
+drives every page-level check, so a new page is registered once rather than in
+five scripts. Per pull request CI also runs a reflow sweep of every route at 320
+and 390 in both locales, the structural half of the map's load path (both
+MapLibre `modulepreload` hints, the OpenFreeMap `preconnect`, no webfont, every
+tile gzipped), and a three-second self-test that aims the contrast, reflow and
+axe engines at a fixture with known defects — because every bug those audits have
+had made them report *less*, and a silent audit looks exactly like a clean site.
+
+The slow half runs nightly and on demand in `.github/workflows/gallery.yml`: a
+screenshot of every page in both locales at 390/768/1440 into one HTML gallery,
+plus axe and a WCAG AA contrast audit of the rendered pages. Take a "before"
+with `gh workflow run gallery.yml` when you are about to rebuild a page.
+
 ## Publishing back to GBIF
 
 `npm run export:dwca` writes a Darwin Core Archive to `data/export/dwca/`.
