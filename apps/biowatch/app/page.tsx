@@ -124,7 +124,14 @@ export default async function Home() {
               {
                 n: "2",
                 h: "It gets identified",
-                b: "Open models do the first pass — species from a photograph, matched against the national checklist rather than the whole world. Confident results stand; uncertain ones go to a human instead of guessing.",
+                // Present tense, for something no model has ever done. The
+                // classifier is a daily job that has never been deployed, which
+                // is why this branch rewrote the four strings on the site that
+                // said otherwise; this one describes the method rather than the
+                // project, so it was not on the list and survived. What follows
+                // is what actually happens today. The classifier is still the
+                // plan, and the tile below still promises no proprietary one.
+                b: "The person who saw it names the animal, or says they could not. Anything unnamed waits for a person to identify it before it appears — by hand, with no timetable. An open model will take the first pass when one is switched on.",
               },
               {
                 n: "3",
