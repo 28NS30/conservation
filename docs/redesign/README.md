@@ -38,12 +38,27 @@ the record of what actually shipped — including the places where a brief turne
 | W0a | Tell the reporter what the server actually said | [#49](https://github.com/28NS30/conservation/pull/49) |
 | — | All five merged and verified together | [#50](https://github.com/28NS30/conservation/pull/50) |
 
-Two things changed against the plan. **W0c is short of its brief**: the GBIF taxon remap (its steps
+Then, also without a design decision:
+
+| | | |
+|---|---|---|
+| W0c steps 7–9 | The GBIF taxon remap, cut from #47 | [#52](https://github.com/28NS30/conservation/pull/52) |
+| W13 | The QA harness | [#53](https://github.com/28NS30/conservation/pull/53) |
+| W1 | The design lab: two directions, four pages | [#51](https://github.com/28NS30/conservation/pull/51) |
+
+Four things changed against the plan. **W0c is short of its brief**: the GBIF taxon remap (its steps
 7–9) was cut, because it is the largest and riskiest work in the tier and W0e already contains the
 privacy consequence. The naming fault it fixes is still live — 狼 still holds 14 dog records, 鼬獾 is
 still both the 11th most-reported animal and absent from the species directory — and it needs its own
 change. **W0a gained two fixes a reviewer found**: an unguarded write that would have turned the new
 receipt page into an oracle, and the discovery that `published` does not mean publicly visible.
+
+**W1 is trimmed**, per this plan's own critique below: the recommended direction is built across
+home, map, report and species, the runner-up on home alone. Home is the page that settles taste, and
+it saved about five days on the critical path. **The remap turned out to be a privacy change, not a
+naming one** — correcting a name can weaken a blur, because TaiCOL files sensitivity on the species
+row and withdraws names without withdrawing the judgement behind them. It ships with the loosening
+at zero rather than with a disclosure to sign off.
 
 Everything below this line is as planned on 18 September and has not been rewritten to match.
 
