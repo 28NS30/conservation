@@ -1,0 +1,4 @@
+{
+  "note": "Known text/background pairs under WCAG AA, keyed by colour, size and weight rather than by wording so a copy edit does not rewrite this file. The count is how many route/locale/width cells the pair appears in, and it may never rise. Record a deliberate exception with a reason; re-record after a fix with UPDATE_CONTRAST=1 node e2e/contrast.spec.mjs. Ships empty for the same reason a11y-known.json does: no server was available when this was written, so the first run against the site is what records the baseline. _contrast.mjs last reported parchment-500 at 4.05:1 and a chip at 1.06:1 before dark-tokens-on-light landed; whether either survives is what the first run answers.",
+  "known": {}
+}
