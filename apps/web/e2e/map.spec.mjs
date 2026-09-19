@@ -8,6 +8,20 @@
  * screenshot tools — will show a healthy basemap over a permanently empty data
  * layer, with no errors, which is indistinguishable from a real bug. Headless
  * Chromium runs rAF normally, so this is the only way to verify the paint.
+ *
+ * IT NOW FAILS. Until this commit it printed a JSON report and exited 0 come
+ * what may, so CI's "Map renders end to end" proved that Chromium launched and
+ * nothing else: a missing window.__map, a layer MapLibre had rejected, a
+ * console error and a map drawing no features at all were all reported in the
+ * output and all passed. Everything printed before is still printed — the
+ * report is genuinely useful when something breaks — and five of those
+ * conditions now exit 1.
+ *
+ * The screenshot is no longer committed. apps/web/e2e/map-render.png was in
+ * git, 228 KB, rewritten by every run and compared against nothing: six commits
+ * of binary churn pretending to be a baseline. It is written to the same path,
+ * which .gitignore now covers and which ci.yml already uploads as an artifact,
+ * so it is there when a failure needs looking at.
  */
 import { chromium } from "playwright";
 import { join } from "node:path";
@@ -119,3 +133,46 @@ console.log(
 console.log(`screenshot -> ${SHOT}`);
 
 await browser.close();
+
+/*
+ * What has to be true for this page to be working.
+ *
+ * Platform-only 404s are excluded the way pages.spec.mjs excludes them:
+ * Vercel serves /_vercel/insights/script.js itself, and under `next start` —
+ * which is how CI and any self-hosted deploy runs — it cannot exist. Treating
+ * that as a failure fails every run and reads as a site-wide breakage.
+ */
+const PLATFORM_ONLY = /_vercel|favicon/;
+const real = consoleErrors.filter(
+  (e) => /^(error|pageerror):/.test(e) && !PLATFORM_ONLY.test(e),
+);
+const served = tileRequests.filter((t) => t.startsWith("200 "));
+// The mode the map is actually drawing in. A layer that is present but hidden
+// is not evidence of anything.
+const active = Object.entries(state.renderedByMode ?? {}).filter(
+  ([, v]) => v.visible,
+);
+
+const problems = [];
+if (state.error) problems.push(state.error + " — build with NEXT_PUBLIC_E2E=1");
+if (state.missingLayers?.length)
+  problems.push(
+    `MapLibre rejected ${state.missingLayers.join(", ")} at addLayer time. It logs and carries on rendering without the layer, which is how a bad circle-radius blanked the dots across five zoom levels.`,
+  );
+if (!served.length)
+  problems.push(`no /api/tiles/ response came back 200 (saw ${tileRequests.length})`);
+if (!active.length) problems.push("no data layer is visible in the active mode");
+else if (!active.some(([, v]) => v.features > 0))
+  problems.push(
+    `the visible layer(s) ${active.map(([id]) => id).join(", ")} drew 0 features. Either the paint broke or the database this ran against has no published reports in view.`,
+  );
+if (real.length) problems.push(...real);
+
+if (problems.length) {
+  console.error("\n  the map did not render:");
+  for (const p of problems) console.error(`    ${p}`);
+  process.exit(1);
+}
+console.log(
+  `\n  map renders: ${active.map(([id, v]) => `${id} ${v.features} features`).join(", ")}, ${served.length} tile(s) served`,
+);
