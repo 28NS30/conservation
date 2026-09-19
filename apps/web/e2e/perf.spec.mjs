@@ -39,24 +39,70 @@ const BUDGET_PATH = join(import.meta.dirname, "perf-budget.json");
 /** A webfont on /map would block the first paint of a page that has none today. */
 const FONT = /\.(woff2?|ttf|otf|eot)(\?|$)|fonts\.(googleapis|gstatic)\.com/i;
 
-/** MapLibre's two module chunks and the basemap style, as MapHints.tsx names them. */
-export function checkHints(html) {
+/**
+ * MapLibre's two module chunks and the basemap style, as MapHints.tsx names
+ * them, read as attributes rather than matched as text.
+ *
+ * An earlier version of this was four regexes over the raw HTML with the
+ * attributes in the order React happens to emit them today. That is a test of
+ * React's serialiser, not of the hints: `href` before `rel` would have failed
+ * every one of them while the page was perfectly correct.
+ */
+export const WANTED = [
+  {
+    what: "modulepreload maplibre-gl.mjs",
+    ok: (l) => l.rel === "modulepreload" && /\/maplibre-gl\.mjs(\?|$)/.test(l.href),
+  },
+  {
+    what: "modulepreload maplibre-gl-shared.mjs",
+    ok: (l) => l.rel === "modulepreload" && /\/maplibre-gl-shared\.mjs(\?|$)/.test(l.href),
+  },
+  {
+    what: "preconnect tiles.openfreemap.org",
+    ok: (l) => l.rel === "preconnect" && l.href.includes("tiles.openfreemap.org"),
+  },
+  {
+    what: "preload of the OpenFreeMap style",
+    ok: (l) => l.rel === "preload" && l.href.includes("tiles.openfreemap.org"),
+  },
+];
+
+/** Every <link> in a string of HTML, as {rel, href, as}. */
+export function linkTags(html) {
+  return [...html.matchAll(/<link\b[^>]*>/gi)].map((m) => {
+    const attr = (name) =>
+      (m[0].match(new RegExp(`\\b${name}=("[^"]*"|'[^']*'|[^\\s>]+)`, "i")) ?? [])[1]?.replace(/^['"]|['"]$/g, "") ?? "";
+    return { rel: attr("rel"), href: attr("href"), as: attr("as") };
+  });
+}
+
+/**
+ * @param html  the document as it arrived
+ * @param dom   the links in the page after hydration
+ *
+ * A hint that is in the DOM but not in the HTML is reported separately and does
+ * not fail. app/[locale]/map/layout.tsx exists so these reach the first HTML
+ * flush rather than the streamed page behind the statistics query, so arriving
+ * late is worth saying out loud — but it is a weaker claim than "the hint is
+ * gone", and only the strong one should stop a merge.
+ */
+export function checkHints(html, dom = []) {
+  const inHtml = linkTags(html);
   const errs = [];
-  const want = [
-    [/rel="modulepreload"[^>]*maplibre-gl\.mjs|maplibre-gl\.mjs[^>]*rel="modulepreload"/, "modulepreload maplibre-gl.mjs"],
-    [
-      /rel="modulepreload"[^>]*maplibre-gl-shared\.mjs|maplibre-gl-shared\.mjs[^>]*rel="modulepreload"/,
-      "modulepreload maplibre-gl-shared.mjs",
-    ],
-    [/rel="preconnect"[^>]*tiles\.openfreemap\.org/, "preconnect tiles.openfreemap.org"],
-    [/rel="preload"[^>]*tiles\.openfreemap\.org[^>]*as="fetch"|as="fetch"[^>]*tiles\.openfreemap\.org/, "preload of the OpenFreeMap style"],
-  ];
-  for (const [re, what] of want)
-    if (!re.test(html))
-      errs.push(
-        `${what} is missing from the HTML. components/map/MapHints.tsx is where it comes from; deleting a line there is silent everywhere else.`,
+  const late = [];
+  for (const want of WANTED) {
+    if (inHtml.some(want.ok)) continue;
+    if (dom.some(want.ok)) {
+      late.push(
+        `${want.what} is in the DOM but not in the HTML that arrived. app/[locale]/map/layout.tsx puts MapHints outside the Suspense boundary precisely so it reaches the first flush.`,
       );
-  return errs;
+      continue;
+    }
+    errs.push(
+      `${want.what} is missing. components/map/MapHints.tsx is where it comes from; deleting a line there is silent everywhere else, and it is worth about half a second of first tile on a phone over 4G.`,
+    );
+  }
+  return { errs, late };
 }
 
 /** One load of a page, reporting what it fetched and how fast it painted. */
@@ -86,6 +132,15 @@ async function load(browser, path, { width = 1440, locale = "zh-TW" } = {}) {
   const res = await page.goto(BASE + path, { waitUntil: "load" }).catch(() => null);
   const html = res ? await res.text().catch(() => "") : "";
   await page.waitForTimeout(path.includes("map") ? 9000 : 4000);
+  const domLinks = await page
+    .evaluate(() =>
+      [...document.querySelectorAll("link")].map((l) => ({
+        rel: l.getAttribute("rel") ?? "",
+        href: l.getAttribute("href") ?? "",
+        as: l.getAttribute("as") ?? "",
+      })),
+    )
+    .catch(() => []);
 
   const vitals = await page.evaluate(
     () =>
@@ -113,7 +168,7 @@ async function load(browser, path, { width = 1440, locale = "zh-TW" } = {}) {
       }),
   );
   await ctx.close();
-  return { html, fonts, tiles, firstTile, requests, ...vitals };
+  return { html, domLinks, fonts, tiles, firstTile, requests, ...vitals };
 }
 
 const kb = (n) => Math.round(n / 1024);
@@ -133,7 +188,9 @@ async function main() {
   // and a routing change can drop them from one twin and not the other.
   for (const path of ["/map", "/en/map"]) {
     const r = await load(browser, path, { locale: path.startsWith("/en") ? "en-US" : "zh-TW" });
-    errs.push(...checkHints(r.html).map((e) => `${path}: ${e}`));
+    const hints = checkHints(r.html, r.domLinks);
+    errs.push(...hints.errs.map((e) => `${path}: ${e}`));
+    soft.push(...hints.late.map((e) => `${path}: ${e}`));
     if (r.fonts.length)
       errs.push(
         `${path}: ${r.fonts.length} font request(s) — ${r.fonts[0]}. This page loads no webfont today; adding one to the map's layout delays the first paint of the heaviest page on the site.`,

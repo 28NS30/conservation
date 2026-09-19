@@ -27,6 +27,7 @@ import { auditContrast, ratchet as contrastRatchet, signature } from "./contrast
 import { checkWidths } from "./reflow.spec.mjs";
 import { runAxe, ratchet as a11yRatchet } from "./a11y.spec.mjs";
 import { galleryHtml } from "./shots.mjs";
+import { checkHints, linkTags } from "./perf.spec.mjs";
 import { LOCALES, ROUTES, SHOT_WIDTHS, shotName } from "./routes.mjs";
 
 const FIXTURE = readFileSync(join(import.meta.dirname, "fixtures", "selftest.html"));
@@ -150,6 +151,32 @@ check(
     "axe ratchet counts cells, not nodes, so the size of the database cannot move it",
     a11yRatchet([{ id: "label", route: "login", nodes: 99 }], { "label @ login": { cells: 1 } })
       .risen.length === 0,
+  );
+}
+
+/* ---- the map's resource hints ------------------------------------------ */
+
+{
+  // React emits these attributes in whatever order it likes, and a hint is a
+  // hint whichever way round it is written. Both orders, quoted and unquoted.
+  const head = [
+    '<link rel="modulepreload" href="/maplibre/maplibre-gl.mjs"/>',
+    '<link href="/maplibre/maplibre-gl-shared.mjs" rel="modulepreload">',
+    '<link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin="anonymous">',
+    "<link rel=preload as=fetch href=https://tiles.openfreemap.org/styles/dark>",
+  ];
+  check("the four hints are recognised however they are written", checkHints(head.join("")).errs.length === 0, JSON.stringify(checkHints(head.join("")).errs));
+  for (const i of [0, 1]) {
+    const without = head.filter((_, j) => j !== i).join("");
+    check(
+      `deleting preloadModule line ${i + 1} from MapHints.tsx is caught`,
+      checkHints(without).errs.length === 1,
+    );
+  }
+  check(
+    "a hint that only arrives after hydration is reported, but does not fail",
+    checkHints("", linkTags(head.join(""))).errs.length === 0 &&
+      checkHints("", linkTags(head.join(""))).late.length === 4,
   );
 }
 
