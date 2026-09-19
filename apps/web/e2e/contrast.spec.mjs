@@ -275,11 +275,16 @@ async function main() {
   }
   await browser.close();
 
-  const known = JSON.parse(readFileSync(KNOWN_PATH, "utf8")).known ?? {};
+  const file = JSON.parse(readFileSync(KNOWN_PATH, "utf8"));
+  const known = file.known ?? {};
   const { counts, risen, fallen } = ratchet(found, known);
 
   if (process.env.UPDATE_CONTRAST === "1") {
-    const next = { known: {} };
+    // The note is carried over, not rewritten. It is the part of this file that
+    // says what a line in it means, and a recording run that dropped it left
+    // behind a bare list of colour pairs — which is the threshold-in-a-costume
+    // this file exists to avoid. `npm test` fails when it goes missing.
+    const next = { note: file.note, known: {} };
     for (const [k, n] of [...counts].sort()) {
       next.known[k] = { count: n, why: known[k]?.why ?? `first recorded at ${where.get(k)}` };
     }
