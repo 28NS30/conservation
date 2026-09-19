@@ -1,0 +1,106 @@
+name: QA gallery
+
+# The slow half of the QA harness: a screenshot of every page in both locales
+# at three widths, plus the two audits that ratchet against a recorded list.
+#
+# Not on every push, on purpose. The matrix is about a hundred page loads and
+# four minutes of browser time, and a reviewer looks at it when a page is
+# rebuilt — not forty times a day. Per-PR checks live in ci.yml and are the ones
+# that must stay fast.
+#
+#   Run it by hand before and after rebuilding a page:
+#     gh workflow run gallery.yml
+#   then download the `qa-gallery` artifact and open index.html. To compare, put
+#   the earlier run beside it and open index.html?before=../<that dir>.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 18:00 UTC is 02:00 in Taipei: the numbers are not production's, but a
+    # quiet hour keeps the runner honest about timing.
+    - cron: "0 18 * * *"
+
+env:
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+  NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
+  SUPABASE_SERVICE_ROLE_KEY: ci-placeholder
+
+jobs:
+  gallery:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: imresamu/postgis:17-3.5
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Apply migrations
+        run: |
+          for f in supabase/migrations/*.sql; do
+            echo "--- $f"
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$f"
+          done
+
+      - name: Load test fixture
+        # The same thin slice CI uses. Worth saying plainly: the gallery this
+        # produces shows the app's layout, not the country's data. The owner's
+        # sign-off gallery is shot against a Vercel preview with TEST_BASE_URL.
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f supabase/seed-test.sql
+
+      - name: Build
+        # NEXT_PUBLIC_E2E exposes window.__map, which is how the screenshots
+        # wait for the map to have painted instead of sleeping fifteen seconds
+        # at it. The build therefore differs from production by that one guard.
+        env:
+          NEXT_PUBLIC_E2E: "1"
+        run: npm run build
+
+      - name: Start server
+        run: |
+          npm run start --workspace @conservation/web &
+          npx wait-on http://localhost:3000 --timeout 90000
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Screenshot every page
+        run: npm run shots --workspace @conservation/web
+
+      - name: axe over every route, both locales, 390 and 1440
+        # Ratchets against e2e/a11y-known.json, which ships empty: the first run
+        # here is what records what is actually on the site. Until it is
+        # recorded this step is red and its output is the list to record.
+        run: npm run test:a11y --workspace @conservation/web
+
+      - name: WCAG AA contrast on the rendered pages
+        # Same: e2e/contrast-known.json ships empty. `dark-tokens-on-light`
+        # shipped while the file that would have caught it sat in the tree
+        # unrun, which is the whole reason this step exists.
+        run: npm run test:contrast --workspace @conservation/web
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qa-gallery
+          path: apps/web/e2e/shots/
+          if-no-files-found: warn
+          retention-days: 30
