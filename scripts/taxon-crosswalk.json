@@ -1,0 +1,608 @@
+{
+  "generated_by": "scripts/remap-gbif-taxa.ts",
+  "generated_at": "2026-09-19",
+  "names": {
+    "Amphiesma miyajimae": {
+      "taicol_id": "t0065214",
+      "scientific_name": "Hebius miyajimae",
+      "common_name_zh": "金絲蛇",
+      "via": "taicol:nameMatch",
+      "records": 43
+    },
+    "Amphiesma sauteri": {
+      "taicol_id": "t0065215",
+      "scientific_name": "Hebius sauteri",
+      "common_name_zh": "梭德氏游蛇",
+      "via": "taicol:nameMatch",
+      "records": 167
+    },
+    "Anas clypeata": {
+      "taicol_id": "t0032951",
+      "scientific_name": "Spatula clypeata",
+      "common_name_zh": "琵嘴鴨",
+      "via": "taicol:nameMatch",
+      "records": 3
+    },
+    "Anas penelope": {
+      "taicol_id": "t0068483",
+      "scientific_name": "Mareca penelope",
+      "common_name_zh": "赤頸鴨",
+      "via": "taicol:nameMatch",
+      "records": 2
+    },
+    "Anas querquedula": {
+      "taicol_id": "t0032952",
+      "scientific_name": "Spatula querquedula",
+      "common_name_zh": "白眉鴨",
+      "via": "taicol:nameMatch",
+      "records": 1
+    },
+    "Babina adenopleura": {
+      "taicol_id": "t0031142",
+      "scientific_name": "Nidirana adenopleura",
+      "common_name_zh": "腹斑蛙",
+      "via": "taicol:nameMatch",
+      "records": 31
+    },
+    "Bambusicola thoracicus sonorivox": {
+      "taicol_id": "t0057884",
+      "scientific_name": "Bambusicola sonorivox",
+      "common_name_zh": "臺灣竹雞",
+      "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
+      "records": 86
+    },
+    "Canis lupus familiaris": {
+      "taicol_id": "t0085383",
+      "scientific_name": "Canis familiaris",
+      "common_name_zh": "犬",
+      "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
+      "records": 14
+    },
+    "Charadrius alexandrinus dealbatus": {
+      "taicol_id": "t0030340",
+      "scientific_name": "Charadrius dealbatus",
+      "common_name_zh": "白臉鴴",
+      "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
+      "records": 9
+    },
+    "Charadrius mongolus stegmanni": {
+      "taicol_id": "t0085440",
+      "scientific_name": "Anarhynchus mongolus stegmanni",
+      "common_name_zh": "蒙古鴴",
+      "via": "taicol:nameMatch",
+      "records": 1
+    },
+    "Chiromantes dehaani": {
+      "taicol_id": "t0082431",
+      "scientific_name": "Orisarma dehaani",
+      "common_name_zh": "漢氏東方蟹",
+      "via": "taicol:nameMatch",
+      "records": 14
+    },
+    "Chiromantes haematochir": {
+      "taicol_id": "t0078148",
+      "scientific_name": "Chiromantes haematocheir",
+      "common_name_zh": "紅螯螳臂蟹",
+      "via": "taicol:nameMatch",
+      "records": 47
+    },
+    "Coturnix chinensis": {
+      "taicol_id": "t0033180",
+      "scientific_name": "Synoicus chinensis",
+      "common_name_zh": "小鵪鶉",
+      "via": "taicol:nameMatch",
+      "records": 1
+    },
+    "Crocidura rapax kurodai": {
+      "taicol_id": "t0085509",
+      "scientific_name": "Crocidura tadae",
+      "common_name_zh": "長尾麝鼩",
+      "via": "taicol:nameMatch",
+      "records": 23
+    },
+    "Crocidura rapax tadae": {
+      "taicol_id": "t0085509",
+      "scientific_name": "Crocidura tadae",
+      "common_name_zh": "長尾麝鼩",
+      "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
+      "records": 2
+    },
+    "Dendrocopos canicapillus kaleensis": {
+      "taicol_id": "t0103451",
+      "scientific_name": "Yungipicus canicapillus kaleensis",
+      "common_name_zh": "小啄木",
+      "via": "taicol:nameMatch",
+      "records": 5
+    },
+    "Discoplax rotunda": {
+      "taicol_id": "t0061813",
+      "scientific_name": "Tuerkayana rotundum",
+      "common_name_zh": "圓形特氏蟹",
+      "via": "taicol:nameMatch",
+      "records": 11
+    },
+    "Emberiza spodocephala personata": {
+      "taicol_id": "t0085618",
+      "scientific_name": "Emberiza personata",
+      "common_name_zh": "黃喉黑臉鵐",
+      "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
+      "records": 1
+    },
+    "Episoriculus fumidus": {
+      "taicol_id": "t0028978",
+      "scientific_name": "Pseudosoriculus fumidus",
+      "common_name_zh": "臺灣長尾鼩",
+      "via": "taicol:nameMatch",
+      "records": 11
+    },
+    "Eutropis multicarinata borealis": {
+      "taicol_id": "t0085662",
+      "scientific_name": "Eutropis borealis",
+      "common_name_zh": "多稜真稜蜥",
+      "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
+      "records": 1
+    },
+    "Felis silvestris catus": {
+      "taicol_id": "t0063825",
+      "scientific_name": "Felis catus",
+      "common_name_zh": "貓",
+      "via": "local:subspecies-raised-to-species (unconfirmed: taicol matched \"Felis catus\", not the published name)",
+      "records": 82
+    },
+    "Gallirallus striatus taiwanus": {
+      "taicol_id": "t0027446",
+      "scientific_name": "Lewinia striata taiwana",
+      "common_name_zh": "灰胸秧雞",
+      "via": "taicol:nameMatch",
+      "records": 10
+    },
+    "Glaucidium brodiei pardalotum": {
+      "taicol_id": "t0085109",
+      "scientific_name": "Taenioptynx brodiei pardalotus",
+      "common_name_zh": "鵂鶹",
+      "via": "taicol:nameMatch",
+      "records": 7
+    },
+    "Herpestes urva formosanus": {
+      "taicol_id": "t0085747",
+      "scientific_name": "Urva urva formosana",
+      "common_name_zh": "食蟹獴",
+      "via": "taicol:nameMatch",
+      "records": 97
+    },
+    "Himantopus himantopus himantopus": {
+      "taicol_id": "t0029682",
+      "scientific_name": "Himantopus himantopus",
+      "common_name_zh": "高蹺鴴",
+      "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
+      "records": 12
+    },
+    "Hirundo rustica saturata": {
+      "taicol_id": "t0085753",
+      "scientific_name": "Hirundo rustica mandschurica",
+      "common_name_zh": "家燕",
+      "via": "taicol:nameMatch",
+      "records": 8
+    },
+    "Hoplobatrachus rugulosus": {
+      "taicol_id": "t0029740",
+      "scientific_name": "Hoplobatrachus chinensis",
+      "common_name_zh": "虎皮蛙",
+      "via": "taicol:nameMatch",
+      "records": 223
+    },
+    "Ianthocincla poecilorhyncha": {
+      "taicol_id": "t0066146",
+      "scientific_name": "Pterorhinus poecilorhynchus",
+      "common_name_zh": "棕噪眉",
+      "via": "taicol:nameMatch",
+      "records": 2
+    },
+    "Japalura brevipes": {
+      "taicol_id": "t0061704",
+      "scientific_name": "Diploderma brevipes",
+      "common_name_zh": "短肢攀蜥",
+      "via": "taicol:nameMatch",
+      "records": 18
+    },
+    "Japalura luei": {
+      "taicol_id": "t0061705",
+      "scientific_name": "Diploderma luei",
+      "common_name_zh": "呂氏攀蜥",
+      "via": "taicol:nameMatch",
+      "records": 2
+    },
+    "Japalura makii": {
+      "taicol_id": "t0061706",
+      "scientific_name": "Diploderma makii",
+      "common_name_zh": "牧氏攀蜥",
+      "via": "taicol:nameMatch",
+      "records": 14
+    },
+    "Japalura polygonata xanthostoma": {
+      "taicol_id": "t0085581",
+      "scientific_name": "Diploderma polygonatum xanthostomum",
+      "common_name_zh": "黃口攀蜥",
+      "via": "taicol:nameMatch",
+      "records": 91
+    },
+    "Japalura swinhonis": {
+      "taicol_id": "t0028659",
+      "scientific_name": "Diploderma swinhonis",
+      "common_name_zh": "斯文豪氏攀蜥",
+      "via": "taicol:nameMatch",
+      "records": 1268
+    },
+    "Kerivoula titania": {
+      "taicol_id": "t0066568",
+      "scientific_name": "Kerivoula furva",
+      "common_name_zh": "玄彩蝠",
+      "via": "taicol:nameMatch",
+      "records": 3
+    },
+    "Labuanium scandens": {
+      "taicol_id": "t0030540",
+      "scientific_name": "Circulium scandens",
+      "common_name_zh": "攀爬圓鬚蟹",
+      "via": "taicol:nameMatch",
+      "records": 3
+    },
+    "Lanius schach formosae": {
+      "taicol_id": "t0085117",
+      "scientific_name": "Lanius schach schach",
+      "common_name_zh": "棕背伯勞",
+      "via": "taicol:nameMatch",
+      "records": 15
+    },
+    "Lithobates catesbeianus": {
+      "taicol_id": "t0027518",
+      "scientific_name": "Aquarana catesbeiana",
+      "common_name_zh": "美洲牛蛙",
+      "via": "taicol:nameMatch",
+      "records": 14
+    },
+    "Locustella fasciolata": {
+      "taicol_id": "t0029575",
+      "scientific_name": "Helopsaltes fasciolatus",
+      "common_name_zh": "蒼眉蝗鶯",
+      "via": "taicol:nameMatch",
+      "records": 4
+    },
+    "Locustella pleskei": {
+      "taicol_id": "t0029576",
+      "scientific_name": "Helopsaltes pleskei",
+      "common_name_zh": "史氏蝗鶯",
+      "via": "taicol:nameMatch",
+      "records": 2
+    },
+    "Megalaima nuchalis": {
+      "taicol_id": "t0037193",
+      "scientific_name": "Psilopogon nuchalis",
+      "common_name_zh": "五色鳥",
+      "via": "taicol:nameMatch",
+      "records": 119
+    },
+    "Megapomatorhinus erythrocnemis": {
+      "taicol_id": "t0103435",
+      "scientific_name": "Erythrogenys erythrocnemis",
+      "common_name_zh": "大彎嘴",
+      "via": "taicol:nameMatch",
+      "records": 1
+    },
+    "Melogale moschata subaurantiaca": {
+      "taicol_id": "t0027888",
+      "scientific_name": "Melogale subaurantiaca",
+      "common_name_zh": "鼬貛",
+      "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
+      "records": 747
+    },
+    "Mesophoyx intermedia intermedia": {
+      "taicol_id": "t0072176",
+      "scientific_name": "Ardea intermedia",
+      "common_name_zh": "中白鷺",
+      "via": "taicol:nameMatch",
+      "records": 9
+    },
+    "Miniopterus schreibersii fuliginosus": {
+      "taicol_id": "t0069439",
+      "scientific_name": "Miniopterus fuliginosus",
+      "common_name_zh": "東亞摺翅蝠",
+      "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
+      "records": 47
+    },
+    "Mogera insularis insularis": {
+      "taicol_id": "t0085930",
+      "scientific_name": "Mogera insularis",
+      "common_name_zh": "臺灣鼴鼠",
+      "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
+      "records": 151
+    },
+    "Motacilla flava taivana": {
+      "taicol_id": "t0085943",
+      "scientific_name": "Motacilla tschutschensis taivana",
+      "common_name_zh": "東方黃鶺鴒",
+      "via": "taicol:nameMatch",
+      "records": 3
+    },
+    "Mus caroli": {
+      "taicol_id": "t0080708",
+      "scientific_name": "Mus formosanus",
+      "common_name_zh": "田鼷鼠",
+      "via": "taicol:nameMatch",
+      "records": 64
+    },
+    "Ovophis monticola makazayazaya": {
+      "taicol_id": "t0086035",
+      "scientific_name": "Ovophis makazayazaya",
+      "common_name_zh": "瑪家山龜殼花",
+      "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
+      "records": 59
+    },
+    "Paguma larvata taivana": {
+      "taicol_id": "t0086045",
+      "scientific_name": "Paguma larvata larvata",
+      "common_name_zh": "白鼻心",
+      "via": "taicol:nameMatch",
+      "records": 228
+    },
+    "Petaurista alborufus lena": {
+      "taicol_id": "t0086085",
+      "scientific_name": "Petaurista lena",
+      "common_name_zh": "白面鼯鼠",
+      "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
+      "records": 11
+    },
+    "Petaurista philippensis grandis": {
+      "taicol_id": "t0086086",
+      "scientific_name": "Petaurista grandis",
+      "common_name_zh": "大赤鼯鼠",
+      "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
+      "records": 26
+    },
+    "Phylloscopus borealis examinandus": {
+      "taicol_id": "t0084307",
+      "scientific_name": "Phylloscopus examinandus",
+      "common_name_zh": "勘察加柳鶯",
+      "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
+      "records": 1
+    },
+    "Pica pica serica": {
+      "taicol_id": "t0084390",
+      "scientific_name": "Pica serica",
+      "common_name_zh": "喜鵲",
+      "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
+      "records": 11
+    },
+    "Pluvialis squatarola squatarola": {
+      "taicol_id": "t0032028",
+      "scientific_name": "Pluvialis squatarola",
+      "common_name_zh": "灰斑鴴",
+      "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
+      "records": 1
+    },
+    "Porzana fusca phaeopyga": {
+      "taicol_id": "t0086446",
+      "scientific_name": "Zapornia fusca erythrothorax",
+      "common_name_zh": "緋秧雞",
+      "via": "taicol:nameMatch",
+      "records": 22
+    },
+    "Porzana paykullii": {
+      "taicol_id": "t0049086",
+      "scientific_name": "Zapornia paykullii",
+      "common_name_zh": "斑脇秧雞",
+      "via": "taicol:nameMatch",
+      "records": 1
+    },
+    "Porzana pusilla pusilla": {
+      "taicol_id": "t0086447",
+      "scientific_name": "Zapornia pusilla pusilla",
+      "common_name_zh": "小秧雞",
+      "via": "taicol:nameMatch",
+      "records": 1
+    },
+    "Pseudoamolops sauteri": {
+      "taicol_id": "t0032420",
+      "scientific_name": "Rana sauteri",
+      "common_name_zh": "梭德氏赤蛙",
+      "via": "taicol:nameMatch",
+      "records": 157
+    },
+    "Pyrrhula erythaca owstoni": {
+      "taicol_id": "t0032394",
+      "scientific_name": "Pyrrhula owstoni",
+      "common_name_zh": "灰鷽",
+      "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
+      "records": 1
+    },
+    "Python molurus bivittatus": {
+      "taicol_id": "t0037533",
+      "scientific_name": "Python bivittatus",
+      "common_name_zh": "緬甸蟒",
+      "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
+      "records": 12
+    },
+    "Ramphotyphlops braminus": {
+      "taicol_id": "t0027105",
+      "scientific_name": "Indotyphlops braminus",
+      "common_name_zh": "鉤盲蛇",
+      "via": "taicol:nameMatch",
+      "records": 50
+    },
+    "Rhabdophis tigrinus formosanus": {
+      "taicol_id": "t0032460",
+      "scientific_name": "Rhabdophis formosanus",
+      "common_name_zh": "臺灣赤煉蛇",
+      "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
+      "records": 32
+    },
+    "Rhacophorus arvalis": {
+      "taicol_id": "t0028607",
+      "scientific_name": "Zhangixalus arvalis",
+      "common_name_zh": "諸羅樹蛙",
+      "via": "taicol:nameMatch",
+      "records": 22
+    },
+    "Rhacophorus moltrechti": {
+      "taicol_id": "t0028609",
+      "scientific_name": "Zhangixalus moltrechti",
+      "common_name_zh": "莫氏樹蛙",
+      "via": "taicol:nameMatch",
+      "records": 70
+    },
+    "Rhacophorus prasinatus": {
+      "taicol_id": "t0028610",
+      "scientific_name": "Zhangixalus prasinatus",
+      "common_name_zh": "翡翠樹蛙",
+      "via": "taicol:nameMatch",
+      "records": 9
+    },
+    "Rhacophorus taipeianus": {
+      "taicol_id": "t0028611",
+      "scientific_name": "Zhangixalus taipeianus",
+      "common_name_zh": "臺北樹蛙",
+      "via": "taicol:nameMatch",
+      "records": 28
+    },
+    "Rostratula benghalensis benghalensis": {
+      "taicol_id": "t0032548",
+      "scientific_name": "Rostratula benghalensis",
+      "common_name_zh": "彩鷸",
+      "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
+      "records": 95
+    },
+    "Saxicola maurus stejnegeri": {
+      "taicol_id": "t0032643",
+      "scientific_name": "Saxicola stejnegeri",
+      "common_name_zh": "黑喉鴝",
+      "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
+      "records": 1
+    },
+    "Sesarmops intermedius": {
+      "taicol_id": "t0082432",
+      "scientific_name": "Orisarma intermedium",
+      "common_name_zh": "中型東方蟹",
+      "via": "taicol:nameMatch",
+      "records": 14
+    },
+    "Sinomicrurus hatori": {
+      "taicol_id": "t0032871",
+      "scientific_name": "Sinomicrurus sauteri",
+      "common_name_zh": "梭德氏帶紋赤蛇",
+      "via": "taicol:nameMatch",
+      "records": 41
+    },
+    "Sinomicrurus macclellandi swinhoei": {
+      "taicol_id": "t0032872",
+      "scientific_name": "Sinomicrurus swinhoei",
+      "common_name_zh": "斯文豪氏華珊瑚蛇",
+      "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
+      "records": 162
+    },
+    "Sinonatrix annularis": {
+      "taicol_id": "t0032873",
+      "scientific_name": "Trimerodytes annularis",
+      "common_name_zh": "赤腹游蛇",
+      "via": "taicol:nameMatch",
+      "records": 1
+    },
+    "Sinonatrix percarinata suriki": {
+      "taicol_id": "t0086249",
+      "scientific_name": "Trimerodytes percarinatus suriki",
+      "common_name_zh": "白腹游蛇",
+      "via": "taicol:nameMatch",
+      "records": 40
+    },
+    "Streptopelia chinensis chinensis": {
+      "taicol_id": "t0102334",
+      "scientific_name": "Spilopelia chinensis chinensis",
+      "common_name_zh": "珠頸斑鳩",
+      "via": "taicol:nameMatch",
+      "records": 326
+    },
+    "Strix nivicola yamadae": {
+      "taicol_id": "t0033094",
+      "scientific_name": "Strix nivicolum yamadae",
+      "common_name_zh": "東方灰林鴞",
+      "via": "taicol:nameMatch",
+      "records": 2
+    },
+    "Sturnia philippensis": {
+      "taicol_id": "t0070677",
+      "scientific_name": "Agropsar philippensis",
+      "common_name_zh": "小椋鳥",
+      "via": "taicol:nameMatch",
+      "records": 1
+    },
+    "Tachybaptus ruficollis philippensis": {
+      "taicol_id": "t0086319",
+      "scientific_name": "Tachybaptus ruficollis poggei",
+      "common_name_zh": "小鸊鷉",
+      "via": "taicol:nameMatch",
+      "records": 18
+    },
+    "Tamiops maritimus formosanus": {
+      "taicol_id": "t0086327",
+      "scientific_name": "Tamiops maritimus",
+      "common_name_zh": "條紋松鼠",
+      "via": "taicol:nameMatch",
+      "records": 7
+    },
+    "Tarsiger indicus formosanus": {
+      "taicol_id": "t0086329",
+      "scientific_name": "Tarsiger formosanus",
+      "common_name_zh": "臺灣白眉林鴝",
+      "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
+      "records": 1
+    },
+    "Treron sieboldii sororius": {
+      "taicol_id": "t0086376",
+      "scientific_name": "Treron sieboldii sieboldii",
+      "common_name_zh": "綠鳩",
+      "via": "taicol:nameMatch",
+      "records": 11
+    },
+    "Turdus poliocephalus niveiceps": {
+      "taicol_id": "t0048260",
+      "scientific_name": "Turdus niveiceps",
+      "common_name_zh": "白頭鶇",
+      "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
+      "records": 3
+    },
+    "Typhlops koshunensis": {
+      "taicol_id": "t0072217",
+      "scientific_name": "Argyrophis koshunensis",
+      "common_name_zh": "恆春大盲蛇",
+      "via": "taicol:nameMatch",
+      "records": 2
+    },
+    "Uca arcuata": {
+      "taicol_id": "t0048224",
+      "scientific_name": "Tubuca arcuata",
+      "common_name_zh": "弧邊管招潮蟹",
+      "via": "taicol:nameMatch",
+      "records": 2
+    },
+    "Urosphena squameiceps squameiceps": {
+      "taicol_id": "t0028457",
+      "scientific_name": "Urosphena squameiceps",
+      "common_name_zh": "短尾鶯",
+      "via": "local:subspecies-raised-to-species (TaiCOL agrees)",
+      "records": 1
+    },
+    "Viverricula indica taivana": {
+      "taicol_id": "t0086418",
+      "scientific_name": "Viverricula indica pallida",
+      "common_name_zh": "麝香貓",
+      "via": "taicol:nameMatch",
+      "records": 20
+    },
+    "Xenochrophis piscator": {
+      "taicol_id": "t0048853",
+      "scientific_name": "Fowlea flavipunctatus",
+      "common_name_zh": "草花蛇",
+      "via": "taicol:nameMatch",
+      "records": 445
+    }
+  }
+}

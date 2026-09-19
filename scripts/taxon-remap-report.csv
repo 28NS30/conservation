@@ -1,0 +1,357 @@
+direction,records,records_loosened,records_tightened,published_name,gbif_species,old_taxon_id,old_taicol_id,old_scientific_name,old_common_name_zh,new_taxon_id,new_taicol_id,new_scientific_name,new_common_name_zh,precision_before,precision_after,resolved_via,note
+loosens,2004,2004,0,Cyclophiops major,Ptyas major,,,,,30820,t0030820,Cyclophiops major,青蛇,coarse_10km 2004,exact 2004,published,"DISCLOSURE: 2004 record(s) become easier to locate — 0011 blurred them because nobody had identified them, and this names them. Owner sign-off before production."
+loosens,481,481,0,Hylarana guentheri,Sylvirana guentheri,,,,,33142,t0033142,Hylarana guentheri,貢德氏赤蛙,coarse_10km 481,exact 481,published,"DISCLOSURE: 481 record(s) become easier to locate — 0011 blurred them because nobody had identified them, and this names them. Owner sign-off before production."
+loosens,223,223,0,Hoplobatrachus rugulosus,Hoplobatrachus rugulosus,,,,,29740,t0029740,Hoplobatrachus chinensis,虎皮蛙,coarse_10km 223,exact 223,crosswalk,"DISCLOSURE: 223 record(s) become easier to locate — 0011 blurred them because nobody had identified them, and this names them. Owner sign-off before production."
+loosens,119,119,0,Sibynophis chinensis chinensis,Sibynophis chinensis,38899,t0038899,Sibynophis chinensis,黑頭蛇,102407,t0102407,Sibynophis chinensis chinensis,黑頭蛇,coarse_10km 119,exact 119,published,"PROTECTION SITS ONE RANK UP: Sibynophis chinensis is rated 輕度; Sibynophis chinensis chinensis under it is unrated, so the blur falls away with the name. Nobody decided this animal is safe to map. Check before applying."
+loosens,117,117,0,Calamaria pavimentata pavimentata,Calamaria pavimentata,77018,t0077018,Calamaria pavimentata,鐵線蛇,102404,t0102404,Calamaria pavimentata pavimentata,鐵線蛇,coarse_10km 117,exact 117,published,"PROTECTION SITS ONE RANK UP: Calamaria pavimentata is rated 輕度; Calamaria pavimentata pavimentata under it is unrated, so the blur falls away with the name. Nobody decided this animal is safe to map. Check before applying."
+loosens,64,64,0,Mus caroli,Mus caroli,,,,,80708,t0080708,Mus formosanus,田鼷鼠,coarse_10km 64,exact 64,crosswalk,"DISCLOSURE: 64 record(s) become easier to locate — 0011 blurred them because nobody had identified them, and this names them. Owner sign-off before production."
+loosens,46,46,0,Hipposideros armiger terasensis,Hipposideros armiger,97272,t0097272,Hipposideros armiger,臺灣葉鼻蝠,85749,t0085749,Hipposideros armiger terasensis,臺灣葉鼻蝠,coarse_50km 46,exact 46,published,"PROTECTION SITS ONE RANK UP: Hipposideros armiger is rated 重度; Hipposideros armiger terasensis under it is unrated, so the blur falls away with the name. Nobody decided this animal is safe to map. Check before applying."
+loosens,40,40,0,Sinonatrix percarinata suriki,Trimerodytes percarinatus,98884,t0098884,Trimerodytes percarinatus,白腹游蛇,86249,t0086249,Trimerodytes percarinatus suriki,白腹游蛇,coarse_10km 40,exact 40,crosswalk,"PROTECTION SITS ONE RANK UP: Trimerodytes percarinatus is rated 輕度; Trimerodytes percarinatus suriki under it is unrated, so the blur falls away with the name. Nobody decided this animal is safe to map. Check before applying."
+loosens,31,31,0,Cyanoderma ruficeps praecognitum,Stachyridopsis ruficeps,,,,,30810,t0030810,Cyanoderma ruficeps praecognitum,山紅頭,coarse_10km 31,exact 31,published,"DISCLOSURE: 31 record(s) become easier to locate — 0011 blurred them because nobody had identified them, and this names them. Owner sign-off before production."
+loosens,27,27,0,Bubulcus ibis coromandus,Bubulcus coromandus,,,,,29968,t0029968,Bubulcus ibis coromandus,黃頭鷺,coarse_10km 27,exact 27,published,"DISCLOSURE: 27 record(s) become easier to locate — 0011 blurred them because nobody had identified them, and this names them. Owner sign-off before production."
+loosens,23,23,0,Cinclidium leucurum montium,Myiomela leucura,96487,t0096487,Myiomela leucura,白尾鴝,102389,t0102389,Cinclidium leucurum montium,白尾鴝,coarse_10km 23,exact 23,published,"RATING CHANGES WITH THE TAXON: it was on Myiomela leucura (輕度 / III), it is now on Cinclidium leucurum montium (unrated). Expected where the old taxon was the wrong animal; read it anyway."
+loosens,22,22,0,Porzana fusca phaeopyga,Porzana fusca,,,,,86446,t0086446,Zapornia fusca erythrothorax,緋秧雞,coarse_10km 22,exact 22,crosswalk,"DISCLOSURE: 22 record(s) become easier to locate — 0011 blurred them because nobody had identified them, and this names them. Owner sign-off before production."
+loosens,21,21,0,Eptesicus serotinus horikawai,Eptesicus pachyomus,,,,,102474,t0102474,Eptesicus serotinus horikawai,堀川氏棕蝠,coarse_10km 21,exact 21,published,"DISCLOSURE: 21 record(s) become easier to locate — 0011 blurred them because nobody had identified them, and this names them. Owner sign-off before production."
+loosens,14,14,0,Canis lupus familiaris,Canis lupus,97489,t0097489,Canis lupus,狼,85383,t0085383,Canis familiaris,犬,coarse_10km 14,exact 14,crosswalk,"RATING CHANGES WITH THE TAXON: it was on Canis lupus (II), it is now on Canis familiaris (unrated). Expected where the old taxon was the wrong animal; read it anyway."
+loosens,14,14,0,Lithobates catesbeianus,Lithobates catesbeianus,,,,,27518,t0027518,Aquarana catesbeiana,美洲牛蛙,coarse_10km 14,exact 14,crosswalk,"DISCLOSURE: 14 record(s) become easier to locate — 0011 blurred them because nobody had identified them, and this names them. Owner sign-off before production."
+loosens,11,11,0,Episoriculus fumidus,Episoriculus fumidus,,,,,28978,t0028978,Pseudosoriculus fumidus,臺灣長尾鼩,coarse_10km 11,exact 11,crosswalk,"DISCLOSURE: 11 record(s) become easier to locate — 0011 blurred them because nobody had identified them, and this names them. Owner sign-off before production."
+loosens,10,10,0,Gallirallus striatus taiwanus,Gallirallus striatus,,,,,27446,t0027446,Lewinia striata taiwana,灰胸秧雞,coarse_10km 10,exact 10,crosswalk,"DISCLOSURE: 10 record(s) become easier to locate — 0011 blurred them because nobody had identified them, and this names them. Owner sign-off before production."
+loosens,9,9,0,Mesophoyx intermedia intermedia,Egretta intermedia,,,,,72176,t0072176,Ardea intermedia,中白鷺,coarse_10km 9,exact 9,crosswalk,"DISCLOSURE: 9 record(s) become easier to locate — 0011 blurred them because nobody had identified them, and this names them. Owner sign-off before production."
+loosens,9,9,0,Ardea alba modesta,Ardea modesta,,,,,85280,t0085280,Ardea alba modesta,大白鷺,coarse_10km 9,exact 9,published,"DISCLOSURE: 9 record(s) become easier to locate — 0011 blurred them because nobody had identified them, and this names them. Owner sign-off before production."
+loosens,8,8,0,Nyctalus plancyi velutinus,Nyctalus plancyi,98092,t0098092,Nyctalus plancyi,絨山蝠,85987,t0085987,Nyctalus plancyi velutinus,絨山蝠,coarse_10km 8,exact 8,published,"PROTECTION SITS ONE RANK UP: Nyctalus plancyi is rated 輕度; Nyctalus plancyi velutinus under it is unrated, so the blur falls away with the name. Nobody decided this animal is safe to map. Check before applying."
+loosens,5,5,0,Coelops frithii formosanus,Coelops frithii,97748,t0097748,Coelops frithii,無尾葉鼻蝠,85472,t0085472,Coelops frithii formosanus,臺灣無尾葉鼻蝠,coarse_50km 5,coarse_10km 5,published,"RATING CHANGES WITH THE TAXON: it was on Coelops frithii (縣市 / II), it is now on Coelops frithii formosanus (II). Expected where the old taxon was the wrong animal; read it anyway."
+loosens,4,4,0,Locustella fasciolata,Locustella fasciolata,,,,,29575,t0029575,Helopsaltes fasciolatus,蒼眉蝗鶯,coarse_10km 4,exact 4,crosswalk,"DISCLOSURE: 4 record(s) become easier to locate — 0011 blurred them because nobody had identified them, and this names them. Owner sign-off before production."
+loosens,3,3,0,Kerivoula titania,Kerivoula titania,,,,,66568,t0066568,Kerivoula furva,玄彩蝠,coarse_10km 3,exact 3,crosswalk,"DISCLOSURE: 3 record(s) become easier to locate — 0011 blurred them because nobody had identified them, and this names them. Owner sign-off before production."
+loosens,2,2,0,Locustella pleskei,Locustella pleskei,,,,,29576,t0029576,Helopsaltes pleskei,史氏蝗鶯,coarse_10km 2,exact 2,crosswalk,"DISCLOSURE: 2 record(s) become easier to locate — 0011 blurred them because nobody had identified them, and this names them. Owner sign-off before production."
+loosens,1,1,0,Garrulus glandarius taivanus,Garrulus glandarius,97086,t0097086,Garrulus glandarius,松鴉,29283,t0029283,Garrulus glandarius taivanus,松鴉,coarse_10km 1,exact 1,published,"PROTECTION SITS ONE RANK UP: Garrulus glandarius is rated 輕度; Garrulus glandarius taivanus under it is unrated, so the blur falls away with the name. Nobody decided this animal is safe to map. Check before applying."
+loosens,1,1,0,Porzana paykullii,Porzana paykullii,,,,,49086,t0049086,Zapornia paykullii,斑脇秧雞,coarse_10km 1,exact 1,crosswalk,"DISCLOSURE: 1 record(s) become easier to locate — 0011 blurred them because nobody had identified them, and this names them. Owner sign-off before production."
+loosens,1,1,0,Porzana pusilla pusilla,Porzana pusilla,,,,,86447,t0086447,Zapornia pusilla pusilla,小秧雞,coarse_10km 1,exact 1,crosswalk,"DISCLOSURE: 1 record(s) become easier to locate — 0011 blurred them because nobody had identified them, and this names them. Owner sign-off before production."
+loosens,1,1,0,Ixobrychus flavicollis flavicollis,Dupetor flavicollis,,,,,85787,t0085787,Ixobrychus flavicollis flavicollis,黃頸黑鷺,coarse_10km 1,exact 1,published,"DISCLOSURE: 1 record(s) become easier to locate — 0011 blurred them because nobody had identified them, and this names them. Owner sign-off before production."
+loosens,1,1,0,Hierococcyx hyperythrus,Cuculus hyperythrus,,,,,65578,t0065578,Hierococcyx hyperythrus,北方鷹鵑,coarse_10km 1,exact 1,published,"DISCLOSURE: 1 record(s) become easier to locate — 0011 blurred them because nobody had identified them, and this names them. Owner sign-off before production."
+loosens,1,1,0,Larvivora cyane bochaiensis,Luscinia cyane,,,,,85811,t0085811,Larvivora cyane bochaiensis,藍歌鴝(東南亞種),coarse_10km 1,exact 1,published,"DISCLOSURE: 1 record(s) become easier to locate — 0011 blurred them because nobody had identified them, and this names them. Owner sign-off before production."
+loosens,1,1,0,Megapomatorhinus erythrocnemis,Megapomatorhinus erythrocnemis,,,,,103435,t0103435,Erythrogenys erythrocnemis,大彎嘴,coarse_10km 1,exact 1,crosswalk,"DISCLOSURE: 1 record(s) become easier to locate — 0011 blurred them because nobody had identified them, and this names them. Owner sign-off before production."
+tightens,29,0,29,Enhydris plumbea,Hypsiscopus plumbea,102327,t0102327,Hypsiscopus plumbea,,101462,t0101462,Enhydris plumbea,鉛色水蛇,exact 29,suppressed 29,published,newly blurred; safe
+tightens,2,0,2,Ianthocincla poecilorhyncha,Garrulax poecilorhynchus,102382,t0102382,Garrulax poecilorhynchus,棕噪眉,66146,t0066146,Pterorhinus poecilorhynchus,棕噪眉,exact 2,coarse_10km 2,crosswalk,newly blurred; safe
+unchanged,1435,0,0,Passer montanus saturatus,Passer montanus,98364,t0098364,Passer montanus,麻雀,31653,t0031653,Passer montanus saturatus,麻雀,exact 1435,exact 1435,published,
+unchanged,1250,0,0,Streptopelia tranquebarica humilis,Streptopelia tranquebarica,98990,t0098990,Streptopelia tranquebarica,紅鳩,86301,t0086301,Streptopelia tranquebarica humilis,紅鳩,exact 1250,exact 1250,published,
+unchanged,1153,0,0,Bungarus multicinctus multicinctus,Bungarus multicinctus,76900,t0076900,Bungarus multicinctus,雨傘節,101088,t0101088,Bungarus multicinctus multicinctus,雨傘節,exact 1153,exact 1153,published,
+unchanged,1053,0,0,Lycodon rufozonatus rufozonatus,Lycodon rufozonatus,68125,t0068125,Lycodon rufozonatus,紅斑蛇,102405,t0102405,Lycodon rufozonatus rufozonatus,紅斑蛇,exact 1053,exact 1053,published,
+unchanged,891,0,0,Trimeresurus stejnegeri stejnegeri,Trimeresurus stejnegeri,47934,t0047934,Trimeresurus stejnegeri,赤尾青竹絲,102408,t0102408,Trimeresurus stejnegeri stejnegeri,赤尾青竹絲,exact 891,exact 891,published,
+unchanged,747,0,0,Melogale moschata subaurantiaca,Melogale moschata,96345,t0096345,Melogale moschata,鼬貛,27888,t0027888,Melogale subaurantiaca,鼬貛,exact 747,exact 747,crosswalk,
+unchanged,549,0,0,Lycodon ruhstrati ruhstrati,Lycodon ruhstrati,68126,t0068126,Lycodon ruhstrati,白梅花蛇,102406,t0102406,Lycodon ruhstrati ruhstrati,白梅花蛇,exact 549,exact 549,published,
+unchanged,499,0,0,Pycnonotus sinensis formosae,Pycnonotus sinensis,98689,t0098689,Pycnonotus sinensis,白頭翁,86192,t0086192,Pycnonotus sinensis formosae,白頭翁,exact 499,exact 499,published,
+unchanged,445,0,0,Xenochrophis piscator,Xenochrophis piscator,,,,,48853,t0048853,Fowlea flavipunctatus,草花蛇,coarse_10km 445,coarse_10km 445,crosswalk,
+unchanged,395,0,0,Callosciurus erythraeus thaiwanensis,Callosciurus erythraeus,97458,t0097458,Callosciurus erythraeus,赤腹松鼠,85369,t0085369,Callosciurus erythraeus thaiwanensis,赤腹松鼠,exact 395,exact 395,published,
+unchanged,326,0,0,Streptopelia chinensis chinensis,Spilopelia chinensis,86298,t0086298,Spilopelia chinensis,珠頸斑鳩,102334,t0102334,Spilopelia chinensis chinensis,珠頸斑鳩,exact 326,exact 326,crosswalk,
+unchanged,317,0,0,Gallinula chloropus chloropus,Gallinula chloropus,97074,t0097074,Gallinula chloropus,紅冠水雞,29265,t0029265,Gallinula chloropus chloropus,紅冠水雞,exact 317,exact 317,published,
+unchanged,310,0,0,Oreocryptophis porphyraceus kawakamii,Oreocryptophis porphyraceus,98168,t0098168,Oreocryptophis porphyraceus,紅竹蛇,86017,t0086017,Oreocryptophis porphyraceus kawakamii,紅竹蛇,exact 310,exact 310,published,
+unchanged,257,0,0,Nycticorax nycticorax nycticorax,Nycticorax nycticorax,98099,t0098099,Nycticorax nycticorax,夜鷺,85989,t0085989,Nycticorax nycticorax nycticorax,夜鷺,exact 257,exact 257,published,
+unchanged,240,0,0,Amaurornis phoenicurus chinensis,Amaurornis phoenicurus,99934,t0099934,Amaurornis phoenicurus,白腹秧雞,85213,t0085213,Amaurornis phoenicurus chinensis,白腹秧雞,exact 240,exact 240,published,
+unchanged,236,0,0,Caprimulgus affinis stictomus,Caprimulgus affinis,97494,t0097494,Caprimulgus affinis,南亞夜鷹,85386,t0085386,Caprimulgus affinis stictomus,南亞夜鷹,exact 236,exact 236,published,
+unchanged,228,0,0,Paguma larvata taivana,Paguma larvata,98264,t0098264,Paguma larvata,白鼻心,86045,t0086045,Paguma larvata larvata,白鼻心,exact 228,exact 228,crosswalk,
+unchanged,169,0,0,Turnix suscitator rostratus,Turnix suscitator,96598,t0096598,Turnix suscitator,棕三趾鶉,28406,t0028406,Turnix suscitator rostratus,棕三趾鶉,exact 169,exact 169,published,
+unchanged,162,0,0,Sinomicrurus macclellandi swinhoei,Sinomicrurus macclellandi,98883,t0098883,Sinomicrurus macclellandi,,32872,t0032872,Sinomicrurus swinhoei,斯文豪氏華珊瑚蛇,coarse_10km 162,coarse_10km 162,crosswalk,
+unchanged,143,0,0,Plestiodon chinensis formosensis,Plestiodon chinensis,32013,t0032013,Plestiodon chinensis,中國石龍子,102062,t0102062,Plestiodon chinensis formosensis,中國石龍子臺灣亞種,exact 143,exact 143,published,
+unchanged,142,0,0,Hirundo rustica gutturalis,Hirundo rustica,97276,t0097276,Hirundo rustica,家燕,85752,t0085752,Hirundo rustica gutturalis,家燕,exact 142,exact 142,published,
+unchanged,116,0,0,Lonchura punctulata topela,Lonchura punctulata,96205,t0096205,Lonchura punctulata,斑文鳥,27555,t0027555,Lonchura punctulata topela,斑文鳥,exact 116,exact 116,published,
+unchanged,114,0,0,Macropisthodon rudis rudis,Pseudagkistrodon rudis,32205,t0032205,Pseudagkistrodon rudis,擬龜殼花,102329,t0102329,Macropisthodon rudis rudis,擬龜殼花,exact 114,exact 114,published,
+unchanged,99,0,0,Discoplax hirtipes,Tuerkayana hirtipes,106228,t0106228,Tuerkayana hirtipes,毛足特氏蟹,61812,t0061812,Discoplax hirtipes,毛足圓盤蟹,exact 99,exact 99,published,
+unchanged,97,0,0,Lanius cristatus cristatus,Lanius cristatus,96001,t0096001,Lanius cristatus,紅尾伯勞,85799,t0085799,Lanius cristatus cristatus,紅尾伯勞,coarse_10km 97,coarse_10km 97,published,
+unchanged,97,0,0,Herpestes urva formosanus,Herpestes urva,,,,,85747,t0085747,Urva urva formosana,食蟹獴,coarse_10km 97,coarse_10km 97,crosswalk,
+unchanged,94,0,0,Prinia inornata flavirostris,Prinia inornata,98583,t0098583,Prinia inornata,褐頭鷦鶯,86151,t0086151,Prinia inornata flavirostris,褐頭鷦鶯,exact 94,exact 94,published,
+unchanged,91,0,0,Japalura polygonata xanthostoma,Diploderma polygonatum,96746,t0096746,Diploderma polygonatum,黃口攀蜥,85581,t0085581,Diploderma polygonatum xanthostomum,黃口攀蜥,exact 91,exact 91,crosswalk,
+unchanged,88,0,0,Acridotheres tristis tristis,Acridotheres tristis,99780,t0099780,Acridotheres tristis,家八哥,85172,t0085172,Acridotheres tristis tristis,家八哥,exact 88,exact 88,published,
+unchanged,80,0,0,Centropus bengalensis lignator,Centropus bengalensis,97580,t0097580,Centropus bengalensis,番鵑,30221,t0030221,Centropus bengalensis lignator,番鵑,exact 80,exact 80,published,
+unchanged,75,0,0,Cecropis striolata striolata,Cecropis striolata,97561,t0097561,Cecropis striolata,赤腰燕,85400,t0085400,Cecropis striolata striolata,赤腰燕,exact 75,exact 75,published,
+unchanged,72,0,0,Chalcophaps indica indica,Chalcophaps indica,97625,t0097625,Chalcophaps indica,翠翼鳩,30328,t0030328,Chalcophaps indica indica,翠翼鳩,exact 72,exact 72,published,
+unchanged,71,0,0,Lepus sinensis formosus,Lepus sinensis,96062,t0096062,Lepus sinensis,華南兔,85835,t0085835,Lepus sinensis formosus,臺灣野兔,exact 71,exact 71,published,
+unchanged,70,0,0,Dicrurus macrocercus harterti,Dicrurus macrocercus,97991,t0097991,Dicrurus macrocercus,大卷尾,85575,t0085575,Dicrurus macrocercus harterti,大卷尾,exact 70,exact 70,published,
+unchanged,67,0,0,Pseudoxenodon stejnegeri stejnegeri,Pseudoxenodon stejnegeri,37173,t0037173,Pseudoxenodon stejnegeri,史丹吉氏斜鱗蛇,100974,t0100974,Pseudoxenodon stejnegeri stejnegeri,史丹吉氏斜鱗蛇,exact 67,exact 67,published,
+unchanged,66,0,0,Muntiacus reevesi micrurus,Muntiacus reevesi,96460,t0096460,Muntiacus reevesi,山羌,85944,t0085944,Muntiacus reevesi micrurus,臺灣山羌,exact 66,exact 66,published,
+unchanged,65,0,0,Mustela sibirica taivana,Mustela sibirica,96472,t0096472,Mustela sibirica,黃鼠狼,85950,t0085950,Mustela sibirica taivana,黃鼠狼,exact 65,exact 65,published,
+unchanged,62,0,0,Accipiter trivirgatus formosae,Accipiter trivirgatus,99759,t0099759,Accipiter trivirgatus,鳳頭蒼鷹,57537,t0057537,Accipiter trivirgatus formosae,鳳頭蒼鷹,coarse_10km 62,coarse_10km 62,published,
+unchanged,55,0,0,Apus nipalensis kuntzi,Apus nipalensis,100083,t0100083,Apus nipalensis,小雨燕,85274,t0085274,Apus nipalensis kuntzi,小雨燕,exact 55,exact 55,published,
+unchanged,53,0,0,Mauremys mutica mutica,Mauremys mutica,27801,t0027801,Mauremys mutica,柴棺龜,102401,t0102401,Mauremys mutica mutica,柴棺龜,coarse_10km 53,coarse_10km 53,published,
+unchanged,52,0,0,Egretta garzetta garzetta,Egretta garzetta,96829,t0096829,Egretta garzetta,小白鷺,28816,t0028816,Egretta garzetta garzetta,小白鷺,exact 52,exact 52,published,
+unchanged,51,0,0,Otus spilocephalus hambroecki,Otus spilocephalus,98213,t0098213,Otus spilocephalus,黃嘴角鴞,86033,t0086033,Otus spilocephalus hambroecki,黃嘴角鴞,coarse_10km 51,coarse_10km 51,published,
+unchanged,51,0,0,Kaloula pulchra pulchra,Kaloula pulchra,46131,t0046131,Kaloula pulchra,花狹口蛙,102641,t0102641,Kaloula pulchra pulchra,亞洲錦蛙,exact 51,exact 51,published,
+unchanged,50,0,0,Alcedo atthis bengalensis,Alcedo atthis,99912,t0099912,Alcedo atthis,翠鳥,85207,t0085207,Alcedo atthis bengalensis,翠鳥,exact 50,exact 50,published,
+unchanged,49,0,0,Hirundo tahitica namiyei,Hirundo tahitica,97277,t0097277,Hirundo tahitica,洋燕,85756,t0085756,Hirundo tahitica namiyei,洋燕,exact 49,exact 49,published,
+unchanged,42,0,0,Hypsipetes leucocephalus nigerrimus,Hypsipetes leucocephalus,97352,t0097352,Hypsipetes leucocephalus,紅嘴黑鵯,85780,t0085780,Hypsipetes leucocephalus nigerrimus,紅嘴黑鵯,exact 42,exact 42,published,
+unchanged,41,0,0,Sinomicrurus hatori,Sinomicrurus hatori,,,,,32871,t0032871,Sinomicrurus sauteri,梭德氏帶紋赤蛇,coarse_10km 41,coarse_10km 41,crosswalk,
+unchanged,37,0,0,Dendrocitta formosae formosae,Dendrocitta formosae,97937,t0097937,Dendrocitta formosae,樹鵲,85559,t0085559,Dendrocitta formosae formosae,樹鵲,exact 37,exact 37,published,
+unchanged,37,0,0,Hypothymis azurea oberholseri,Hypothymis azurea,97347,t0097347,Hypothymis azurea,黑枕藍鶲,29835,t0029835,Hypothymis azurea oberholseri,黑枕藍鶲,exact 37,exact 37,published,
+unchanged,36,0,0,Phoenicurus auroreus auroreus,Phoenicurus auroreus,98448,t0098448,Phoenicurus auroreus,黃尾鴝,86101,t0086101,Phoenicurus auroreus auroreus,黃尾鴝,exact 36,exact 36,published,
+unchanged,35,0,0,Prinia flaviventris sonitans,Prinia flaviventris,98582,t0098582,Prinia flaviventris,灰頭鷦鶯,32108,t0032108,Prinia flaviventris sonitans,灰頭鷦鶯,exact 35,exact 35,published,
+unchanged,34,0,0,Streptopelia orientalis orii,Streptopelia orientalis,98989,t0098989,Streptopelia orientalis,金背鳩,86300,t0086300,Streptopelia orientalis orii,金背鳩,exact 34,exact 34,published,
+unchanged,34,0,0,Phasianus colchicus formosanus,Phasianus colchicus,98433,t0098433,Phasianus colchicus,環頸雉,86094,t0086094,Phasianus colchicus formosanus,環頸雉,coarse_10km 34,coarse_10km 34,published,
+unchanged,34,0,0,Dicrurus macrocercus cathoecus,Dicrurus macrocercus,97991,t0097991,Dicrurus macrocercus,大卷尾,85574,t0085574,Dicrurus macrocercus cathoecus,大卷尾,exact 34,exact 34,published,
+unchanged,33,0,0,Dremomys pernyi owstoni,Dremomys pernyi,96785,t0096785,Dremomys pernyi,荷氏松鼠,85590,t0085590,Dremomys pernyi owstoni,長吻松鼠,exact 33,exact 33,published,
+unchanged,32,0,0,Rhabdophis tigrinus formosanus,Rhabdophis tigrinus,98721,t0098721,Rhabdophis tigrinus,,32460,t0032460,Rhabdophis formosanus,臺灣赤煉蛇,exact 32,exact 32,crosswalk,
+unchanged,30,0,0,Rallina eurizonoides formosana,Rallina eurizonoides,98710,t0098710,Rallina eurizonoides,灰腳秧雞,86199,t0086199,Rallina eurizonoides formosana,灰腳秧雞,exact 30,exact 30,published,
+unchanged,29,0,0,Sinosuthora webbiana bulomacha,Sinosuthora webbiana,98886,t0098886,Sinosuthora webbiana,粉紅鸚嘴,86251,t0086251,Sinosuthora webbiana bulomacha,粉紅鸚嘴,exact 29,exact 29,published,
+unchanged,27,0,0,Manis pentadactyla pentadactyla,Manis pentadactyla,96289,t0096289,Manis pentadactyla,中華穿山甲,85879,t0085879,Manis pentadactyla pentadactyla,臺灣穿山甲,coarse_10km 27,coarse_10km 27,published,
+unchanged,26,0,0,Riparia chinensis chinensis,Riparia chinensis,98753,t0098753,Riparia chinensis,棕沙燕,103448,t0103448,Riparia chinensis chinensis,棕沙燕,exact 26,exact 26,published,
+unchanged,26,0,0,Petaurista philippensis grandis,Petaurista philippensis,98405,t0098405,Petaurista philippensis,大赤鼯鼠,86086,t0086086,Petaurista grandis,大赤鼯鼠,exact 26,exact 26,crosswalk,
+unchanged,26,0,0,Lonchura striata swinhoei,Lonchura striata,96206,t0096206,Lonchura striata,白腰文鳥,27556,t0027556,Lonchura striata swinhoei,白腰文鳥,exact 26,exact 26,published,
+unchanged,25,0,0,Trachemys scripta elegans,Trachemys scripta,99216,t0099216,Trachemys scripta,黃耳龜,33457,t0033457,Trachemys scripta elegans,紅耳泥龜,exact 25,exact 25,published,
+unchanged,24,0,0,Ardea cinerea jouyi,Ardea cinerea,100094,t0100094,Ardea cinerea,蒼鷺,85281,t0085281,Ardea cinerea jouyi,蒼鷺,exact 24,exact 24,published,
+unchanged,24,0,0,Turdus chrysolaus chrysolaus,Turdus chrysolaus,96596,t0096596,Turdus chrysolaus,赤腹鶇,86400,t0086400,Turdus chrysolaus chrysolaus,赤腹鶇,exact 24,exact 24,published,
+unchanged,23,0,0,Crocidura rapax kurodai,Crocidura rapax,97826,t0097826,Crocidura rapax,長尾麝鼩,85509,t0085509,Crocidura tadae,長尾麝鼩,exact 23,exact 23,crosswalk,
+unchanged,20,0,0,Viverricula indica taivana,Viverricula indica,96644,t0096644,Viverricula indica,麝香貓,86418,t0086418,Viverricula indica pallida,麝香貓,coarse_10km 20,coarse_10km 20,crosswalk,
+unchanged,19,0,0,Acridotheres cristatellus formosanus,Acridotheres cristatellus,99779,t0099779,Acridotheres cristatellus,八哥,85171,t0085171,Acridotheres cristatellus formosanus,八哥（臺灣）,coarse_10km 19,coarse_10km 19,published,
+unchanged,18,0,0,Tachybaptus ruficollis philippensis,Tachybaptus ruficollis,99045,t0099045,Tachybaptus ruficollis,小鸊鷉,86319,t0086319,Tachybaptus ruficollis poggei,小鸊鷉,exact 18,exact 18,crosswalk,
+unchanged,17,0,0,Achalinus formosanus formosanus,Achalinus formosanus,70069,t0070069,Achalinus formosanus,臺灣標蛇,102403,t0102403,Achalinus formosanus formosanus,臺灣標蛇,exact 17,exact 17,published,
+unchanged,16,0,0,Lanius cristatus lucionensis,Lanius cristatus,96001,t0096001,Lanius cristatus,紅尾伯勞,27308,t0027308,Lanius cristatus lucionensis,紅尾伯勞,coarse_10km 16,coarse_10km 16,published,
+unchanged,15,0,0,Motacilla alba leucopsis,Motacilla alba,96454,t0096454,Motacilla alba,白鶺鴒,103446,t0103446,Motacilla alba leucopsis,白鶺鴒,exact 15,exact 15,published,
+unchanged,15,0,0,Lanius schach formosae,Lanius schach,96004,t0096004,Lanius schach,棕背伯勞,85117,t0085117,Lanius schach schach,棕背伯勞,exact 15,exact 15,crosswalk,
+unchanged,13,0,0,Motacilla cinerea cinerea,Motacilla cinerea,96455,t0096455,Motacilla cinerea,灰鶺鴒,85939,t0085939,Motacilla cinerea cinerea,灰鶺鴒,exact 13,exact 13,published,
+unchanged,13,0,0,Upupa epops epops,Upupa epops,96620,t0096620,Upupa epops,戴勝,102553,t0102553,Upupa epops epops,,exact 13,exact 13,published,
+unchanged,11,0,0,Pica pica serica,Pica pica,102388,t0102388,Pica pica,喜鵲,84390,t0084390,Pica serica,喜鵲,exact 11,exact 11,crosswalk,
+unchanged,11,0,0,Treron sieboldii sororius,Treron sieboldii,99233,t0099233,Treron sieboldii,綠鳩,86376,t0086376,Treron sieboldii sieboldii,綠鳩,exact 11,exact 11,crosswalk,
+unchanged,11,0,0,Petaurista alborufus lena,Petaurista alborufus,98404,t0098404,Petaurista alborufus,白面鼯鼠,86085,t0086085,Petaurista lena,白面鼯鼠,exact 11,exact 11,crosswalk,
+unchanged,11,0,0,Accipiter virgatus fuscipectus,Accipiter virgatus,99760,t0099760,Accipiter virgatus,松雀鷹,57538,t0057538,Accipiter virgatus fuscipectus,松雀鷹,coarse_10km 11,coarse_10km 11,published,
+unchanged,10,0,0,Lutra lutra chinensis,Lutra lutra,96231,t0096231,Lutra lutra,歐亞水獺,85866,t0085866,Lutra lutra chinensis,水獺,coarse_10km 10,coarse_10km 10,published,
+unchanged,9,0,0,Calliope calliope calliope,Luscinia calliope,102373,t0102373,Luscinia calliope,野鴝,85366,t0085366,Calliope calliope calliope,野鴝(指名亞種),exact 9,exact 9,published,
+unchanged,9,0,0,Alauda gulgula wattersi,Alauda gulgula,99909,t0099909,Alauda gulgula,小雲雀,57607,t0057607,Alauda gulgula wattersi,小雲雀,exact 9,exact 9,published,
+unchanged,8,0,0,Charadrius dubius curonicus,Charadrius dubius,97635,t0097635,Charadrius dubius,小環頸鴴,85436,t0085436,Charadrius dubius curonicus,小環頸鴴,exact 8,exact 8,published,
+unchanged,8,0,0,Anas crecca crecca,Anas crecca,99969,t0099969,Anas crecca,小水鴨,85236,t0085236,Anas crecca crecca,小水鴨,exact 8,exact 8,published,
+unchanged,8,0,0,Monticola solitarius philippensis,Monticola solitarius,96450,t0096450,Monticola solitarius,藍磯鶇,28094,t0028094,Monticola solitarius philippensis,藍磯鶇,exact 8,exact 8,published,
+unchanged,8,0,0,Takydromus kuehnei kuehnei,Takydromus kuehnei,46741,t0046741,Takydromus kuehnei,古氏草蜥,102402,t0102402,Takydromus kuehnei kuehnei,古氏草蜥,exact 8,exact 8,published,
+unchanged,8,0,0,Hirundo rustica saturata,Hirundo rustica,97276,t0097276,Hirundo rustica,家燕,85753,t0085753,Hirundo rustica mandschurica,家燕,exact 8,exact 8,crosswalk,
+unchanged,8,0,0,Hirundo tahitica javanica,Hirundo tahitica,97277,t0097277,Hirundo tahitica,洋燕,85755,t0085755,Hirundo tahitica javanica,洋燕,exact 8,exact 8,published,
+unchanged,7,0,0,Spizixos semitorques cinereicapillus,Spizixos semitorques,98940,t0098940,Spizixos semitorques,白環鸚嘴鵯,33003,t0033003,Spizixos semitorques cinereicapillus,白環鸚嘴鵯,exact 7,exact 7,published,
+unchanged,7,0,0,Corvus macrorhynchos colonorum,Corvus macrorhynchos,97796,t0097796,Corvus macrorhynchos,巨嘴鴉,85499,t0085499,Corvus macrorhynchos colonorum,巨嘴鴉,exact 7,exact 7,published,
+unchanged,7,0,0,Glaucidium brodiei pardalotum,Glaucidium brodiei,,,,,85109,t0085109,Taenioptynx brodiei pardalotus,鵂鶹,coarse_10km 7,coarse_10km 7,crosswalk,
+unchanged,6,0,0,Threskiornis aethiopicus aethiopicus,Threskiornis aethiopicus,99144,t0099144,Threskiornis aethiopicus,埃及聖䴉,86360,t0086360,Threskiornis aethiopicus aethiopicus,埃及聖䴉,exact 6,exact 6,published,
+unchanged,6,0,0,Lonchura atricapilla formosana,Lonchura atricapilla,96204,t0096204,Lonchura atricapilla,黑頭文鳥,27553,t0027553,Lonchura atricapilla formosana,黑頭文鳥,coarse_10km 6,coarse_10km 6,published,
+unchanged,6,0,0,Monticola solitarius pandoo,Monticola solitarius,96450,t0096450,Monticola solitarius,藍磯鶇,28093,t0028093,Monticola solitarius pandoo,藍磯鶇,exact 6,exact 6,published,
+unchanged,6,0,0,Halcyon coromanda major,Halcyon coromanda,97201,t0097201,Halcyon coromanda,赤翡翠,85727,t0085727,Halcyon coromanda major,赤翡翠,exact 6,exact 6,published,
+unchanged,6,0,0,Cervus nippon taiouanus,Cervus nippon,97607,t0097607,Cervus nippon,臺灣梅花鹿,85426,t0085426,Cervus nippon taiouanus,臺灣梅花鹿,exact 6,exact 6,published,
+unchanged,6,0,0,Crocidura shantungensis hosletti,Crocidura shantungensis,97827,t0097827,Crocidura shantungensis,小麝鼩,85512,t0085512,Crocidura shantungensis hosletti,小麝鼩,exact 6,exact 6,published,
+unchanged,5,0,0,Calliope calliope,Luscinia calliope,102373,t0102373,Luscinia calliope,野鴝,97452,t0097452,Calliope calliope,野鴝,exact 5,exact 5,published,
+unchanged,5,0,0,Spilornis cheela hoya,Spilornis cheela,98934,t0098934,Spilornis cheela,大冠鷲,32992,t0032992,Spilornis cheela hoya,大冠鷲,coarse_10km 5,coarse_10km 5,published,
+unchanged,5,0,0,Emberiza spodocephala spodocephala,Emberiza spodocephala,96864,t0096864,Emberiza spodocephala,灰頭黑臉鵐,28848,t0028848,Emberiza spodocephala spodocephala,灰頭黑臉鵐,exact 5,exact 5,published,
+unchanged,5,0,0,Cisticola juncidis tinnabulans,Cisticola juncidis,97715,t0097715,Cisticola juncidis,棕扇尾鶯,85462,t0085462,Cisticola juncidis tinnabulans,棕扇尾鶯,exact 5,exact 5,published,
+unchanged,5,0,0,Dendrocopos canicapillus kaleensis,Yungipicus canicapillus,96707,t0096707,Yungipicus canicapillus,小啄木,103451,t0103451,Yungipicus canicapillus kaleensis,小啄木,exact 5,exact 5,crosswalk,
+unchanged,5,0,0,Crocidura rapax lutaoensis,Crocidura rapax,97826,t0097826,Crocidura rapax,長尾麝鼩,85510,t0085510,Crocidura rapax lutaoensis,綠島長尾麝鼩,exact 5,exact 5,published,
+unchanged,5,0,0,Phoenicurus fuliginosus affinis,Rhyacornis fuliginosa,,,,,31833,t0031833,Phoenicurus fuliginosus affinis,鉛色水鶇,coarse_10km 5,coarse_10km 5,published,
+unchanged,4,0,0,Niltava vivida vivida,Niltava vivida,98057,t0098057,Niltava vivida,黃腹琉璃,31152,t0031152,Niltava vivida vivida,黃腹琉璃,coarse_10km 4,coarse_10km 4,published,
+unchanged,4,0,0,Fulica atra atra,Fulica atra,97065,t0097065,Fulica atra,白冠雞,85683,t0085683,Fulica atra atra,白冠雞,exact 4,exact 4,published,
+unchanged,4,0,0,Ninox japonica japonica,Ninox japonica,98059,t0098059,Ninox japonica,褐鷹鴞,85970,t0085970,Ninox japonica japonica,褐鷹鴞,coarse_10km 4,coarse_10km 4,published,
+unchanged,4,0,0,Schoeniparus brunneus brunneus,Alcippe brunnea,106800,t0106800,Alcippe brunnea,頭烏線,86236,t0086236,Schoeniparus brunneus brunneus,頭烏線,exact 4,exact 4,published,
+unchanged,4,0,0,Pericrocotus solaris griseogularis,Pericrocotus solaris,98391,t0098391,Pericrocotus solaris,灰喉山椒鳥,86082,t0086082,Pericrocotus solaris griseogularis,灰喉山椒鳥,exact 4,exact 4,published,
+unchanged,4,0,0,Hypsipetes amaurotis harterti,Hypsipetes amaurotis,97351,t0097351,Hypsipetes amaurotis,棕耳鵯,104373,t0104373,Hypsipetes amaurotis harterti,棕耳鵯,exact 4,exact 4,published,
+unchanged,4,0,0,Chlidonias hybrida hybrida,Chlidonias hybrida,97673,t0097673,Chlidonias hybrida,黑腹燕鷗,85448,t0085448,Chlidonias hybrida hybrida,黑腹燕鷗,exact 4,exact 4,published,
+unchanged,3,0,0,Turdus poliocephalus niveiceps,Turdus poliocephalus,103608,t0103608,Turdus poliocephalus,白頭鶇,48260,t0048260,Turdus niveiceps,白頭鶇,coarse_10km 3,coarse_10km 3,crosswalk,
+unchanged,3,0,0,Gallinago gallinago gallinago,Gallinago gallinago,97073,t0097073,Gallinago gallinago,田鷸,29264,t0029264,Gallinago gallinago gallinago,田鷸,exact 3,exact 3,published,
+unchanged,3,0,0,Passer domesticus domesticus,Passer domesticus,98363,t0098363,Passer domesticus,家麻雀,86073,t0086073,Passer domesticus domesticus,家麻雀,exact 3,exact 3,published,
+unchanged,3,0,0,Delichon dasypus nigrimentale,Delichon dasypus,97933,t0097933,Delichon dasypus,東方毛腳燕,85556,t0085556,Delichon dasypus nigrimentale,東方毛腳燕,exact 3,exact 3,published,
+unchanged,3,0,0,Anas platyrhynchos platyrhynchos,Anas platyrhynchos,99970,t0099970,Anas platyrhynchos,綠頭鴨,85237,t0085237,Anas platyrhynchos platyrhynchos,綠頭鴨,exact 3,exact 3,published,
+unchanged,3,0,0,Ninox japonica totogo,Ninox japonica,98059,t0098059,Ninox japonica,褐鷹鴞,85971,t0085971,Ninox japonica totogo,褐鷹鴞,coarse_10km 3,coarse_10km 3,published,
+unchanged,3,0,0,Chloris sinica kawarahiba,Chloris sinica,73215,t0073215,Chloris sinica,金翅雀,103443,t0103443,Chloris sinica kawarahiba,金翅雀,exact 3,exact 3,published,
+unchanged,3,0,0,Horornis acanthizoides concolor,Horornis acanthizoides,97303,t0097303,Horornis acanthizoides,深山鶯,29749,t0029749,Horornis acanthizoides concolor,深山鶯,exact 3,exact 3,published,
+unchanged,3,0,0,Tarsiger cyanurus cyanurus,Tarsiger cyanurus,99074,t0099074,Tarsiger cyanurus,藍尾鴝,86328,t0086328,Tarsiger cyanurus cyanurus,藍尾鴝,exact 3,exact 3,published,
+unchanged,3,0,0,Sturnus cineraceus,Spodiopsar cineraceus,103438,t0103438,Spodiopsar cineraceus,灰椋鳥,33004,t0033004,Sturnus cineraceus,灰椋鳥,exact 3,exact 3,published,
+unchanged,3,0,0,Sturnia malabarica nemoricola,Sturnia malabarica,98997,t0098997,Sturnia malabarica,灰頭椋鳥,86306,t0086306,Sturnia malabarica nemoricola,灰頭椋鳥,exact 3,exact 3,published,
+unchanged,3,0,0,Calliope calliope camtschatkensis,Luscinia calliope,102373,t0102373,Luscinia calliope,野鴝,85367,t0085367,Calliope calliope camtschatkensis,野鴝(勘察加亞種),exact 3,exact 3,published,
+unchanged,3,0,0,Anthus hodgsoni yunnanensis,Anthus hodgsoni,100034,t0100034,Anthus hodgsoni,樹鷚,85262,t0085262,Anthus hodgsoni yunnanensis,樹鷚,exact 3,exact 3,published,
+unchanged,3,0,0,Horornis canturians canturians,Horornis diphone,97305,t0097305,Horornis diphone,日本樹鶯,105575,t0105575,Horornis canturians canturians,遠東樹鶯,exact 3,exact 3,published,
+unchanged,3,0,0,Sus scrofa taivanus,Sus scrofa,99008,t0099008,Sus scrofa,野豬,86310,t0086310,Sus scrofa taivanus,臺灣野豬,exact 3,exact 3,published,
+unchanged,3,0,0,Otus elegans botelensis,Otus elegans,98210,t0098210,Otus elegans,蘭嶼角鴞,86030,t0086030,Otus elegans botelensis,蘭嶼角鴞,coarse_10km 3,coarse_10km 3,published,
+unchanged,3,0,0,Motacilla flava taivana,Motacilla tschutschensis,96458,t0096458,Motacilla tschutschensis,東方黃鶺鴒,85943,t0085943,Motacilla tschutschensis taivana,東方黃鶺鴒,exact 3,exact 3,crosswalk,
+unchanged,3,0,0,Butorides striata carcinophila,Butorides striata,97420,t0097420,Butorides striata,綠簑鷺,29991,t0029991,Butorides striata carcinophila,綠簑鷺,exact 3,exact 3,published,
+unchanged,2,0,0,Eophona migratoria migratoria,Eophona migratoria,96882,t0096882,Eophona migratoria,小桑鳲,85631,t0085631,Eophona migratoria migratoria,小桑鳲,exact 2,exact 2,published,
+unchanged,2,0,0,Motacilla tschutschensis tschutschensis,Motacilla tschutschensis,96458,t0096458,Motacilla tschutschensis,東方黃鶺鴒,85127,t0085127,Motacilla tschutschensis tschutschensis,東方黃鶺鴒,exact 2,exact 2,published,
+unchanged,2,0,0,Emberiza spodocephala sordida,Emberiza spodocephala,96864,t0096864,Emberiza spodocephala,灰頭黑臉鵐,85619,t0085619,Emberiza spodocephala sordida,灰頭黑臉鵐,exact 2,exact 2,published,
+unchanged,2,0,0,Sula leucogaster plotus,Sula leucogaster,99005,t0099005,Sula leucogaster,白腹鰹鳥,33129,t0033129,Sula leucogaster plotus,白腹鰹鳥,exact 2,exact 2,published,
+unchanged,2,0,0,Charadrius leschenaultii leschenaultii,Charadrius leschenaultii,97637,t0097637,Charadrius leschenaultii,鐵嘴鴴,85438,t0085438,Charadrius leschenaultii leschenaultii,鐵嘴鴴,exact 2,exact 2,published,
+unchanged,2,0,0,Mustela nivalis formosana,Mustela nivalis,96471,t0096471,Mustela nivalis,小黃鼠狼,85949,t0085949,Mustela nivalis formosana,臺灣小黃鼠狼,coarse_10km 2,coarse_10km 2,published,
+unchanged,2,0,0,Strix nivicola yamadae,Strix nivicolum,98992,t0098992,Strix nivicolum,東方灰林鴞,33094,t0033094,Strix nivicolum yamadae,東方灰林鴞,coarse_10km 2,coarse_10km 2,crosswalk,
+unchanged,2,0,0,Phaethon lepturus dorotheae,Phaethon lepturus,98409,t0098409,Phaethon lepturus,白尾熱帶鳥,86089,t0086089,Phaethon lepturus dorotheae,白尾熱帶鳥,exact 2,exact 2,published,
+unchanged,2,0,0,Pandion haliaetus haliaetus,Pandion haliaetus,98278,t0098278,Pandion haliaetus,魚鷹,31464,t0031464,Pandion haliaetus haliaetus,魚鷹,coarse_10km 2,coarse_10km 2,published,
+unchanged,2,0,0,Otus sunia japonicus,Otus sunia,98214,t0098214,Otus sunia,東方角鴞,85128,t0085128,Otus sunia japonicus,東方角鴞,coarse_10km 2,coarse_10km 2,published,
+unchanged,2,0,0,Haematopus ostralegus osculans,Haematopus ostralegus,97200,t0097200,Haematopus ostralegus,蠣鴴,29478,t0029478,Haematopus ostralegus osculans,蠣鴴,exact 2,exact 2,published,
+unchanged,2,0,0,Horornis canturians,Horornis diphone,97305,t0097305,Horornis diphone,日本樹鶯,97304,t0097304,Horornis canturians,遠東樹鶯,exact 2,exact 2,published,
+unchanged,2,0,0,Asio otus otus,Asio otus,100123,t0100123,Asio otus,長耳鴞,57779,t0057779,Asio otus otus,長耳鴞,coarse_10km 2,coarse_10km 2,published,
+unchanged,2,0,0,Elanus caeruleus vociferus,Elanus caeruleus,96835,t0096835,Elanus caeruleus,黑翅鳶,85607,t0085607,Elanus caeruleus vociferus,黑翅鳶,coarse_10km 2,coarse_10km 2,published,
+unchanged,2,0,0,Sternula albifrons sinensis,Sternula albifrons,98970,t0098970,Sternula albifrons,小燕鷗,86292,t0086292,Sternula albifrons sinensis,小燕鷗,coarse_10km 2,coarse_10km 2,published,
+unchanged,2,0,0,Parus monticolus insperatus,Parus monticolus,98360,t0098360,Parus monticolus,青背山雀,31647,t0031647,Parus monticolus insperatus,青背山雀,coarse_10km 2,coarse_10km 2,published,
+unchanged,2,0,0,Belomys pearsonii kaleensis,Belomys pearsonii,100221,t0100221,Belomys pearsonii,小鼯鼠,85328,t0085328,Belomys pearsonii kaleensis,小鼯鼠,exact 2,exact 2,published,
+unchanged,2,0,0,Crocidura rapax tadae,Crocidura rapax,97826,t0097826,Crocidura rapax,長尾麝鼩,85509,t0085509,Crocidura tadae,長尾麝鼩,exact 2,exact 2,crosswalk,
+unchanged,2,0,0,Numenius phaeopus variegatus,Numenius phaeopus,98090,t0098090,Numenius phaeopus,中杓鷸,31207,t0031207,Numenius phaeopus variegatus,中杓鷸,exact 2,exact 2,published,
+unchanged,2,0,0,Phylloscopus borealis borealis,Phylloscopus borealis,98476,t0098476,Phylloscopus borealis,極北柳鶯,86106,t0086106,Phylloscopus borealis borealis,極北柳鶯(指名亞種),exact 2,exact 2,published,
+unchanged,1,0,0,Botaurus stellaris stellaris,Botaurus stellaris,97387,t0097387,Botaurus stellaris,大麻鷺,29921,t0029921,Botaurus stellaris stellaris,大麻鷺,exact 1,exact 1,published,
+unchanged,1,0,0,Anthus richardi ussuriensis,Anthus richardi,100036,t0100036,Anthus richardi,大花鷚,85265,t0085265,Anthus richardi ussuriensis,大花鷚,exact 1,exact 1,published,
+unchanged,1,0,0,Rusa unicolor swinhoii,Rusa unicolor,98762,t0098762,Rusa unicolor,臺灣水鹿,86217,t0086217,Rusa unicolor swinhoii,臺灣水鹿,coarse_10km 1,coarse_10km 1,published,
+unchanged,1,0,0,Otus sunia stictonotus,Otus sunia,98214,t0098214,Otus sunia,東方角鴞,86034,t0086034,Otus sunia stictonotus,東方角鴞,coarse_10km 1,coarse_10km 1,published,
+unchanged,1,0,0,Eudynamys scolopaceus chinensis,Eudynamys scolopaceus,96964,t0096964,Eudynamys scolopaceus,噪鵑,85646,t0085646,Eudynamys scolopaceus chinensis,噪鵑,exact 1,exact 1,published,
+unchanged,1,0,0,Charadrius mongolus stegmanni,Charadrius mongolus,97638,t0097638,Charadrius mongolus,蒙古鴴,85440,t0085440,Anarhynchus mongolus stegmanni,蒙古鴴,exact 1,exact 1,crosswalk,
+unchanged,1,0,0,Hypsipetes amaurotis amaurotis,Hypsipetes amaurotis,97351,t0097351,Hypsipetes amaurotis,棕耳鵯,85778,t0085778,Hypsipetes amaurotis amaurotis,棕耳鵯,exact 1,exact 1,published,
+unchanged,1,0,0,Myotis fimbriatus taiwanensis,Myotis fimbriatus,96489,t0096489,Myotis fimbriatus,毛腿鼠耳蝠,28153,t0028153,Myotis fimbriatus taiwanensis,臺灣毛腿鼠耳蝠,exact 1,exact 1,published,
+unchanged,1,0,0,Troglodytes troglodytes taivanus,Troglodytes troglodytes,96576,t0096576,Troglodytes troglodytes,鷦鷯,86390,t0086390,Troglodytes troglodytes taivanus,鷦鷯,exact 1,exact 1,published,
+unchanged,1,0,0,Strix leptogrammica caligata,Strix leptogrammica,98991,t0098991,Strix leptogrammica,褐林鴞,33093,t0033093,Strix leptogrammica caligata,褐林鴞,coarse_10km 1,coarse_10km 1,published,
+unchanged,1,0,0,Falco tinnunculus interstinctus,Falco tinnunculus,97039,t0097039,Falco tinnunculus,紅隼,85672,t0085672,Falco tinnunculus interstinctus,紅隼,coarse_10km 1,coarse_10km 1,published,
+unchanged,1,0,0,Horornis diphone cantans,Horornis diphone,97305,t0097305,Horornis diphone,日本樹鶯,85766,t0085766,Horornis diphone cantans,日本樹鶯,exact 1,exact 1,published,
+unchanged,1,0,0,Halcyon smyrnensis fokiensis,Halcyon smyrnensis,97202,t0097202,Halcyon smyrnensis,蒼翡翠,29481,t0029481,Halcyon smyrnensis fokiensis,蒼翡翠,exact 1,exact 1,published,
+unchanged,1,0,0,Bombycilla garrulus centralasiae,Bombycilla garrulus,97380,t0097380,Bombycilla garrulus,黃連雀,29907,t0029907,Bombycilla garrulus centralasiae,黃連雀,exact 1,exact 1,published,
+unchanged,1,0,0,Arenaria interpres interpres,Arenaria interpres,61031,t0061031,Arenaria interpres,翻石鷸,57745,t0057745,Arenaria interpres interpres,翻石鷸,exact 1,exact 1,published,
+unchanged,1,0,0,Pyrrhula nipalensis uchidae,Pyrrhula nipalensis,98701,t0098701,Pyrrhula nipalensis,褐鷽,86195,t0086195,Pyrrhula nipalensis uchidae,褐鷽,exact 1,exact 1,published,
+unchanged,1,0,0,Prinia crinigera striata,Prinia crinigera,98581,t0098581,Prinia crinigera,,102063,t0102063,Prinia crinigera striata,斑紋鷦鶯,exact 1,exact 1,published,
+unchanged,1,0,0,Myotis formosus flavus,Myotis formosus,96490,t0096490,Myotis formosus,金黃鼠耳蝠,85958,t0085958,Myotis formosus flavus,金黃鼠耳蝠,exact 1,exact 1,published,
+unchanged,1,0,0,Cisticola exilis volitans,Cisticola exilis,97714,t0097714,Cisticola exilis,黃頭扇尾鶯,30559,t0030559,Cisticola exilis volitans,黃頭扇尾鶯,exact 1,exact 1,published,
+unchanged,1,0,0,Pyrrhula erythaca owstoni,Pyrrhula erythaca,98700,t0098700,Pyrrhula erythaca,,32394,t0032394,Pyrrhula owstoni,灰鷽,exact 1,exact 1,crosswalk,
+unchanged,1,0,0,Accipiter gularis gularis,Accipiter gularis,99757,t0099757,Accipiter gularis,日本松雀鷹,57535,t0057535,Accipiter gularis gularis,日本松雀鷹,coarse_10km 1,coarse_10km 1,published,
+unchanged,1,0,0,Sturnus sericeus,Spodiopsar sericeus,39487,t0039487,Spodiopsar sericeus,絲光椋鳥,102369,t0102369,Sturnus sericeus,絲光椋鳥,exact 1,exact 1,published,
+unchanged,1,0,0,Apus pacificus pacificus,Apus pacificus,100084,t0100084,Apus pacificus,叉尾雨燕,85276,t0085276,Apus pacificus pacificus,叉尾雨燕,exact 1,exact 1,published,
+unchanged,1,0,0,Eophona personata personata,Eophona personata,96883,t0096883,Eophona personata,桑鳲,28921,t0028921,Eophona personata personata,桑鳲,exact 1,exact 1,published,
+unchanged,1,0,0,Tarsiger indicus formosanus,Tarsiger indicus,99075,t0099075,Tarsiger indicus,白眉林鴝,86329,t0086329,Tarsiger formosanus,臺灣白眉林鴝,coarse_10km 1,coarse_10km 1,crosswalk,
+unchanged,1,0,0,Anthus hodgsoni hodgsoni,Anthus hodgsoni,100034,t0100034,Anthus hodgsoni,樹鷚,85261,t0085261,Anthus hodgsoni hodgsoni,樹鷚,exact 1,exact 1,published,
+unchanged,1,0,0,Sturnus vulgaris poltaratskyi,Sturnus vulgaris,99000,t0099000,Sturnus vulgaris,歐洲椋鳥,86307,t0086307,Sturnus vulgaris poltaratskyi,歐洲椋鳥,exact 1,exact 1,published,
+unchanged,1,0,0,Saxicola maurus stejnegeri,Saxicola maurus,98792,t0098792,Saxicola maurus,,32643,t0032643,Saxicola stejnegeri,黑喉鴝,exact 1,exact 1,crosswalk,
+unchanged,1,0,0,Dicrurus aeneus braunianus,Dicrurus aeneus,97986,t0097986,Dicrurus aeneus,小卷尾,85571,t0085571,Dicrurus aeneus braunianus,小卷尾,exact 1,exact 1,published,
+unchanged,1,0,0,Aegithalos concinnus concinnus,Aegithalos concinnus,99806,t0099806,Aegithalos concinnus,紅頭山雀,85184,t0085184,Aegithalos concinnus concinnus,紅頭山雀,exact 1,exact 1,published,
+unchanged,1,0,0,Oriolus traillii ardens,Oriolus traillii,98181,t0098181,Oriolus traillii,朱鸝,86021,t0086021,Oriolus traillii ardens,朱鸝,coarse_10km 1,coarse_10km 1,published,
+unchanged,1,0,0,Plestiodon chinensis chinensis,Plestiodon chinensis,32013,t0032013,Plestiodon chinensis,中國石龍子,102061,t0102061,Plestiodon chinensis chinensis,中國石龍子指名亞種,exact 1,exact 1,published,
+unchanged,1,0,0,Ardea purpurea manilensis,Ardea purpurea,100095,t0100095,Ardea purpurea,紫鷺,85282,t0085282,Ardea purpurea manilensis,紫鷺,exact 1,exact 1,published,
+unresolved,350,0,0,Aves,,,,,,,,,,coarse_10km 350,coarse_10km 350,,not identified to species
+unresolved,340,0,0,Anura,,,,,,,,,,coarse_10km 340,coarse_10km 340,,not identified to species
+unresolved,275,0,0,Ranidae,,,,,,,,,,coarse_10km 275,coarse_10km 275,,not identified to species
+unresolved,243,0,0,Squamata,,,,,,,,,,coarse_10km 243,coarse_10km 243,,not identified to species
+unresolved,219,0,0,Muridae,,,,,,,,,,coarse_10km 219,coarse_10km 219,,not identified to species
+unresolved,190,0,0,Gekkonidae,,,,,,,,,,coarse_10km 190,coarse_10km 190,,not identified to species
+unresolved,180,0,0,"Rattus Fischer, 1803",,,,,,,,,,coarse_10km 180,coarse_10km 180,,not identified to species
+unresolved,176,0,0,Chordata,,,,,,,,,,coarse_10km 176,coarse_10km 176,,not identified to species
+unresolved,165,0,0,Serpentes,,,,,,,,,,coarse_10km 165,coarse_10km 165,,not identified to species
+unresolved,145,0,0,Columbidae,,,,,,,,,,coarse_10km 145,coarse_10km 145,,not identified to species
+unresolved,115,0,0,Hirundinidae,,,,,,,,,,coarse_10km 115,coarse_10km 115,,not identified to species
+unresolved,108,0,0,"Japalura Gray, 1853",,,,,,,,,,coarse_10km 108,coarse_10km 108,,not identified to species
+unresolved,88,0,0,Scincidae,,,,,,,,,,coarse_10km 88,coarse_10km 88,,not identified to species
+unresolved,88,0,0,Colubridae,,,,,,,,,,coarse_10km 88,coarse_10km 88,,not identified to species
+unresolved,85,0,0,"Geothelphusa Stimpson, 1858",,,,,,,,,,coarse_10km 85,coarse_10km 85,,not identified to species
+unresolved,75,0,0,Buergeria japonica,,101610,t0101610,Buergeria japonica,日本樹蛙,,,,,exact 75,exact 75,,"the published name matches Buergeria japonica, which TaiCOL does not record in Taiwan. TaiCOL cannot settle it either: taicol returned 2 taxa — ambiguous"
+unresolved,73,0,0,"Crocidura Wagler, 1832",,,,,,,,,,coarse_10km 73,coarse_10km 73,,not identified to species
+unresolved,70,0,0,Rhacophoridae,,,,,,,,,,coarse_10km 70,coarse_10km 70,,not identified to species
+unresolved,55,0,0,Mammalia,,,,,,,,,,coarse_10km 55,coarse_10km 55,,not identified to species
+unresolved,53,0,0,Vespertilionidae,,,,,,,,,,coarse_10km 53,coarse_10km 53,,not identified to species
+unresolved,45,0,0,Chiroptera,,,,,,,,,,coarse_10km 45,coarse_10km 45,,not identified to species
+unresolved,44,0,0,Sturnidae,,,,,,,,,,coarse_10km 44,coarse_10km 44,,not identified to species
+unresolved,43,0,0,Passeriformes,,,,,,,,,,coarse_10km 43,coarse_10km 43,,not identified to species
+unresolved,42,0,0,Bufonidae,,,,,,,,,,coarse_10km 42,coarse_10km 42,,not identified to species
+unresolved,37,0,0,Strigidae,,,,,,,,,,coarse_10km 37,coarse_10km 37,,not identified to species
+unresolved,37,0,0,Ardeidae,,,,,,,,,,coarse_10km 37,coarse_10km 37,,not identified to species
+unresolved,33,0,0,Soricidae,,,,,,,,,,coarse_10km 33,coarse_10km 33,,not identified to species
+unresolved,30,0,0,Dopasia harti,,124441,t0124472,Dopasia harti,哈特氏蛇蜥,,,,,coarse_10km 30,coarse_10km 30,,"the published name matches Dopasia harti, which TaiCOL does not record in Taiwan. TaiCOL resolves it to t0028707 Dopasia formosensis — a biologist should confirm before it is applied"
+unresolved,29,0,0,Candidiopotamon rathbunae,,,,,,,,,,coarse_10km 29,coarse_10km 29,,taicol returned 2 taxa — ambiguous
+unresolved,28,0,0,Decapoda,,,,,,,,,,coarse_10km 28,coarse_10km 28,,not identified to species
+unresolved,26,0,0,Testudines,,,,,,,,,,coarse_10km 26,coarse_10km 26,,not identified to species
+unresolved,26,0,0,"Zoothera Vigors, 1832",,,,,,,,,,coarse_10km 26,coarse_10km 26,,not identified to species
+unresolved,20,0,0,"Pipistrellus Kaup, 1829",,,,,,,,,,coarse_10km 20,coarse_10km 20,,not identified to species
+unresolved,18,0,0,"Acridotheres Vieillot, 1816",,,,,,,,,,coarse_10km 18,coarse_10km 18,,not identified to species
+unresolved,18,0,0,"Coenobita Latreille, 1829",,,,,,,,,,coarse_10km 18,coarse_10km 18,,not identified to species
+unresolved,17,0,0,Sesarmops impressus,,105665,t0105665,Sesarmops impressus,,,,,,exact 17,exact 17,,"the published name matches Sesarmops impressus, which TaiCOL does not record in Taiwan. TaiCOL resolves it to t0038839 Sesarmops imperator — a biologist should confirm before it is applied"
+unresolved,13,0,0,Upupa epops epops,,102553,t0102553,Upupa epops epops,,,,,,exact 13,exact 13,,"the published name matches Upupa epops epops, which TaiCOL does not record in Taiwan. TaiCOL cannot settle it either: taicol matched ""Upupa epops"", not the published name"
+unresolved,12,0,0,Sylviidae,,,,,,,,,,coarse_10km 12,coarse_10km 12,,not identified to species
+unresolved,11,0,0,Scolopacidae,,,,,,,,,,coarse_10km 11,coarse_10km 11,,not identified to species
+unresolved,11,0,0,"Takydromus Daudin, 1802",,,,,,,,,,coarse_10km 11,coarse_10km 11,,not identified to species
+unresolved,11,0,0,Turdus merula mandarinus,,,,,,,,,,coarse_10km 11,coarse_10km 11,,the name suggests Turdus mandarinus (t0096597) but TaiCOL says t0028405. A biologist decides; nothing is remapped.
+unresolved,10,0,0,"Hemidactylus Oken, 1817",,,,,,,,,,coarse_10km 10,coarse_10km 10,,not identified to species
+unresolved,10,0,0,"Mogera Pomel, 1848",,,,,,,,,,coarse_10km 10,coarse_10km 10,,not identified to species
+unresolved,9,0,0,Hirundo spec,,,,,,,,,,coarse_10km 9,coarse_10km 9,,"taicol matched ""Hirundo"", not the published name"
+unresolved,9,0,0,Rallidae,,,,,,,,,,coarse_10km 9,coarse_10km 9,,not identified to species
+unresolved,9,0,0,Sesarmidae,,,,,,,,,,coarse_10km 9,coarse_10km 9,,not identified to species
+unresolved,8,0,0,Anatidae,,,,,,,,,,coarse_10km 8,coarse_10km 8,,not identified to species
+unresolved,8,0,0,Microhylidae,,,,,,,,,,coarse_10km 8,coarse_10km 8,,not identified to species
+unresolved,8,0,0,Carnivora,,,,,,,,,,coarse_10km 8,coarse_10km 8,,not identified to species
+unresolved,8,0,0,Potamidae,,,,,,,,,,coarse_10km 8,coarse_10km 8,,not identified to species
+unresolved,7,0,0,"Otus Pennant, 1769",,,,,,,,,,coarse_10km 7,coarse_10km 7,,not identified to species
+unresolved,7,0,0,"Prinia Horsfield, 1821",,,,,,,,,,coarse_10km 7,coarse_10km 7,,not identified to species
+unresolved,7,0,0,"Gallinago Brisson, 1760",,,,,,,,,,coarse_10km 7,coarse_10km 7,,not identified to species
+unresolved,7,0,0,Coenobitidae,,,,,,,,,,coarse_10km 7,coarse_10km 7,,not identified to species
+unresolved,6,0,0,Procellariidae,,,,,,,,,,coarse_10km 6,coarse_10km 6,,not identified to species
+unresolved,6,0,0,"Bufo Garsault, 1764",,,,,,,,,,coarse_10km 6,coarse_10km 6,,not identified to species
+unresolved,6,0,0,"Eutropis Fitzinger, 1843",,,,,,,,,,coarse_10km 6,coarse_10km 6,,not identified to species
+unresolved,6,0,0,Turnicidae,,,,,,,,,,coarse_10km 6,coarse_10km 6,,not identified to species
+unresolved,5,0,0,Motacillidae,,,,,,,,,,coarse_10km 5,coarse_10km 5,,not identified to species
+unresolved,5,0,0,Cisticolidae,,,,,,,,,,coarse_10km 5,coarse_10km 5,,not identified to species
+unresolved,5,0,0,"Amphiesma Duméril & Bibron, 1854",,,,,,,,,,coarse_10km 5,coarse_10km 5,,not identified to species
+unresolved,5,0,0,Cuculidae,,,,,,,,,,coarse_10km 5,coarse_10km 5,,not identified to species
+unresolved,5,0,0,"Buergeria Tschudi, 1838",,,,,,,,,,coarse_10km 5,coarse_10km 5,,not identified to species
+unresolved,5,0,0,Charadriidae,,,,,,,,,,coarse_10km 5,coarse_10km 5,,not identified to species
+unresolved,4,0,0,Lacertidae,,,,,,,,,,coarse_10km 4,coarse_10km 4,,not identified to species
+unresolved,4,0,0,"Sinomicrurus Slowinski, Boundy & Lawson, 2001",,,,,,,,,,coarse_10km 4,coarse_10km 4,,not identified to species
+unresolved,4,0,0,Phasianidae,,,,,,,,,,coarse_10km 4,coarse_10km 4,,not identified to species
+unresolved,4,0,0,Timaliidae,,,,,,,,,,coarse_10km 4,coarse_10km 4,,not identified to species
+unresolved,4,0,0,"Murina Gray, 1842",,,,,,,,,,coarse_10km 4,coarse_10km 4,,not identified to species
+unresolved,4,0,0,Rodentia,,,,,,,,,,coarse_10km 4,coarse_10km 4,,not identified to species
+unresolved,3,0,0,Eothenomys melanogaster,,62784,t0062784,Eothenomys melanogaster,,,,,,exact 3,exact 3,,"the published name matches Eothenomys melanogaster, which TaiCOL does not record in Taiwan. TaiCOL resolves it to t0105743 Eothenomys colurnus — a biologist should confirm before it is applied"
+unresolved,3,0,0,Artiodactyla,,,,,,,,,,coarse_10km 3,coarse_10km 3,,not identified to species
+unresolved,3,0,0,Turdidae,,,,,,,,,,coarse_10km 3,coarse_10km 3,,not identified to species
+unresolved,3,0,0,Accipitridae,,,,,,,,,,coarse_10km 3,coarse_10km 3,,not identified to species
+unresolved,3,0,0,Laniidae,,,,,,,,,,coarse_10km 3,coarse_10km 3,,not identified to species
+unresolved,3,0,0,Passeridae,,,,,,,,,,coarse_10km 3,coarse_10km 3,,not identified to species
+unresolved,3,0,0,Apodidae,,,,,,,,,,coarse_10km 3,coarse_10km 3,,not identified to species
+unresolved,3,0,0,Geoemydidae,,,,,,,,,,coarse_10km 3,coarse_10km 3,,not identified to species
+unresolved,3,0,0,"Mus Linnaeus, 1758",,,,,,,,,,coarse_10km 3,coarse_10km 3,,not identified to species
+unresolved,3,0,0,"Niviventer J.T.Marshall Jr., 1976",,,,,,,,,,coarse_10km 3,coarse_10km 3,,not identified to species
+unresolved,3,0,0,"Caprimulgus Linnaeus, 1758",,,,,,,,,,coarse_10km 3,coarse_10km 3,,not identified to species
+unresolved,2,0,0,Emberizidae,,,,,,,,,,coarse_10km 2,coarse_10km 2,,not identified to species
+unresolved,2,0,0,"Eptesicus Rafinesque, 1820",,,,,,,,,,coarse_10km 2,coarse_10km 2,,not identified to species
+unresolved,2,0,0,Phylloscopidae,,,,,,,,,,coarse_10km 2,coarse_10km 2,,not identified to species
+unresolved,2,0,0,"Chiromantes Gistel, 1848",,,,,,,,,,coarse_10km 2,coarse_10km 2,,not identified to species
+unresolved,2,0,0,Estrildidae,,,,,,,,,,coarse_10km 2,coarse_10km 2,,not identified to species
+unresolved,2,0,0,"Ficedula Brisson, 1760",,,,,,,,,,coarse_10km 2,coarse_10km 2,,not identified to species
+unresolved,2,0,0,"Mauremys Ritgen, 1828",,,,,,,,,,coarse_10km 2,coarse_10km 2,,not identified to species
+unresolved,2,0,0,"Sphenomorphus Fitzinger, 1843",,,,,,,,,,coarse_10km 2,coarse_10km 2,,not identified to species
+unresolved,2,0,0,"Polypedates Tschudi, 1838",,,,,,,,,,coarse_10km 2,coarse_10km 2,,not identified to species
+unresolved,2,0,0,Podicipedidae,,,,,,,,,,coarse_10km 2,coarse_10km 2,,not identified to species
+unresolved,2,0,0,"Accipiter Brisson, 1760",,,,,,,,,,coarse_10km 2,coarse_10km 2,,not identified to species
+unresolved,2,0,0,"Helice De Haan, 1833",,,,,,,,,,coarse_10km 2,coarse_10km 2,,not identified to species
+unresolved,2,0,0,"Phylloscopus F.Boie, 1826",,,,,,,,,,coarse_10km 2,coarse_10km 2,,not identified to species
+unresolved,2,0,0,Grapsidae,,,,,,,,,,coarse_10km 2,coarse_10km 2,,not identified to species
+unresolved,2,0,0,"Cuculus Linnaeus, 1758",,,,,,,,,,coarse_10km 2,coarse_10km 2,,not identified to species
+unresolved,2,0,0,"Egretta T.Forster, 1817",,,,,,,,,,coarse_10km 2,coarse_10km 2,,not identified to species
+unresolved,1,0,0,"Tarsiger Hodgson, 1845",,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,"Pseudoamolops Fei, Ye & Jiang, 2000",,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,"Numenius Brisson, 1760",,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,"Candidiopotamon Bott, 1967",,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,"Neosarmatium Serène & Soh, 1970",,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,Psittacidae,,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,"Ptyas Fitzinger, 1843",,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,"Chelonia Brongniart, 1800",,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,"Sesarmops Serène & Soh, 1970",,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,"Lanius Linnaeus, 1758",,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,Cervidae,,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,Caprimulgidae,,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,"Chodsigoa Kastchenko, 1907",,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,Cetacea,,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,"Columba Linnaeus, 1758",,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,"Anthus Bechstein, 1805",,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,Sciuridae,,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,"Amaurornis Reichenbach, 1853",,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,Talpidae,,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,"Calidris Merrem, 1804",,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,"Motacilla Linnaeus, 1758",,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,"Ixobrychus Billberg, 1828",,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,Laridae,,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,"Varuna H.Milne Edwards, 1830",,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,Agamidae,,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,Gecarcinidae,,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,Cricetidae,,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,"Cardisoma Latreille, 1828",,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,Elapidae,,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,"Macaca Lacépède, 1799",,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,Cheloniidae,,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,"Gekko Laurenti, 1768",,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,"Charadrius Linnaeus, 1758",,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,"Cettia Bonaparte, 1834",,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,"Pycnonotus F.Boie, 1826",,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,"Cisticola Kaup, 1829",,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,Leporidae,,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,Gaviidae,,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,"Streptopelia Bonaparte, 1855",,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,"Microhyla Tschudi, 1838",,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,Hipposideridae,,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,Delphinidae,,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,Dicroglossidae,,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species
+unresolved,1,0,0,Pycnonotidae,,,,,,,,,,coarse_10km 1,coarse_10km 1,,not identified to species

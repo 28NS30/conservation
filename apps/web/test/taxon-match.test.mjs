@@ -22,6 +22,7 @@ import {
   matchTaxon,
   matchLocal,
   elevatedSubspecies,
+  loadCrosswalk,
 } from "../../../scripts/taxon-names.ts";
 
 /** A taxon index built by hand, so the assertions are about the rules only. */
@@ -175,5 +176,54 @@ describe("a subspecies raised to species", () => {
   test("is refused for a plain binomial", () => {
     const idx = index([DOG]);
     assert.equal(elevatedSubspecies(idx, "Canis familiaris"), null);
+  });
+});
+
+/**
+ * The committed crosswalk itself.
+ *
+ * The rules above are pure and provable; this file is evidence, and evidence can
+ * be deleted, truncated or regenerated against a database that happens not to
+ * hold a taxon. The importer treats a missing crosswalk as "match fewer names"
+ * rather than an error — correct, because a fresh clone must still import — so
+ * nothing else would fail if the file went empty. These assertions would.
+ *
+ * Only the two entries the whole workstream exists for are pinned. The rest of
+ * the file is regenerated whenever TaiCOL is re-asked and pinning it would make
+ * that a test failure rather than an update.
+ */
+describe("the committed crosswalk", () => {
+  const crosswalk = loadCrosswalk();
+
+  test("is present and not empty", () => {
+    assert.ok(
+      crosswalk.size > 0,
+      "scripts/taxon-crosswalk.json is missing or has no names — regenerate it " +
+        "with scripts/remap-gbif-taxa.ts before the next import",
+    );
+  });
+
+  test("sends Canis lupus familiaris to the dog, not the wolf", () => {
+    // 14 records, published by TaiRON as dogs, filed under 狼 by the first import
+    // and blurred because the wolf is protected II. Nothing but this entry stands
+    // between the next import and the same mistake.
+    const dog = crosswalk.get("canis lupus familiaris");
+    assert.ok(dog, "no crosswalk entry for Canis lupus familiaris");
+    assert.equal(dog.taicol_id, "t0085383", "expected 犬 Canis familiaris");
+    assert.notEqual(dog.taicol_id, "t0097489", "that is the wolf");
+  });
+
+  test("sends Melogale moschata subaurantiaca to the Taiwanese ferret-badger", () => {
+    const badger = crosswalk.get("melogale moschata subaurantiaca");
+    assert.ok(badger, "no crosswalk entry for Melogale moschata subaurantiaca");
+    assert.equal(badger.taicol_id, "t0027888", "expected 鼬貛 Melogale subaurantiaca");
+  });
+
+  test("every entry names a TaiCOL taxon and says how it was resolved", () => {
+    for (const [name, entry] of crosswalk) {
+      assert.match(entry.taicol_id, /^t\d+$/, `${name}: implausible taicol_id`);
+      assert.ok(entry.via, `${name}: no provenance`);
+      assert.equal(name, name.toLowerCase(), "keys are matched case-insensitively");
+    }
   });
 });
