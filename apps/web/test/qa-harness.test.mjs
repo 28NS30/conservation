@@ -67,10 +67,31 @@ test("no row points at a page that does not exist", () => {
   assert.deepEqual(phantom, []);
 });
 
-test("the 404 row is deliberately a path no route serves", () => {
-  const row = ROUTES.find((r) => r.expectStatus === 404);
-  assert.ok(row, "the route table has no 404 row");
+test("the 404 probe is deliberately a path no route serves", () => {
+  // By name, not by `expectStatus`. Two rows expect a 404 now and they mean
+  // different things: this one proves a miss really misses, and /team is a real
+  // page whose data makes it 404 today. Finding "the" 404 row would pick
+  // whichever came first in the file.
+  const row = ROUTES.find((r) => r.name === "not-found");
+  assert.ok(row, "the route table has no 404 probe");
+  assert.equal(row.expectStatus, 404);
   assert.ok(!appRoutes().some((r) => asRegExp(r).test(row.path)));
+});
+
+test("every other 404 row is a real page, and says why it 404s", () => {
+  // The opposite check, and the one that matters when the reason changes:
+  // /team is served by an app route and answers 404 only because lib/team.ts
+  // publishes it when the roster is non-empty. If the roster lands and nobody
+  // updates the table, the sweep fails — which is the point — but this keeps
+  // the row from being mistaken for another unrouted probe in the meantime.
+  for (const row of ROUTES.filter(
+    (r) => r.expectStatus === 404 && r.name !== "not-found",
+  )) {
+    assert.ok(
+      appRoutes().some((r) => asRegExp(r).test(row.path)),
+      `${row.name}: expects 404 but no app route serves ${row.path} — if it is a probe, name it`,
+    );
+  }
 });
 
 test("the moderation queue is kept out of the gallery, with a reason", () => {
