@@ -120,7 +120,20 @@ async function main() {
       });
       const page = await ctx.newPage();
       const path = pathFor(route, locale, ids);
-      await page.goto(BASE + path, { waitUntil: "load" }).catch(() => {});
+      // The status is the point, not a nicety. Swallowing it meant a route that
+      // 500s, or a server that is not running at all, was measured as a clean
+      // page and reported "ok" — a sweep that cannot tell "no problems" from
+      // "no page" is worse than no sweep, because it is believed. `expectStatus`
+      // was already declared in routes.mjs for the 404 row and read by nothing.
+      const res = await page.goto(BASE + path, { waitUntil: "load" }).catch(() => null);
+      const want = route.expectStatus ?? 200;
+      if (!res || res.status() !== want) {
+        failures.push({
+          path,
+          errs: [`expected HTTP ${want}, got ${res ? res.status() : "no response"}`],
+        });
+        continue;
+      }
       await page.waitForTimeout(route.settle ?? 2500);
       const errs = await checkWidths(page, REFLOW_WIDTHS, null);
       checked += REFLOW_WIDTHS.length;

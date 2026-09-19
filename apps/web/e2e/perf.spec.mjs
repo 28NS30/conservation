@@ -125,6 +125,12 @@ async function load(browser, path, { width = 1440, locale = "zh-TW" } = {}) {
       tiles.push({
         status: r.status(),
         encoding: r.headers()["content-encoding"] ?? "(none)",
+        // An empty tile is a deliberate 200 with a zero-length body and no
+        // encoding; see the comment in app/api/tiles/[z]/[x]/[y]/route.ts and
+        // the contract pinned in test/tiles.test.mjs. Without this the gzip
+        // check below fails on the product working as designed — a map view
+        // that reaches a column of open sea is an ordinary map view.
+        length: Number(r.headers()["content-length"] ?? "0"),
         path: new URL(url).pathname,
       });
     }
@@ -195,7 +201,9 @@ async function main() {
       errs.push(
         `${path}: ${r.fonts.length} font request(s) — ${r.fonts[0]}. This page loads no webfont today; adding one to the map's layout delays the first paint of the heaviest page on the site.`,
       );
-    const ungzipped = r.tiles.filter((t) => t.status === 200 && t.encoding !== "gzip");
+    const ungzipped = r.tiles.filter(
+      (t) => t.status === 200 && t.length > 0 && t.encoding !== "gzip",
+    );
     if (ungzipped.length)
       errs.push(
         `${path}: ${ungzipped.length} tile response(s) not gzipped — ${ungzipped[0].path} came back as "${ungzipped[0].encoding}". A decompressed copy in a shared cache is served to everyone after it (see #42, #43).`,

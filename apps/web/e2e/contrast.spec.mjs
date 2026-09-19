@@ -249,6 +249,8 @@ async function main() {
   const browser = await chromium.launch();
   const found = [];
   const where = new Map();
+  /** Routes that did not answer as expected; see the navigation check below. */
+  const unreachable = [];
   for (const route of routes) {
     for (const locale of LOCALES) {
       for (const width of CONTRAST_WIDTHS) {
@@ -258,7 +260,17 @@ async function main() {
         });
         const page = await ctx.newPage();
         const path = pathFor(route, locale, ids);
-        await page.goto(BASE + path, { waitUntil: "load" }).catch(() => {});
+        // The status is the point, not a nicety. Swallowing it meant a route that
+        // 500s, or a server that is not running at all, was measured as a clean
+        // page and reported "ok" — a sweep that cannot tell "no problems" from
+        // "no page" is worse than no sweep, because it is believed. `expectStatus`
+        // was already declared in routes.mjs for the 404 row and read by nothing.
+        const res = await page.goto(BASE + path, { waitUntil: "load" }).catch(() => null);
+        const want = route.expectStatus ?? 200;
+        if (!res || res.status() !== want) {
+          unreachable.push(`${path}: expected HTTP ${want}, got ${res ? res.status() : "no response"}`);
+          continue;
+        }
         await page.waitForTimeout(route.settle ?? 2500);
         const rows = await auditContrast(page);
         for (const r of rows) {
@@ -278,6 +290,19 @@ async function main() {
   const file = JSON.parse(readFileSync(KNOWN_PATH, "utf8"));
   const known = file.known ?? {};
   const { counts, risen, fallen } = ratchet(found, known);
+
+  // A route that did not answer is a failed run, not a clean one, and it fails
+  // even on a recording pass: a baseline recorded while half the site was down
+  // would bake that silence in as the truth.
+  if (unreachable.length) {
+    console.log("\n  UNREACHABLE");
+    for (const u of unreachable) console.log(`    ${u}`);
+    console.log(
+      "\n  Nothing was measured on those routes. Start the dev server, or fix the\n" +
+        "  route, and run again.",
+    );
+    return 1;
+  }
 
   if (process.env.UPDATE_CONTRAST === "1") {
     // The note is carried over, not rewritten. It is the part of this file that
