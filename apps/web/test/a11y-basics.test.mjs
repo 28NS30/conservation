@@ -156,3 +156,63 @@ describe("the page surfaces are light", () => {
     assert.deepEqual([...new Set(offenders)], []);
   });
 });
+
+describe("a link off this site looks like a link", () => {
+  const WEB = new URL("..", import.meta.url).pathname;
+
+  /**
+   * Every `.tsx` under apps/web, so a new page cannot opt out by being new.
+   */
+  function tsxFiles(dir, out = []) {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name === "node_modules" || entry.name === ".next") continue;
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) tsxFiles(path, out);
+      else if (entry.name.endsWith(".tsx")) out.push(path);
+    }
+    return out;
+  }
+
+  const classOf = (tag) => {
+    const m = tag.match(/className=(?:"([^"]*)"|\{`([^`]*)`\})/s);
+    return (m?.[1] ?? m?.[2] ?? "").trim();
+  };
+
+  const underlined = (cls) => /(^|\s)underline(\s|$)/.test(cls);
+
+  test("it carries an underline, not only a colour", () => {
+    // WCAG 1.4.1. The footer's credit links were `text-ink-600` inside a
+    // `text-ink-500` sentence — 1.24:1 between the link and the words around
+    // it — with the underline arriving on hover. The attribution page's were
+    // `text-ember-700` in `text-ink-600`: 1.23:1, and against ink-500 exactly
+    // 1.01:1, which is to say identical in luminance and distinguished by hue
+    // alone. On a phone there is no hover at all, so for a touch visitor they
+    // were not links, they were words.
+    //
+    // These are the CC BY 4.0 attribution links. Naming TaiRON, GBIF and
+    // TaiCOL, and pointing at the licence, is a condition of using the data —
+    // so of every link on the site these are the ones that must be followable.
+    // Nothing failed and no page looked broken, which is why it lasted: axe
+    // reports it, and axe runs nightly rather than in CI.
+    //
+    // Keyed on `target="_blank"` rather than on the href, because the licence
+    // link's href is `row.license` — a runtime value — and a rule written
+    // against literal "https://" would have missed the one link whose whole
+    // job is to be followed.
+    const offenders = [];
+    for (const file of tsxFiles(WEB)) {
+      const text = readFileSync(file, "utf8");
+      for (const tag of text.match(/<a\b[^>]*?>/gs) ?? []) {
+        if (!tag.includes('target="_blank"')) continue;
+        const cls = classOf(tag);
+        if (!underlined(cls))
+          offenders.push(`${file.slice(WEB.length + 1)}: ${cls || "(no className)"}`);
+      }
+    }
+    assert.deepEqual(
+      offenders,
+      [],
+      "an external link whose underline only appears on hover — add `underline`",
+    );
+  });
+});

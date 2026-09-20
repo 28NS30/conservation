@@ -145,7 +145,7 @@ function ExternalLink({
 }) {
   return (
     <a
-      className="text-ink-600 underline-offset-2 hover:underline"
+      className="text-ink-600 underline underline-offset-2 hover:text-ink-900"
       href={href}
       target="_blank"
       rel="noreferrer"
