@@ -110,7 +110,7 @@ export async function POST(req: Request) {
 
   try {
     const result = await sql.begin(async (tx) => {
-      const inserted = await tx<{ id: string }[]>`
+      const inserted = await tx<{ id: string; location_precision: string }[]>`
         insert into reports (
           category, location, location_public, observed_at, notes,
           status, source, reporter_id, contact_email, flagged_reason,
@@ -127,13 +127,21 @@ export async function POST(req: Request) {
           ${input.accuracyM ?? null}
         )
         on conflict (client_nonce) where client_nonce is not null do nothing
-        returning id`;
+        returning id, location_precision`;
 
       // Same nonce already submitted — a double-tap or an offline retry.
       if (inserted.length === 0) {
-        const [existing] = await tx<{ id: string; status: string }[]>`
-          select id, status from reports where client_nonce = ${input.clientNonce}`;
-        return { id: existing.id, status: existing.status, duplicate: true };
+        const [existing] = await tx<
+          { id: string; status: string; location_precision: string }[]
+        >`
+          select id, status, location_precision from reports
+           where client_nonce = ${input.clientNonce}`;
+        return {
+          id: existing.id,
+          status: existing.status,
+          precision: existing.location_precision,
+          duplicate: true,
+        };
       }
 
       const reportId = inserted[0].id;
@@ -152,7 +160,12 @@ export async function POST(req: Request) {
         await tx`insert into classification_jobs (report_id) values (${reportId})`;
       }
 
-      return { id: reportId, status, duplicate: false };
+      return {
+        id: reportId,
+        status,
+        precision: inserted[0].location_precision,
+        duplicate: false,
+      };
     });
 
     return Response.json(
@@ -161,6 +174,15 @@ export async function POST(req: Request) {
         status: result.status,
         duplicate: result.duplicate,
         awaitingIdentification: awaitingId,
+        // `published` is not the same as visible. `reports_public` also drops
+        // anything whose taxon TaiCOL rates 座標不開放, and the trigger stamps
+        // that precision from the taxon the reporter chose — so a report can be
+        // published, correct, and absent from the map, the list and every
+        // statistic. Telling its reporter "it's on the map" and linking them to
+        // a page that 404s is the exact failure the receipt work exists to end,
+        // so the answer carries what the trigger decided rather than leaving the
+        // client to assume.
+        visible: result.precision !== "suppressed",
       },
       { status: result.duplicate ? 200 : 201 },
     );

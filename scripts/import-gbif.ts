@@ -15,6 +15,13 @@
  * row and surfaced on the attribution page.
  */
 import { sql, fetchJson, progress } from "./db.ts";
+import {
+  loadCrosswalk,
+  loadTaxonIndex,
+  matchTaxon,
+  type CrosswalkEntry,
+  type TaxonIndex,
+} from "./taxon-names.ts";
 import { isInTaiwanBounds } from "@conservation/shared";
 
 const API = "https://api.gbif.org/v1/occurrence/search";
@@ -31,6 +38,12 @@ type Occurrence = {
   gbifID?: string | number;
   species?: string;
   scientificName?: string;
+  // The Darwin Core atoms of the name the publisher actually wrote. GBIF's
+  // `species` is GBIF's own answer, arrived at by re-filing the record under its
+  // backbone taxonomy; these three survive that untouched. See taxon-names.ts.
+  genericName?: string;
+  specificEpithet?: string;
+  infraspecificEpithet?: string;
   decimalLatitude?: number;
   decimalLongitude?: number;
   eventDate?: string;
@@ -120,17 +133,6 @@ function parseObserved(o: Occurrence): string | null {
   return null;
 }
 
-async function loadTaxonIndex(): Promise<Map<string, number>> {
-  const rows = await sql<{ id: number; name: string }[]>`
-    select id, lower(scientific_name) as name
-      from taxa
-     where rank in ('Species','Subspecies')
-     order by is_in_taiwan desc, (taxon_status = 'accepted') desc, id`;
-  const map = new Map<string, number>();
-  for (const r of rows) if (!map.has(r.name)) map.set(r.name, r.id);
-  return map;
-}
-
 /** Offsets whose page could not be fetched even after retries. */
 const failedOffsets: number[] = [];
 
@@ -144,12 +146,17 @@ const stats = {
   skippedNoId: 0,
   matchedTaxon: 0,
   unmatchedTaxon: 0,
+  /** Which matcher rule answered, so a run says how it got its names. */
+  viaPublished: 0,
+  viaCrosswalk: 0,
+  viaSpecies: 0,
 };
 
 function toRow(
   o: Occurrence,
   category: string,
-  taxonIdx: Map<string, number>,
+  taxonIdx: TaxonIndex,
+  crosswalk: Map<string, CrosswalkEntry>,
   fallbackRightsHolder: string | null,
 ): Row | null {
   const lat = o.decimalLatitude,
@@ -183,18 +190,24 @@ function toRow(
     return null;
   }
 
-  const name = (o.species ?? o.scientificName ?? "").trim();
-  const taxonId = name ? (taxonIdx.get(name.toLowerCase()) ?? null) : null;
-  if (taxonId) stats.matchedTaxon++;
-  else if (name) stats.unmatchedTaxon++;
+  // Four rules, in order: the published name against local taxa, the committed
+  // crosswalk, GBIF's `species` when that taxon is in Taiwan, then nothing. See
+  // taxon-names.ts for why `species` alone was never enough.
+  const m = matchTaxon(taxonIdx, crosswalk, o);
+  if (m.taxon) {
+    stats.matchedTaxon++;
+    if (m.via === "published") stats.viaPublished++;
+    else if (m.via === "crosswalk") stats.viaCrosswalk++;
+    else stats.viaSpecies++;
+  } else if (m.verbatim) stats.unmatchedTaxon++;
 
   return {
     category,
     lng,
     lat,
     observed_at: observed,
-    taxon_id: taxonId,
-    verbatim_name: taxonId ? null : name || null,
+    taxon_id: m.taxon?.id ?? null,
+    verbatim_name: m.verbatim,
     // Namespace by dataset: occurrenceID is only unique within a dataset.
     source_id: `${o.datasetKey ?? "gbif"}:${sourceId}`,
     license: o.license ?? null,
@@ -249,7 +262,8 @@ async function importQuery(
   params: string,
   category: string,
   cap: number,
-  taxonIdx: Map<string, number>,
+  taxonIdx: TaxonIndex,
+  crosswalk: Map<string, CrosswalkEntry>,
   startOffset: number,
 ) {
   const base = `${API}?${params}&hasCoordinate=true&hasGeospatialIssue=false&limit=${PAGE}`;
@@ -291,7 +305,7 @@ async function importQuery(
       const fallback = o.datasetKey
         ? await datasetRightsHolder(o.datasetKey)
         : null;
-      const row = toRow(o, category, taxonIdx, fallback);
+      const row = toRow(o, category, taxonIdx, crosswalk, fallback);
       if (row) rows.push(row);
     }
     stats.inserted += await insertBatch(rows);
@@ -310,14 +324,23 @@ async function main() {
   const limIdx = argv.indexOf("--limit");
   const cap = limIdx >= 0 ? Number(argv[limIdx + 1]) : Infinity;
 
-  const taxonIdx = await loadTaxonIndex();
-  if (taxonIdx.size === 0) {
+  const taxonIdx = await loadTaxonIndex(sql);
+  if (taxonIdx.byName.size === 0) {
     console.error(
       "`taxa` is empty — run `npm run import:taicol` first so records can be matched to species.",
     );
     process.exit(1);
   }
-  console.log(`Taxon index: ${taxonIdx.size.toLocaleString()} names`);
+  const crosswalk = loadCrosswalk();
+  console.log(
+    `Taxon index: ${taxonIdx.byName.size.toLocaleString()} names, ` +
+      `crosswalk: ${crosswalk.size.toLocaleString()} published names`,
+  );
+  if (crosswalk.size === 0)
+    console.log(
+      "  note: scripts/taxon-crosswalk.json is missing — names TaiCOL and GBIF\n" +
+        "        disagree about will not match. Rebuild it with remap-gbif-taxa.ts.",
+    );
 
   const restart = argv.includes("--restart");
   const offIdx = argv.indexOf("--offset");
@@ -332,6 +355,7 @@ async function main() {
     "roadkill",
     cap,
     taxonIdx,
+    crosswalk,
     roadkillStart,
   );
 
@@ -342,6 +366,7 @@ async function main() {
       "sighting",
       Math.min(cap, 60_000),
       taxonIdx,
+      crosswalk,
       0,
     );
   }
@@ -350,6 +375,9 @@ async function main() {
   fetched            ${stats.fetched.toLocaleString()}
   inserted           ${stats.inserted.toLocaleString()}
   taxon matched      ${stats.matchedTaxon.toLocaleString()}
+    published name   ${stats.viaPublished.toLocaleString()}
+    crosswalk        ${stats.viaCrosswalk.toLocaleString()}
+    GBIF species     ${stats.viaSpecies.toLocaleString()}
   taxon unmatched    ${stats.unmatchedTaxon.toLocaleString()}
   skipped: no coord  ${stats.skippedNoCoord.toLocaleString()}
            off-map   ${stats.skippedOutOfBounds.toLocaleString()}

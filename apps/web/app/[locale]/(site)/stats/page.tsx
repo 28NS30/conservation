@@ -77,12 +77,31 @@ export default async function StatsPage({
 
   const n = (v: number) => v.toLocaleString(locale);
   const zhFirst = locale.startsWith("zh");
+  /*
+   * Numerals on the axis, month names in the table.
+   *
+   * `month: "narrow"` gives zh-TW 1–12 and English J F M A M J J A S O N D —
+   * seven letters for twelve months, three of them repeated, on a chart whose
+   * whole claim is that May and June differ. Columns are 16–26px wide on a
+   * phone, so "January" was never going to fit; the long names go where there
+   * is room for them, which is the table underneath and the hover.
+   */
+  const monthAxis = Array.from({ length: 12 }, (_, i) =>
+    (i + 1).toLocaleString(locale),
+  );
   const monthNames = Array.from({ length: 12 }, (_, i) =>
-    new Intl.DateTimeFormat(locale, { month: "narrow" }).format(
+    new Intl.DateTimeFormat(locale, { month: "long" }).format(
       new Date(Date.UTC(2021, i, 1)),
     ),
   );
   const peak = months.indexOf(Math.max(...months));
+  const ts = await getTranslations("stats");
+  const monthTable = {
+    keyHeader: ts("month"),
+    valueHeader: ts("count"),
+    summary: ts("showNumbers"),
+  };
+  const yearTable = { ...monthTable, keyHeader: ts("year") };
 
   return (
     <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-12">
@@ -141,7 +160,13 @@ export default async function StatsPage({
           stacking them single-file made a 640px ribbon down a 1180px page with
           six screens of scrolling. `items-start` keeps a short panel from being
           stretched to match a tall one beside it. */}
-      <div className="mt-4 grid items-start gap-3 lg:grid-cols-2">
+      {/* `grid-cols-1` is not decoration. A grid with no column template at all
+          falls back to one implicit column sized to its content, so the widest
+          thing inside — a long Latin name, a hotspot's count — pushed the whole
+          page wider than the phone it was on: /en/stats laid out 421px inside a
+          390px viewport and scrolled sideways. Naming one column makes it
+          minmax(0, 1fr), which is what every child here already assumes. */}
+      <div className="mt-4 grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
         {/* One category means one 100% bar, which tells the reader nothing. The
             seed corpus is entirely roadkill; this appears once people report
             other things. */}
@@ -164,7 +189,13 @@ export default async function StatsPage({
           <Columns
             label={t("seasonality")}
             highlight={peak}
-            data={months.map((v, i) => ({ key: monthNames[i], n: v }))}
+            locale={locale}
+            table={monthTable}
+            data={months.map((v, i) => ({
+              key: monthAxis[i],
+              label: monthNames[i],
+              n: v,
+            }))}
           />
           <p className="mt-2 text-[11px] text-ink-500">
             {t("peakMonth", {
@@ -179,6 +210,8 @@ export default async function StatsPage({
           <Section title={t("byYear")} hint={t("byYearHint")}>
             <Columns
               label={t("byYear")}
+              locale={locale}
+              table={yearTable}
               data={years.map((y) => ({ key: String(y.year), n: y.n }))}
             />
           </Section>
