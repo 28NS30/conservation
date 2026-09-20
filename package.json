@@ -26,7 +26,8 @@
     "export:dwca": "npm run export:dwca --workspace @conservation/scripts --",
     "test:pages": "npm run test:pages --workspace @conservation/web",
     "preflight": "npm run preflight --workspace @conservation/scripts --",
-    "verify:deploy": "node scripts/verify-deploy.mjs"
+    "verify:deploy": "node scripts/verify-deploy.mjs",
+    "shots": "npm run shots --workspace @conservation/web"
   },
   "engines": {
     "node": ">=20"
