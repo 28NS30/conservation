@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     template: "%s · BioWatch International",
   },
   description:
-    "Open environmental monitoring, built with the people who live there. Citizen reports, open identification, public maps — currently in Taiwan and Colombia.",
+    "Open environmental monitoring, built with the people who live there. Citizen reports, open identification, public maps — currently in Taiwan, with a partner project in Colombia.",
   openGraph: {
     type: "website",
     siteName: "BioWatch International",
