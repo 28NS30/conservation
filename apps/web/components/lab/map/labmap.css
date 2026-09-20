@@ -1,0 +1,158 @@
+/*
+ * The bits of the map that are not ours to put in markup.
+ *
+ * MapLibre injects its own controls into the container, so the zoom buttons and
+ * the attribution cannot be styled by a component — they can only be reached
+ * from a stylesheet. Everything here is scoped under `[data-lab] .lab-map`, so
+ * it cannot touch the live map, and every colour is a semantic variable: the
+ * container carries `data-surface="field"`, so these resolve to the forest
+ * surface, which is the same colour as the land under them.
+ *
+ * Two rules are requirements rather than taste.
+ *
+ * The attribution must stay visible. OpenStreetMap and OpenFreeMap both require
+ * it, so it is given a reserved strip rather than being allowed to fall behind
+ * the legend or a sheet: it sits above the 32px legend strip, and drops to the
+ * floor when a record sheet hides that strip.
+ *
+ * The zoom buttons are 44px. MapLibre ships 29px ones, which is under the
+ * target floor everywhere in direction.md, and they are the only controls on
+ * this page a person uses while standing up outdoors.
+ */
+
+[data-lab] .lab-map {
+  position: relative;
+  height: 100%;
+  width: 100%;
+}
+
+/* ---- zoom ---- */
+
+[data-lab] .lab-map .maplibregl-ctrl-group {
+  background: var(--ground);
+  border: 2px solid var(--fg);
+  border-radius: var(--radius-sign);
+  box-shadow: none;
+}
+
+[data-lab] .lab-map .maplibregl-ctrl-group button {
+  width: 44px;
+  height: 44px;
+  background: transparent;
+}
+
+[data-lab] .lab-map .maplibregl-ctrl-group button + button {
+  border-top: 2px solid var(--fg);
+}
+
+/* The control icons are dark SVGs baked into a background-image, so there is no
+   fill to set. Inverting them is the only way to put them on a forest block. */
+[data-lab] .lab-map .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: invert(1);
+}
+
+[data-lab] .lab-map .maplibregl-ctrl-group button:not(:disabled):hover {
+  background: var(--hover);
+}
+
+/* ---- attribution ---- */
+
+[data-lab] .lab-map .maplibregl-ctrl-attrib {
+  background: var(--ground);
+  color: var(--fg-quiet);
+  /* The 14px floor. It is Latin text, so the Hanzi rule does not bind, but a
+     credit nobody can read is not a credit. */
+  font-size: var(--text-note);
+  line-height: var(--lh-note);
+  border-radius: 0;
+}
+
+[data-lab] .lab-map .maplibregl-ctrl-attrib a {
+  color: var(--fg);
+}
+
+[data-lab] .lab-map .maplibregl-ctrl-attrib-button {
+  background-color: var(--ground);
+  filter: invert(1);
+}
+
+/* Above the legend strip, which owns the bottom 32px of a phone screen. */
+[data-lab] .lab-map .maplibregl-ctrl-bottom-right {
+  bottom: 32px;
+}
+
+/* A record sheet hides the legend strip, so the credit takes the floor back
+   rather than disappearing under the sheet. */
+[data-lab] .lab-map[data-sheet="record"] .maplibregl-ctrl-bottom-right {
+  bottom: 0;
+}
+
+@media (min-width: 768px) {
+  /* The legend lives in the docked panel on a desktop, so there is no strip. */
+  [data-lab] .lab-map .maplibregl-ctrl-bottom-right,
+  [data-lab] .lab-map[data-sheet="record"] .maplibregl-ctrl-bottom-right {
+    bottom: 0;
+  }
+}
+
+/* The scale bar reads as a measurement, not as chrome. */
+[data-lab] .lab-map .maplibregl-ctrl-scale {
+  background: var(--ground);
+  border: 2px solid var(--fg);
+  border-top: none;
+  color: var(--fg);
+  font-size: var(--text-note);
+  border-radius: 0;
+}
+
+/* ---- the one page that is exactly one screen ---------------------------- */
+
+/*
+ * The map fills the viewport, and nothing on it scrolls the document.
+ *
+ * The lab's own chrome makes this harder than it is on the live `/map`. There,
+ * one `h-[100dvh]` on the page is the whole story. Here the page sits inside two
+ * wrappers it does not own — the lab layout's `flex min-h-[100dvh]` column with
+ * the compare strip above it, and the direction layout's `min-h-full` block —
+ * and a `min-height` chain never gives a descendant a height to be a percentage
+ * of. Left alone, the map took its height from the tallest thing beside it,
+ * which was the filter panel's own content: the island rendered, the legend
+ * pinned to the foot of the panel fell off the bottom of the screen, and on a
+ * phone the map collapsed to nothing at all.
+ *
+ * Fixed here rather than in those two layouts, because they are shared with
+ * three other pages that are documents and must keep growing past the fold.
+ * `:has(.lab-map)` applies this to the one route that wants it, and the two
+ * `min-height: 0` lines are the part that actually does the work: a flex item's
+ * automatic minimum size is its content, so without them the column refuses to
+ * shrink to the viewport no matter what height it is given.
+ */
+[data-lab]:has(.lab-map) {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+[data-lab]:has(.lab-map) > * {
+  min-height: 0;
+}
+
+[data-lab]:has(.lab-map) [data-direction] {
+  height: 100%;
+  min-height: 0;
+}
+
+/*
+ * The scale bar is a desktop luxury. On a phone the bottom band is already
+ * carrying the legend and the credit, and the credit is the one that cannot be
+ * moved — so the measurement gives way rather than the licence.
+ */
+[data-lab] .lab-map .maplibregl-ctrl-bottom-left {
+  visibility: hidden;
+}
+
+@media (min-width: 768px) {
+  [data-lab] .lab-map .maplibregl-ctrl-bottom-left {
+    visibility: visible;
+  }
+}
