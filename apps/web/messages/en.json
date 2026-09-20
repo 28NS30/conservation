@@ -108,6 +108,7 @@
     "useMyLocation": "Use my location",
     "locating": "Locating…",
     "tapToAdjust": "Tap the map to adjust",
+    "tapToMark": "Tap the map to mark the spot",
     "outsideTaiwan": "Outside Taiwan",
     "exifOffer": "This photo contains a location — use it?",
     "exifUse": "Use",
@@ -120,13 +121,29 @@
     "submit": "Submit report",
     "submitting": "Submitting…",
     "needLocation": "Tap the map to mark where you saw it",
-    "photoFailed": "Could not process photo",
+    "locationError": "Couldn't get your location. Tap the map instead.",
+    "errors": {
+      "rate_limited": "Too many submissions just now. Try again in a few minutes.",
+      "challenge_failed": "The browser check didn't pass. Please try again.",
+      "photo": "The photos couldn't be uploaded. Try again, or take them off and send.",
+      "photoUnreadable": "This photo can't be read. Use a different one, or take it again.",
+      "taxon_not_found": "That species can't be found. Please choose it again.",
+      "validation_failed": "Something in the form isn't right. Check it and send again.",
+      "server": "Something went wrong at our end and the report was not sent. What you entered is still here."
+    },
     "privacyNote": "Locations of sensitive and protected species are automatically blurred before publication, so reports cannot be used to find them.",
-    "thanks": "Thank you for your report!",
-    "received": "Your report was received.",
-    "identifying": "Being identified now; it will appear on the map shortly (usually a minute or two).",
-    "published": "Published to the map.",
-    "viewReport": "View this report",
+    "receipt": {
+      "onMap": "It's on the map",
+      "held": "Received. Not public yet.",
+      "withheld": "Received, and deliberately not shown",
+      "heldForIdentification": "Someone has to identify the animal first. That is done by hand, with no timetable.",
+      "heldNoPhoto": "A person looks at reports without a photo first.",
+      "heldForReview": "A person will look at this report first.",
+      "withheldSpecies": "TaiCOL rates this species' coordinates as not for publication. The record is kept, but it does not appear on the map, in the report list or in any statistic.",
+      "viewRecord": "View this record",
+      "checkStatus": "Check its status",
+      "another": "Report another"
+    },
     "needChallenge": "Complete the check above first",
     "preparingPhotos": "Processing photos…",
     "group": {
@@ -139,6 +156,7 @@
       "roadkill": "Dead",
       "injured": "Alive, but hurt"
     },
+    "noDispatch": "This only records what you saw. Nobody will be sent.",
     "species": "Species",
     "speciesSearch": "Search by name — 石虎, leopard cat, Prionailurus",
     "speciesSearchInvasive": "Search the invasive species register",
@@ -162,7 +180,11 @@
     "suggestions": "Suggestions",
     "pickCorrect": "Pick the correct species to fix this record.",
     "confirmedBy": "Confirmed by the reporter or a moderator.",
-    "source": "Source"
+    "source": "Source",
+    "receipt": {
+      "title": "Received. Not public right now.",
+      "body": "A person looks at reports without a photo or species name first. Some species' locations are never shown."
+    }
   },
   "admin": {
     "heading": "Moderation queue",
@@ -288,10 +310,9 @@
     "sendNow": "Send now",
     "sending": "Sending…",
     "discard": "Discard",
-    "sentCount": "Sent {count} reports.",
-    "queueFailed": "Could not save to this device",
-    "verifying": "Checking your browser before sending — this takes a moment.",
-    "viewSent": "Open it"
+    "sentCount": "{count, plural, one {Sent # report.} other {Sent # reports.}}",
+    "queueFailed": "This report could not be saved on your device, and was not sent. Check that your browser is not blocking storage, or that it is not full.",
+    "verifying": "Checking your browser before sending — this takes a moment."
   },
   "errors": {
     "title": "Something went wrong",

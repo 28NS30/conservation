@@ -119,17 +119,39 @@ describe("the page surfaces are light", () => {
     assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
   });
 
-  test("the report form carries no map-palette classes", () => {
+  test("the report form carries the map palette only on the map", () => {
     // `parchment` and `sky` belong to the dark map and to the default Tailwind
     // palette respectively. On cream they measured 2.90:1 and 1.02–1.28:1 —
     // the second is invisible rather than merely low-contrast.
+    //
+    // This began as "no parchment class anywhere under components/report",
+    // which held only while nothing in that directory was dark. The picker's
+    // overlay is: a chip that paints `bg-bark-950` over the map canvas, where
+    // `text-parchment-50` measures 16.35:1 and is the same pairing every
+    // component under components/map uses. Banning it there would have pushed
+    // that chip onto an ink colour it cannot be read in.
+    //
+    // So the rule is the one that was always meant — the map's palette may not
+    // be used on the cream page — and it is enforced by asking what background
+    // is painted beside the token rather than by the token's name alone. A
+    // parchment or sky class is an offender unless the class list holding it
+    // also lays the dark map ground underneath it, and one written outside any
+    // class list is an offender regardless.
     const dir = join(WEB, "components/report");
     const offenders = [];
     for (const name of readdirSync(dir)) {
       if (!/\.tsx?$/.test(name)) continue;
       const text = readFileSync(join(dir, name), "utf8");
-      for (const m of text.matchAll(/\b[a-z-]*-(sky|parchment)-\d+\b/g))
+      const lists = [...text.matchAll(/"[^"\n]*"|`[^`]*`/g)];
+      for (const m of text.matchAll(/\b[a-z-]*-(sky|parchment)-\d+\b/g)) {
+        const holder = lists.find(
+          (l) =>
+            l.index <= m.index &&
+            m.index + m[0].length <= l.index + l[0].length,
+        );
+        if (holder && /\bbg-bark-\d+\b/.test(holder[0])) continue;
         offenders.push(`${name}: ${m[0]}`);
+      }
     }
     assert.deepEqual([...new Set(offenders)], []);
   });

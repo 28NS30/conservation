@@ -8,6 +8,7 @@ import {
 } from "./queue";
 import { withBase } from "@/lib/basePath";
 import { turnstileEnabled } from "@/lib/turnstile";
+import { ReportError, PHOTO_UPLOAD_FAILED } from "@/lib/report/errors";
 
 /**
  * Runs the full submission pipeline for queued reports.
@@ -67,7 +68,10 @@ async function uploadPhotos(item: QueuedReport): Promise<string[]> {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ count: pending.length }),
   });
-  if (!res.ok) throw new Error(`upload signing failed (${res.status})`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ReportError(body.error ?? "sign_failed", res.status);
+  }
   const { uploads } = (await res.json()) as {
     uploads: { path: string; token: string }[];
   };
@@ -78,7 +82,10 @@ async function uploadPhotos(item: QueuedReport): Promise<string[]> {
   for (let i = 0; i < pending.length; i++) {
     const { path, token } = uploads[i];
     const { error } = await storage.uploadToSignedUrl(path, token, pending[i]);
-    if (error) throw new Error(`photo upload failed: ${error.message}`);
+    if (error) {
+      console.error("[flush] photo upload:", error);
+      throw new ReportError(PHOTO_UPLOAD_FAILED);
+    }
     paths.push(path);
     // Persist after each photo so a mid-upload disconnect resumes from here.
     await updateQueued(item.id, { uploadedPaths: paths });
@@ -119,15 +126,18 @@ async function sendOne(
     const data = await res.json().catch(() => ({}));
 
     if (res.ok) {
-      // Kept as a receipt rather than deleted; see markUploaded.
-      await markUploaded(item.id, String(data.id ?? ""));
+      // Kept as a receipt rather than deleted; see markUploaded. The status
+      // comes along so the banner can offer the right link: a report that
+      // landed as `pending` has no public page to open, and the receipt used
+      // to link to one anyway.
+      await markUploaded(item.id, String(data.id ?? ""), data.status);
       return "sent";
     }
 
     // A stale or already-spent token is not the report's fault, and the next
     // flush mints a new one. Fall through to the retry path.
     if (res.status === 403 && data.error === "challenge_failed") {
-      throw new Error("verification expired — will retry");
+      throw new ReportError("challenge_failed", 403);
     }
 
     // Any other 4xx except rate-limiting means this report will never be
@@ -136,17 +146,23 @@ async function sendOne(
     if (res.status >= 400 && res.status < 500 && res.status !== 429) {
       await updateQueued(item.id, {
         status: "failed",
-        lastError: data.error ?? `rejected (${res.status})`,
+        lastError: data.error ?? "unknown",
       });
       return "failed";
     }
-    throw new Error(data.error ?? `submission failed (${res.status})`);
+    throw new ReportError(data.error ?? "unknown", res.status);
   } catch (e) {
-    const message = (e as Error).message.slice(0, 300);
+    // A code, not a sentence. `lastError` is rendered by the queue banner, and
+    // it used to hold English prose assembled here — "upload signing failed
+    // (500)", "verification expired — will retry" — which was then shown
+    // verbatim to a Taiwanese reporter. A code can be translated; a sentence
+    // written in this file cannot.
+    const code = e instanceof ReportError ? e.code : "unknown";
+    if (!(e instanceof ReportError)) console.error("[flush]", e);
     const attempts = item.attempts + 1;
     await updateQueued(item.id, {
       status: attempts >= MAX_ATTEMPTS ? "failed" : "queued",
-      lastError: message,
+      lastError: code,
     });
     return "failed";
   }
