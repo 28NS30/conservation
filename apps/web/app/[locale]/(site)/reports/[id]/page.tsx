@@ -345,7 +345,7 @@ export default async function ReportPage({
                   href={row.license}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-ember-700 transition hover:underline"
+                  className="text-ember-700 underline underline-offset-2 transition hover:text-ink-900"
                 >
                   {licenseLabel(row.license)}
                 </a>

@@ -160,12 +160,24 @@ function Figure({
   hint: string;
 }) {
   return (
-    <div className="rounded-lg border border-ink-900/12 bg-paper-100 px-5 py-4">
-      <dd className="text-2xl font-semibold tabular-nums text-ink-900">
+    // A definition list's group is a `dt` and the `dd`s that describe it, in
+    // that order and with nothing else between them. This tile was `dd`, `dt`,
+    // `p` — the reading order reversed, and a paragraph where only a `dd` may
+    // be — so the list announced a description with no term and then a term
+    // with no description. axe calls it `definition-list`.
+    //
+    // The number still comes first to the eye, by `order` rather than by DOM.
+    // The hint is a second `dd`, which is what it is: another description of
+    // the same term. Several `dd`s to one `dt` is exactly what the element is
+    // for.
+    <div className="flex flex-col rounded-lg border border-ink-900/12 bg-paper-100 px-5 py-4">
+      <dt className="order-2 mt-1 text-sm text-ink-700">{label}</dt>
+      <dd className="order-1 text-2xl font-semibold tabular-nums text-ink-900">
         {value}
       </dd>
-      <dt className="mt-1 text-sm text-ink-700">{label}</dt>
-      <p className="mt-1.5 text-[11px] leading-relaxed text-ink-500">{hint}</p>
+      <dd className="order-3 mt-1.5 text-[11px] leading-relaxed text-ink-500">
+        {hint}
+      </dd>
     </div>
   );
 }

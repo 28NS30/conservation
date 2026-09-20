@@ -64,7 +64,7 @@ export default async function AttributionPage({
                 href="https://roadkill.tw"
                 target="_blank"
                 rel="noreferrer"
-                className="text-ember-700 underline-offset-2 hover:underline"
+                className="text-ember-700 underline underline-offset-2 hover:text-ink-900"
               >
                 {c}
               </a>
@@ -74,7 +74,7 @@ export default async function AttributionPage({
                 href="https://www.gbif.org/dataset/db09684b-0fd1-431e-b5fa-4c1532fbdb14"
                 target="_blank"
                 rel="noreferrer"
-                className="text-ember-700 underline-offset-2 hover:underline"
+                className="text-ember-700 underline underline-offset-2 hover:text-ink-900"
               >
                 {c}
               </a>
@@ -127,7 +127,7 @@ export default async function AttributionPage({
                 href="https://taicol.tw"
                 target="_blank"
                 rel="noreferrer"
-                className="text-ember-700 underline-offset-2 hover:underline"
+                className="text-ember-700 underline underline-offset-2 hover:text-ink-900"
               >
                 {c}
               </a>
