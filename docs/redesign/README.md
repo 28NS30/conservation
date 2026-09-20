@@ -280,15 +280,17 @@ Blocking, in the order they are needed:
    (`0009`, `0010`). Until those land the live site cannot accept a report at all — the deployed code
    writes two columns production does not have — so W0a's receipts, W6's flow and W11's queue are all
    designed on a path that currently fails.
-1. **Preview access** for W1 (Vercel previews sit behind SSO). Without it the prototypes cannot be
-   shown on your phone.
+1. **Preview access** for W1 (Vercel previews sit behind SSO, confirmed: they 302 to a login).
+   Without it the prototypes cannot be shown on your phone. On a machine with the repo they can be
+   read without any of that — check out the `lab` branch, `npm run dev`, open `/lab`.
 2. **The direction and the flow**, at the end of W1. Everything after W1 waits on this.
 3. **The injured-wildlife referral**: which agency, which number, in both languages. Nobody will
    invent one. This blocks shipping the injured-animal guidance.
 4. **The emblem**: enlarge today's PNG now (still reading ECOWATCH), or wait for the redraw.
-5. **A native zh-TW reader** for roughly 70 new strings across the workstreams. Every brief has a
-   fallback that reuses live copy so work is not blocked, but unread copy should not reach
-   production.
+5. **A native zh-TW reader** for the 69 new strings in [zh-tw-review.md](zh-tw-review.md) — every
+   one extracted from the five trust-tier branches, English beside Chinese, with a blank line under
+   each to write the replacement in. Every brief has a fallback that reuses live copy so work is not
+   blocked, but unread copy should not reach production.
 
 Non-blocking questions each have a recommended default recorded in the brief that raises them, so no
 agent has to wait for an answer.
@@ -312,6 +314,9 @@ agent has to wait for an answer.
 - **[alternatives/](alternatives/)** — the four visual directions and three report flows as
   proposed, including the rejected ones. Kept because the judges' grafts refer to them and because
   the runner-up may yet be chosen.
+- **[zh-tw-review.md](zh-tw-review.md)** — the 69 strings the trust tier adds or rewrites, generated
+  from the branches rather than typed, so a native reader can mark up the Chinese without reading any
+  code. Regenerate it after more copy lands.
 - **[verified-claims.json](verified-claims.json)** — the review's 29 claims with the evidence that
   confirmed each, the four corrections, and a suggested fix.
 - **[tools/](tools/)** — the scripts that computed the contrast and density-ramp figures, so the
