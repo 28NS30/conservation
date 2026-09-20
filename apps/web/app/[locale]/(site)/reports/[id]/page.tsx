@@ -310,9 +310,17 @@ export default async function ReportPage({
           )}
           {row.is_obscured && (
             <p className="mt-1 rounded-lg border border-amber-700/30 bg-amber-600/10 px-2.5 py-1.5 text-[11px] leading-relaxed text-amber-800">
-              {t("detail.blurredNotice", {
-                precision: t(`precision.${row.location_precision}`),
-              })}
+              {/* Why it is blurred, not merely that it is. A record with no
+                  taxon is blurred because nobody knows what it is, which is a
+                  different sentence from "this species is protected" — and
+                  telling a reader the second about the first would be a claim
+                  about an animal we cannot name (0011_blur_unknown_taxa.sql). */}
+              {t(
+                row.taxon_id
+                  ? "detail.blurredNotice"
+                  : "detail.blurredUnknownNotice",
+                { precision: t(`precision.${row.location_precision}`) },
+              )}
             </p>
           )}
         </div>

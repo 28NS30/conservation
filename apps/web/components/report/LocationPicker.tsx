@@ -168,7 +168,9 @@ export default function LocationPicker({
         )}
       </div>
       {value && (
-        <p className="mt-1.5 text-[11px] text-parchment-400 tabular-nums">
+        // ink, not parchment: parchment is the map's palette, and this line
+        // sits on cream under the picker, where it measured 2.90:1.
+        <p className="mt-1.5 text-[11px] tabular-nums text-ink-500">
           {value.lat.toFixed(5)}, {value.lng.toFixed(5)}
           {outside && (
             <span className="ml-2 text-amber-700">⚠ {t("outsideTaiwan")}</span>

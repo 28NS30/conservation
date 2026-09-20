@@ -175,10 +175,15 @@ export default function ReportPanel({
           </dl>
 
           {/* Carried over from the popup deliberately. A blurred point that stops
-              saying it is blurred reads as a precise one. */}
+              saying it is blurred reads as a precise one.
+
+              Two reasons reach this line and the reader deserves the right one:
+              a species TaiCOL rates sensitive, or a record nobody has identified
+              — whose species could be anything, so it is blurred until someone
+              knows (0011_blur_unknown_taxa.sql). */}
           {report.isObscured && (
             <p className="mt-3 rounded-md border border-amber-400/25 bg-amber-500/10 px-2.5 py-2 text-[11px] text-amber-300">
-              {t("map.blurred")}
+              {t(report.taxonId ? "map.blurred" : "map.blurredUnknown")}
             </p>
           )}
 

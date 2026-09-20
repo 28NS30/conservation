@@ -12,9 +12,10 @@ import {
   type Category,
   type LocationPrecision,
 } from "@conservation/shared";
-import { speciesSlug } from "@/lib/species";
+import { publicSpeciesName, speciesSlug } from "@/lib/species";
 import { signedPhotoUrls } from "@/lib/supabase/service";
 import { sql } from "@/lib/db";
+import Pager from "@/components/site/Pager";
 
 export const revalidate = 120;
 
@@ -76,6 +77,8 @@ export default async function ReportsListPage({
   // The chips are the form's three choices, so they take the form's own words.
   const tr = await getTranslations("report");
   const tp = await getTranslations("precision");
+  // The map already has a word for this and the two controls do the same thing.
+  const tm = await getTranslations("map");
 
   // The filter jumps here from the map, so it has to be the same three buckets
   // the map offers — this page is that map's accessible equivalent, and an
@@ -167,6 +170,56 @@ export default async function ReportsListPage({
     return `/reports?${p}`;
   };
   const qs = (p: number) => withFilter({ page: String(p) });
+  /**
+   * Back to the map, carrying the filter and nothing else.
+   *
+   * Not `page`: a page number is a fact about a 50-row table and means nothing
+   * to a map, and carrying it would produce links that differ without differing.
+   * The map answers the same question this page does, and until now the trip was
+   * one way — the map offers the list, the list offered no way back, so
+   * switching cost a visitor their filters.
+   */
+  const mapHref = activeFilter ? `/map?${activeFilter}` : "/map";
+
+  /*
+   * Say which filter is in force.
+   *
+   * The category chips draw themselves, but a species and a date range arrive
+   * from the map through the query string and had nowhere on this page to
+   * appear. So a link shared from a filtered map opened a list of forty records
+   * of one animal in one year, looking exactly like the most recent forty
+   * reports on the site — which is the kind of wrong that gets quoted.
+   *
+   * The species is named through the public lookup, which joins the stats view:
+   * a taxon rated 座標不開放 has no public records, and naming it over an empty
+   * list would be the only thing on the page confirming it had been recorded
+   * here. When that lookup answers nothing, the line simply omits the name.
+   */
+  const named = taxonId ? await publicSpeciesName(taxonId) : null;
+  const day = (d: string) =>
+    new Date(d).toLocaleDateString(locale, { timeZone: "Asia/Taipei" });
+  const dates =
+    from && to
+      ? t("dateRange", { from: day(from), to: day(to) })
+      : from
+        ? t("dateFrom", { from: day(from) })
+        : to
+          ? t("dateTo", { to: day(to) })
+          : null;
+  const speciesName = named
+    ? (zhFirst && named.commonNameZh) || named.scientificName
+    : null;
+  const filterParts = [speciesName, dates].filter(Boolean) as string[];
+  /** The same sentence the chips row shows, for the table's caption. */
+  const filterCaption = filterParts.length
+    ? `${t("tableCaption")} — ${t("filteredBy")}: ${filterParts.join("; ")}`
+    : t("tableCaption");
+
+  // Clearing from the filter line keeps the category chips, which are their own
+  // control with their own "All"; clearing from the empty state clears
+  // everything, because there is nothing left on screen to clear it from.
+  const withoutSpeciesAndDates = group ? `/reports?group=${group}` : "/reports";
+  const anyFilter = Boolean(group || taxonId || from || to);
 
   return (
     <main className="mx-auto w-full max-w-4xl px-6 pb-24 pt-12">
@@ -214,12 +267,58 @@ export default async function ReportsListPage({
         ))}
       </nav>
 
+      {filterParts.length > 0 && (
+        <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-600">
+          <span className="text-ink-500">{t("filteredBy")}</span>
+          {named && (
+            <Link
+              href={`/species/${speciesSlug(named)}`}
+              className="text-ink-800 underline underline-offset-2 hover:text-ember-700"
+            >
+              {speciesName}
+            </Link>
+          )}
+          {dates && <span className="tabular-nums">{dates}</span>}
+          <Link
+            href={withoutSpeciesAndDates}
+            className="inline-flex min-h-11 items-center text-ember-700 hover:underline"
+          >
+            {tm("clearFilters")}
+          </Link>
+        </p>
+      )}
+
+      {/* Beside the chips but outside that nav, which is labelled as the
+          category filter: this is not one of the categories, and announcing it
+          inside that list would say it was. Below the filter line rather than
+          above it, so the order on the page is what is filtered, then the way
+          out of the list — and mapHref carries those same filters across. */}
+      <p className="mt-3 text-xs">
+        <Link
+          href={mapHref}
+          className="inline-flex items-center gap-1 py-1 text-ink-600 underline-offset-2 transition hover:text-ink-900 hover:underline"
+        >
+          {t("viewOnMap")}
+          <span aria-hidden>→</span>
+        </Link>
+      </p>
+
       {visible.length === 0 ? (
-        <p className="mt-8 text-center text-sm text-ink-500">{t("empty")}</p>
+        <div className="mt-8 text-center text-sm text-ink-500">
+          <p>{t("empty")}</p>
+          {anyFilter && (
+            <Link
+              href="/reports"
+              className="mt-2 inline-flex min-h-11 items-center text-ember-700 transition hover:underline"
+            >
+              {tm("clearFilters")}
+            </Link>
+          )}
+        </div>
       ) : (
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <caption className="sr-only">{t("tableCaption")}</caption>
+            <caption className="sr-only">{filterCaption}</caption>
             <thead className="text-ink-500">
               <tr>
                 {showPhotos && (
@@ -260,10 +359,15 @@ export default async function ReportsListPage({
                       ) : null}
                     </td>
                   )}
-                  <td className="py-1.5 whitespace-nowrap">
+                  {/* The only link to the record itself, and it was a
+                      body-coloured date 15px tall — nothing marked it as a way
+                      in, and nothing a thumb could reliably hit. Underlined,
+                      inked darker than the cells around it, and grown to the
+                      height of the row so the whole line is a target. */}
+                  <td className="whitespace-nowrap py-0">
                     <Link
                       href={`/reports/${r.id}`}
-                      className="text-ink-600 hover:text-ink-800"
+                      className="flex min-h-11 items-center pr-3 text-ink-800 underline underline-offset-2 hover:text-ember-700"
                     >
                       {new Date(r.observedAt).toLocaleDateString(locale, {
                         timeZone: "Asia/Taipei",
@@ -318,26 +422,12 @@ export default async function ReportsListPage({
         </p>
       )}
 
-      <nav
-        aria-label={t("pagination")}
-        className="mt-6 flex items-center justify-between text-xs"
-      >
-        {page > 1 ? (
-          <Link href={qs(page - 1)} className="text-ink-600 hover:text-ink-800">
-            ← {t("previous")}
-          </Link>
-        ) : (
-          <span />
-        )}
-        <span className="text-ink-500">{t("pageN", { page })}</span>
-        {hasNext ? (
-          <Link href={qs(page + 1)} className="text-ink-600 hover:text-ink-800">
-            {t("next")} →
-          </Link>
-        ) : (
-          <span />
-        )}
-      </nav>
+      <Pager
+        page={page}
+        hasPrev={page > 1}
+        hasNext={hasNext}
+        hrefFor={qs}
+      />
     </main>
   );
 }
