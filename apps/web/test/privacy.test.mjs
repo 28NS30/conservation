@@ -255,3 +255,51 @@ describe("the public role cannot reach true coordinates", () => {
     assert.ok(names.includes("location_public"));
   });
 });
+
+describe("a filtered page never names a taxon it holds no records for", () => {
+  /*
+   * The report list and the map both accept ?taxonId= from the address bar and
+   * print the species they were filtered to. A taxon rated 座標不開放 has no rows
+   * in reports_public, so such a page is empty — and naming the species above
+   * that empty page would be the only statement on the whole site that it had
+   * ever been recorded in Taiwan. That is precisely the fact the suppression
+   * exists to withhold, published by the one code path that reads a name from
+   * `taxa` instead of from the view.
+   */
+  const BASE_URL = process.env.TEST_BASE_URL ?? "http://localhost:3000";
+
+  test("the report list will not name a suppressed species", async () => {
+    const [hidden] = await sql`
+      select t.id, t.scientific_name, t.common_name_zh
+        from taxa t
+       where t.sensitivity = '座標不開放'
+         and t.common_name_zh is not null
+       limit 1`;
+    if (!hidden) return; // no such fixture on this cluster
+    const html = await (
+      await fetch(`${BASE_URL}/reports?taxonId=${hidden.id}`)
+    ).text();
+    assert.ok(
+      !html.includes(hidden.common_name_zh),
+      "a suppressed species must not be named on the list it filters to",
+    );
+    assert.ok(
+      !html.includes(hidden.scientific_name),
+      "nor by its scientific name",
+    );
+  });
+
+  test("an unrecorded species is not named either", async () => {
+    // Same rule, weaker case: the name is in the public checklist, but the
+    // list has nothing to say about it, and the filter line is about records.
+    const [none] = await sql`
+      select t.id, t.scientific_name from taxa t
+        left join species_report_stats s on s.taxon_id = t.id
+       where s.taxon_id is null and t.is_in_taiwan limit 1`;
+    assert.ok(none, "expected a species with no records");
+    const html = await (
+      await fetch(`${BASE_URL}/reports?taxonId=${none.id}`)
+    ).text();
+    assert.ok(!html.includes(none.scientific_name));
+  });
+});

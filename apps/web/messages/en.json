@@ -36,7 +36,11 @@
   "stats": {
     "records": "records",
     "species": "species",
-    "range": "range"
+    "range": "range",
+    "month": "Month",
+    "year": "Year",
+    "count": "Records",
+    "showNumbers": "Show the numbers"
   },
   "map": {
     "all": "All",
@@ -177,9 +181,17 @@
   "login": {
     "heading": "Sign in",
     "explain": "Reporting never requires an account; signing in just gives you your own history.",
+    "emailLabel": "Email",
     "send": "Send magic link",
     "sending": "Sending…",
-    "sent": "Check your email for the sign-in link."
+    "sent": "Check your email for the sign-in link.",
+    "sentTo": "Sent to {email}",
+    "resend": "Send again",
+    "resendIn": "Send again in {seconds}s",
+    "changeEmail": "Use a different address",
+    "failed": "The link could not be sent. Please try again shortly.",
+    "tooMany": "Too many attempts. Wait a few minutes and try again.",
+    "linkExpired": "That sign-in link is no longer valid. Send a new one."
   },
   "species": {
     "directory": "Species",
@@ -187,6 +199,9 @@
     "searchLabel": "Search species",
     "searchPlaceholder": "Search name or scientific name…",
     "noMatches": "No matching species.",
+    "noMatchesInFilter": "Nothing under \"{filter}\" matches \"{q}\".",
+    "searchAllSpecies": "Search all species instead",
+    "range": "{from}–{to} of {total} species",
     "records": "Records",
     "recordsShort": "records",
     "recordCount": "{count, number} records",
@@ -345,6 +360,10 @@
     "all": "All",
     "filterByCategory": "Filter by category",
     "empty": "No records match this filter.",
+    "filteredBy": "Filtered by",
+    "dateRange": "{from} to {to}",
+    "dateFrom": "From {from}",
+    "dateTo": "Until {to}",
     "tableCaption": "Reports ordered by date",
     "date": "Date",
     "category": "Category",
