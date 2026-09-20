@@ -82,7 +82,19 @@ export default function FlowShell({
         <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between gap-4 px-(--gutter)">
           <Link href={home} className="flex shrink-0 items-center gap-3">
             <Emblem size={48} className="h-12 w-12" />
-            <span className="t-lead t-label font-bold">{t("report")}</span>
+            {/* The word goes below `sm`, the emblem stays. Both halves of this
+                row are `shrink-0` — deliberately, because a squashed language
+                switcher is worse than a narrow one — so at 320px the row is
+                whatever the two ends measure, and in English they measured
+                338px on CI's font stack and 316px on macOS. A gate that only
+                fails on one of the two machines is the same failure as the
+                header row in components/site/SiteHeader.tsx.
+                320px is not a phone anybody sells; it is a 390px phone whose
+                owner turned on larger text, which is exactly when horizontal
+                room is worth more than a word the emblem already says. */}
+            <span className="t-lead t-label hidden font-bold sm:inline">
+              {t("report")}
+            </span>
           </Link>
           <div className="flex shrink-0 items-center gap-4">
             {/* `lab-lang` raises the inactive locale and the separator between
