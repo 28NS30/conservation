@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import Button from "@/components/lab/ui/Button";
 import type { LabCopy } from "@/lib/lab/copy";
@@ -21,28 +21,40 @@ import InjuredNotice from "./InjuredNotice";
 import PhotoStep from "./PhotoStep";
 import PlaceStep from "./PlaceStep";
 import Receipt from "./Receipt";
-import RecordSummary from "./RecordSummary";
 import SendStep from "./SendStep";
 import SpeciesStep from "./SpeciesStep";
 import { useReportFlow } from "./useReportFlow";
 
 /**
- * The runner-up shape: the same opening screen, then one page that grows.
+ * The chosen shape: the camera at the top, every question under it, all of it
+ * on screen from the first frame.
  *
- * It shares screen one, the controls, the frame, the pinned button and the
- * derivation with the stepper, so the only thing the owner is being asked to
- * compare is this: screens that swap, or sections that pile up. Everything else
- * being identical is what makes that a fair question rather than a preference
- * for whichever one was built better.
+ * THIS REPLACES A REVEAL. Until the owner saw it, each section appeared only
+ * once the one above it was answered, on the argument that a page showing all
+ * five at once is the form this redesign is replacing. The owner disagreed, and
+ * on the evidence they are right: what made the old page a form was its
+ * density, its two-row header, its viewport-tall footer and its demand that a
+ * stranger classify an animal before saying anything about it. None of that is
+ * "the questions are visible". A reveal answers a different complaint from the
+ * one anybody had.
  *
- * It keeps the two things the review says photo-first must gain to be viable:
- * condition is asked before species, so the flow never files an injured animal
- * by inference from what it was, and the species question is skippable. And it
- * keeps the one thing a single page tends to lose: a pinned button, so the way
- * out is in the same place whether the page is one section long or five.
+ * What a reveal costs is real and was being paid for nothing. You cannot see
+ * what you are in for, so there is no deciding to skip the species question
+ * before you have answered three others. You cannot answer out of order, which
+ * on a roadside is the normal case — the animal is in front of you and the GPS
+ * has not settled. Anything below the fold is a section nobody knows exists, so
+ * it needs a scroll-into-view effect to announce itself, and that effect moves
+ * the page under a thumb that is already moving it.
  *
- * A section appears only once the one above it has been answered. A page that
- * shows all five at once is the form this redesign is replacing.
+ * It keeps the two things the review says photo-first must have: condition is
+ * asked before species, so the flow never files an injured animal by inference
+ * from what it was, and the species question is skippable. And it keeps the
+ * pinned button, which matters MORE on one long page than it did on five short
+ * ones — the way out has to be in the same place however far down you are.
+ *
+ * The one thing still revealed is the injured notice, and that is not a hidden
+ * question. It is what the page says back when someone answers "alive, but
+ * hurt".
  */
 export default function PhotoFirstFlow({
   copy,
@@ -57,49 +69,22 @@ export default function PhotoFirstFlow({
 }) {
   const flow = useReportFlow();
   const router = useRouter();
-  const [skipped, setSkipped] = useState(false);
   const [sent, setSent] = useState<Outcome | null>(null);
   // The gap this warning was raised against, so answering it clears the warning
   // without anything having to remember to.
   const [nudgedGap, setNudgedGap] = useState<Step | null>(null);
-  const revealed = useRef<Step | null>(null);
 
   const state = flow.state;
   const gap = firstGap(state);
-  // The photo answers the first question, so the page opens itself — derived
-  // rather than set, because "has the first question been dealt with" is a fact
-  // about the answers and not a second thing to keep in step with them.
-  const opened = skipped || state.photos.length > 0;
   const forced = forcedOutcome(receiptParam);
   const receipt = sent ?? forced;
   const nudged = nudgedGap === gap;
-
-  // When a new section appears, bring it into view. A section that unfolds
-  // below the fold is a section nobody knows appeared, and the pinned button
-  // would then be naming something they cannot see.
-  useEffect(() => {
-    if (!opened) return;
-    if (revealed.current === gap) return;
-    const previous = revealed.current;
-    revealed.current = gap;
-    if (previous === null) return;
-    const target = document.getElementById(gap);
-    if (!target) return;
-    const still = window.matchMedia?.(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-    target.scrollIntoView({
-      behavior: still ? "auto" : "smooth",
-      block: "start",
-    });
-  }, [gap, opened]);
 
   /** Back to an empty page, and out of a forced receipt if that is how we got here. */
   function startOver(keepPlace: boolean) {
     flow.reset(keepPlace);
     setSent(null);
-    setSkipped(false);
-    revealed.current = null;
+    setNudgedGap(null);
     if (forced) router.replace(flowPath);
   }
 
@@ -134,12 +119,10 @@ export default function PhotoFirstFlow({
     send: null,
   }[gap];
 
-  // Nothing is missing on the opening screen, so nothing is said above the
-  // button. The help line that explains the auto-advance belongs beside the
-  // photo controls, not in the bar.
+  // The bar says the one thing the page cannot: which question is still open.
+  // On a page this long that is the only navigation there is.
   let caption: React.ReactNode = null;
-  if (!opened) caption = null;
-  else if (gap === "place") caption = copy.report.placeMissing;
+  if (gap === "place") caption = copy.report.placeMissing;
   else if (gap === "injured") caption = copy.report.captionInjured;
   else if (missingWord)
     caption = copy.report.captionMissing.replace("{what}", missingWord);
@@ -147,11 +130,6 @@ export default function PhotoFirstFlow({
   else if (warning === "no-species") caption = copy.report.captionNoSpecies;
 
   function press() {
-    if (!opened) {
-      setSkipped(true);
-      revealed.current = null;
-      return;
-    }
     if (ready) {
       setSent(outcomeFor(state));
       return;
@@ -169,140 +147,113 @@ export default function PhotoFirstFlow({
       <FlowShell
         copy={copy}
         direction={direction}
-        segment={segmentOf(opened ? gap : "photo")}
+        segment={segmentOf(gap)}
+        progress={false}
         caption={caption}
-        captionAlert={nudged && opened && !ready}
-        aside={
-          state.photos.length > 0 || state.place || state.condition ? (
-            <div>
-              {state.photos[0] ? (
-                <div
-                  data-surface="plate"
-                  className="rounded-(--radius-sign) aspect-4/3 w-full overflow-hidden bg-(--ground)"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={state.photos[0].url}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              ) : null}
-              <h2 className="t-note t-label mt-6 font-bold text-(--fg-quiet)">
-                {copy.report.recordSoFar}
-              </h2>
-              <RecordSummary copy={copy} state={state} className="mt-2" />
-            </div>
-          ) : undefined
-        }
+        captionAlert={nudged && !ready}
+        // No aside. "The record so far" beside a page that already shows every
+        // answer is the same record twice, and the desktop column centres
+        // instead — see FlowShell.
         action={
+          // One button with one job, from the first frame. The reveal needed a
+          // second label here — "continue without a photo" — because skipping
+          // the photo was how you got the rest of the page to exist. Nothing
+          // has to be unlocked now, so the way out of the form is the only
+          // thing this control ever says.
           <Button
             block
             size="hero"
-            // The same rule as the stepper: while this control still reads
-            // "continue without a photo", it is not the thing to press, so it
-            // is not the one ember element on a screen headed 先拍一張.
-            variant={
-              !opened && state.photos.length === 0 ? "tertiary" : "primary"
-            }
-            disabled={opened && !ready}
+            variant="primary"
+            disabled={!ready}
             onClick={press}
             id="lab-flow-action"
           >
-            {!opened && state.photos.length === 0
-              ? copy.report.photoSkip
-              : copy.report.buttonSend}
+            {copy.report.buttonSend}
           </Button>
         }
       >
         <section id="photo" tabIndex={-1} className="scroll-mt-24" style={{ outline: "none" }}>
-          <PhotoStep copy={copy} flow={flow} titleId="lab-section-photo" />
+          <PhotoStep
+            copy={copy}
+            flow={flow}
+            titleId="lab-section-photo"
+            help={copy.report.photoOptional}
+          />
         </section>
 
-        {opened ? (
-          <>
-            <section
-              id="place"
-              tabIndex={-1}
-              className={`${section} scroll-mt-24`}
-                style={{ outline: "none" }}
-            >
-              <PlaceStep
+        <section
+          id="place"
+          tabIndex={-1}
+          className={`${section} scroll-mt-24`}
+          style={{ outline: "none" }}
+        >
+          <PlaceStep
+            copy={copy}
+            flow={flow}
+            titleId="lab-section-place"
+            heading="h2"
+          />
+        </section>
+
+        <section
+          id="condition"
+          tabIndex={-1}
+          className={`${section} scroll-mt-24`}
+          style={{ outline: "none" }}
+        >
+          <ConditionStep
+            copy={copy}
+            flow={flow}
+            titleId="lab-section-condition"
+            heading="h2"
+          />
+          {/* The one thing still revealed, and not a question: what the page
+              says back when someone answers "alive, but hurt". */}
+          {state.condition === "hurt" ? (
+            <div id="injured" className="mt-10 scroll-mt-24">
+              <InjuredNotice
                 copy={copy}
-                flow={flow}
-                titleId="lab-section-place"
+                titleId="lab-section-injured"
                 heading="h2"
+                action={
+                  state.injuredAck ? null : (
+                    <Button variant="secondary" onClick={flow.ackInjured}>
+                      {copy.report.injuredAck}
+                    </Button>
+                  )
+                }
               />
-            </section>
+            </div>
+          ) : null}
+        </section>
 
-            {state.place ? (
-              <section
-                id="condition"
-                tabIndex={-1}
-                className={`${section} scroll-mt-24`}
-                style={{ outline: "none" }}
-              >
-                <ConditionStep
-                  copy={copy}
-                  flow={flow}
-                  titleId="lab-section-condition"
-                  heading="h2"
-                />
-                {state.condition === "hurt" ? (
-                  <div id="injured" className="mt-10 scroll-mt-24">
-                    <InjuredNotice
-                      copy={copy}
-                      titleId="lab-section-injured"
-                      heading="h2"
-                      action={
-                        state.injuredAck ? null : (
-                          <Button
-                            variant="secondary"
-                            onClick={flow.ackInjured}
-                          >
-                            {copy.report.injuredAck}
-                          </Button>
-                        )
-                      }
-                    />
-                  </div>
-                ) : null}
-              </section>
-            ) : null}
+        <section
+          id="species"
+          tabIndex={-1}
+          className={`${section} scroll-mt-24`}
+          style={{ outline: "none" }}
+        >
+          <SpeciesStep
+            copy={copy}
+            flow={flow}
+            titleId="lab-section-species"
+            heading="h2"
+          />
+        </section>
 
-            {state.condition && (state.condition !== "hurt" || state.injuredAck) ? (
-              <section
-                id="species"
-                tabIndex={-1}
-                className={`${section} scroll-mt-24`}
-                style={{ outline: "none" }}
-              >
-                <SpeciesStep
-                  copy={copy}
-                  flow={flow}
-                  titleId="lab-section-species"
-                  heading="h2"
-                />
-              </section>
-            ) : null}
-
-            {state.species ? (
-              <section
-                id="send"
-                tabIndex={-1}
-                className={`${section} scroll-mt-24`}
-                style={{ outline: "none" }}
-              >
-                <SendStep
-                  copy={copy}
-                  flow={flow}
-                  titleId="lab-section-send"
-                  heading="h2"
-                />
-              </section>
-            ) : null}
-          </>
-        ) : null}
+        {/* A `div`, not a `section`: with the review rows gone this is an
+            optional note, an optional address and the privacy sentence. Giving
+            it an `h2` of the same weight as the four questions would put a
+            fifth question in the outline that nobody has to answer. */}
+        <div id="send" tabIndex={-1} className={`${section} scroll-mt-24`} style={{ outline: "none" }}>
+          <SendStep
+            copy={copy}
+            flow={flow}
+            titleId="lab-section-send"
+            heading="h2"
+            summary={false}
+          />
+        </div>
       </FlowShell>
       <DerivationSeam copy={copy} state={state} flowPath={flowPath} />
     </>

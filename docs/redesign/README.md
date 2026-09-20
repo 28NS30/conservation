@@ -144,12 +144,24 @@ species detail, in both languages, on real data, and the owner picks one on thei
 including once outdoors at midday, which is the test Roundel could fail. Both prototypes share the
 same primitives, so the loser costs a theme file, not a rebuild.
 
-### Report flow: a stepper that opens on the camera
+### Report flow: one page, camera at the top — DECIDED
 
 Three flows were developed and judged by a roadside reporter, a backend/privacy engineer, and the
-owner's advocate. The recommendation is a hybrid: **one question per screen**, opening on
-photo-first's camera screen (先拍一張), with a pinned button that is never dead and always names what
-is still missing.
+owner's advocate, and the recommendation here was a one-question-per-screen stepper. **The owner
+chose photo-first instead, and then chose against its reveal**: the camera at the top, every
+question under it, all of it on screen from the first frame. The pinned button that is never dead
+and always names what is missing carries over from the stepper and matters more here, not less.
+
+The recommendation was wrong in an instructive way. It defended the reveal on the grounds that a
+page showing every question at once is the form this redesign is replacing. But what makes today's
+page a form is its density, its two-row header, its viewport-tall footer, and its demand that a
+stranger classify an animal before saying anything about it. None of that is "the questions are
+visible", so the reveal was answering a complaint nobody had made — while charging for it: you
+cannot see what you are in for, you cannot answer out of order when the animal is in front of you
+and the GPS has not settled, and every section that unfolds below the fold needs a scroll effect to
+announce itself that moves the page under a thumb already moving it.
+
+The stepper stays in the lab as the losing option, not as a live alternative.
 
 The most important change: **the category is never asked.** Today the form opens with 通報類型 pills
 and a 牠還活著嗎？ sub-choice. Instead the flow asks the condition (dead / hurt / alive and well) and
@@ -270,7 +282,7 @@ the team can supply.
 
 **The badge is on the critical path and is two names out of date.** Enlarging the emblem enlarges
 the wrong lettering. Since the site is unannounced, shipping the big soft upscale now costs nothing
-and the redraw can land later — but that is your call, and it is question 4 below.
+and the redraw can land later — but that is your call, and it is question 5 below.
 
 ## Decisions owed by you
 
@@ -282,12 +294,16 @@ Blocking, in the order they are needed:
    designed on a path that currently fails.
 1. **Preview access** for W1 (Vercel previews sit behind SSO, confirmed: they 302 to a login).
    Without it the prototypes cannot be shown on your phone. On a machine with the repo they can be
-   read without any of that — check out the `lab` branch, `npm run dev`, open `/lab`.
-2. **The direction and the flow**, at the end of W1. Everything after W1 waits on this.
-3. **The injured-wildlife referral**: which agency, which number, in both languages. Nobody will
+   read without any of that: the lab is on `main` now, so `npm run dev` and `/lab`.
+2. ~~**The flow**~~ — decided: photo-first, one page, every question visible. Built and running at
+   `/lab/roundel/report/photo-first`.
+3. **The visual direction.** Not Roundel and not Field journal as they stand; the owner's read is
+   that the answer is somewhere between them or elsewhere, and it is going to the team. Everything
+   downstream of W1 waits on this. What the lab is good for now is arguing with, not choosing from.
+4. **The injured-wildlife referral**: which agency, which number, in both languages. Nobody will
    invent one. This blocks shipping the injured-animal guidance.
-4. **The emblem**: enlarge today's PNG now (still reading ECOWATCH), or wait for the redraw.
-5. **A native zh-TW reader** for the 69 new strings in [zh-tw-review.md](zh-tw-review.md) — every
+5. **The emblem**: enlarge today's PNG now (still reading ECOWATCH), or wait for the redraw.
+6. **A native zh-TW reader** for the 69 new strings in [zh-tw-review.md](zh-tw-review.md) — every
    one extracted from the five trust-tier branches, English beside Chinese, with a blank line under
    each to write the replacement in. Every brief has a fallback that reuses live copy so work is not
    blocked, but unread copy should not reach production.

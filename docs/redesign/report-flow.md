@@ -4,9 +4,21 @@ Planning only. Code read at c73bb8d; paths relative to `apps/web`.
 
 ## Decision
 
-**Build the one-question stepper, with photo-first's data plumbing and single-sheet's never-dead button. Prototype photo-first beside it.**
+**Photo-first, one page, every question visible from the first frame.** Chosen by the owner after seeing both proofs. What follows below still describes the stepper screen by screen; read it as the spec for the *content* of each question, which is unchanged, not for how they are reached.
 
-Two of three judges (roadside reporter, owner's advocate) put one-question first, both at 8/10. It alone stays big and few-worded after the first tap, and it alone removes the two-row header and the viewport-tall footer that make today's page read as a government form. The engineer ranked it last for reasons fixed below: a 24 h persisted nonce on an editable draft, `QueueBanner` unmounting after step 1, and an under-budgeted estimate. Photo-first is the runner-up (engineer's first, advocate's second). The two share screen 1, the controls, the frame and the derivation, so a second proof costs about half a day and shows the owner the one real difference: screens that swap versus sections that pile up.
+This document originally recommended the one-question stepper, and prototyping photo-first beside it is what made the decision possible — so the half-day was worth it, even though the recommendation lost. Two of three judges (roadside reporter, owner's advocate) had put one-question first at 8/10; the engineer put photo-first first. The owner picked photo-first and then, seeing it, rejected the one thing the prototype had kept from the stepper: sections appearing only once the one above them was answered.
+
+**Why the reveal was wrong, now that it has been looked at.** The argument for it was that a page showing all five questions at once is the form this redesign is replacing. That confuses density with visibility. Today's page reads as a government form because of its two-row header, its viewport-tall footer, its small type, and its opening demand that a stranger classify an animal before saying anything about it — none of which is "the questions can be seen". The reveal was answering a complaint nobody made, and charging three things for it:
+
+- **You cannot see what you are in for.** A reporter deciding whether they have two minutes for this has to start answering to find out.
+- **You cannot answer out of order.** On a roadside the animal is in front of you and the GPS has not settled. Place-then-condition is an ordering the form invented, not one the situation has.
+- **It has to move the page for you.** A section that unfolds below the fold is a section nobody knows appeared, so it needs a scroll-into-view effect — which moves the page under a thumb that is already scrolling it.
+
+**What carries over from the stepper:** the pinned button that is never dead and always names what is missing. It matters more on one long page than it did on five short ones, because it is now the only navigation there is.
+
+**What is dropped:** the five progress segments (a measure of how far through five screens you are says nothing when all five are on screen), the "continue without a photo" button label (nothing needs unlocking, so the button only ever says 送出通報), the desktop "record so far" aside and the Send screen's review rows (both restate answers that are six inches up the same page).
+
+**The one thing still conditional** is the injured notice, and it is not a hidden question: it is what the page says back when someone answers 活著，但受傷. Showing it to everyone would tell every reporter that nobody is coming, which is alarming and untrue for most of them.
 
 The rejected phrase 你看到了什麼？ and the category-first pattern are removed everywhere. The homepage gets **one** action, 通報動物 / Report an animal, linking to `/report`, beside 看地圖 / Open the map. `DOORS` in `app/[locale]/page.tsx:70-74,221-258` is deleted, and `e2e/pages.spec.mjs:103-152` is rewritten to assert one `/report` action above the fold from 360px up and no `?category=` links.
 

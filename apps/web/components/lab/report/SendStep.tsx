@@ -25,27 +25,40 @@ export default function SendStep({
   flow,
   titleId,
   heading = "h1",
+  summary = true,
 }: {
   copy: LabCopy;
   flow: ReportFlow;
   titleId: string;
   heading?: "h1" | "h2";
+  /**
+   * The heading, the photo and the four review rows. Off on a page where every
+   * answer is already on screen: a "check and send" panel that restates the
+   * four questions six inches above it is the same content twice, and the
+   * second copy is the one the reader has to work out is not a fifth question.
+   *
+   * What is left is the part that is genuinely only here — the optional note
+   * and email, and the privacy sentence.
+   */
+  summary?: boolean;
 }) {
   const photo = flow.state.photos[0];
 
   return (
     <div>
-      {heading === "h1" ? (
-        <PageTitle id={titleId} size="title">
-          {copy.report.sendTitle}
-        </PageTitle>
-      ) : (
-        <h2 id={titleId} className="t-head text-(--fg)">
-          {copy.report.sendTitle}
-        </h2>
-      )}
+      {summary ? (
+        heading === "h1" ? (
+          <PageTitle id={titleId} size="title">
+            {copy.report.sendTitle}
+          </PageTitle>
+        ) : (
+          <h2 id={titleId} className="t-head text-(--fg)">
+            {copy.report.sendTitle}
+          </h2>
+        )
+      ) : null}
 
-      {photo ? (
+      {summary && photo ? (
         <div
           data-surface="plate"
           className="rounded-(--radius-sign) mt-8 aspect-4/3 w-full overflow-hidden bg-(--ground)"
@@ -55,9 +68,11 @@ export default function SendStep({
         </div>
       ) : null}
 
-      <RecordSummary copy={copy} state={flow.state} className="mt-8" />
+      {summary ? (
+        <RecordSummary copy={copy} state={flow.state} className="mt-8" />
+      ) : null}
 
-      <details className="mt-8">
+      <details className={summary ? "mt-8" : ""}>
         <summary className="t-body flex min-h-11 items-center text-(--fg)">
           {copy.report.sendNote}
         </summary>
