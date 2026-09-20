@@ -1,0 +1,23 @@
+{
+  "note": "Pages that already scrolled sideways when this sweep was written, recorded so the gate can go on failing everything new. A ratchet, not an exemption: a page that is not listed must not scroll, a listed page must not scroll at a width it is not listed for, and a listed page that stops scrolling has to be removed from this file before its entry expires. `why` says who owns the fix — these are page-layout defects, and the workstreams that rebuild those pages are where they belong. Re-record with UPDATE_REFLOW=1 node e2e/reflow.spec.mjs.",
+  "known": {
+    "/species@320": {
+      "why": "The species grid's rows do not shrink to 320px. Pre-existing on production; W7 rebuilds this page."
+    },
+    "/en/species@320": {
+      "why": "Same row, worse in English because the binomial and the Chinese name sit on one line. W7."
+    },
+    "/stats@320": {
+      "why": "A statistics card does not shrink to 320px, so the chart inside it is laid out wider than the viewport. Pre-existing on production; W9 rebuilds this page."
+    },
+    "/en/stats@320": {
+      "why": "Same card. English headings make it wider still. W9."
+    },
+    "/en/species@390": {
+      "why": "405 > 390 on a real phone width, not only the reflow width. Pre-existing on main; #48 (keep-what-you-chose) fixes it, and the stale check below will say to delete this line the day that lands."
+    },
+    "/en/stats@390": {
+      "why": "460 > 390, the widest of these. A statistics card refuses to shrink and takes the chart with it. Pre-existing on main; #48 addresses the header half and W9 owns the card. Delete this line when the sweep reports it fixed."
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "note": "The load path of the pages people wait for. `null` means nobody has measured it yet: an unrecorded budget prints the number it saw and does not fail, because a budget invented at a desk gets enforced for years as though it meant something. Record with UPDATE_PERF=1 node e2e/perf.spec.mjs against a production build (npm run build, npm run start), and PERF_LABEL=production TEST_BASE_URL=https://... for the number that actually matters. Structural assertions in perf.spec.mjs do not live here and always fail hard.",
+  "recordedAgainst": null,
+  "recordedOn": null,
+  "tolerance": 0.1,
+  "js": {
+    "/map": null,
+    "/en/map": null,
+    "/": null,
+    "/species": null
+  },
+  "requests": {
+    "/map": null,
+    "/en/map": null,
+    "/": null,
+    "/species": null
+  },
+  "firstTileMs": {
+    "ceilingMs": 4000,
+    "measuredMs": null,
+    "why": "A CI runner's clock is noisy and its database is a thin slice, so the ceiling is a broken-load-path detector, not a performance target. The number worth reading is measuredMs recorded against production."
+  },
+  "lcpMs": {
+    "/map": null,
+    "/": null,
+    "/species": null
+  },
+  "cls": {
+    "max": 0.05,
+    "why": "Cumulative layout shift over 0.05 means something arrives late and shoves what is already on screen. Unlike the timings this is a property of the markup, not of the runner, so it is a hard failure."
+  }
+}

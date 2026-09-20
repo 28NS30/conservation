@@ -1,0 +1,4 @@
+{
+  "note": "Known axe violations, one line per rule-and-route, each with the reason it is still here. The count is CELLS — route x locale x width, four per route — not nodes, so the gate does not move with the size of the database. A count may never rise: a new or worsened rule fails CI. Lower one with UPDATE_A11Y=1 node e2e/a11y.spec.mjs after fixing it. An empty `known` is the goal and is what this file ships as: it has never been run against a served site, because the harness was written without one. The first run records what is actually there, and every line it writes says RECORDED, NOT EXPLAINED until somebody explains or fixes it.",
+  "known": {}
+}
