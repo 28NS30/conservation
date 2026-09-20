@@ -45,6 +45,7 @@
     "high": "多",
     "zoomHint": "放大以查看個別紀錄",
     "blurred": "位置已模糊化（敏感物種）",
+    "blurredUnknown": "位置已模糊化（尚未辨識物種）",
     "filterSpecies": "篩選物種…",
     "anyYear": "不限",
     "fromYear": "起始年份",
@@ -86,7 +87,7 @@
   "footer": {
     "dataSource": "資料來源",
     "checklist": "物種名錄",
-    "blurredCount": "{count} 筆敏感物種位置已模糊化",
+    "blurredCount": "{count} 筆位置已模糊化",
     "explore": "探索",
     "about": "關於"
   },
@@ -153,6 +154,7 @@
     "location": "位置",
     "aiSuggested": "AI 建議",
     "blurredNotice": "此物種屬敏感或保育類，座標已{precision}後才公開，以避免成為盜獵線索。",
+    "blurredUnknownNotice": "{precision}——這筆紀錄還沒辨識出物種；在還不知道是什麼動物之前，我們無法判斷牠是否敏感。",
     "suggestions": "AI 建議",
     "pickCorrect": "選擇正確的物種以修正這筆紀錄。",
     "confirmedBy": "由通報者或審核人員確認。",
@@ -355,7 +357,7 @@
     "pageN": "第 {page} 頁",
     "viewAsList": "以列表檢視",
     "viewOnMap": "在地圖上檢視",
-    "obscuredLegend": "此標記的座標屬於保育類或敏感物種，已模糊化後才公開。",
+    "obscuredLegend": "此標記表示座標已模糊化後才公開：物種屬保育類或敏感，或是這筆紀錄還沒辨識出物種。",
     "photo": "照片"
   },
   "statsPage": {
@@ -383,7 +385,7 @@
     "mixedSpecies": "多種物種",
     "perCell": "筆",
     "coverage": "關於位置精確度",
-    "coverageBody": "共 {total} 筆公開紀錄中，有 {obscured} 筆的座標經過模糊化處理，因為所屬物種在 TaiCOL 被標記為敏感。這些紀錄仍列入所有統計，只是地圖上的位置不是實際地點。",
+    "coverageBody": "共 {total} 筆公開紀錄中，有 {obscured} 筆的座標經過模糊化處理：所屬物種在 TaiCOL 被標記為敏感，或是這筆紀錄還沒辨識出物種。這些紀錄仍列入所有統計，只是地圖上的位置不是實際地點。",
     "howObscuringWorks": "關於本站",
     "seasonLink": "本季目標",
     "seasonLinkHint": "全台通報者共同的目標——為地圖上還完全空白的方格留下第一筆記錄。"
@@ -401,7 +403,7 @@
     "cellsHint": "以座標精確的已發布記錄計算。",
     "speciesCovered": "個物種曾被記錄／台灣名錄總數",
     "speciesHint": "TaiCOL 收錄的台灣物種數。其中絕大多數在本站從未被通報過。",
-    "obscuredNote": "有 {n} 筆已發布記錄未計入上述方格。這些物種被列為敏感，座標以粗略方式發布，對應到 {km} 公里方格只會指向錯誤的一格。它們仍計入本站其他所有統計。",
+    "obscuredNote": "有 {n} 筆已發布記錄未計入上述方格。這些紀錄的座標以粗略方式發布——物種被列為敏感，或是還沒辨識出物種——對應到 {km} 公里方格只會指向錯誤的一格。它們仍計入本站其他所有統計。",
     "whyTitle": "為什麼算方格，不算筆數",
     "whyBody": "以筆數為目標會獎勵數量，而最省力的數量就是明天再拍一次同一段路肩。這裡只計算每個 {km} 公里方格的第一筆記錄，第二筆不算，因此沒有理由守著已經知道的地點。這也正是資料最缺的部分：現有記錄集中在少數幾條調查路線，描述的是那幾條路，而不是整座島。",
     "noRewardBody": "這裡沒有積分、沒有排行榜，也沒有任何可以贏得的東西。這些記錄會以本計畫的名義作為開放資料發布，若為「通報」本身附上獎勵，等於為通報錯誤訂了價格。",
