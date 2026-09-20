@@ -41,8 +41,8 @@
   "map": {
     "all": "全部",
     "density": "通報密度",
-    "low": "低",
-    "high": "高",
+    "low": "少",
+    "high": "多",
     "zoomHint": "放大以查看個別紀錄",
     "blurred": "位置已模糊化（敏感物種）",
     "blurredUnknown": "位置已模糊化（尚未辨識物種）",
@@ -79,7 +79,10 @@
     "unidentified": "尚未鑑定",
     "openReport": "開啟完整紀錄",
     "observedOn": "觀察日期",
-    "cellSizeM": "每格約 {m} 公尺"
+    "cellSizeM": "每格約 {m} 公尺",
+    "perRecord": "每一點是一筆紀錄",
+    "colourLockedHeat": "熱區只能顯示密度",
+    "colourLockedPoints": "個別紀錄一律依類型上色"
   },
   "footer": {
     "dataSource": "資料來源",
@@ -353,6 +356,7 @@
     "next": "下一頁",
     "pageN": "第 {page} 頁",
     "viewAsList": "以列表檢視",
+    "viewOnMap": "在地圖上檢視",
     "obscuredLegend": "此標記表示座標已模糊化後才公開：物種屬保育類或敏感，或是這筆紀錄還沒辨識出物種。",
     "photo": "照片"
   },

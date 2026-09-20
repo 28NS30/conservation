@@ -64,7 +64,6 @@ export default async function SiteFooter({
           <a href={`mailto:${contact}`} className="hover:text-ink-800">
             {t("nav.contact")}
           </a>
-          <LanguageSwitcher className="sm:hidden" />
         </span>
       </footer>
     );
