@@ -42,6 +42,7 @@ export default function FlowShell({
   onBack,
   caption,
   captionAlert = false,
+  progress = true,
   action,
   aside,
   children,
@@ -55,6 +56,13 @@ export default function FlowShell({
   /** The one line above the button. It warns; it never promises. */
   caption?: React.ReactNode;
   captionAlert?: boolean;
+  /**
+   * The five progress segments. Off for a flow that is one page: a bar saying
+   * how far through five screens you are says nothing when all five questions
+   * are on screen at once, and the pinned caption already names what is
+   * missing.
+   */
+  progress?: boolean;
   /** The pinned sign itself, so each flow owns its own label and handler. */
   action: React.ReactNode;
   /** Desktop only: the record taking shape, beside the question. */
@@ -114,6 +122,7 @@ export default function FlowShell({
             </Link>
           </div>
         </div>
+        {progress ? (
         <ol
           aria-label={copy.report.progressLabel}
           className="mx-auto flex w-full max-w-5xl gap-1 px-(--gutter) pb-2"
@@ -138,10 +147,20 @@ export default function FlowShell({
             </li>
           ))}
         </ol>
+        ) : null}
       </header>
 
       <div className="mx-auto flex w-full max-w-5xl flex-1 gap-16 px-(--gutter)">
-        <div className="lab-flow-bottom flex min-w-0 flex-1 flex-col lg:max-w-[420px] lg:flex-none">
+        {/* With an aside the column is a fixed 420px beside it; without one it
+            is the whole frame, centred — a 420px column pinned to the left of a
+            1440px window is a two-pane layout missing a pane. */}
+        <div
+          className={`lab-flow-bottom flex min-w-0 flex-1 flex-col ${
+            aside
+              ? "lg:max-w-[420px] lg:flex-none"
+              : "lg:mx-auto lg:max-w-[560px]"
+          }`}
+        >
           {onBack ? (
             <p className="pt-4">
               <button

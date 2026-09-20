@@ -62,7 +62,8 @@ export type LabCopy = {
     decisionTitle: string;
     decisionLead: string;
     questionDirection: string;
-    questionFlow: string;
+    settledLabel: string;
+    settledFlow: string;
     questionLightMap: string;
     rowNote: { home: string; map: string; report: string; species: string };
     flowStepper: string;
@@ -230,6 +231,7 @@ export type LabCopy = {
     photoLibrary: string;
     photoSkip: string;
     photoHelp: string;
+    photoOptional: string;
     photoRemove: string;
     photoAddAnother: string;
     photoAdd: string;
@@ -331,11 +333,12 @@ const zhTW: LabCopy = {
     howTitle: "怎麼看這一頁",
     how: "每一列是網站的一個頁面：左邊是今天的，右邊是重新設計的。圖片是首屏，寬度跟著你手上的螢幕走；點一張就會打開那個頁面本身。每個原型最上面那條黑色橫條是實驗室自己的工具列，不屬於任何一個設計，所以圖片裡沒有它。",
     decisionTitle: "要決定的是",
-    decisionLead: "兩個答案就能讓接下來三週的工作開始。其他都可以等。",
+    decisionLead: "現在只剩一個答案，其他都可以等。",
     questionDirection:
-      "選哪一個方向：徽章版、田野筆記版，或兩個都不要——以及為什麼。",
-    questionFlow:
-      "選哪一種通報流程：一次問一題，或拍完照之後整頁往下填。兩種背後的邏輯完全一樣，差別只在畫面的形狀。",
+      "選哪一個方向。目前的答案是「兩個都不完全對」——可能介於兩者之間，也可能是別的東西。這兩頁是拿來吵的，不是拿來挑的。",
+    settledLabel: "已決定",
+    settledFlow:
+      "通報流程：照片優先，所有問題都排在照片下面，一次看得到。「一次問一題」留著當對照，不再是選項。",
     questionLightMap:
       "田野筆記版的地圖是淺色的。這推翻了先前「地圖維持深色」的決定，所以選了田野筆記版，就等於同意那個推翻。",
     rowNote: {
@@ -573,6 +576,7 @@ const zhTW: LabCopy = {
     photoLibrary: "從相簿選",
     photoSkip: "沒有照片，直接繼續",
     photoHelp: "拍完就到下一步。",
+    photoOptional: "沒有照片也可以通報。",
     photoRemove: "移除",
     photoAddAnother: "再加一張（最多 4 張）",
     photoAdd: "加照片",
@@ -677,11 +681,12 @@ const en: LabCopy = {
     howTitle: "How to read this page",
     how: "Each row is one page of the site: today's on the left, the redesign beside it. The pictures are first screens at the width of the screen you are holding — tap one to open that page for real. The black bar across the top of every prototype is the lab's own furniture, not part of either design, so it is not in the pictures.",
     decisionTitle: "What is being asked",
-    decisionLead: "Two answers unblock the next three weeks. Everything else can wait.",
+    decisionLead: "One answer left. Everything else can wait.",
     questionDirection:
-      "Which direction: Roundel, Field journal, or neither — and why.",
-    questionFlow:
-      "Which report flow: one question at a time, or everything down one page after the photo. The logic underneath is identical; the only difference is the shape of the screen.",
+      "Which direction. The answer so far is neither as it stands — maybe between them, maybe something else. These two are here to argue with, not to pick from.",
+    settledLabel: "Decided",
+    settledFlow:
+      "The report flow: photo first, every question under it, all of it visible at once. \"One question at a time\" stays as a comparison, not as an option.",
     questionLightMap:
       "Field journal's map is light. That reverses the recorded decision to keep the map dark, so choosing Field journal is approving the reversal.",
     rowNote: {
@@ -928,6 +933,7 @@ const en: LabCopy = {
     photoLibrary: "Choose from library",
     photoSkip: "Continue without a photo",
     photoHelp: "You go on once it's taken.",
+    photoOptional: "You can report without one.",
     photoRemove: "Remove",
     photoAddAnother: "Add another (up to 4)",
     photoAdd: "Add photo",

@@ -131,7 +131,16 @@ export default async function LabComparePage({
           </p>
           <ol className="t-lead mt-6 max-w-(--container-prose) list-decimal space-y-4 ps-6 marker:font-bold">
             <li>{compare.questionDirection}</li>
-            <li>{compare.questionFlow}</li>
+            {/* Struck through rather than deleted. A decision list that only
+                ever shows what is still open loses the record of what was
+                settled and when, and the next person to ask "did we decide the
+                flow?" has nowhere to look. */}
+            <li className="text-(--fg-quiet)">
+              <span className="t-note t-label font-bold text-(--accent-text)">
+                {compare.settledLabel}
+              </span>{" "}
+              {compare.settledFlow}
+            </li>
             <li>{compare.questionLightMap}</li>
           </ol>
         </Block>

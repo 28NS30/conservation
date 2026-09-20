@@ -32,12 +32,22 @@ export default function PhotoStep({
   flow,
   titleId,
   heading = "h1",
+  help,
 }: {
   copy: LabCopy;
   flow: ReportFlow;
   titleId: string;
   /** `h2` when this is a section of the photo-first page rather than a screen. */
   heading?: "h1" | "h2";
+  /**
+   * The line under the controls. The default says a photo sends you onward,
+   * which is only true where taking one advances a screen. On the one-page
+   * flow nothing advances, so that sentence would be a page telling a reader
+   * something they can see is not happening — and the reader who has no photo
+   * would be left with no sign that they may simply carry on, which the pinned
+   * button used to give them by saying "continue without a photo".
+   */
+  help?: string;
 }) {
   const camera = useRef<HTMLInputElement>(null);
   const library = useRef<HTMLInputElement>(null);
@@ -175,7 +185,7 @@ export default function PhotoStep({
         </Notice>
       ) : null}
 
-      <p className="t-body mt-6 text-(--fg-quiet)">{copy.report.photoHelp}</p>
+      <p className="t-body mt-6 text-(--fg-quiet)">{help ?? copy.report.photoHelp}</p>
     </div>
   );
 }
