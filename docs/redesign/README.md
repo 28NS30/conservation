@@ -313,6 +313,11 @@ agent has to wait for an answer.
 
 ## The documents
 
+- **[axes.md](axes.md)** — for the conversation about "neither, or something between". The two
+  directions are two sets of overrides on one shared base, so they are not two options but eight
+  independent switches plus one structural one, and a third direction is a 40-line theme file rather
+  than a rebuild. Counted from the CSS: 51 tokens shared, 7 the two already agree on, 39 they differ
+  on, 25 the journal adds.
 - **[direction.md](direction.md)** — the recommended visual system, ready to implement: tokens with
   computed contrast, font strategy and budgets, the seven-step type scale, every primitive, page
   compositions for home / map / report / species at desktop and phone, plus the runner-up's spec and
