@@ -62,6 +62,10 @@ export const AXE_WIDTHS = [390, 1440];
 
 const MAP_SETTLE = 9000;
 
+/** Why the lab is measured but not photographed; see the lab rows below. */
+const LAB_SHOTS =
+  "The lab is a prototype for one decision, not a page of the site. Two directions across six compositions is 60-odd more screenshots per run of work that is deleted the week a direction is chosen — and the owner judges it by opening it, not by reading a gallery of it. The measuring sweeps still run: what matters here is whether these pages hold up, not what they looked like on a given commit.";
+
 export const ROUTES = [
   {
     name: "home",
@@ -151,6 +155,98 @@ export const ROUTES = [
     signedOutOnly: true,
     skipShots:
       "The moderation queue shows exact coordinates of unpublished reports. A screenshot of it is a disclosure, and a gallery of them is a disclosure with a URL.",
+  },
+  // The design lab. `lib/lab/gate.ts` serves it everywhere except Vercel
+  // production, so CI sees it and a visitor does not.
+  //
+  // Listed here for the same reason as everything else: five checks read this
+  // table, and a page that is not in it is a page none of them look at. That
+  // matters more for the lab than for a finished page — these are the
+  // compositions an owner is about to choose between, and a direction that
+  // overflows at 320px or sets 3:1 text is a direction that should lose on
+  // those grounds rather than be chosen and then repaired.
+  //
+  // One row per app route, not per page. The species section has seven taxa
+  // behind `/lab/[direction]/species/[id]`, each chosen for an edge it shows;
+  // three of them (102062, 85879, 79876) are not in the CI fixture and would
+  // 404 here while rendering perfectly on a full database. The two that ARE in
+  // the fixture cover the shape: one page with everything filled in, one with
+  // a seven-Hanzi name and a blurred-location Notice.
+  {
+    name: "lab-compare",
+    path: "/lab",
+    settle: 2500,
+    why: "The decision page itself: both directions side by side, and the only lab page that is not a composition.",
+    skipShots: LAB_SHOTS,
+  },
+  {
+    name: "lab-roundel-home",
+    path: "/lab/roundel",
+    settle: 3000,
+    why: "Roundel's home. The 520px emblem is the largest single element anywhere in either direction.",
+    skipShots: LAB_SHOTS,
+  },
+  {
+    name: "lab-journal-home",
+    path: "/lab/journal",
+    settle: 3000,
+    why: "Field journal's home — the runner-up, and the only page built in both looks.",
+    skipShots: LAB_SHOTS,
+  },
+  {
+    name: "lab-roundel-map",
+    path: "/lab/roundel/map",
+    settle: MAP_SETTLE,
+    map: true,
+    full: false,
+    why: "A fixed-height app shell like /map, and painting WebGL for the same reason.",
+    skipShots: LAB_SHOTS,
+  },
+  {
+    name: "lab-roundel-report-stepper",
+    path: "/lab/roundel/report/stepper",
+    settle: 3000,
+    why: "The recommended report flow, first screen. One question, one large action.",
+    skipShots: LAB_SHOTS,
+  },
+  {
+    name: "lab-roundel-report-photo-first",
+    path: "/lab/roundel/report/photo-first",
+    settle: 3000,
+    why: "The alternative flow, kept because the owner is choosing between the two.",
+    skipShots: LAB_SHOTS,
+  },
+  {
+    name: "lab-roundel-species",
+    path: "/lab/roundel/species/28758",
+    settle: 7000,
+    map: true,
+    full: true,
+    why: "黑眶蟾蜍, 3,978 records — in the CI fixture, and the species page with every part filled in.",
+    skipShots: LAB_SHOTS,
+  },
+  {
+    name: "lab-roundel-species-long",
+    path: "/lab/roundel/species/37689",
+    settle: 6000,
+    map: true,
+    full: true,
+    why: "斯文豪氏頸槽蛇: seven Hanzi at hero size, and the only lab species page carrying the blurred-location Notice. The long-name case is where a name-as-the-picture design breaks if it is going to.",
+    skipShots: LAB_SHOTS,
+  },
+  {
+    name: "lab-roundel-primitives",
+    path: "/lab/roundel/primitives",
+    settle: 2500,
+    why: "Every primitive under one theme at once — the page where a token change shows up against all of them.",
+    skipShots: LAB_SHOTS,
+  },
+  {
+    name: "lab-journal-primitives",
+    path: "/lab/journal/primitives",
+    settle: 2500,
+    why: "The same components under the runner-up's tokens, which is what makes the two comparable at all.",
+    skipShots: LAB_SHOTS,
   },
   {
     name: "not-found",
