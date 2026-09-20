@@ -188,10 +188,9 @@ export default async function SpeciesPage({
           </p>
         ) : s.reportCount === 0 ? (
           <div className="mt-2 rounded-lg border border-ink-900/10 bg-paper-100 px-3 py-4 text-center">
-            <p className="text-sm text-ink-500">{t("noRecords")}</p>
             <Link
               href={{ pathname: "/report", query: { taxonId: s.id } }}
-              className="mt-3 inline-block rounded-full bg-ember-500 px-3.5 py-1.5 text-xs font-semibold text-bark-950 hover:bg-ember-400"
+              className="inline-block rounded-full bg-ember-500 px-3.5 py-1.5 text-xs font-semibold text-bark-950 hover:bg-ember-400"
             >
               + {t("beFirst")}
             </Link>

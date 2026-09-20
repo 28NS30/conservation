@@ -13,7 +13,8 @@
     "test:map": "node e2e/map.spec.mjs",
     "test": "node --test \"test/*.test.mjs\"",
     "test:offline": "node e2e/offline.spec.mjs",
-    "test:e2e": "npm run test:map && npm run test:offline && npm run test:focus",
+    "test:mapchrome": "node e2e/map-chrome.spec.mjs",
+    "test:e2e": "npm run test:map && npm run test:mapchrome && npm run test:offline && npm run test:focus",
     "lint": "eslint .",
     "test:pages": "node e2e/pages.spec.mjs",
     "test:focus": "node e2e/focus.spec.mjs"

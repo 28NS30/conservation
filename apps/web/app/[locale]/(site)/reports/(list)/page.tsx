@@ -170,6 +170,16 @@ export default async function ReportsListPage({
     return `/reports?${p}`;
   };
   const qs = (p: number) => withFilter({ page: String(p) });
+  /**
+   * Back to the map, carrying the filter and nothing else.
+   *
+   * Not `page`: a page number is a fact about a 50-row table and means nothing
+   * to a map, and carrying it would produce links that differ without differing.
+   * The map answers the same question this page does, and until now the trip was
+   * one way — the map offers the list, the list offered no way back, so
+   * switching cost a visitor their filters.
+   */
+  const mapHref = activeFilter ? `/map?${activeFilter}` : "/map";
 
   /*
    * Say which filter is in force.
@@ -277,6 +287,21 @@ export default async function ReportsListPage({
           </Link>
         </p>
       )}
+
+      {/* Beside the chips but outside that nav, which is labelled as the
+          category filter: this is not one of the categories, and announcing it
+          inside that list would say it was. Below the filter line rather than
+          above it, so the order on the page is what is filtered, then the way
+          out of the list — and mapHref carries those same filters across. */}
+      <p className="mt-3 text-xs">
+        <Link
+          href={mapHref}
+          className="inline-flex items-center gap-1 py-1 text-ink-600 underline-offset-2 transition hover:text-ink-900 hover:underline"
+        >
+          {t("viewOnMap")}
+          <span aria-hidden>→</span>
+        </Link>
+      </p>
 
       {visible.length === 0 ? (
         <div className="mt-8 text-center text-sm text-ink-500">

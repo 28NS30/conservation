@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import Wordmark from "@/components/brand/Wordmark";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import NavLink from "@/components/site/NavLink";
 import { currentUserId } from "@/lib/supabase/server";
 
 /**
@@ -98,13 +99,12 @@ export default async function SiteHeader({
             className={`hidden items-center gap-5 ${app ? "sm:flex" : "md:flex"}`}
           >
             {nav.map((l) => (
-              <Link
+              <NavLink
                 key={l.href}
                 href={l.href}
-                className={`text-xs transition ${overlay ? "text-parchment-200 hover:text-parchment-50" : "text-ink-600 hover:text-ink-900"}`}
-              >
-                {l.label}
-              </Link>
+                label={l.label}
+                overlay={overlay}
+              />
             ))}
           </nav>
 
@@ -122,39 +122,54 @@ export default async function SiteHeader({
       </div>
 
       {/* Phone and small-tablet navigation.
-          The links above are hidden below `md`, where the wordmark and the
-          report button already fill a 390px row — which left the whole site
-          reachable only from the footer. A second row costs one line of height
-          and needs no menu button, no JS, and no focus trap. The map's own
-          header stays single-row: there, vertical space is the instrument. */}
-      {!app && (
-        <div
-          // flex-wrap, and it is load-bearing rather than tidiness. The row
-          // holds four nav words plus 中文 / English, the site loads no web font,
-          // and the labels are longer in English — so its width is whatever the
-          // reader's platform happens to measure. It fits on macOS and overflows
-          // 320px by 5px on CI's Ubuntu. Wrapping cannot overflow on any of
-          // them; shaving a gap would only move the threshold.
-          className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t px-4 py-2 sm:px-5 md:hidden ${
-            overlay ? "border-parchment-200/15" : "border-ink-900/10"
-          }`}
-        >
-          <nav className="flex flex-wrap items-center gap-x-5 gap-y-1">
-            {nav.map((l) => (
-              <Link
-                key={l.href}
-                href={l.href}
-                className={`text-xs transition ${overlay ? "text-parchment-200 hover:text-parchment-50" : "text-ink-600 hover:text-ink-900"}`}
-              >
-                {l.label}
-              </Link>
-            ))}
-          </nav>
-          <LanguageSwitcher
-            className={overlay ? "text-parchment-100" : "text-ink-700"}
-          />
-        </div>
-      )}
+          The links above are hidden below `md` — below `sm` on the map — where
+          the wordmark and the report button already fill a 390px row. A second
+          row costs one line of height and needs no menu button, no JS, and no
+          focus trap.
+
+          The map used to be the exception, on the argument that there vertical
+          space is the instrument. It is, and it was still the wrong call: /map
+          is the page most visitors land on and the one that fills the viewport,
+          so leaving it out made Species, Statistics and About reachable only by
+          scrolling a page that does not scroll. Thirty-odd pixels of map is the
+          cheaper loss. W3's tab bar replaces this row.
+
+          In `variant="app"` the header itself is the wrapping flex container —
+          the inner div is `contents` — so the row claims a line with
+          `basis-full` and bleeds back out through the header's own padding
+          instead of sitting inside it.
+
+          Both variants wrap, and that is load-bearing rather than tidiness.
+          The row holds four nav words plus 中文 / English, the site loads no web
+          font, and the labels are longer in English — so its width is whatever
+          the reader's platform happens to measure. It fits on macOS and
+          overflows 320px by five pixels on CI's Ubuntu. Wrapping cannot
+          overflow on either; shaving a gap would only move the threshold to a
+          different font, and shrinking the 24px targets back would undo the
+          accessibility fix that widened it. */}
+      <div
+        className={
+          app
+            ? `-mx-4 -mb-2.5 flex basis-full flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-ink-900/10 px-4 py-1.5 sm:hidden`
+            : `flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t px-4 py-2 sm:px-5 md:hidden ${
+                overlay ? "border-parchment-200/15" : "border-ink-900/10"
+              }`
+        }
+      >
+        <nav className="flex flex-wrap items-center gap-x-5 gap-y-1">
+          {nav.map((l) => (
+            <NavLink
+              key={l.href}
+              href={l.href}
+              label={l.label}
+              overlay={overlay}
+            />
+          ))}
+        </nav>
+        <LanguageSwitcher
+          className={overlay ? "text-parchment-100" : "text-ink-700"}
+        />
+      </div>
     </header>
   );
 }
