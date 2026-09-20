@@ -45,6 +45,7 @@
     "high": "High",
     "zoomHint": "Zoom in for individual records",
     "blurred": "Location blurred — sensitive species",
+    "blurredUnknown": "Location blurred — species not identified",
     "filterSpecies": "Filter by species…",
     "anyYear": "Any",
     "fromYear": "From year",
@@ -83,7 +84,7 @@
   "footer": {
     "dataSource": "Data",
     "checklist": "Species checklist",
-    "blurredCount": "{count} sensitive locations blurred",
+    "blurredCount": "{count} locations blurred",
     "explore": "Explore",
     "about": "About"
   },
@@ -150,6 +151,7 @@
     "location": "Location",
     "aiSuggested": "AI suggestion",
     "blurredNotice": "Sensitive or protected species — coordinates {precision} before publication, so this report cannot be used to find it.",
+    "blurredUnknownNotice": "{precision} — this record has not been identified, and until we know what the animal is we cannot tell whether it is sensitive.",
     "suggestions": "Suggestions",
     "pickCorrect": "Pick the correct species to fix this record.",
     "confirmedBy": "Confirmed by the reporter or a moderator.",
@@ -351,7 +353,7 @@
     "next": "Next",
     "pageN": "Page {page}",
     "viewAsList": "View as list",
-    "obscuredLegend": "Coordinates with this mark belong to protected or sensitive species, and are published only after being generalised.",
+    "obscuredLegend": "This mark means the coordinates were generalised before publication: the species is protected or sensitive, or the record has not been identified yet.",
     "photo": "Photo"
   },
   "statsPage": {
@@ -379,7 +381,7 @@
     "mixedSpecies": "Mixed species",
     "perCell": "records",
     "coverage": "About location precision",
-    "coverageBody": "Of {total} published records, {obscured} have blurred coordinates because their species is flagged sensitive in TaiCOL. They are still counted in every statistic here; only their mapped position is approximate.",
+    "coverageBody": "Of {total} published records, {obscured} have blurred coordinates — either their species is flagged sensitive in TaiCOL, or the record has not been identified yet. They are still counted in every statistic here; only their mapped position is approximate.",
     "howObscuringWorks": "About the project",
     "seasonLink": "This season's goal",
     "seasonLinkHint": "A shared target for everyone reporting in Taiwan — reach the squares of the map that have no record at all."
@@ -397,7 +399,7 @@
     "cellsHint": "Counted from published records that carry an exact location.",
     "speciesCovered": "species recorded, of Taiwan's checklist",
     "speciesHint": "TaiCOL lists this many species for Taiwan. Almost none of them have ever been reported here.",
-    "obscuredNote": "{n} published records are left out of the squares above. Their species is rated sensitive, so their location is published coarsely and crediting it to a {km} km square would credit the wrong one. They count in every other statistic on this site.",
+    "obscuredNote": "{n} published records are left out of the squares above. Their location is published coarsely — the species is rated sensitive, or the record has not been identified — so crediting it to a {km} km square would credit the wrong one. They count in every other statistic on this site.",
     "whyTitle": "Why squares, and not records",
     "whyBody": "A target counted in records rewards volume, and the cheapest volume is the same roadside verge photographed again tomorrow. This one counts only the first record in a {km} km square, so a second is worth nothing and there is no reason to sit on a site you already know. It is also what the data is short of: most records here come from a handful of surveyed roads, which describes those roads rather than the island.",
     "noRewardBody": "There are no points here, no ranking, and nothing to win. These records are published as open data under this project's name, and attaching a reward to filing one would put a price on getting it wrong.",
