@@ -111,6 +111,15 @@ jobs:
         # Turbopack silently breaking MapLibre's Web Worker.
         run: npm run test:map
 
+      - name: The map's chrome describes what the map is drawing
+        # The legend used to read the colour switch and nothing else, so at high
+        # zoom it labelled single records with a density class — "300+" on every
+        # dot of a roadkill corridor — and beside the kernel density surface it
+        # named per-cell counts that no feature on screen carries. Only a real
+        # browser can get the camera past the aggregation handoff and read what
+        # the legend then says.
+        run: npm run test:mapchrome --workspace @conservation/web
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:

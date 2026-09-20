@@ -305,12 +305,20 @@ export const UNIDENTIFIED_PRECISION: LocationPrecision = "coarse_10km";
  * a `weight`; above it, individual points. Shipping ~50k raw points at country
  * zoom is what makes naive density maps collapse.
  *
- * Set to 10 rather than 9 because aggregation is still earning its keep there:
- * measured on the densest z10 tile, 4,984 reports collapse to 2,067 cells. Handing
- * over to raw points at z10 dumped all 4,984 into a 512px tile — roughly 7px
- * apart, which with a 2.5px radius renders as one solid mass rather than points
- * you can pick out. One more level of aggregation puts the switch where the
- * points are actually separable.
+ * Set to 13. The handover was once at 10, and the measurement that fixed it
+ * there is kept because it still describes the shape of the problem: on the
+ * densest z10 tile, 4,984 reports collapse to 2,067 cells, and serving those
+ * 4,984 as raw points instead put them roughly 7px apart in a 512px tile —
+ * which at a 2.5px radius renders as one solid mass rather than points you can
+ * pick out. Every further level quarters the ground one tile covers, so by 13
+ * the same reports are spread over sixty-odd tiles and individual records are
+ * separable.
+ *
+ * Nothing should repeat the number. The point layer's minzoom, the point
+ * source's minzoom, the zoom hint and the legend's regime are all derived from
+ * this constant, because a hardcoded copy agrees with it right up until the day
+ * it does not, and the disagreement is invisible: the map simply describes the
+ * regime it is not in.
  */
 export const TILE_AGGREGATION_MAX_ZOOM = 13;
 

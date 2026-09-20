@@ -1,8 +1,8 @@
 {
   "site": {
     "title": "Project FormosaWatch",
-    "tagline": "Roadkill · invasive species · environmental reports",
-    "description": "A public heatmap of roadkill, invasive species and environmental reports across Taiwan."
+    "tagline": "Taiwan · open wildlife records",
+    "description": "An open map of wildlife records for Taiwan, built on TaiRON roadkill data. Anyone can add a report."
   },
   "nav": {
     "backToMap": "← Back to map",
@@ -36,21 +36,26 @@
   "stats": {
     "records": "records",
     "species": "species",
-    "range": "range"
+    "range": "range",
+    "month": "Month",
+    "year": "Year",
+    "count": "Records",
+    "showNumbers": "Show the numbers"
   },
   "map": {
     "all": "All",
     "density": "Density",
-    "low": "Low",
-    "high": "High",
+    "low": "Fewer",
+    "high": "More",
     "zoomHint": "Zoom in for individual records",
     "blurred": "Location blurred — sensitive species",
+    "blurredUnknown": "Location blurred — species not identified",
     "filterSpecies": "Filter by species…",
     "anyYear": "Any",
     "fromYear": "From year",
     "toYear": "To year",
     "clearFilters": "Clear filters",
-    "regionLabel": "Heatmap of environmental reports across Taiwan",
+    "regionLabel": "Map of wildlife records across Taiwan",
     "perCell": "reports per cell",
     "cellCount": "{count} reports here",
     "cellSize": "about {km} km per cell",
@@ -78,12 +83,15 @@
     "unidentified": "Not identified",
     "openReport": "Open the full record",
     "observedOn": "Observed",
-    "cellSizeM": "about {m} m per cell"
+    "cellSizeM": "about {m} m per cell",
+    "perRecord": "Each dot is one record",
+    "colourLockedHeat": "Heat shows density only",
+    "colourLockedPoints": "Single records are always coloured by type"
   },
   "footer": {
     "dataSource": "Data",
     "checklist": "Species checklist",
-    "blurredCount": "{count} sensitive locations blurred",
+    "blurredCount": "{count} locations blurred",
     "explore": "Explore",
     "about": "About"
   },
@@ -100,6 +108,7 @@
     "useMyLocation": "Use my location",
     "locating": "Locating…",
     "tapToAdjust": "Tap the map to adjust",
+    "tapToMark": "Tap the map to mark the spot",
     "outsideTaiwan": "Outside Taiwan",
     "exifOffer": "This photo contains a location — use it?",
     "exifUse": "Use",
@@ -112,13 +121,29 @@
     "submit": "Submit report",
     "submitting": "Submitting…",
     "needLocation": "Tap the map to mark where you saw it",
-    "photoFailed": "Could not process photo",
+    "locationError": "Couldn't get your location. Tap the map instead.",
+    "errors": {
+      "rate_limited": "Too many submissions just now. Try again in a few minutes.",
+      "challenge_failed": "The browser check didn't pass. Please try again.",
+      "photo": "The photos couldn't be uploaded. Try again, or take them off and send.",
+      "photoUnreadable": "This photo can't be read. Use a different one, or take it again.",
+      "taxon_not_found": "That species can't be found. Please choose it again.",
+      "validation_failed": "Something in the form isn't right. Check it and send again.",
+      "server": "Something went wrong at our end and the report was not sent. What you entered is still here."
+    },
     "privacyNote": "Locations of sensitive and protected species are automatically blurred before publication, so reports cannot be used to find them.",
-    "thanks": "Thank you for your report!",
-    "received": "Your report was received.",
-    "identifying": "Being identified now; it will appear on the map shortly (usually a minute or two).",
-    "published": "Published to the map.",
-    "viewReport": "View this report",
+    "receipt": {
+      "onMap": "It's on the map",
+      "held": "Received. Not public yet.",
+      "withheld": "Received, and deliberately not shown",
+      "heldForIdentification": "Someone has to identify the animal first. That is done by hand, with no timetable.",
+      "heldNoPhoto": "A person looks at reports without a photo first.",
+      "heldForReview": "A person will look at this report first.",
+      "withheldSpecies": "TaiCOL rates this species' coordinates as not for publication. The record is kept, but it does not appear on the map, in the report list or in any statistic.",
+      "viewRecord": "View this record",
+      "checkStatus": "Check its status",
+      "another": "Report another"
+    },
     "needChallenge": "Complete the check above first",
     "preparingPhotos": "Processing photos…",
     "group": {
@@ -131,6 +156,7 @@
       "roadkill": "Dead",
       "injured": "Alive, but hurt"
     },
+    "noDispatch": "This only records what you saw. Nobody will be sent.",
     "species": "Species",
     "speciesSearch": "Search by name — 石虎, leopard cat, Prionailurus",
     "speciesSearchInvasive": "Search the invasive species register",
@@ -140,7 +166,7 @@
     "speciesInvasive": "Invasive",
     "speciesChange": "Change",
     "speciesUnsure": "I'm not sure what it was",
-    "speciesUnsureHint": "Better than a guess. We'll record it as unidentified and the model will still try.",
+    "speciesUnsureHint": "Better than a guess. We record it as unidentified, and a person identifies it before it appears.",
     "accuracy": "accurate to about {m} m"
   },
   "detail": {
@@ -150,10 +176,15 @@
     "location": "Location",
     "aiSuggested": "AI suggestion",
     "blurredNotice": "Sensitive or protected species — coordinates {precision} before publication, so this report cannot be used to find it.",
+    "blurredUnknownNotice": "{precision} — this record has not been identified, and until we know what the animal is we cannot tell whether it is sensitive.",
     "suggestions": "Suggestions",
     "pickCorrect": "Pick the correct species to fix this record.",
     "confirmedBy": "Confirmed by the reporter or a moderator.",
-    "source": "Source"
+    "source": "Source",
+    "receipt": {
+      "title": "Received. Not public right now.",
+      "body": "A person looks at reports without a photo or species name first. Some species' locations are never shown."
+    }
   },
   "admin": {
     "heading": "Moderation queue",
@@ -172,9 +203,17 @@
   "login": {
     "heading": "Sign in",
     "explain": "Reporting never requires an account; signing in just gives you your own history.",
+    "emailLabel": "Email",
     "send": "Send magic link",
     "sending": "Sending…",
-    "sent": "Check your email for the sign-in link."
+    "sent": "Check your email for the sign-in link.",
+    "sentTo": "Sent to {email}",
+    "resend": "Send again",
+    "resendIn": "Send again in {seconds}s",
+    "changeEmail": "Use a different address",
+    "failed": "The link could not be sent. Please try again shortly.",
+    "tooMany": "Too many attempts. Wait a few minutes and try again.",
+    "linkExpired": "That sign-in link is no longer valid. Send a new one."
   },
   "species": {
     "directory": "Species",
@@ -182,11 +221,13 @@
     "searchLabel": "Search species",
     "searchPlaceholder": "Search name or scientific name…",
     "noMatches": "No matching species.",
+    "noMatchesInFilter": "Nothing under \"{filter}\" matches \"{q}\".",
+    "searchAllSpecies": "Search all species instead",
+    "range": "{from}–{to} of {total} species",
     "records": "Records",
     "recordsShort": "records",
     "recordCount": "{count, number} records",
-    "noRecords": "No reports for this species yet.",
-    "beFirst": "Be the first to report one",
+    "beFirst": "Report this species",
     "seenOne": "Seen one? Report it",
     "alsoKnownAs": "Also known as",
     "taxonomy": "Taxonomy",
@@ -269,16 +310,15 @@
     "sendNow": "Send now",
     "sending": "Sending…",
     "discard": "Discard",
-    "sentCount": "Sent {count} reports.",
-    "queueFailed": "Could not save to this device",
-    "verifying": "Checking your browser before sending — this takes a moment.",
-    "viewSent": "Open it"
+    "sentCount": "{count, plural, one {Sent # report.} other {Sent # reports.}}",
+    "queueFailed": "This report could not be saved on your device, and was not sent. Check that your browser is not blocking storage, or that it is not full.",
+    "verifying": "Checking your browser before sending — this takes a moment."
   },
   "errors": {
     "title": "Something went wrong",
     "body": "This page could not be displayed. Please try again.",
     "retry": "Retry",
-    "backHome": "Back to map",
+    "backHome": "Back to home",
     "notFoundTitle": "Page not found",
     "notFoundBody": "The link may be out of date, or this record does not exist.",
     "browseSpecies": "Browse species"
@@ -298,14 +338,14 @@
     "basemap": "Basemap",
     "basemapBody": "The basemap is served by OpenFreeMap, using OpenMapTiles vector tiles built from OpenStreetMap contributors' data (ODbL).",
     "models": "AI models",
-    "modelsBody": "Species identification uses BioCLIP 2 (MIT) for zero-shot classification and MegaDetector (MIT) for cropping. Candidates are restricted to species on the Taiwan checklist.",
+    "modelsBody": "Species identification uses BioCLIP 2 (MIT) for zero-shot classification and MegaDetector (MIT) for cropping. Candidates are restricted to species on the Taiwan checklist. It is not switched on yet; a person identifies unnamed reports.",
     "ourData": "Data produced here",
     "ourDataBody": "Reports submitted through this site belong to the people who made them. We intend to publish them back to GBIF as a Darwin Core Archive so the records are usable beyond this site."
   },
   "about": {
     "title": "About",
     "whatTitle": "What this is",
-    "whatBody": "A public map of environmental reports for Taiwan. Anyone can report roadkill, invasive species, injured wildlife or a sighting; reports with a photo are passed to an open-source model that attempts to identify the species; everyone can see the aggregated heatmap.",
+    "whatBody": "An open map of wildlife records for Taiwan. Today's records were collected by 路殺社 (TaiRON) volunteers and released under CC BY 4.0. Anyone can report roadkill, an injured animal, an invasive species or a sighting; no account is needed.",
     "privacyTitle": "Why some locations are blurred",
     "privacyBody": "Publishing precise coordinates of protected or sensitive species is, functionally, a map for poachers. GBIF, eBird and iNaturalist all obscure such records, and so do we: for those species the public map shows a deliberately coarsened location rather than the real one, and the most sensitive show no coordinates at all.",
     "unknownTitle": "Reports that aren't identified yet",
@@ -340,7 +380,11 @@
     "subtitle": "Recent reports. This is the text equivalent of the map, usable with a screen reader.",
     "all": "All",
     "filterByCategory": "Filter by category",
-    "empty": "No reports yet.",
+    "empty": "No records match this filter.",
+    "filteredBy": "Filtered by",
+    "dateRange": "{from} to {to}",
+    "dateFrom": "From {from}",
+    "dateTo": "Until {to}",
     "tableCaption": "Reports ordered by date",
     "date": "Date",
     "category": "Category",
@@ -351,7 +395,8 @@
     "next": "Next",
     "pageN": "Page {page}",
     "viewAsList": "View as list",
-    "obscuredLegend": "Coordinates with this mark belong to protected or sensitive species, and are published only after being generalised.",
+    "viewOnMap": "View on map",
+    "obscuredLegend": "This mark means the coordinates were generalised before publication: the species is protected or sensitive, or the record has not been identified yet.",
     "photo": "Photo"
   },
   "statsPage": {
@@ -379,7 +424,7 @@
     "mixedSpecies": "Mixed species",
     "perCell": "records",
     "coverage": "About location precision",
-    "coverageBody": "Of {total} published records, {obscured} have blurred coordinates because their species is flagged sensitive in TaiCOL. They are still counted in every statistic here; only their mapped position is approximate.",
+    "coverageBody": "Of {total} published records, {obscured} have blurred coordinates — either their species is flagged sensitive in TaiCOL, or the record has not been identified yet. They are still counted in every statistic here; only their mapped position is approximate.",
     "howObscuringWorks": "About the project",
     "seasonLink": "This season's goal",
     "seasonLinkHint": "A shared target for everyone reporting in Taiwan — reach the squares of the map that have no record at all."
@@ -389,7 +434,7 @@
     "lede": "One shared target for everyone reporting in Taiwan: put a first record into {km} km squares of the map that have none at all. Anonymous reports count exactly the same as signed-in ones.",
     "thisSeason": "This season · until {until}",
     "newSquares": "new {km} km squares reached",
-    "noneYet": "Nothing new yet this season. A first record from a square that has never had one is the most useful thing anyone can file.",
+    "noneYet": "A first record from a square that has never had one is the most useful thing anyone can file.",
     "progress": "Each of these is a square of Taiwan that had no record at all until someone went there.",
     "cta": "Report something",
     "standingTitle": "Where the map stands",
@@ -397,7 +442,7 @@
     "cellsHint": "Counted from published records that carry an exact location.",
     "speciesCovered": "species recorded, of Taiwan's checklist",
     "speciesHint": "TaiCOL lists this many species for Taiwan. Almost none of them have ever been reported here.",
-    "obscuredNote": "{n} published records are left out of the squares above. Their species is rated sensitive, so their location is published coarsely and crediting it to a {km} km square would credit the wrong one. They count in every other statistic on this site.",
+    "obscuredNote": "{n} published records are left out of the squares above. Their location is published coarsely — the species is rated sensitive, or the record has not been identified — so crediting it to a {km} km square would credit the wrong one. They count in every other statistic on this site.",
     "whyTitle": "Why squares, and not records",
     "whyBody": "A target counted in records rewards volume, and the cheapest volume is the same roadside verge photographed again tomorrow. This one counts only the first record in a {km} km square, so a second is worth nothing and there is no reason to sit on a site you already know. It is also what the data is short of: most records here come from a handful of surveyed roads, which describes those roads rather than the island.",
     "noRewardBody": "There are no points here, no ranking, and nothing to win. These records are published as open data under this project's name, and attaching a reward to filing one would put a price on getting it wrong.",
@@ -412,8 +457,8 @@
     "howHeading": "From one photo to one public record",
     "how1": "Photograph and report",
     "how1Body": "One photo from the roadside, drop a pin, send. No account needed. EXIF is stripped in the browser before anything is uploaded.",
-    "how2": "A model helps identify it",
-    "how2Body": "BioCLIP 2, open source, matched against the Taiwan species checklist. Confident results are assigned; uncertain ones go to a human.",
+    "how2": "Name it, or leave it to us",
+    "how2Body": "If you know the animal, say so and the record is published as you gave it. If not, a person identifies it before it appears.",
     "how3": "It goes on the public map",
     "how3Body": "Every report feeds a public hotspot map and open statistics. Coordinates of protected and sensitive species are blurred before publication.",
     "trustTitle": "Why some locations are blurred",
@@ -433,11 +478,11 @@
     "doorSighting": "Alive and well — you just saw it.",
     "firstTime": "First time here? What this is, and who runs it",
     "whatTitle": "What this is",
-    "whatBody": "An open database of wildlife records for Taiwan. Anyone can report roadkill, an invasive species, an injured animal or a sighting; every record is public, and they are published back to GBIF as a Darwin Core Archive.",
+    "whatBody": "An open database of wildlife records for Taiwan. Anyone can report roadkill, an invasive species, an injured animal or a sighting; every record is public. We plan to publish reports made here to GBIF as a Darwin Core Archive.",
     "whoTitle": "Who runs it",
     "whoBody": "An independent volunteer project — not a government agency, and not part of any institution. Write to Neo Su.",
     "taironTitle": "Where 路殺社 fits",
-    "taironBody": "Every record on this site was collected by 路殺社 (TaiRON) volunteers — crouching at the roadside, photographing, noting the species and the coordinate — and published openly under CC BY 4.0. This is not a replacement for that work: it shows those records, and publishes new reports back as open data.",
+    "taironBody": "Every record on this site was collected by 路殺社 (TaiRON) volunteers — crouching at the roadside, photographing, noting the species and the coordinate — and published openly under CC BY 4.0. This is not a replacement for that work: it shows those records, and plans to release new reports as open data in turn.",
     "ledgerTitle": "This week, in other years",
     "ledgerHint": "One real record for each date, from within a few days of today across 2011–2017. The first line is blank.",
     "ledgerBlank": "File the first one",

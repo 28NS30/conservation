@@ -2,8 +2,12 @@ node_modules/
 .next/
 out/
 dist/
-.env
-.env.local
+# Every env file except the committed template. `.env` and `.env.local` alone
+# left `.env.production.local` — where `vercel env pull` puts a production pull,
+# and one of the four files Next.js loads by itself — untracked but not ignored,
+# so `git add -A` would commit the production database password to a public repo.
+.env*
+!.env.example
 *.log
 .DS_Store
 .turbo/

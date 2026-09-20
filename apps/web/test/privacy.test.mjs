@@ -85,6 +85,69 @@ describe("taxon sensitivity drives precision", () => {
   });
 });
 
+describe("an unidentified record is blurred", () => {
+  // 0011. Before it, a row with no taxon looked up no sensitivity, so
+  // precision_from_taxon(null, null) fell through to 'exact'. That reads "no
+  // rating" as "not sensitive", and it published 445 草花蛇 and 97 棕簑貓 —
+  // both protected III — at their true coordinates, because the GBIF import
+  // matched accepted names and those rows carried superseded synonyms.
+  test("no taxon means coarse, not exact", async () => {
+    await inRollback(async (tx) => {
+      const r = await insertReport(tx, { taxonId: null });
+      assert.equal(r.location_precision, "coarse_10km",
+        "a record nobody has identified must not be published to the metre");
+      assert.ok(Number(r.offset_m) > 500, `expected a real offset, got ${r.offset_m}m`);
+    });
+  });
+
+  test("an override can still tighten it further", async () => {
+    await inRollback(async (tx) => {
+      const r = await insertReport(tx, { taxonId: null, override: "coarse_50km" });
+      assert.equal(r.location_precision, "coarse_50km");
+    });
+  });
+
+  test("an override CANNOT loosen it back to exact", async () => {
+    await inRollback(async (tx) => {
+      const r = await insertReport(tx, { taxonId: null, override: "exact" });
+      assert.equal(r.location_precision, "coarse_10km",
+        "the unknown-taxon floor holds against an override, like any other policy");
+    });
+  });
+
+  test("identifying a record applies its taxon's own policy", async () => {
+    await inRollback(async (tx) => {
+      const r = await insertReport(tx, { taxonId: null });
+      assert.equal(r.location_precision, "coarse_10km");
+      const id = await taxonWhere("scientific_name = 'Paguma larvata'");
+      const [after] = await tx`
+        update reports set taxon_id = ${id} where id = ${r.id}
+        returning location_precision, st_distance(location, location_public) as offset_m`;
+      // Not a one-way ratchet: the floor exists because the species is unknown,
+      // so learning the species lifts it. Records only move once someone looks.
+      assert.equal(after.location_precision, "exact");
+      assert.equal(Number(after.offset_m), 0);
+    });
+  });
+
+  test("no published record is both untaxoned and exact", async () => {
+    // The whole-table guard. An import that reintroduces unmatched names fails
+    // here rather than quietly publishing them precisely.
+    const [row] = await sql`
+      select count(*) as n from reports
+       where status = 'published' and taxon_id is null and location_precision = 'exact'`;
+    assert.equal(Number(row.n), 0,
+      "published records with no taxon must never sit at their true coordinates");
+  });
+
+  test("reports_public never serves an untaxoned exact record", async () => {
+    const [row] = await sql`
+      select count(*) as n from reports_public
+       where taxon_id is null and location_precision = 'exact'`;
+    assert.equal(Number(row.n), 0);
+  });
+});
+
 describe("precision_override can only tighten", () => {
   test("it makes a non-sensitive report coarser", async () => {
     await inRollback(async (tx) => {
@@ -190,5 +253,53 @@ describe("the public role cannot reach true coordinates", () => {
     assert.ok(!names.includes("location"), "reports_public must not carry `location`");
     assert.ok(!names.includes("contact_email"), "reports_public must not carry reporter emails");
     assert.ok(names.includes("location_public"));
+  });
+});
+
+describe("a filtered page never names a taxon it holds no records for", () => {
+  /*
+   * The report list and the map both accept ?taxonId= from the address bar and
+   * print the species they were filtered to. A taxon rated 座標不開放 has no rows
+   * in reports_public, so such a page is empty — and naming the species above
+   * that empty page would be the only statement on the whole site that it had
+   * ever been recorded in Taiwan. That is precisely the fact the suppression
+   * exists to withhold, published by the one code path that reads a name from
+   * `taxa` instead of from the view.
+   */
+  const BASE_URL = process.env.TEST_BASE_URL ?? "http://localhost:3000";
+
+  test("the report list will not name a suppressed species", async () => {
+    const [hidden] = await sql`
+      select t.id, t.scientific_name, t.common_name_zh
+        from taxa t
+       where t.sensitivity = '座標不開放'
+         and t.common_name_zh is not null
+       limit 1`;
+    if (!hidden) return; // no such fixture on this cluster
+    const html = await (
+      await fetch(`${BASE_URL}/reports?taxonId=${hidden.id}`)
+    ).text();
+    assert.ok(
+      !html.includes(hidden.common_name_zh),
+      "a suppressed species must not be named on the list it filters to",
+    );
+    assert.ok(
+      !html.includes(hidden.scientific_name),
+      "nor by its scientific name",
+    );
+  });
+
+  test("an unrecorded species is not named either", async () => {
+    // Same rule, weaker case: the name is in the public checklist, but the
+    // list has nothing to say about it, and the filter line is about records.
+    const [none] = await sql`
+      select t.id, t.scientific_name from taxa t
+        left join species_report_stats s on s.taxon_id = t.id
+       where s.taxon_id is null and t.is_in_taiwan limit 1`;
+    assert.ok(none, "expected a species with no records");
+    const html = await (
+      await fetch(`${BASE_URL}/reports?taxonId=${none.id}`)
+    ).text();
+    assert.ok(!html.includes(none.scientific_name));
   });
 });

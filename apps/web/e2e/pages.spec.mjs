@@ -27,16 +27,18 @@ const PAGES = [
   { path: "/map", name: "map (zh-TW)", settle: 9000, layers: true },
   { path: "/en/map", name: "map (en)", settle: 9000, layers: true },
   { path: "/stats", name: "stats (zh-TW)" },
-  { path: "/en/stats", name: "stats (en)" },
+  { path: "/en/stats", name: "stats (en)", widths: true },
   { path: "/season", name: "season goal (zh-TW)" },
   { path: "/en/season", name: "season goal (en)" },
   { path: "/species", name: "species directory" },
+  { path: "/en/species", name: "species directory (en)", widths: true },
   {
     path: "/species/28758-duttaphrynus-melanostictus",
     name: "species detail",
     settle: 7000,
   },
-  { path: "/reports", name: "reports list" },
+  { path: "/reports", name: "reports list", widths: true },
+  { path: "/login", name: "sign in", widths: true },
   { path: "/report", name: "submission form" },
   { path: "/about", name: "about" },
   { path: "/me", name: "my reports (signed out)" },
@@ -166,8 +168,150 @@ async function checkHome(page, pg, plate) {
   return errs;
 }
 
+/**
+ * Nothing may scroll sideways on a phone.
+ *
+ * Horizontal overflow is invisible on a laptop and unusable on a handset: the
+ * reader drags the page left to read the end of a line and everything else goes
+ * with it. It is also silent — no error, no warning, the page returns 200 — and
+ * it was live on two English pages, which is the other half of the point: these
+ * widths are checked in English because Latin binomials are two or three times
+ * the width of the Chinese names beside them, so the Chinese pages were clean
+ * while /en/stats laid out 421px inside a 390px viewport.
+ *
+ * 320px is the WCAG reflow width; 360 and 390 are the two commonest phones.
+ */
+async function checkWidths(page) {
+  const errs = [];
+  for (const w of [320, 360, 390]) {
+    await page.setViewportSize({ width: w, height: 844 });
+    await page.waitForTimeout(400);
+    const m = await page.evaluate(() => {
+      const doc = document.documentElement;
+      if (doc.scrollWidth <= innerWidth) return null;
+      // Name what is actually sticking out, or the failure is a number with
+      // nowhere to start looking.
+      const culprits = [...document.querySelectorAll("body *")]
+        .filter((el) => el.getBoundingClientRect().right > innerWidth + 1)
+        .slice(-3)
+        .map((el) => `<${el.tagName.toLowerCase()} class="${el.className}">`);
+      return { sw: doc.scrollWidth, iw: innerWidth, culprits };
+    });
+    if (m)
+      errs.push(
+        `scrolls sideways at ${w}px: ${m.sw} > ${m.iw} — ${m.culprits.join(" ")}`,
+      );
+  }
+  await page.setViewportSize({ width: 1000, height: 800 });
+  return errs;
+}
+
+/**
+ * What the reader chose has to survive the next thing they do.
+ *
+ * Every one of these was a real loss of state, and all three were silent: the
+ * page reloaded, looked right, and showed a different view of the data from the
+ * one that had been asked for. That is worse than an error, because the reader
+ * has no reason to distrust it.
+ */
+async function checkState(browser) {
+  const errs = [];
+
+  // A language switch keeps the whole address, not just the path.
+  {
+    const ctx = await browser.newContext({
+      viewport: { width: 1100, height: 850 },
+      locale: "en-US",
+    });
+    const page = await ctx.newPage();
+    await page.goto(BASE + "/en/reports?taxonId=28758&from=2015-01-01", {
+      waitUntil: "load",
+    });
+    await page.waitForTimeout(2500);
+    await page.click('button[lang="zh-TW"]');
+    await page.waitForTimeout(2500);
+    const at = await page.evaluate(() => location.pathname + location.search);
+    if (!at.startsWith("/reports"))
+      errs.push(`switching to zh-TW left /en/reports at "${at}"`);
+    for (const want of ["taxonId=28758", "from=2015-01-01"])
+      if (!at.includes(want))
+        errs.push(`switching language dropped ${want} (got "${at}")`);
+    await ctx.close();
+  }
+
+  // Including the map view, which is written with replaceState and so exists
+  // only in `location` — the value has to be read at click time.
+  {
+    const ctx = await browser.newContext({
+      viewport: { width: 1100, height: 850 },
+      locale: "en-US",
+    });
+    const page = await ctx.newPage();
+    await page.goto(BASE + "/en/map?lng=120.5&lat=23.5&z=9", {
+      waitUntil: "load",
+    });
+    await page.waitForTimeout(9000);
+    await page.click('button[lang="zh-TW"]');
+    await page.waitForTimeout(6000);
+    const at = await page.evaluate(() => location.pathname + location.search);
+    const p = new URLSearchParams(at.split("?")[1] ?? "");
+    if (!at.startsWith("/map"))
+      errs.push(`switching to zh-TW left /en/map at "${at}"`);
+    // Within 0.01: the map may settle a fraction off the requested centre, and
+    // the URL is rewritten from where it actually is.
+    for (const [k, want] of [
+      ["lng", 120.5],
+      ["lat", 23.5],
+    ]) {
+      const got = Number(p.get(k));
+      if (!Number.isFinite(got) || Math.abs(got - want) > 0.01)
+        errs.push(`switching language moved the map: ${k}=${p.get(k)}`);
+    }
+    await ctx.close();
+  }
+
+  // The species box rebuilds the whole address, so the filter chip survives
+  // both typing and clearing.
+  {
+    const ctx = await browser.newContext({
+      viewport: { width: 1100, height: 850 },
+      locale: "zh-TW",
+    });
+    const page = await ctx.newPage();
+    await page.goto(BASE + "/species?filter=invasive", { waitUntil: "load" });
+    await page.waitForTimeout(2500);
+    const chosen = () =>
+      page.evaluate(() =>
+        [...document.querySelectorAll("nav a")]
+          .filter((a) => a.className.includes("bg-ink-900"))
+          .map((a) => a.textContent.trim()),
+      );
+    for (const [what, text] of [
+      ["typing", "龜"],
+      ["clearing", ""],
+    ]) {
+      await page.fill('input[type="search"]', text);
+      await page.waitForTimeout(2500);
+      const at = await page.evaluate(() => location.search);
+      if (!at.includes("filter=invasive"))
+        errs.push(`${what} in the species box dropped the filter (got "${at}")`);
+      if (at.includes("page="))
+        errs.push(`${what} in the species box kept a page number ("${at}")`);
+      const chips = await chosen();
+      if (chips.length !== 1 || chips[0] !== "入侵種")
+        errs.push(
+          `after ${what}, the chip drawn as chosen is ${JSON.stringify(chips)}`,
+        );
+    }
+    await ctx.close();
+  }
+
+  return errs;
+}
+
 const browser = await chromium.launch();
 const failures = [];
+const CHECKS = PAGES.length + 1;
 
 for (const pg of PAGES) {
   // The browser's language set deliberately, to match the path. Playwright's
@@ -229,6 +373,7 @@ for (const pg of PAGES) {
     errs.push("unresolved translations: " + [...new Set(leaked)].join(", "));
 
   if (pg.home) errs.push(...(await checkHome(page, pg, plate)));
+  if (pg.widths) errs.push(...(await checkWidths(page)));
 
   if (pg.layers) {
     const missing = await page.evaluate((ids) => {
@@ -335,11 +480,16 @@ for (const pg of PAGES) {
   await ctx.close();
 }
 
+const stateErrs = await checkState(browser);
+if (stateErrs.length)
+  failures.push({ page: "URL state", path: "(several)", errs: stateErrs });
+else console.log("  ok   URL state survives a language switch and a search");
+
 await browser.close();
 
 if (failures.length) {
   console.error("\n" + JSON.stringify(failures, null, 2));
-  console.error(`\n${failures.length}/${PAGES.length} pages FAILED`);
+  console.error(`\n${failures.length}/${CHECKS} checks FAILED`);
   process.exit(1);
 }
-console.log(`\n${PAGES.length}/${PAGES.length} pages passed`);
+console.log(`\n${CHECKS}/${CHECKS} checks passed`);

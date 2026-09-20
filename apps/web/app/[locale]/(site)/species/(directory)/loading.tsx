@@ -19,7 +19,7 @@ export default function Loading() {
           footer is the element that moves. A skeleton exists to hold the
           space the content will take; one that holds a seventh of it is worse
           than none, because it paints something stable and then moves it. */}
-      <div className="mt-5 grid gap-1.5 sm:grid-cols-2 sm:gap-x-4">
+      <div className="mt-5 grid grid-cols-1 gap-1.5 sm:grid-cols-2 sm:gap-x-4">
         {Array.from({ length: 80 }).map((_, i) => (
           <Bar key={i} className="h-[68px] rounded-lg" />
         ))}

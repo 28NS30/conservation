@@ -141,10 +141,18 @@ export type LedgerRow = {
  * vary, and the page differs every day of the year. The thinnest day in the
  * calendar still has 151 records to draw from.
  *
- * Obscured records are excluded, and not only for tidiness. The row's texture is
- * a precise coordinate, and a blurred one has none to show — and it is how a
- * misidentified 狼 (Canis lupus, of which this dataset holds fourteen, on an
- * island with no wild wolves) would otherwise reach the front page.
+ * Obscured records are excluded, and not only for tidiness: the row's texture is
+ * a precise coordinate, and a blurred one has none to show.
+ *
+ * It was also, for a while, the thing keeping fourteen 狼 (Canis lupus) off the
+ * front page of a site about an island with no wild wolves. TaiRON had not
+ * misidentified anything. It published those records as "Canis lupus familiaris"
+ * — dogs — and our own import matched GBIF's collapsed `species` against TaiCOL's
+ * accepted names, landed on the bare species, and filed them under the wolf,
+ * which is protected and therefore blurred. scripts/remap-gbif-taxa.ts moves them
+ * to 犬 (Canis familiaris), where TaiRON always had them; once it has run against
+ * a database they are unremarkable exact records there, and the ledger may show
+ * them.
  */
 export async function anniversaryLedger(limit = 12): Promise<LedgerRow[]> {
   return asPublic(

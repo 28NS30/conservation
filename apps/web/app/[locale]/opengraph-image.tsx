@@ -74,7 +74,7 @@ export default async function Image({
         latin: null,
         eyebrow: "TAIWAN · CITIZEN SCIENCE",
         headline: "Every life lost on the road deserves a record.",
-        sub: "An open map of roadkill, invasive species and environmental reports",
+        sub: "An open map of wildlife records for Taiwan",
       };
 
   return new ImageResponse(

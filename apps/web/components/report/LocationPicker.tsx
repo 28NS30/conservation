@@ -36,6 +36,13 @@ export default function LocationPicker({
   const container = useRef<HTMLDivElement>(null);
   const handle = useRef<MapHandle | null>(null);
   const marker = useRef<Marker | null>(null);
+  /**
+   * Puts the pin down, creating it the first time.
+   *
+   * Held in a ref because both the effect that builds the map and the effect
+   * that follows `value` need it, and it closes over the map handle.
+   */
+  const place = useRef<((lng: number, lat: number) => void) | null>(null);
   const onChangeRef = useRef(onChange);
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -71,18 +78,37 @@ export default function LocationPicker({
         h.map.on("resize", fit);
       }
 
-      const m = new h.ml.Marker({ color: "#e11d48", draggable: true })
-        .setLngLat(value ? [value.lng, value.lat] : TAIWAN_CENTER)
-        .addTo(h.map);
-      m.on("dragend", () => {
-        const p = m.getLngLat();
-        onChangeRef.current({ lat: p.lat, lng: p.lng });
-      });
-      marker.current = m;
+      /**
+       * No pin until there is something to pin.
+       *
+       * One was dropped on Taiwan's geographic centre the moment the map
+       * loaded, before the reporter had chosen anything — so the form looked
+       * answered while `location` was still null, the submit button was greyed
+       * out for no visible reason, and anyone who did not notice the difference
+       * between "a pin" and "my pin" was one tap away from filing a sighting
+       * somewhere in Nantou. The picker now shows what it knows, which at that
+       * moment is nothing.
+       */
+      place.current = (lng, lat) => {
+        if (!marker.current) {
+          const m = new h.ml.Marker({ color: "#e11d48", draggable: true })
+            .setLngLat([lng, lat])
+            .addTo(h.map);
+          m.on("dragend", () => {
+            const p = m.getLngLat();
+            onChangeRef.current({ lat: p.lat, lng: p.lng });
+          });
+          marker.current = m;
+          return;
+        }
+        marker.current.setLngLat([lng, lat]);
+      };
+
+      if (value) place.current(value.lng, value.lat);
 
       // Tapping the map is far easier than dragging a pin on a phone.
       h.map.on("click", (e) => {
-        m.setLngLat(e.lngLat);
+        place.current?.(e.lngLat.lng, e.lngLat.lat);
         onChangeRef.current({ lat: e.lngLat.lat, lng: e.lngLat.lng });
       });
     })();
@@ -92,6 +118,7 @@ export default function LocationPicker({
       handle.current?.destroy();
       handle.current = null;
       marker.current = null;
+      place.current = null;
     };
     // `value` is the initial centre only; later changes are handled by the effect
     // below, which moves the existing marker instead of rebuilding the map.
@@ -99,9 +126,11 @@ export default function LocationPicker({
   }, [maptilerKey]);
 
   // Keep the pin in sync when the value changes from outside (GPS, EXIF).
+  // `place` rather than the marker directly: the first such change is also the
+  // first pin, since there is none until a location exists.
   useEffect(() => {
-    if (!value || !marker.current || !handle.current) return;
-    marker.current.setLngLat([value.lng, value.lat]);
+    if (!value || !place.current || !handle.current) return;
+    place.current(value.lng, value.lat);
     handle.current.map.easeTo({
       center: [value.lng, value.lat],
       zoom: 14,
@@ -114,17 +143,34 @@ export default function LocationPicker({
 
   return (
     <div>
-      <div
-        ref={container}
-        // `relative` is load-bearing, not cosmetic. MapLibre 6 does not add a
-        // `.maplibregl-map` class to the container it is given, so the stock
-        // `.maplibregl-map { position: relative }` rule matches nothing. The
-        // canvas inside is `position: absolute`, so without a positioned
-        // ancestor it escapes to the viewport and paints over the header.
-        className="relative h-56 w-full overflow-hidden rounded-lg sm:h-64"
-      />
+      {/* An outer wrapper purely to hang the overlay on. It does not go inside
+          the container below, whose children belong to MapLibre and whose
+          `relative` is answering a different question. */}
+      <div className="relative">
+        <div
+          ref={container}
+          // `relative` is load-bearing, not cosmetic. MapLibre 6 does not add a
+          // `.maplibregl-map` class to the container it is given, so the stock
+          // `.maplibregl-map { position: relative }` rule matches nothing. The
+          // canvas inside is `position: absolute`, so without a positioned
+          // ancestor it escapes to the viewport and paints over the header.
+          className="relative h-56 w-full overflow-hidden rounded-lg sm:h-64"
+        />
+        {!value && (
+          // Says what to do, over the thing to do it to. `pointer-events-none`
+          // so it cannot swallow the tap it is asking for — including the tap
+          // that lands underneath it.
+          <div className="pointer-events-none absolute inset-0 grid place-items-center">
+            <span className="rounded-full bg-bark-950 px-3 py-1.5 text-xs font-medium text-parchment-50">
+              {t("tapToMark")}
+            </span>
+          </div>
+        )}
+      </div>
       {value && (
-        <p className="mt-1.5 text-[11px] text-parchment-400 tabular-nums">
+        // ink, not parchment: parchment is the map's palette, and this line
+        // sits on cream under the picker, where it measured 2.90:1.
+        <p className="mt-1.5 text-[11px] tabular-nums text-ink-500">
           {value.lat.toFixed(5)}, {value.lng.toFixed(5)}
           {outside && (
             <span className="ml-2 text-amber-700">⚠ {t("outsideTaiwan")}</span>
