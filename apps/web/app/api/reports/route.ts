@@ -18,6 +18,19 @@ import {
  * Turnstile and rate limiting cannot be bypassed by POSTing to /rest/v1/reports.
  * `anon` deliberately has no insert grant (see 0004_supabase_auth_rls.sql).
  */
+/**
+ * `on conflict do nothing` fired, but the conflicting row could not be read
+ * back. Its own class so the catch can tell it apart from a genuine insert
+ * failure, which is the difference between "we already have this" and "your
+ * report did not send".
+ */
+class ReportConflictUnresolved extends Error {
+  constructor() {
+    super("duplicate_unresolved");
+    this.name = "ReportConflictUnresolved";
+  }
+}
+
 export async function POST(req: Request) {
   const ip = clientIp(req);
 
@@ -106,7 +119,18 @@ export async function POST(req: Request) {
   const classifiable = requiresClassification(input.category, photos.length);
   const awaitingId = classifiable && !identified;
   const status = awaitingId || flaggedReason ? "pending" : "published";
-  const precisionOverride = awaitingId ? UNIDENTIFIED_PRECISION : null;
+  // Keyed on whether the animal has been NAMED, not on whether it can be
+  // classified. Those differ by exactly one thing — a photograph — and the
+  // comment above describes the first while the code used to do the second.
+  //
+  // `requiresClassification` is `photoCount > 0` in practice, so a report with
+  // no photo and no species reached this line as `awaitingId = false` and was
+  // stamped with nothing. What kept it off the map at full precision was not
+  // this decision at all: it was the abuse screen's separate "no photo on a
+  // category that expects one" flag holding it as `pending`, and, since 0011,
+  // the trigger's own else-branch. Two backstops for a guard that was not
+  // guarding, and neither of them is this comment's promise.
+  const precisionOverride = identified ? null : UNIDENTIFIED_PRECISION;
 
   try {
     const result = await sql.begin(async (tx) => {
@@ -132,14 +156,38 @@ export async function POST(req: Request) {
       // Same nonce already submitted — a double-tap or an offline retry.
       if (inserted.length === 0) {
         const [existing] = await tx<
-          { id: string; status: string; location_precision: string }[]
+          {
+            id: string;
+            status: string;
+            location_precision: string;
+            awaiting: boolean;
+          }[]
         >`
-          select id, status, location_precision from reports
-           where client_nonce = ${input.clientNonce}`;
+          select r.id, r.status, r.location_precision,
+                 -- What the receipt needs to know about THIS row, computed from
+                 -- the row. The same three facts the insert branch decides from,
+                 -- read back rather than recomputed: a retry of a report that
+                 -- has since been classified is not awaiting identification any
+                 -- more, whatever this request happened to arrive with.
+                 (r.status = 'pending'
+                  and r.taxon_id is null
+                  and exists (select 1 from report_photos p
+                               where p.report_id = r.id)) as awaiting
+            from reports r
+           where r.client_nonce = ${input.clientNonce}`;
+
+        // `on conflict do nothing` said a row exists, so not finding it here
+        // means it is not visible to this transaction. Falling through would
+        // read `.id` off undefined, and the catch below would answer the
+        // reporter "insert_failed" — telling them their report did not send,
+        // about the one case where we know for certain that it did.
+        if (!existing) throw new ReportConflictUnresolved();
+
         return {
           id: existing.id,
           status: existing.status,
           precision: existing.location_precision,
+          awaiting: existing.awaiting,
           duplicate: true,
         };
       }
@@ -164,6 +212,7 @@ export async function POST(req: Request) {
         id: reportId,
         status,
         precision: inserted[0].location_precision,
+        awaiting: awaitingId,
         duplicate: false,
       };
     });
@@ -173,7 +222,10 @@ export async function POST(req: Request) {
         id: result.id,
         status: result.status,
         duplicate: result.duplicate,
-        awaitingIdentification: awaitingId,
+        // From the row for a retry, from this request for a new one — see the
+        // duplicate branch. Recomputing it here would answer a retry with facts
+        // about a submission that is no longer the one in the database.
+        awaitingIdentification: result.awaiting,
         // `published` is not the same as visible. `reports_public` also drops
         // anything whose taxon TaiCOL rates 座標不開放, and the trigger stamps
         // that precision from the taxon the reporter chose — so a report can be
@@ -188,6 +240,12 @@ export async function POST(req: Request) {
     );
   } catch (err) {
     console.error("[api/reports]", err);
+    if (err instanceof ReportConflictUnresolved)
+      // 409, not 500: something is wrong here, but it is not that the report
+      // failed to send. The client's error table has no sentence for this code
+      // and falls back to the generic one, which is the right amount to say to
+      // someone whose report is already stored.
+      return Response.json({ error: "duplicate_unresolved" }, { status: 409 });
     return Response.json({ error: "insert_failed" }, { status: 500 });
   }
 }
