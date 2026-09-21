@@ -51,6 +51,15 @@ export const REQUIRED_SCHEMA: SchemaCheck[] = [
                and taxon_id is null
                and location_precision = 'exact') as ok`,
   },
+  {
+    name: "0012 a reclassified taxon re-blurs its records",
+    sql: `select exists (
+            select 1 from pg_trigger t
+              join pg_class c on c.oid = t.tgrelid
+             where c.relname = 'taxa'
+               and t.tgname = 'taxa_reblur_reports'
+               and not t.tgisinternal) as ok`,
+  },
 ];
 
 /**

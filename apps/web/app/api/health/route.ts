@@ -29,10 +29,17 @@ export async function GET() {
     return Response.json(
       {
         ok: true,
-        // False means this deployment cannot accept a report: the code writes
-        // something the database does not have. `npm run db:migrate` against
-        // that database says what to do — including for one built by the psql
-        // loop in the launch checklist, which has no migration history.
+        // False means the database is not the one this code was written
+        // against. That USED to mean exactly one thing — the code writes a
+        // column that is not there, so every submission 500s — and the list has
+        // since grown to cover privacy rules too: 0011 blurs an unidentified
+        // record, 0012 re-blurs one whose taxon has been reclassified. A
+        // deployment can be missing those and still take reports perfectly
+        // well. It is still not the database this code expects.
+        //
+        // `npm run db:migrate` against that database says what to do —
+        // including for one built by the psql loop in the launch checklist,
+        // which has no migration history. `schemaMissing` names which.
         schemaCurrent: schema.current,
         ...(schema.missing.length ? { schemaMissing: schema.missing } : {}),
         reports: row.reports,
