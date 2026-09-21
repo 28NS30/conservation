@@ -18,7 +18,7 @@ import { test, describe, after } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { sql, inRollback, insertReport } from "./helpers.mjs";
+import { sql, inRollback, insertReport, taxonWhere } from "./helpers.mjs";
 
 after(() => sql.end());
 
@@ -36,6 +36,11 @@ const src = readFileSync(ACTIONS, "utf8");
 
 const EXPORT = readFileSync(
   join(import.meta.dirname, "..", "..", "..", "scripts", "export-dwca.ts"),
+  "utf8",
+);
+
+const ADMIN = readFileSync(
+  join(import.meta.dirname, "..", "app", "[locale]", "(site)", "admin", "actions.ts"),
   "utf8",
 );
 
@@ -98,6 +103,81 @@ describe("confirm species", () => {
         0,
         "a fresh report proposes nothing, so nothing is pickable",
       );
+    });
+  });
+});
+
+describe("naming the species also fixes what kind of record it is", () => {
+  test("both paths that set a taxon re-derive the category", () => {
+    // `category` was written once at insert and never revisited, so a
+    // `sighting` confirmed to be a listed invasive stayed a `sighting` and
+    // never appeared under the map's invasive filter. Two actions set a taxon
+    // and they must agree; the rule itself is `recategorise`, covered by
+    // test/report-category.test.mjs.
+    for (const [name, source] of [["confirmSpecies", src], ["setReportTaxon", ADMIN]]) {
+      assert.match(source, /recategorise\(/, `${name} does not re-derive the category`);
+      assert.match(source, /category = \$\{category\}/, `${name} does not store it`);
+    }
+  });
+});
+
+describe("what clearing precision_override is allowed to undo", () => {
+  test("the unidentified stamp is cleared, because naming it is the answer", async () => {
+    await inRollback(async (tx) => {
+      const r = await insertReport(tx, {
+        taxonId: null,
+        category: "sighting",
+        override: "coarse_10km",
+      });
+      const taxonId = await taxonWhere(
+        "sensitivity is null and protected_status is null and is_in_taiwan",
+      );
+      // The action's own statement, reduced to the columns under test.
+      await tx`update reports
+                  set taxon_id = ${taxonId},
+                      precision_override = case
+                        when taxon_id is null then null
+                        else precision_override
+                      end
+                where id = ${r.id}`;
+      const [row] = await tx`select precision_override, location_precision
+                               from reports where id = ${r.id}`;
+      assert.equal(row.precision_override, null, "the stamp was what it was waiting for");
+      assert.equal(row.location_precision, "exact", "precision is the taxon's own again");
+    });
+  });
+
+  test("an override on a record that already had a taxon survives", async () => {
+    // This is the case the GBIF name remap writes: 371 records held coarser
+    // than their taxon's rating asks, because the name they used to carry
+    // justified a blur the corrected name would not. Clearing it would
+    // publish a location somebody decided to withhold.
+    await inRollback(async (tx) => {
+      const before = await taxonWhere(
+        "sensitivity is null and protected_status is null and is_in_taiwan",
+      );
+      const r = await insertReport(tx, {
+        taxonId: before,
+        category: "sighting",
+        override: "coarse_10km",
+      });
+      assert.equal(r.location_precision, "coarse_10km", "the fixture starts blurred");
+
+      const after = await taxonWhere(
+        "sensitivity is null and protected_status is null and is_in_taiwan and id <> " +
+          String(before),
+      );
+      await tx`update reports
+                  set taxon_id = ${after},
+                      precision_override = case
+                        when taxon_id is null then null
+                        else precision_override
+                      end
+                where id = ${r.id}`;
+      const [row] = await tx`select precision_override, location_precision
+                               from reports where id = ${r.id}`;
+      assert.equal(row.precision_override, "coarse_10km", "a decision, not a stamp");
+      assert.equal(row.location_precision, "coarse_10km", "and it still applies");
     });
   });
 });

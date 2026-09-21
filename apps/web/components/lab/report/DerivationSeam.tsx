@@ -7,7 +7,7 @@ import {
   derivationFor,
   deriveCategory,
   taxonSource,
-} from "@/lib/lab/deriveCategory";
+} from "@conservation/shared";
 import { outcomeFor, type FlowState, type Outcome } from "@/lib/lab/reportFlow";
 
 /**

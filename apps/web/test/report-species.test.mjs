@@ -56,6 +56,145 @@ after(async () => {
   await sql.end();
 });
 
+describe("a report nobody has named", () => {
+  test("is stamped conservatively even with no photograph", async () => {
+    // The stamp used to require a photo, because it keyed on
+    // `requiresClassification` — which is `photoCount > 0` — rather than on
+    // whether the animal had been named. A no-photo, no-species report was
+    // therefore stamped with nothing, and what kept it off the map at full
+    // precision was the abuse screen holding it as `pending` for an unrelated
+    // reason, plus the trigger's own else-branch since 0011. Neither of those
+    // is the submission path deciding, and both can move.
+    const { res, body, clientNonce } = await submit({ photoPaths: [] });
+    assert.equal(res.status, 201, JSON.stringify(body));
+
+    const row = await stored(clientNonce);
+    assert.equal(row.taxon_id, null);
+    assert.equal(
+      row.precision_override,
+      "coarse_10km",
+      "an unnamed report must carry its own blur, not borrow one",
+    );
+    assert.equal(row.location_precision, "coarse_10km");
+    assert.equal(row.is_obscured, true);
+  });
+
+  test("the receipt still distinguishes 'no photo' from 'not identified yet'", async () => {
+    // The stamp changed; the reason shown to the reporter must not. A report
+    // with no photograph is held because it has no photograph, and the
+    // classifier was never going to look at it.
+    const { body } = await submit({ photoPaths: [] });
+    assert.equal(
+      body.awaitingIdentification,
+      false,
+      "nothing is waiting to identify a report with no photograph",
+    );
+  });
+});
+
+describe("sending the same report twice", () => {
+  test("the answer describes the stored row, not the second request", async () => {
+    // `status` and `visible` always came from the existing row;
+    // `awaitingIdentification` was recomputed from whatever THIS request
+    // carried. So the receipt could describe a hold that had already lifted,
+    // or miss one that had not.
+    //
+    // Making the two disagree needs a stored row with a photograph and a retry
+    // without one, and a photograph on the submission path needs signed
+    // storage. The row is given one directly instead: `report_photos` is
+    // exactly the state a real upload leaves behind, and it is the state the
+    // server reads.
+    await sql`delete from rate_limits where key like 'submit-%'`;
+    const clientNonce = randomUUID();
+    nonces.push(clientNonce);
+    const body = {
+      category: "sighting",
+      lng: 120.9,
+      lat: 23.8,
+      observedAt: new Date().toISOString(),
+      photoPaths: [],
+      clientNonce,
+    };
+    const post = () =>
+      fetch(`${BASE_URL}/api/reports`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+    const first = await post();
+    assert.equal(first.status, 201);
+    const firstBody = await first.json();
+    assert.equal(
+      firstBody.awaitingIdentification,
+      false,
+      "no photograph, so nothing was ever going to classify it",
+    );
+
+    // Now it has one, and is therefore waiting for the classifier.
+    await sql`insert into report_photos (report_id, storage_path, bytes, content_type)
+              values (${firstBody.id}, ${`test/${clientNonce}.webp`}, 1234, 'image/webp')`;
+
+    await sql`delete from rate_limits where key like 'submit-%'`;
+    const again = await post();
+    assert.equal(again.status, 200, "a retry is not a new report");
+    const againBody = await again.json();
+
+    assert.equal(againBody.duplicate, true);
+    assert.equal(againBody.id, firstBody.id, "the same report, not a second one");
+    assert.equal(
+      againBody.awaitingIdentification,
+      true,
+      "the stored row has a photograph and no species, whatever this request carried",
+    );
+  });
+
+  test("...and once it is identified, it is not waiting any more", async () => {
+    await sql`delete from rate_limits where key like 'submit-%'`;
+    const clientNonce = randomUUID();
+    nonces.push(clientNonce);
+    const body = {
+      category: "sighting",
+      lng: 120.9,
+      lat: 23.8,
+      observedAt: new Date().toISOString(),
+      photoPaths: [],
+      clientNonce,
+    };
+    const post = () =>
+      fetch(`${BASE_URL}/api/reports`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+    const first = await post();
+    const firstBody = await first.json();
+    await sql`insert into report_photos (report_id, storage_path, bytes, content_type)
+              values (${firstBody.id}, ${`test/${clientNonce}-b.webp`}, 1234, 'image/webp')`;
+
+    const taxonId = await taxonWhere(
+      "sensitivity is null and protected_status is null and is_in_taiwan",
+    );
+    // Only the taxon. The row deliberately stays `pending`: publishing it here
+    // would put a live `sighting` at 120.9, 23.8 for the length of the run,
+    // and tiles.test.mjs asserts that the sighting group is empty because
+    // every seeded record is imported roadkill. One test's fixture is another
+    // test's premise, and the suite runs its files concurrently.
+    await sql`update reports set taxon_id = ${taxonId}, taxon_source = 'expert'
+               where client_nonce = ${clientNonce}`;
+
+    await sql`delete from rate_limits where key like 'submit-%'`;
+    const againBody = await (await post()).json();
+    assert.equal(againBody.status, "pending", "still the row's own status");
+    assert.equal(
+      againBody.awaitingIdentification,
+      false,
+      "nothing is waiting to identify a report that has been identified",
+    );
+  });
+});
+
 describe("a reporter names the species", () => {
   test("it is stored as the reporter's own word", async () => {
     const taxonId = await taxonWhere(
@@ -78,15 +217,21 @@ describe("a reporter names the species", () => {
   });
 
   test("naming the species is what lifts the identification hold", () => {
-    // Asserted at source, because the difference only shows on a report that
-    // carries a photograph, and a photograph needs signed storage that a unit
-    // test has no business standing up. The rule is one line; pin the line.
+    // The HOLD is still asserted at source: whether a report waits is only
+    // different on one that carries a photograph, and a photograph needs
+    // signed storage that a unit test has no business standing up.
     const route = source("app/api/reports/route.ts");
     assert.match(route, /const awaitingId = classifiable && !identified;/);
-    assert.match(
-      route,
-      /const precisionOverride = awaitingId \? UNIDENTIFIED_PRECISION : null;/,
-    );
+    assert.match(route, /const status = awaitingId \|\| flaggedReason \? "pending" : "published";/);
+
+    // The BLUR is no longer pinned here, because it no longer needs to be.
+    // It used to read `awaitingId ? UNIDENTIFIED_PRECISION : null`, which is
+    // photo-dependent and so only observable through storage; keyed on
+    // `identified` it is observable from a plain no-photo submission, and
+    // "is stamped conservatively even with no photograph" above asserts the
+    // behaviour instead of the text. A source pin is a last resort and this
+    // one has stopped being necessary.
+    assert.match(route, /const precisionOverride = identified \? null : UNIDENTIFIED_PRECISION;/);
   });
 
   test("the classifier does not overwrite a person's identification", () => {

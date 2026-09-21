@@ -3,7 +3,7 @@
 import Choice from "@/components/lab/ui/Choice";
 import PageTitle from "@/components/lab/ui/PageTitle";
 import type { LabCopy } from "@/lib/lab/copy";
-import type { Condition } from "@/lib/lab/deriveCategory";
+import type { Condition } from "@conservation/shared";
 import type { ReportFlow } from "./useReportFlow";
 
 /**

@@ -32,6 +32,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { sql } from "./db.ts";
+import { UNCERTAINTY, generalisation } from "./dwc-terms.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -134,15 +135,6 @@ const TERM_URI: Record<string, string> = {
   datasetName: "http://rs.tdwg.org/dwc/terms/datasetName",
 };
 
-/** Uncertainty we declare for each precision level, in metres. */
-const UNCERTAINTY: Record<string, number> = {
-  // Phone GPS under tree cover, honestly stated. Claiming better would be a lie
-  // that propagates into every downstream analysis.
-  exact: 30,
-  coarse_10km: 10_000,
-  coarse_50km: 50_000,
-};
-
 /**
  * How the identification was arrived at, in GBIF's controlled-ish vocabulary.
  *
@@ -168,6 +160,9 @@ type Row = {
   notes: string | null;
   location_precision: string;
   is_obscured: boolean;
+  /** Read only to say WHY a coordinate was generalised; never published itself. */
+  sensitivity: string | null;
+  protected_status: string | null;
   taxon_source: string | null;
   lat: number | null;
   lng: number | null;
@@ -283,7 +278,8 @@ async function main(): Promise<void> {
            st_y(r.location_public::geometry) as lat,
            st_x(r.location_public::geometry) as lng,
            t.scientific_name, t.id as taxon_id, t.kingdom, t.phylum, t.class,
-           t."order", t.family, t.genus, t.rank, t.common_name_zh
+           t."order", t.family, t.genus, t.rank, t.common_name_zh,
+           t.sensitivity, t.protected_status
       from reports_public r
       left join taxa t on t.id = r.taxon_id
      where r.source = 'user'
@@ -308,11 +304,10 @@ async function main(): Promise<void> {
   const lines = [TERMS.join("\t")];
   for (const r of rows) {
     const d = new Date(r.observed_at);
-    const generalisation = r.is_obscured
-      ? `Coordinates generalised to approximately ${
-          UNCERTAINTY[r.location_precision] / 1000
-        } km because this taxon is rated sensitive in TaiCOL`
-      : "";
+    // Why this coordinate is coarse, decided per record rather than asserted.
+    // See scripts/dwc-terms.ts: since 0011 a record can be blurred because
+    // nobody has identified it, which is not a statement about any taxon.
+    const withheld = generalisation(r);
 
     const values: Record<string, unknown> = {
       // Stable and opaque. A UUID means republishing after an edit updates the
@@ -343,8 +338,8 @@ async function main(): Promise<void> {
       // ecological signal: "roadkill" is how the animal was encountered.
       occurrenceRemarks: [r.category, r.notes].filter(Boolean).join("; "),
       occurrenceStatus: "present",
-      dataGeneralizations: generalisation,
-      informationWithheld: r.is_obscured ? "Exact coordinates withheld for a sensitive taxon" : "",
+      dataGeneralizations: withheld.dataGeneralizations,
+      informationWithheld: withheld.informationWithheld,
       license: r.license ?? DATASET.license,
       rightsHolder: r.rights_holder ?? DATASET.title,
       datasetName: DATASET.title,

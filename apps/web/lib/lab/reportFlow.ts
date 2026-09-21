@@ -1,5 +1,5 @@
 import { isInTaiwanBounds } from "@conservation/shared";
-import type { Condition, SpeciesAnswer } from "./deriveCategory";
+import type { Condition, SpeciesAnswer } from "@conservation/shared";
 
 /**
  * The report flow's state, its order, and what it would be told after sending.

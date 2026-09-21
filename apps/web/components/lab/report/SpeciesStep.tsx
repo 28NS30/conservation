@@ -7,7 +7,7 @@ import Notice from "@/components/lab/ui/Notice";
 import PageTitle from "@/components/lab/ui/PageTitle";
 import { withBase } from "@/lib/basePath";
 import type { LabCopy } from "@/lib/lab/copy";
-import type { SpeciesAnswer } from "@/lib/lab/deriveCategory";
+import type { SpeciesAnswer } from "@conservation/shared";
 import type { ReportFlow } from "./useReportFlow";
 
 type Hit = {
