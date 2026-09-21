@@ -176,13 +176,17 @@ describe("sending the same report twice", () => {
     const taxonId = await taxonWhere(
       "sensitivity is null and protected_status is null and is_in_taiwan",
     );
-    await sql`update reports set taxon_id = ${taxonId}, taxon_source = 'expert',
-                                 status = 'published'
+    // Only the taxon. The row deliberately stays `pending`: publishing it here
+    // would put a live `sighting` at 120.9, 23.8 for the length of the run,
+    // and tiles.test.mjs asserts that the sighting group is empty because
+    // every seeded record is imported roadkill. One test's fixture is another
+    // test's premise, and the suite runs its files concurrently.
+    await sql`update reports set taxon_id = ${taxonId}, taxon_source = 'expert'
                where client_nonce = ${clientNonce}`;
 
     await sql`delete from rate_limits where key like 'submit-%'`;
     const againBody = await (await post()).json();
-    assert.equal(againBody.status, "published");
+    assert.equal(againBody.status, "pending", "still the row's own status");
     assert.equal(
       againBody.awaitingIdentification,
       false,

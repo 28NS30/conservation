@@ -5,7 +5,7 @@ import exifr from "exifr";
 import { preparePhoto } from "@/lib/image";
 import { loadMapLibre } from "@/lib/map";
 import { useGeolocate } from "@/components/report/LocationPicker";
-import type { Condition, SpeciesAnswer } from "@/lib/lab/deriveCategory";
+import type { Condition, SpeciesAnswer } from "@conservation/shared";
 import {
   EMPTY_FLOW,
   type FlowState,

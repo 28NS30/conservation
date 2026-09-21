@@ -632,7 +632,7 @@ describe("lab display faces", () => {
  * ------------------------------------------------------------------ */
 
 const { deriveCategory, derivationFor, taxonSource } = await import(
-  "../lib/lab/deriveCategory.ts"
+  "@conservation/shared"
 );
 
 /**
