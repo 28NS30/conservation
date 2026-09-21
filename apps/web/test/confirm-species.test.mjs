@@ -121,6 +121,34 @@ describe("naming the species also fixes what kind of record it is", () => {
   });
 });
 
+describe("every path that names a species applies one override rule", () => {
+  test("all three use the shared fragment, and none writes its own", () => {
+    // They disagreed: two cleared `precision_override` unconditionally and one
+    // never touched it, so the same correction had two different consequences
+    // for a location depending on which screen it was made from.
+    const CLASSIFY = readFileSync(
+      join(import.meta.dirname, "..", "app", "api", "jobs", "classify", "route.ts"),
+      "utf8",
+    );
+    for (const [name, source] of [
+      ["confirmSpecies", src],
+      ["setReportTaxon", ADMIN],
+      ["the classifier", CLASSIFY],
+    ]) {
+      assert.match(
+        source,
+        /precision_override = \$\{keepDeliberateOverride\(\)\}/,
+        `${name} does not use the shared rule`,
+      );
+      assert.doesNotMatch(
+        source,
+        /precision_override = null/,
+        `${name} still clears the override unconditionally`,
+      );
+    }
+  });
+});
+
 describe("what clearing precision_override is allowed to undo", () => {
   test("the unidentified stamp is cleared, because naming it is the answer", async () => {
     await inRollback(async (tx) => {

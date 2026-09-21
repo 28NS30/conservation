@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { sql } from "@/lib/db";
 import { currentRole } from "@/lib/auth";
 import { recategorise, type Category } from "@conservation/shared";
+import { keepDeliberateOverride } from "@/lib/report/precision";
 
 /**
  * Moderation mutations.
@@ -57,8 +58,12 @@ export async function rejectReport(reportId: string, reason: string) {
  * a wrong name — and then the register has no opinion and the reporter's own
  * belief, carried in the category they were filed under, stands.
  *
- * This one has never cleared `precision_override` and still does not. See the
- * note in the other file: neither path now weakens a blur somebody decided on.
+ * It now clears `precision_override` on the same rule as the other two paths —
+ * `keepDeliberateOverride`. It never cleared it at all before, which is the
+ * mirror of the defect the other path had: a moderator who identified a report
+ * that had been stamped "we do not know what this is yet" left the stamp in
+ * place, and the record they had just done the work of naming stayed blurred
+ * to 10 km for good.
  */
 export async function setReportTaxon(reportId: string, taxonId: number | null) {
   const actor = await requireModerator();
@@ -77,7 +82,8 @@ export async function setReportTaxon(reportId: string, taxonId: number | null) {
 
     await tx`update reports
                 set taxon_id = ${taxonId}, taxon_source = 'expert',
-                    category = ${category}
+                    category = ${category},
+                    precision_override = ${keepDeliberateOverride()}
               where id = ${reportId}::uuid`;
     await tx`insert into moderation_actions (report_id, actor_id, action, reason)
              values (${reportId}::uuid, ${actor}::uuid, 'retaxon', ${String(taxonId)})`;
