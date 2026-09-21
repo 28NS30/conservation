@@ -113,6 +113,14 @@ function ReportFormFields({
    */
   const [accuracyM, setAccuracyM] = useState<number | null>(null);
   const [observedAt, setObservedAt] = useState(toLocalInput(new Date()));
+  /**
+   * Whether the time on screen came from the photograph rather than from the
+   * clock, so the field can say so. Tracked separately from `timeEdited`
+   * because a reporter who types a time and then adds a second photo has
+   * answered this question already.
+   */
+  const [timeFromPhoto, setTimeFromPhoto] = useState(false);
+  const [timeEdited, setTimeEdited] = useState(false);
   const [notes, setNotes] = useState("");
   const [email, setEmail] = useState("");
   const [phase, setPhase] = useState<Phase>("editing");
@@ -201,6 +209,24 @@ function ReportFormFields({
         // been taken somewhere other than where it is being reported.
         const withGps = prepared.find((p) => p.gps);
         if (withGps?.gps && !location) setExifOffer(withGps.gps);
+
+        // The time IS applied, where the coordinate is only offered, and the
+        // asymmetry is deliberate. A photograph taken somewhere else is an
+        // ordinary thing — a picture from last week's trip, a screenshot — and
+        // filing it at the wrong place puts a wrong dot on a public map. A
+        // photograph taken at another TIME is the same photograph, and the time
+        // it was taken is simply when the animal was seen. Someone who
+        // photographs a dead animal at 07:32 on a mountain road and files it at
+        // 19:40 when they reach signal would otherwise have the record moved
+        // half a day, which on a dataset about when animals are found is enough
+        // to move a dawn peak into the evening.
+        //
+        // Not over a time the reporter typed themselves.
+        const withTime = prepared.find((p) => p.takenAt);
+        if (withTime?.takenAt && !timeEdited) {
+          setObservedAt(toLocalInput(withTime.takenAt));
+          setTimeFromPhoto(true);
+        }
       } catch (e) {
         // A file the browser will not decode: a HEIC from an older iPhone, a
         // truncated download. Nothing about the network, so it is answered
@@ -210,7 +236,7 @@ function ReportFormFields({
         setPreparing(false);
       }
     },
-    [photos.length, location, fail],
+    [photos.length, location, timeEdited, fail],
   );
 
   async function submit() {
@@ -727,13 +753,22 @@ function ReportFormFields({
             className="mb-1 block text-sm font-medium text-ink-700"
           >
             {t("observedAt")}
+            {timeFromPhoto && (
+              <span className="ms-2 font-normal text-ink-600">
+                {t("observedFromPhoto")}
+              </span>
+            )}
           </label>
           <input
             id="observedAt"
             type="datetime-local"
             value={observedAt}
             max={toLocalInput(new Date())}
-            onChange={(e) => setObservedAt(e.target.value)}
+            onChange={(e) => {
+              setObservedAt(e.target.value);
+              setTimeEdited(true);
+              setTimeFromPhoto(false);
+            }}
             className="w-full rounded-lg border border-ink-900/12 bg-paper-100/70 px-3 py-2 text-sm text-ink-800"
           />
         </div>
