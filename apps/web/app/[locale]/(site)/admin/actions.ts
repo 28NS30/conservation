@@ -36,10 +36,28 @@ export async function publishReport(reportId: string) {
   revalidatePath("/admin");
 }
 
+/**
+ * Throw a report out.
+ *
+ * Also retires its classification job. The classifier no longer claims a job
+ * whose report has been rejected, so this is not what makes the rejection
+ * stick — but a queue carrying work for records that will never be published
+ * is a queue whose depth means nothing, and the next person to read it should
+ * not have to know about the filter to understand why.
+ *
+ * `done` with a reason rather than a delete: nothing here is worth losing, and
+ * `classification_jobs` has no 'cancelled' state to spend a migration on.
+ */
 export async function rejectReport(reportId: string, reason: string) {
   const actor = await requireModerator();
   await sql.begin(async (tx) => {
     await tx`update reports set status = 'rejected' where id = ${reportId}::uuid`;
+    await tx`update classification_jobs
+                set status = 'done',
+                    last_error = 'report rejected; not classified',
+                    updated_at = now()
+              where report_id = ${reportId}::uuid
+                and status in ('queued', 'failed')`;
     await tx`insert into moderation_actions (report_id, actor_id, action, reason)
              values (${reportId}::uuid, ${actor}::uuid, 'reject', ${reason})`;
   });
