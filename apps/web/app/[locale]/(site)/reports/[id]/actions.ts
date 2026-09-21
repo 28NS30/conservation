@@ -5,6 +5,7 @@ import { sql } from "@/lib/db";
 import { currentRole } from "@/lib/auth";
 import { withinRateLimit } from "@/lib/abuse";
 import { recategorise, type Category } from "@conservation/shared";
+import { keepDeliberateOverride } from "@/lib/report/precision";
 
 /**
  * Confirm or correct a report's species.
@@ -74,24 +75,15 @@ export async function confirmSpecies(reportId: string, taxonId: number) {
   // Setting taxon_id re-fires set_report_public_location(), so correcting a record
   // to a protected species blurs its location in the same statement.
   //
-  // The override is cleared only when this report had NO taxon. That case is
-  // the system's own "we do not know what this is yet" stamp, and naming the
-  // animal is precisely what it was waiting for, so precision goes back to the
-  // named taxon's own policy.
+  // The override follows `keepDeliberateOverride`, which all three paths that
+  // set a taxon now share: clear the system's "we do not know yet" stamp,
+  // never a decision that this record stays coarser than its rating asks.
   //
-  // An override on a report that ALREADY has a taxon is a different thing: a
-  // decision that this record stays coarser than its taxon's rating asks. The
-  // GBIF name remap writes 371 of them, for records whose old name justified a
-  // blur that the corrected name would not — exactly the case where clearing
-  // it would quietly publish a location somebody had decided to withhold. So
-  // those are left alone, and the trigger keeps taking the stricter of the two.
-  //
-  // And the category follows the species. `category` was written once at insert
-  // and never revisited, so a `sighting` confirmed to be a listed invasive
-  // stayed a `sighting` and never appeared under the map's invasive filter: the
-  // record was right about the animal and wrong about what kind of record it
-  // was. `recategorise` only ever moves sighting <-> invasive — condition wins
-  // over species, and nobody revises whether the animal was dead.
+  // And the category follows the species. It was written once at insert and
+  // never revisited, so a `sighting` confirmed to be a listed invasive stayed
+  // a `sighting` and never appeared under the map's invasive filter.
+  // `recategorise` only ever moves sighting <-> invasive: condition wins over
+  // species, and nobody revises whether the animal was dead.
   await sql.begin(async (tx) => {
     const [taxon] = await tx<{ is_invasive: boolean | null }[]>`
       select is_invasive from taxa where id = ${taxonId}`;
@@ -105,10 +97,7 @@ export async function confirmSpecies(reportId: string, taxonId: number) {
          set taxon_id = ${taxonId},
              taxon_source = ${moderator && report.reporter_id !== userId ? "expert" : "user"},
              category = ${category},
-             precision_override = case
-               when taxon_id is null then null
-               else precision_override
-             end
+             precision_override = ${keepDeliberateOverride()}
        where id = ${reportId}::uuid`;
     await tx`
       insert into moderation_actions (report_id, actor_id, action, reason)

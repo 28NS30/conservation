@@ -1,6 +1,7 @@
 import { sql } from "@/lib/db";
 import { downloadPhoto } from "@/lib/supabase/service";
 import { UNIDENTIFIED_PRECISION } from "@conservation/shared";
+import { keepDeliberateOverride } from "@/lib/report/precision";
 
 /**
  * Classification worker, driven by Vercel Cron (see vercel.json).
@@ -191,13 +192,19 @@ export async function POST(req: Request) {
           // Clearing the override hands control back to the taxon's own policy —
           // which will re-blur immediately if the identified species is sensitive,
           // because the trigger fires on `taxon_id`.
+          //
+          // `keepDeliberateOverride` rather than a bare `null`, on the same rule
+          // as the two confirm paths. In practice this branch only runs on a
+          // report nobody has named, so the two are the same answer today; it is
+          // written this way so that the rule lives in one place and cannot drift
+          // back apart, which is how the three of them disagreed to begin with.
           await tx`
             update reports
                set taxon_id = ${best.taxon_id},
                    taxon_source = 'ai',
                    ai_confidence = ${best.score},
                    ai_band = ${result.band},
-                   precision_override = null,
+                   precision_override = ${keepDeliberateOverride()},
                    status = 'published'
              where id = ${job.report_id}::uuid`;
         } else if (humanIdentified) {
