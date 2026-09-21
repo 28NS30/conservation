@@ -131,6 +131,18 @@ export async function POST(req: Request) {
                    and j.updated_at < now() - ${STALE_AFTER}::interval)
              )
          and j.attempts < ${MAX_ATTEMPTS}
+         -- Not a report a moderator has thrown out. Rejecting a report does
+         -- not cancel its classification job, and this query filtered on the
+         -- JOB's status alone — so the worker would claim the job, run the
+         -- model, and write status = 'published' over the rejection. Spam a
+         -- moderator had removed went back on the public map on the next cron
+         -- run, with nothing anywhere saying it had.
+         --
+         -- 'published' is deliberately still claimable: a job is queued even
+         -- when the reporter named the species, because the model's opinion is
+         -- worth recording beside theirs, and that branch writes no status.
+         and exists (select 1 from reports r
+                      where r.id = j.report_id and r.status <> 'rejected')
        order by j.created_at
        limit ${BATCH}
        for update skip locked
@@ -205,7 +217,10 @@ export async function POST(req: Request) {
                    ai_confidence = ${best.score},
                    ai_band = ${result.band},
                    precision_override = ${keepDeliberateOverride()},
-                   status = 'published'
+                   -- Claim and process are two transactions, so a moderator can
+                   -- reject a report in between. Publishing may lift a hold; it
+                   -- may not reverse a decision.
+                   status = case when status = 'pending' then 'published' else status end
              where id = ${job.report_id}::uuid`;
         } else if (humanIdentified) {
           // Keep their identification and the precision it implies; record what
@@ -239,7 +254,7 @@ export async function POST(req: Request) {
           await tx`
             update reports
                set precision_override = ${UNIDENTIFIED_PRECISION},
-                   status = 'published',
+                   status = case when status = 'pending' then 'published' else status end,
                    ai_band = ${result.band},
                    flagged_reason = ${
                      result.band === "low"

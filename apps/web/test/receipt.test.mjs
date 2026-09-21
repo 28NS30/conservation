@@ -206,7 +206,15 @@ describe("nothing moves a row back into `pending`", () => {
       // matched and does not need to be.
       const updates = src.match(/update\s+reports\b[\s\S]*?`/gi) ?? [];
       for (const stmt of updates) {
-        if (!/status\s*=\s*'pending'/i.test(stmt)) continue;
+        // What matters is whether the statement can PRODUCE 'pending' as a new
+        // value, which is `set ... status = 'pending'` or `then 'pending'`.
+        // Reading it — `case when status = 'pending' then 'published' ...`, the
+        // guard that stops the classifier publishing over a rejection — is the
+        // opposite of a demotion, and matching on the bare string called it one.
+        const produces =
+          /(?:set|,)\s*status\s*=\s*'pending'/i.test(stmt) ||
+          /then\s*'pending'/i.test(stmt);
+        if (!produces) continue;
         assert.match(
           stmt,
           /and\s+status\s*=\s*'pending'/i,
