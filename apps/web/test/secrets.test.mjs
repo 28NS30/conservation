@@ -137,6 +137,51 @@ describe("secrets cannot reach the repository", () => {
     );
   });
 
+  test("no tracked file holds a key in Supabase's newer formats", () => {
+    // The JWT check above cannot see these, and that is the point of having
+    // both. Supabase now issues opaque keys alongside the legacy JWTs, and
+    // this project has all four live:
+    //
+    //   sb_publishable_…   public by design, harmless, must NOT be flagged
+    //   sb_secret_…        bypasses RLS exactly as service_role does
+    //   sbp_…              a personal access token: full Management API
+    //                      access to every project on the account
+    //
+    // `sb_secret_` is the one the JWT decoder would have sailed straight past,
+    // because it is not a JWT and has no `role` claim to read. `sbp_` is here
+    // because one was leaked from this repo's own tooling, and the cheapest
+    // place to catch the next one is before it is committed.
+    const PATTERNS = [
+      ["sb_secret_", /\bsb_secret_[A-Za-z0-9_-]{8,}/g],
+      ["sbp_", /\bsbp_[0-9a-f]{32,}/g],
+    ];
+    const offenders = [];
+    for (const [needle, re] of PATTERNS) {
+      for (const file of candidates(needle)) {
+        const body = blob(file);
+        if (body === null) continue;
+        for (const hit of body.match(re) ?? [])
+          offenders.push(`${file}: ${hit.slice(0, needle.length + 4)}…`);
+      }
+    }
+    assert.deepEqual(
+      offenders,
+      [],
+      `a Supabase secret is in git:\n${offenders.join("\n")}\n` +
+        `Remove it, then rotate it — it is public from the moment it is pushed, ` +
+        `and deleting the line does not remove it from history.`,
+    );
+  });
+
+  test("...but a publishable key is not a secret and is not flagged", () => {
+    // A check that cries wolf gets deleted. `sb_publishable_` is the browser
+    // key: it is meant to ship, and flagging it would teach somebody to
+    // silence this file.
+    const fake = "sb_publishable_" + "x".repeat(24);
+    assert.doesNotMatch(fake, /\bsb_secret_[A-Za-z0-9_-]{8,}/);
+    assert.doesNotMatch(fake, /\bsbp_[0-9a-f]{32,}/);
+  });
+
   test("no tracked file holds a service_role key", () => {
     // A Supabase service_role JWT bypasses RLS entirely: with one, `web_anon`'s
     // lack of `select` on `reports` — the whole location-privacy boundary —
