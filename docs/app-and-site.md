@@ -97,21 +97,24 @@ The design work is not wasted; most of it changes address.
 | **W8** My reports, login | Moves with it. A reporter's own records belong where they report. |
 | **W11 Moderation console** | **Matters more, not less.** It was theoretical while nothing could be submitted. |
 | **W4 Home** | **Becomes the main event**, and its job changes: its primary action is now "get the app", not "report an animal". |
-| **W1 direction, W2 tokens, W3 chrome** | Still needed, for a smaller site. The app needs its own equivalent, and it should not be a port of the web tokens — platform conventions win on a phone. |
+| **W5 Map, W7 Species, W9 Statistics** | **Stay.** The site keeps its public data — see below. |
+| **W1 direction, W2 tokens, W3 chrome** | Still needed. The app needs its own equivalent, and it should not be a port of the web tokens — platform conventions win on a phone. |
 | **W12 BioWatch site, W13 QA harness** | Unchanged. |
 
-**One question is genuinely open**, and it is worth answering deliberately
-rather than by omission: *does the site keep the public data — the map, the
-species pages, the statistics, the records list?*
+**The site keeps the public data.** Asked and answered: the map, the species
+pages and the statistics stay. So W5, W7 and W9 survive in full, and the
+records list with them.
 
-They are W5, W7, W9 and part of W8, about 25 days of the plan. The case for
-keeping them is that the map of 46,334 records is the most convincing thing this
-project owns, it is already public, and a page that only describes the work
-persuades nobody who has not already decided. The case for dropping them is that
-every page kept is a page to design, translate, test and keep true.
+That is the right call for the reason the site exists at all. The map of 46,334
+records is the most convincing thing this project owns; it is already public;
+and a page that only describes the work persuades nobody who has not already
+decided. "Information about the project" now means the project's information
+too, not just prose about it.
 
-"A homepage that just has information about the project" reads like dropping
-them. Nobody should act on my reading of one sentence.
+It also means the site and the app are not the same product wearing two skins.
+The site is where the data is read, by anyone, on any device, without
+installing anything. The app is where a report is made, by someone standing in
+front of an animal. Each can be judged on whether it does its own job.
 
 ---
 
