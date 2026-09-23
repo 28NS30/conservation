@@ -89,35 +89,29 @@ create policy taxa_public_read on taxa for select to web_anon using (true);
 -- `_migrations` gets no policy at all. It is the ledger this runner keeps, and
 -- nothing but the owner has any business reading it.
 
--- THREE POSTGIS OBJECTS SURVIVE ALL OF THE ABOVE, and it is worth being exact
--- about why rather than leaving a dashboard warning to be rediscovered:
--- `spatial_ref_sys`, `geometry_columns` and `geography_columns` are owned by
--- `supabase_admin`. `postgres` is not a superuser here and cannot revoke a
--- grant it did not make — the attempt answers "no privileges could be revoked"
--- — nor alter a table it does not own.
+-- THREE POSTGIS OBJECTS SURVIVE ALL OF THE ABOVE, and the reason is worth
+-- being exact about rather than leaving a dashboard warning to be
+-- rediscovered: `spatial_ref_sys`, `geometry_columns` and `geography_columns`.
 --
 -- They hold ~8,500 coordinate-system definitions and two catalogue views
 -- naming which columns are geometries. No project data and no animal's
--- coordinate. `spatial_ref_sys` does stay writable, which is an availability
--- risk rather than a disclosure one: deleting SRID 4326 would break every
--- geography operation on the site.
+-- coordinate. On a managed instance `supabase_admin` owns them, `postgres` is
+-- not a superuser, and a grant it did not make cannot be revoked — the attempt
+-- answers "no privileges could be revoked".
 --
--- The fix for those is not SQL. It is to stop the project exposing `public`
--- through PostgREST at all, which is one setting, and which is safe here
--- precisely because nothing uses the REST API. That is the owner's call, so it
--- is written down rather than done.
+-- DO NOT ENABLE RLS ON THEM. An earlier version of this file tried, on the
+-- reasoning that where `postgres` DOES own them the attempt would close them
+-- too. It does own them on a plain postgis image, the attempt succeeds, and
+-- PostGIS then cannot read `spatial_ref_sys` as any role without a policy —
+-- which is every role that touches a coordinate. CI went red on /stats
+-- rendering no figures, and it took a while to see because on a
+-- Supabase-shaped database the alter fails and the damage never appears. A
+-- migration that behaves differently depending on who owns an extension table
+-- is a migration that is only tested where it does nothing.
 --
--- The attempt is made anyway, and its failure reported rather than aborting:
--- on an instance where `postgres` DOES own them, this closes them too.
-do $$
-declare t text;
-begin
-  foreach t in array array['spatial_ref_sys'] loop
-    begin
-      execute format('alter table public.%I enable row level security', t);
-      raise notice '%: RLS enabled', t;
-    exception when others then
-      raise notice '%: not ours (%) — see the note above', t, sqlerrm;
-    end;
-  end loop;
-end $$;
+-- `spatial_ref_sys` stays writable by `anon` on a managed instance, which is
+-- an availability risk rather than a disclosure one: deleting SRID 4326 would
+-- break every geography operation on the site. The fix for that is not SQL. It
+-- is to stop the project exposing `public` through PostgREST at all, which is
+-- one setting, and which is safe here precisely because nothing uses the REST
+-- API. That is the owner's call, so it is written down rather than done.

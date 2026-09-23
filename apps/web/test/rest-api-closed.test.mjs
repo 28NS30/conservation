@@ -24,22 +24,19 @@ import { sql } from "./helpers.mjs";
 after(() => sql.end());
 
 /**
- * PostGIS objects, owned by `supabase_admin`. `postgres` is not a superuser on
- * a managed instance and cannot revoke a grant it did not make — the attempt
- * answers "no privileges could be revoked" — so these three stay readable by
- * the anon key until the project stops exposing `public` through PostgREST at
- * all, which is a dashboard setting rather than SQL.
+ * PostGIS's own objects: ~8,500 coordinate-system definitions and two
+ * catalogue views naming which columns are geometries. No project data, no
+ * coordinate of any animal.
  *
- * What they hold: ~8,500 coordinate-system definitions, and two catalogue
- * views naming which columns are geometries. No project data, no coordinate of
- * any animal. `spatial_ref_sys` is still writable, which is an availability
- * risk rather than a disclosure one — deleting SRID 4326 would break every
- * geography operation on the site.
+ * On a managed instance `supabase_admin` owns them, `postgres` is not a
+ * superuser, and a grant it did not make cannot be revoked — so they stay
+ * readable by the anon key until the project stops exposing `public` through
+ * PostgREST, which is a setting rather than SQL.
  *
  * Listed by name so a FOURTH exception has to be added deliberately, by
  * somebody who has to write down why.
  */
-const NOT_OURS = ["spatial_ref_sys", "geometry_columns", "geography_columns"];
+const POSTGIS = ["spatial_ref_sys", "geometry_columns", "geography_columns"];
 
 describe("the REST API is closed", () => {
   test("no table grants anything to anon or authenticated", async () => {
@@ -51,7 +48,7 @@ describe("the REST API is closed", () => {
        group by 1, 2
        order by 1, 2`;
     const offenders = rows
-      .filter((r) => !NOT_OURS.includes(r.table_name))
+      .filter((r) => !POSTGIS.includes(r.table_name))
       .map((r) => `${r.table_name}: ${r.grantee} has ${r.privs}`);
     assert.deepEqual(
       offenders,
@@ -67,34 +64,44 @@ describe("the REST API is closed", () => {
        where n.nspname = 'public' and c.relkind = 'r'
        order by 1`;
     const off = rows
-      .filter((r) => !r.rls && !NOT_OURS.includes(r.table_name))
+      .filter((r) => !r.rls && !POSTGIS.includes(r.table_name))
       .map((r) => r.table_name);
     assert.deepEqual(off, [], "RLS is off, so one stray grant reopens it");
   });
 
-  test("every exception is a PostGIS object we genuinely cannot touch", async () => {
-    // If PostGIS is ever relocated to `extensions`, or the exposed schema is
-    // changed, these stop existing in `public` and the exceptions should go
-    // rather than quietly covering for a table somebody forgot to close.
+  test("and RLS is never enabled on them, wherever they are owned", async () => {
+    // An earlier version of this migration tried, reasoning that where
+    // `postgres` DOES own them the attempt would close them too. It does own
+    // them on a plain postgis image, the attempt succeeds, and PostGIS can then
+    // no longer read `spatial_ref_sys` as any role without a policy — which is
+    // every role that touches a coordinate. CI went red on /stats rendering no
+    // figures, and it was slow to see because on a Supabase-shaped database
+    // the alter fails and the damage never appears.
+    //
+    // So this asserts the absence, in both kinds of database. A migration that
+    // behaves differently depending on who owns an extension table is one that
+    // is only tested where it does nothing.
     const rows = await sql`
-      select c.relname as name, r.rolname as owner
-        from pg_class c
-        join pg_namespace n on n.oid = c.relnamespace
-        join pg_roles r on r.oid = c.relowner
-       where n.nspname = 'public'
-         and c.relkind in ('r', 'v')
-         and c.relname = any(${NOT_OURS})`;
-    assert.deepEqual(
-      rows.map((r) => r.name).sort(),
-      [...NOT_OURS].sort(),
-      "an exception is listed for something that is not there any more",
-    );
+      select c.relname as name, c.relrowsecurity as rls
+        from pg_class c join pg_namespace n on n.oid = c.relnamespace
+       where n.nspname = 'public' and c.relkind = 'r'
+         and c.relname = any(${POSTGIS})`;
     for (const r of rows)
-      assert.notEqual(
-        r.owner,
-        "postgres",
-        `${r.name} is ours after all — close it instead of excusing it`,
+      assert.equal(
+        r.rls,
+        false,
+        `${r.name} has RLS on — PostGIS reads it for every coordinate operation`,
       );
+  });
+
+  test("web_anon can still read spatial_ref_sys, which is the point", async () => {
+    // The direct check, rather than trusting the flag. `set local role` inside
+    // a transaction so nothing leaks into the pool.
+    const [row] = await sql.begin(async (tx) => {
+      await tx`set local role web_anon`;
+      return tx`select count(*)::int as n from spatial_ref_sys where srid = 4326`;
+    });
+    assert.equal(row.n, 1, "web_anon cannot resolve SRID 4326");
   });
 });
 
@@ -124,17 +131,23 @@ describe("what web_anon may still read", () => {
   });
 
   test("reports keeps its own boundary", async () => {
-    // The table with the true coordinates and the contact addresses. RLS on,
-    // and every policy scoped to `authenticated` with an auth.uid() test.
+    // The table with the true coordinates and the contact addresses.
     const [{ rls }] = await sql`
       select relrowsecurity as rls from pg_class
        where relname = 'reports' and relnamespace = 'public'::regnamespace`;
     assert.equal(rls, true);
 
+    // NOT "there is at least one policy". CI's database is a plain postgis
+    // image with no `auth` schema, so 0004's Supabase policies are skipped and
+    // `reports` ends up with RLS on and nothing else — which is stricter, not
+    // looser, and asserting their presence failed a database that was safer
+    // than the one the assertion was written against.
+    //
+    // The invariant that holds everywhere: whatever policies exist, none of
+    // them hands the table to a signed-out caller.
     const policies = await sql`
-      select policyname, roles::text as roles, qual
+      select policyname, roles::text as roles, coalesce(qual, '') as qual
         from pg_policies where schemaname = 'public' and tablename = 'reports'`;
-    assert.ok(policies.length > 0, "RLS with no policy at all would also break the site");
     for (const p of policies) {
       assert.match(p.roles, /authenticated/, `${p.policyname} is not scoped to a signed-in user`);
       assert.match(p.qual, /auth\.uid\(\)/, `${p.policyname} does not check who is asking`);
