@@ -1,7 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { serviceSupabase, PHOTO_BUCKET } from "@/lib/supabase/service";
 import { withinRateLimit } from "@/lib/abuse";
-import { MAX_PHOTOS } from "@conservation/shared";
+import {
+  ACCEPTED_IMAGE_TYPES,
+  MAX_PHOTOS,
+  imageExtension,
+  isAcceptedImageType,
+} from "@conservation/shared";
 import { clientIp } from "@/lib/request";
 
 /**
@@ -12,7 +17,17 @@ import { clientIp } from "@/lib/request";
  * through a serverless function wastes duration for no benefit.
  *
  * Paths are server-generated with no user-controlled component, so a client
- * cannot direct an upload at an arbitrary key.
+ * cannot direct an upload at an arbitrary key. The only thing the client gets
+ * to influence is the EXTENSION, and only by naming one of three accepted
+ * types — the random UUID and the date prefix are still ours.
+ *
+ * It used to be `.webp` always, which was true while the web form was the only
+ * caller: its canvas re-encode always produced WebP. An iOS client cannot,
+ * `expo-image-manipulator` being Android-only for that format, so the name and
+ * the bytes were about to stop agreeing. Nothing serves from the extension —
+ * Supabase returns the content type recorded at upload — so this was never
+ * going to break a page. It was going to make every object in the bucket lie
+ * about itself.
  */
 export async function POST(req: Request) {
   const ip = clientIp(req);
@@ -24,9 +39,22 @@ export async function POST(req: Request) {
   }
 
   let count = 1;
+  // What the client is about to upload. The web form always sends WebP, so the
+  // default keeps every existing caller working; an iOS client cannot send
+  // WebP at all, because expo-image-manipulator only writes it on Android.
+  let contentType: string = "image/webp";
   try {
-    const body = (await req.json()) as { count?: unknown };
+    const body = (await req.json()) as { count?: unknown; contentType?: unknown };
     if (typeof body.count === "number") count = body.count;
+    if (body.contentType !== undefined) {
+      if (!isAcceptedImageType(body.contentType)) {
+        return Response.json(
+          { error: "photo_bad_type", accepted: ACCEPTED_IMAGE_TYPES },
+          { status: 400 },
+        );
+      }
+      contentType = body.contentType;
+    }
   } catch {
     return Response.json({ error: "bad_request" }, { status: 400 });
   }
@@ -41,7 +69,7 @@ export async function POST(req: Request) {
 
   const uploads: { path: string; token: string }[] = [];
   for (let i = 0; i < count; i++) {
-    const path = `${prefix}/${randomUUID()}.webp`;
+    const path = `${prefix}/${randomUUID()}.${imageExtension(contentType)}`;
     const { data, error } = await storage.createSignedUploadUrl(path);
     if (error || !data) {
       console.error("[uploads/sign]", error);

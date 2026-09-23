@@ -218,6 +218,40 @@ export const ACCEPTED_IMAGE_TYPES = [
   "image/png",
 ] as const;
 
+export type AcceptedImageType = (typeof ACCEPTED_IMAGE_TYPES)[number];
+
+/**
+ * The file extension a stored photo should carry, from what it actually is.
+ *
+ * `/api/uploads/sign` used to end every key `.webp` because the web client
+ * always re-encodes to WebP through a canvas, so the name and the bytes
+ * agreed. They stop agreeing the moment anything else uploads: on iOS,
+ * `expo-image-manipulator` cannot write WebP at all — it is Android-only —
+ * so an iOS photo would arrive as JPEG bytes at a `.webp` key.
+ *
+ * Nothing serves from the extension today; Supabase returns the content type
+ * recorded at upload, and `/api/reports` validates that against
+ * ACCEPTED_IMAGE_TYPES rather than trusting the name. So the mismatch would
+ * not have broken a page. It would have made every object in the bucket lie
+ * about its contents, to the export, to a backup, and to whoever opens one.
+ */
+export function imageExtension(contentType: string): string {
+  const known: Record<string, string> = {
+    "image/webp": "webp",
+    "image/jpeg": "jpg",
+    "image/png": "png",
+  };
+  return known[contentType] ?? "bin";
+}
+
+/** Whether a string is one of the image types this project accepts. */
+export function isAcceptedImageType(v: unknown): v is AcceptedImageType {
+  return (
+    typeof v === "string" &&
+    (ACCEPTED_IMAGE_TYPES as readonly string[]).includes(v)
+  );
+}
+
 /** Longest edge after client-side downscale, before upload. */
 export const IMAGE_MAX_EDGE = 2048;
 export const IMAGE_WEBP_QUALITY = 0.82;
