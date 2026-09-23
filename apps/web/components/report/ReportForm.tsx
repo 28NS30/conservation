@@ -536,7 +536,17 @@ function ReportFormFields({
                 // Which one is chosen was conveyed by fill colour alone, so a
                 // screen reader announced identical buttons and no state.
                 aria-pressed={group === g}
-                onClick={() => setCategory(first)}
+                // Only when it CHANGES the group. Tapping the chip that is
+                // already pressed used to run `setCategory(first)` anyway, and
+                // `first` is the group's first category — so a reporter who
+                // chose 還活著，但受傷 and then touched the 路殺或受傷 chip above
+                // it, which was already active, had their answer silently
+                // replaced with 已死亡. Re-pressing a pressed control should do
+                // nothing, and here doing something meant recording a live
+                // animal as a dead one.
+                onClick={() => {
+                  if (group !== g) setCategory(first);
+                }}
                 className={`flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-medium transition ${
                   group === g
                     ? "border-ink-900 bg-ink-900 text-paper-50"
