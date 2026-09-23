@@ -62,6 +62,21 @@ end $$;
 -- a table with RLS off is one `grant` away from being open again, and the
 -- Supabase dashboard warns on exactly this.
 alter table taxa enable row level security;
+
+-- `_migrations` is created by the RUNNER (scripts/migrate.ts), not by any
+-- migration, so on a database built by the psql loop — CI's, and production's
+-- before it was baselined — it does not exist yet and `alter table` on it
+-- aborts the whole file. CI caught exactly that.
+--
+-- Creating it here rather than guarding the alter: the ledger should exist and
+-- be closed on every database that has ever run a migration, not on the subset
+-- that happened to go through the runner first. Same shape the runner uses, so
+-- whichever gets there first, the other is a no-op.
+create table if not exists _migrations (
+  name text primary key,
+  applied_at timestamptz not null default now()
+);
+
 alter table _migrations enable row level security;
 
 -- `taxa` is read by `web_anon` on every species page, directory page and map
