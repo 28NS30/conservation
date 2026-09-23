@@ -254,7 +254,14 @@ function ReportFormFields({
         const signRes = await fetch(withBase("/api/uploads/sign"), {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ count: photos.length }),
+          // Say what is being uploaded rather than leaning on the default.
+          // `stripAndDownscale` always writes WebP through a canvas, so this
+          // is the truth here — and stating it is what lets the key match the
+          // bytes for a client whose canvas cannot.
+          body: JSON.stringify({
+            count: photos.length,
+            contentType: photos[0].blob.type || "image/webp",
+          }),
         });
         if (!signRes.ok) {
           // The server's own code, not a sentence assembled here: `sign_failed`

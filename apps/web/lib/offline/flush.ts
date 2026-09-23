@@ -66,7 +66,12 @@ async function uploadPhotos(item: QueuedReport): Promise<string[]> {
   const res = await fetch(withBase("/api/uploads/sign"), {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ count: pending.length }),
+    // The queued blobs came out of the same canvas re-encode, so their own
+    // type is the honest answer.
+    body: JSON.stringify({
+      count: pending.length,
+      contentType: pending[0]?.type || "image/webp",
+    }),
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
