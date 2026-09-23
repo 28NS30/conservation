@@ -52,6 +52,17 @@ export const REQUIRED_SCHEMA: SchemaCheck[] = [
                and location_precision = 'exact') as ok`,
   },
   {
+    // The dangerous half of 0013. `taxa` open to the anon key meant one
+    // unauthenticated DELETE could strip the species from every record.
+    name: "0013 the REST API is closed",
+    sql: `select not exists (
+            select 1 from information_schema.role_table_grants
+             where table_schema = 'public'
+               and grantee in ('anon','authenticated')
+               and table_name not in
+                   ('spatial_ref_sys','geometry_columns','geography_columns')) as ok`,
+  },
+  {
     name: "0012 a reclassified taxon re-blurs its records",
     sql: `select exists (
             select 1 from pg_trigger t
