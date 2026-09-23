@@ -46,32 +46,37 @@ Everything else the app needs is already there and already correct:
 The idempotency in particular was built for the web app's offline queue and is
 exactly what a mobile client needs.
 
-### 2. Both mobile OSes strip the EXIF location you are planning to read
+### 2. Reading the EXIF location is real work, and not the work you expect
 
-This is the one that will surprise somebody in week one.
+Both platforms hand a picked photo to an app with its GPS removed. Neither
+makes it impossible; both make it a decision with a permission attached, and
+the details have moved recently enough that the obvious answers are out of
+date.
 
-**iOS.** `PHPickerViewController` — the modern picker, the one that needs no
-permission prompt — hands back an image with **location metadata removed**.
-Apple treats a photo's coordinates as separate from the photo. To read them you
-need `PHPhotoLibrary` authorisation and to go through `PHAsset`, at which point
-the system asks the reporter for photo-library access, and the asset's
-`location` is a `CLLocation` rather than something you parse out of EXIF.
+**iOS.** `PHPickerViewController` — the picker that needs no permission prompt
+— returns an image with location metadata stripped. Apple treats a photo's
+coordinates as a separate asset from its pixels, and there is no flag on the
+picker that turns them back on. Getting the coordinate means going through the
+photo library proper, which means asking. **`DateTimeOriginal` survives the
+picker**, so the capture-time half needs no permission at all, and
+`lib/exifTime.ts` ports across unchanged.
 
-**Android.** Since Android 10, `MediaStore` **redacts location** from images
-returned to apps. You need the `ACCESS_MEDIA_LOCATION` permission *and* a call
-to `MediaStore.setRequireOriginal(uri)` before the EXIF GPS tags are there at
-all.
+**Android.** The stale advice — and what an earlier draft of this document said
+— is `ACCESS_MEDIA_LOCATION` plus `MediaStore.setRequireOriginal()`. There is
+now a documented opt-in that costs **no media-library permission**:
+`MediaStore.EXTRA_REQUEST_LOCATION_METADATA_ACCESS`, set on the photo-picker
+intent. Prefer it.
 
-So "read the EXIF to get the location" works, but only with a photo-library
-permission prompt on both platforms, and only through each platform's own API
-rather than a shared EXIF parser.
+Two traps if you fall back to the old route: `ACCESS_MEDIA_LOCATION` does
+**not** compose with Android 14's partial "selected photos" grant, so an app
+declaring `READ_MEDIA_VISUAL_USER_SELECTED` gets redacted coordinates however
+loudly it asks; and the new extra needs a recent enough picker to be honoured.
 
-**And for the main case it is unnecessary.** A photo taken inside the app, with
-the camera, comes with a live GPS fix that is more accurate than EXIF, is
-timestamped now, and needs no library permission at all. EXIF location matters
-for one path — *"I photographed this an hour ago and am reporting it now"* —
-which is a real path worth supporting, and is the one that costs a permission
-prompt.
+**And for the main case none of it is needed.** A photo taken inside the app
+comes with a live GPS fix — more accurate than EXIF, timestamped now, no
+library permission. EXIF location earns its prompt on exactly one path: *"I
+photographed this an hour ago and am reporting it now."* That path is real and
+worth supporting. It is not the common one.
 
 The existing web code already reads both GPS and capture time from EXIF
 (`lib/image.ts`, `lib/exifTime.ts`) and the rules it encodes transfer whole:
@@ -127,3 +132,58 @@ category following the species, and the classifier no longer publishing what a
 moderator rejected.
 
 None of that cares whether the report arrives from a browser or a phone.
+
+---
+
+## The stack: Expo / React Native
+
+Decided 23 September 2026, after evaluating Expo, Flutter, native Swift +
+Kotlin and Capacitor against the constraints above rather than in general.
+
+**The reason is one implementation of the privacy rules.**
+
+`packages/shared` is 579 lines with one dependency (zod), one import, and no
+Node builtin or DOM global anywhere in it — checked, not assumed. Metro imports
+it as raw TypeScript. So `deriveCategory`, `recategorise`,
+`reportSubmissionSchema`, `LOCATION_PRECISION` and `UNIDENTIFIED_PRECISION`
+stay as **one** implementation across the website, iOS and Android.
+`lib/exifTime.ts` ports across whole.
+
+Several of those are privacy rules, and this project has already been bitten
+twice by the same thing in the small: the GBIF remap could weaken a blur by
+correcting a name, and three separate code paths disagreed about what
+`precision_override` meant. Both were one codebase. A second implementation in
+another language, maintained by a small team, is that failure mode with a
+language barrier added.
+
+**What the alternatives actually offered, once checked rather than remembered:**
+
+- **Flutter** looked strongest on iOS EXIF: `image_picker`'s
+  `requestFullMetadata`, first-party, resolving the `PHAsset` for you. That
+  mechanism **was deleted from the plugin in January 2025**
+  (flutter/packages #8190, "Removes use of PHAsset on iOS 14+"). The advantage
+  is gone. Its background-upload story is genuinely better than Expo's, and
+  that is the real cost of not picking it. Against it: every rule above gets
+  rewritten in Dart, the one language in this project with no existing code.
+- **Native Swift + Kotlin** wins EXIF and attestation outright — first-party
+  APIs, no wrapper, no bus-factor-one package. But that is roughly 300 lines.
+  The offline queue is the defining constraint and the most stateful, least
+  testable part of the app, and it is exactly what gets written twice.
+- **Capacitor** would reuse the most code of all, and fails the product. Its
+  background runner has no IndexedDB, so the queue — which lives in IndexedDB,
+  inside a webview that dies when the app closes — cannot be read by anything
+  that runs after the app is gone. "Signal came back" would mean "the reporter
+  opens the app again", in an app whose whole purpose is working where the
+  network does not.
+
+**The cost being accepted.** Everything hard here — EXIF GPS, App Attest, Play
+Integrity, MapLibre Native, background upload — needs a custom dev build on
+physical hardware. None of it runs in Expo Go and most of it does not run in a
+simulator. That tax is paid on day one or it is paid every day: the dev-build
+pipeline and a real device for each platform are the first task, not a later
+one.
+
+**First thing to settle on hardware**, before any of the flow is built: pick a
+photo from the library on each platform and print what comes back. That answers
+the permission question for real, in an hour, and everything above is
+documentation until it does.
