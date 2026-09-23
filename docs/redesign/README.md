@@ -7,6 +7,15 @@ coding agent who has none of this context and will not read the rest of the fold
 documents worth reading in full before anything starts are this one, [direction.md](direction.md)
 and [report-flow.md](report-flow.md).
 
+> **Superseded in part, 23 September 2026.** The team has decided that
+> submission moves to native iOS and Android apps and the website becomes a
+> homepage about the project. Read **[../app-and-site.md](../app-and-site.md)**
+> first: it says which workstreams move, which survive, and the two things that
+> block app work before anyone writes any (the submission API answers 403 to a
+> client that cannot solve a Turnstile challenge, and both mobile platforms
+> strip the EXIF location the plan depends on). W6's flow is decided and
+> prototyped and is now the app's spec rather than the site's.
+
 ## What this is answering
 
 Two things arrived together: the team's `docs/website-design-review.docx` (17 September, an
