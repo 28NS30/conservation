@@ -77,7 +77,19 @@ jobs:
       - name: Start server
         run: |
           npm run start --workspace @conservation/web &
-          npx wait-on http://localhost:3000 --timeout 90000
+          # /api/health, not /. The root is prerendered and answers as soon as
+          # the process is listening, which proves nothing about whether the app
+          # can serve a page that needs the database — and every dynamic route
+          # does. On 2026-09-23 the suite started 6s after the build and two
+          # /stats assertions failed with "expected figures" and a matchAll on
+          # undefined, because the fetch came back empty against a server that
+          # was up but not yet able to answer.
+          #
+          # /api/health queries through asPublic(), so a 200 from it means a
+          # real round-trip to Postgres has completed. Same lesson as the QA
+          # harness: a check that passes against a server which is not serving
+          # is worse than no check.
+          npx wait-on http://localhost:3000/api/health --timeout 90000
 
       - name: Tests (privacy invariants, tile contract, shared logic)
         run: npm test
