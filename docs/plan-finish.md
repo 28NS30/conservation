@@ -341,8 +341,10 @@ outcome and the reason each binomial needs a real reviewer.
   that most needs it is 「我不確定那是什麼」 and its note — "we are not sure" has
   to read as honest rather than broken.
 - Whether to keep ranking by native or switch to a hard scope (B5).
-- **Migrations 0009 and 0010 applied to production.** Confirmed missing on 15
-  September, which means the live site rejects every submission. Deploys are
+- **Migrations 0009 and 0010 applied to production.** ~~Confirmed missing on 15
+  September, which means the live site rejects every submission.~~ **Done, along
+  with 0011–0013; the ledger is baselined at 13 rows. Everything in this item is
+  history — see `docs/production-state.md`.** Deploys are
   automatic and migrations are not; `/api/health` now reports `schemaCurrent`
   and `verify-deploy` fails on it (#31). Production has no migration history —
   it was built by the checklist's psql loop — so the two files are applied

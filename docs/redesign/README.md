@@ -57,9 +57,10 @@ Then, also without a design decision:
 
 Four things changed against the plan. **W0c is short of its brief**: the GBIF taxon remap (its steps
 7–9) was cut, because it is the largest and riskiest work in the tier and W0e already contains the
-privacy consequence. The naming fault it fixes is still live — 狼 still holds 14 dog records, 鼬獾 is
-still both the 11th most-reported animal and absent from the species directory — and it needs its own
-change. **W0a gained two fixes a reviewer found**: an unguarded write that would have turned the new
+privacy consequence. The naming fault it fixes was still live when this was written — 狼 still held 14
+dog records, 鼬獾 was both the 11th most-reported animal and absent from the species directory — and it
+needed its own change. **It has since been applied to production: 狼 now holds 0 records. See
+`docs/production-state.md`.** **W0a gained two fixes a reviewer found**: an unguarded write that would have turned the new
 receipt page into an oracle, and the discovery that `published` does not mean publicly visible.
 
 **W1 is trimmed**, per this plan's own critique below: the recommended direction is built across
@@ -93,7 +94,8 @@ This is the precise thing `about.privacyBody` promises readers the site does not
 branch in the trigger plus a backfill, it needs no name resolution and no translation, and I proved
 it locally inside a transaction: all 7,336 move to a 10 km blur, averaging 5.5 km of displacement,
 with no identified record affected. It is written up as **[W0e](briefs/W0e.md)** and it depends on
-nothing. Applying it to production needs your credentials.
+nothing. ~~Applying it to production needs your credentials.~~ **Applied. Verified at zero on both
+invariants — see `docs/production-state.md`.**
 
 ## The verdict
 
