@@ -47,6 +47,79 @@ describe("admin server actions", () => {
   });
 });
 
+/**
+ * What the page says to a signed-in person who is NOT a moderator.
+ *
+ * Any account can reach /admin, so this branch is public copy. It used to print
+ * a hardcoded English sentence — on a site whose default locale is Traditional
+ * Chinese — and the SQL to self-promote, with the reader's own user id in it.
+ * Knowing the statement grants nobody the ability to run it, so it was never a
+ * hole; it was the app narrating its own privilege model, unprompted and in the
+ * wrong language. Useful locally, so it is gated rather than removed.
+ */
+const PAGE_PATH = join(import.meta.dirname, "..", "app", "[locale]", "(site)", "admin", "page.tsx");
+const pageSrc = readFileSync(PAGE_PATH, "utf8");
+
+describe("the admin page when signed in without the role", () => {
+  test("the refusal itself is translated, not hardcoded", () => {
+    assert.match(pageSrc, /t\("moderatorsOnly"\)/);
+  });
+
+  test("the setup hint cannot render in production", () => {
+    const hint = pageSrc.indexOf("Grant yourself access with:");
+    assert.notEqual(hint, -1, "the setup hint is gone entirely — if that was deliberate, delete this test");
+
+    assert.match(
+      pageSrc,
+      /const showSetupHint = process\.env\.VERCEL_ENV !== "production"/,
+      "the gate must be the same production test the design lab uses",
+    );
+
+    // Containment, not ordering. The first version of this test compared the
+    // INDEX of the gate against the index of the hint, which still passed when
+    // the hint was moved out from under the conditional — the `const` was
+    // declared above it either way. Proved by ungating the hint and watching
+    // this assertion stay green. So: walk the parens from the conditional and
+    // require the hint to fall inside.
+    const open = pageSrc.indexOf("{showSetupHint && (");
+    assert.notEqual(open, -1, "the setup hint is not wrapped in a {showSetupHint && (…)} conditional");
+
+    let depth = 0;
+    let close = -1;
+    for (let i = open; i < pageSrc.length; i++) {
+      const c = pageSrc[i];
+      if (c === "{" || c === "(") depth++;
+      else if (c === "}" || c === ")") {
+        depth--;
+        if (depth === 0) {
+          close = i;
+          break;
+        }
+      }
+    }
+    assert.notEqual(close, -1, "the conditional wrapping the setup hint is unbalanced");
+    assert.ok(
+      hint > open && hint < close,
+      "the setup hint is rendered outside its gate, so production would show it",
+    );
+  });
+
+  test("no other user-facing English is hardcoded in this branch", () => {
+    // The gated hint is the one exception and is allowed to be English: it is
+    // addressed to whoever is setting up a local database, not to a visitor.
+    const branch = pageSrc.slice(
+      pageSrc.indexOf('if (role !== "moderator"'),
+      pageSrc.indexOf("const rows = await sql"),
+    );
+    const withoutHint = branch.replace(/\{showSetupHint && \([\s\S]*?\)\}/, "");
+    assert.doesNotMatch(
+      withoutHint,
+      />\s*[A-Z][a-z]+ [a-z]+/,
+      "a sentence is hardcoded here; it needs a key in both catalogues",
+    );
+  });
+});
+
 describe("the admin page when signed out", () => {
   test("renders a sign-in prompt and no report data", async () => {
     const res = await fetch(`${BASE_URL}/admin`);
