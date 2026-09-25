@@ -4,8 +4,9 @@ import { UNIDENTIFIED_PRECISION } from "@conservation/shared";
 import { keepDeliberateOverride } from "@/lib/report/precision";
 
 /**
- * Classification worker, driven by Vercel Cron (see vercel.json).
+ * Classification worker, driven by Vercel Cron (see apps/web/vercel.json).
  *
+ *   GET  /api/jobs/classify     Authorization: Bearer $CRON_SECRET
  *   POST /api/jobs/classify     Authorization: Bearer $CRON_SECRET
  *
  * Claims jobs with `for update skip locked` so concurrent invocations never
@@ -110,7 +111,37 @@ async function callModel(
   return (await res.json()) as MlResult;
 }
 
+/**
+ * Vercel Cron invokes a cron path with **GET**. This route exported only POST,
+ * so the schedule — once it was in a file Vercel reads at all — would have been
+ * answered 405 every night, with nothing raising it: a cron that 405s leaves no
+ * row, no job and no error anywhere in the app. The whole
+ * submit -> identify -> publish loop hung on this.
+ *
+ * A GET that mutates is not how anyone would design this. It is what the
+ * platform requires, and every path below is behind CRON_SECRET, so the method
+ * is not the thing standing between the internet and the queue. POST is kept
+ * for an external scheduler (cron-job.org can do sub-daily, which Hobby cannot)
+ * and for invoking a run by hand.
+ */
+export async function GET(req: Request) {
+  return run(req);
+}
+
 export async function POST(req: Request) {
+  return run(req);
+}
+
+/**
+ * Never let this be prerendered. Route Handlers are uncached by default in this
+ * version, and this one reads a header, so today it cannot be. But under Cache
+ * Components a GET handler can be prerendered at build time — and a prerendered
+ * classifier is a classifier that answers the cron instantly, from a static
+ * file, forever, without touching the queue. Pinned rather than assumed.
+ */
+export const dynamic = "force-dynamic";
+
+async function run(req: Request) {
   if (!authorised(req))
     return Response.json({ error: "unauthorized" }, { status: 401 });
 

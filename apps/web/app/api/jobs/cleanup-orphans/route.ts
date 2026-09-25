@@ -9,7 +9,8 @@ import { serviceSupabase, PHOTO_BUCKET } from "@/lib/supabase/service";
  * permanently — therefore leaves objects in Storage with no `report_photos` row.
  * Without this job that leaks quota quietly and forever.
  *
- * Driven by Vercel Cron; see vercel.json.
+ * Driven by Vercel Cron; see apps/web/vercel.json. Cron issues GET — see the
+ * note on the handler.
  */
 
 /** Generous, so a report queued overnight on a phone is never collected mid-flight. */
@@ -22,7 +23,25 @@ function authorised(req: Request): boolean {
   return req.headers.get("authorization") === `Bearer ${secret}`;
 }
 
+/**
+ * GET because that is the method Vercel Cron sends; POST for an external
+ * scheduler or a manual run. Both behind CRON_SECRET. See the longer note in
+ * ../classify/route.ts — this route had the same defect and the same
+ * consequence, quieter: orphaned photos accumulate in Storage with nothing
+ * reporting it.
+ */
+export async function GET(req: Request) {
+  return run(req);
+}
+
 export async function POST(req: Request) {
+  return run(req);
+}
+
+/** See ../classify/route.ts: a prerendered cleanup job would never delete anything. */
+export const dynamic = "force-dynamic";
+
+async function run(req: Request) {
   if (!authorised(req)) return Response.json({ error: "unauthorized" }, { status: 401 });
 
   const storage = serviceSupabase().storage.from(PHOTO_BUCKET);
