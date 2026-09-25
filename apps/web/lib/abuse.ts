@@ -11,12 +11,33 @@ const TURNSTILE_VERIFY = "https://challenges.cloudflare.com/turnstile/v0/sitever
  * Verify a Cloudflare Turnstile token server-side. Client-side success is not
  * evidence of anything — the token must be redeemed here.
  *
- * When TURNSTILE_SECRET_KEY is unset (local dev) this passes, so the form works
- * without a Cloudflare account. Production sets the key.
+ * When TURNSTILE_SECRET_KEY is unset this passes, so the form works locally and
+ * in CI without a Cloudflare account. **Outside production only.** In production
+ * a missing key now closes the door rather than opening it: this function is the
+ * single gate in front of an anonymous endpoint that writes to a database of
+ * protected-species locations, and "the environment variable went missing" is a
+ * mistake nobody would see — submissions would keep succeeding, the graphs would
+ * look normal, and the gate would simply not be there.
+ *
+ * Verified before changing it, rather than assumed: production answers
+ * `403 challenge_failed` to a tokenless submission today, so the key is set and
+ * this branch is unreachable there. It closes a way to fail, not a way in.
+ *
+ * The OTHER fail-open below — a Cloudflare outage — is left exactly as it was.
+ * That one is a deliberate availability trade and changing it is the team's call,
+ * not a safe unilateral hardening: see `docs/app-and-site.md`.
  */
 export async function verifyTurnstile(token: string | undefined, ip: string | null): Promise<boolean> {
   const secret = process.env.TURNSTILE_SECRET_KEY;
-  if (!secret) return true;
+  if (!secret) {
+    if (process.env.VERCEL_ENV === "production") {
+      console.error(
+        "[turnstile] TURNSTILE_SECRET_KEY is not set in production; refusing the submission",
+      );
+      return false;
+    }
+    return true;
+  }
   if (!token) return false;
 
   const body = new FormData();
