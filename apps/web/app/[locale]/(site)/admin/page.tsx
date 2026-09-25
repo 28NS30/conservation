@@ -48,17 +48,37 @@ export default async function AdminPage({
   }
 
   if (role !== "moderator" && role !== "admin") {
+    /**
+     * Anyone with an account can reach this page, so what it says to a
+     * non-moderator is public copy.
+     *
+     * It used to hand them a hardcoded English sentence — on a site whose
+     * default locale is Traditional Chinese — followed by the SQL to promote
+     * themselves, with their own user id interpolated into it. That is
+     * development scaffolding, and it was being shown to real signed-in people:
+     * untranslated, and narrating that the privilege model is a `role` column on
+     * `profiles`. Knowing the statement does not grant anyone the ability to run
+     * it, so this is not a hole — it is the app explaining its own internals to
+     * someone who did not ask, in the wrong language.
+     *
+     * The hint is genuinely useful when setting up a local database, so it is
+     * kept and gated rather than deleted. Same test as the design lab: anywhere
+     * that is not production.
+     */
+    const showSetupHint = process.env.VERCEL_ENV !== "production";
     return (
       <Shell>
         <p className="text-sm text-ink-600">
           {t("moderatorsOnly")}
-          <span className="mt-2 block text-xs text-ink-500">
-            Grant yourself access with:
-            <code className="mt-1 block rounded bg-paper-100 px-2 py-1 font-mono text-[11px]">
-              update profiles set role = &apos;admin&apos; where id = &apos;
-              {userId}&apos;;
-            </code>
-          </span>
+          {showSetupHint && (
+            <span className="mt-2 block text-xs text-ink-500">
+              Grant yourself access with:
+              <code className="mt-1 block rounded bg-paper-100 px-2 py-1 font-mono text-[11px]">
+                update profiles set role = &apos;admin&apos; where id = &apos;
+                {userId}&apos;;
+              </code>
+            </span>
+          )}
         </p>
       </Shell>
     );

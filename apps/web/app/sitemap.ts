@@ -38,13 +38,37 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     );
   }
 
+  /**
+   * The pages worth pointing a crawler at.
+   *
+   * This list was precisely inverted relative to what the site is becoming: it
+   * offered `/report` — the page whose job moves to the app — and omitted every
+   * page that explains the project. `/stats`, `/about`, `/privacy` and
+   * `/attribution` were unreachable from the sitemap despite being the surfaces
+   * a cold reader actually needs, and `/attribution` is where the data's
+   * provenance is credited, which is the one page a data publisher is expected
+   * to have indexed.
+   *
+   * `/report` stays. Whether the web form survives the pivot is an open team
+   * decision (see `docs/app-and-site.md`), and it is live and ungated today, so
+   * dropping it from the sitemap would be this file quietly taking that
+   * decision. Remove it when the answer is no, not before.
+   *
+   * Not here on purpose: `/team`, which 404s by design while the roster is
+   * empty, `/me` and `/admin`, which need an account, and `/lab`, which is
+   * gated. A sitemap that lists a 404 is worse than a short sitemap.
+   */
   const staticPaths = [
     "",
     "/species",
-    "/report",
     "/map",
+    "/stats",
     "/reports",
     "/season",
+    "/report",
+    "/about",
+    "/attribution",
+    "/privacy",
   ];
   const entries: MetadataRoute.Sitemap = [];
 
