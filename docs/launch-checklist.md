@@ -230,21 +230,39 @@ Then **Settings → Environment Variables**, for Production *and* Preview:
 The `service_role` key bypasses every access rule in the database. It belongs in
 Vercel's environment and nowhere else — never in `NEXT_PUBLIC_*`, never in git.
 
-### The crons are not deployed at all
+### The crons: two faults, and only one of them was known
 
-Both of them — `/api/jobs/classify` and `/api/jobs/cleanup-orphans` — are
-declared in the **repo-root** `vercel.json`, which Vercel never reads. The
-project's Root Directory is `apps/web` and `vercel.json` is only honoured from
-there (step 2 says the same thing about `regions`). `apps/web/vercel.json`
-declares no crons, so neither job has ever run in production: reports with no
-species are accepted and held, and nothing has ever identified them.
+Both jobs are now declared in `apps/web/vercel.json` and both routes now export
+a `GET`. Before that, **two independent faults hid behind each other**, and
+either alone was enough to keep the loop from ever running.
 
-They are also declared **daily** — `0 3 * * *` and `0 4 * * *` — not every
-minute, as this page said until now. Daily is what Vercel's Hobby plan allows;
-minute-level scheduling needs Pro. So moving the block into
-`apps/web/vercel.json` is enough to make it fire, but a report will then wait up
-to a day rather than a minute, which is not the behaviour the rest of this
-document assumes.
+**Fault 1 — declared where Vercel does not look.** The `crons` block lived in the
+repo-root `vercel.json`. The project's Root Directory is `apps/web` and
+`vercel.json` is only honoured from there (step 2 says the same thing about
+`regions`), so the schedules were never created. The root file has been deleted
+rather than emptied: a root `vercel.json` is not merged, not warned about and not
+applied, so its only effect is to persuade a reader that something is configured.
+
+**Fault 2 — the wrong method.** Vercel Cron issues **GET**. Both routes exported
+only `POST`, so every nightly invocation would have been answered **405** even
+after fault 1 was fixed. This page previously said moving the block "is enough to
+make it fire". That was wrong, and it was wrong in the worst possible direction:
+someone following it would have moved the block, seen a green deploy, and
+believed the loop was running.
+
+Neither fault can announce itself. A schedule that was never created does not
+appear anywhere to be missing, and one that 405s writes no job row, logs no
+application error, and leaves reports at `pending` — indistinguishable from
+"nobody has submitted anything yet". `apps/web/test/cron-reachable.test.mjs` now
+fails on either half.
+
+**The cadence is still a decision, and it is yours.** They are declared **daily**
+— `0 3 * * *` and `0 4 * * *`. Daily is what Vercel's Hobby plan allows;
+anything finer needs Pro. So a report now waits up to 24 hours for its species,
+which is not what the receipt copy implies and makes step 8's go/no-go
+impractical to run. Three ways out: accept the wait and change the copy, upgrade
+to Pro, or point an external scheduler at `POST` (kept for exactly this) with the
+`CRON_SECRET`.
 
 Until that move happens — or instead of it — drive the endpoint from anything
 that can make an authenticated request on a schedule:
