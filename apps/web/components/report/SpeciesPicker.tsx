@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import SpeciesName from "@/components/species/SpeciesName";
 import { withBase } from "@/lib/basePath";
 import { Link } from "@/i18n/navigation";
 import type { ReportPage } from "@conservation/shared";
@@ -10,6 +11,9 @@ export type SpeciesHit = {
   id: number;
   scientificName: string;
   commonNameZh: string | null;
+  /** Since migration 0015; absent from a hit saved offline by an older build. */
+  commonNameEn?: string | null;
+  taicolId?: string | null;
   isInvasive: boolean | null;
   reportCount: number;
 };
@@ -53,6 +57,7 @@ export default function SpeciesPicker({
   onUnsure: (v: boolean) => void;
 }) {
   const t = useTranslations("report");
+  const locale = useLocale();
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SpeciesHit[]>([]);
   const [open, setOpen] = useState(false);
@@ -105,14 +110,12 @@ export default function SpeciesPicker({
         </h2>
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-ink-900/12 bg-paper-100 px-3.5 py-3">
           <span className="min-w-0">
-            <span className="text-[15px] font-medium text-ink-900">
-              {value.commonNameZh ?? value.scientificName}
-            </span>
-            {value.commonNameZh && (
-              <span className="ml-2 text-sm italic text-ink-600">
-                {value.scientificName}
-              </span>
-            )}
+            <SpeciesName
+              species={value}
+              locale={locale}
+              primaryClassName="text-[15px] font-medium text-ink-900"
+              secondaryClassName="text-sm text-ink-600"
+            />
           </span>
           <button
             type="button"
@@ -194,14 +197,12 @@ export default function SpeciesPicker({
                   className="flex min-h-11 w-full items-center justify-between gap-2 px-3.5 py-2 text-left hover:bg-paper-200"
                 >
                   <span className="min-w-0">
-                    <span className="text-[15px] text-ink-900">
-                      {h.commonNameZh ?? h.scientificName}
-                    </span>
-                    {h.commonNameZh && (
-                      <span className="ml-2 text-sm italic text-ink-600">
-                        {h.scientificName}
-                      </span>
-                    )}
+                    <SpeciesName
+                      species={h}
+                      locale={locale}
+                      primaryClassName="text-[15px] text-ink-900"
+                      secondaryClassName="text-sm text-ink-600"
+                    />
                   </span>
                   {/* Every hit on the invasive page is invasive; a chip on
                       each would say nothing. */}

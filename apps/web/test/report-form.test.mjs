@@ -36,10 +36,15 @@ function hasCondition(page) {
  * catalogue, so "is this name in the HTML" would pass on a page that merely
  * mentioned it.
  */
+/**
+ * The leading name of the species the picker shows as chosen. The picker names
+ * it through <SpeciesName>, which puts each name in a span carrying its
+ * language, so the chosen block's first language-tagged span is the headline.
+ */
 function chosenSpecies(page) {
   return [
     ...page.matchAll(
-      /class="text-\[15px\] font-medium text-ink-900">([^<]*)</g,
+      /class="block text-\[15px\] font-medium text-ink-900"><span lang="[^"]+" class="[^"]*">([^<]*)</g,
     ),
   ].map((m) => m[1]);
 }

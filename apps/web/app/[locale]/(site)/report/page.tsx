@@ -11,6 +11,7 @@ import WarmReportPages from "@/components/report/WarmReportPages";
 import ReportKindIcon from "@/components/report/ReportKindIcon";
 import { parseSpeciesId, reportableSpecies } from "@/lib/species";
 import { ROW_KEY, reportPageHref } from "@/lib/report/pages";
+import SpeciesName from "@/components/species/SpeciesName";
 
 export async function generateMetadata({
   params,
@@ -109,14 +110,12 @@ export default async function ReportChooserPage({
         <div className="mx-auto mt-2 max-w-2xl rounded-lg border border-forest-900/20 bg-paper-100 px-5 py-4 text-center">
           <p className="text-sm text-ink-700">{t("chooserSpecies")}</p>
           <p className="mt-1">
-            <span className="text-lg font-semibold text-ink-950">
-              {species.commonNameZh ?? species.scientificName}
-            </span>
-            {species.commonNameZh && (
-              <span className="ml-2 text-sm italic text-ink-700">
-                {species.scientificName}
-              </span>
-            )}
+            <SpeciesName
+              species={species}
+              locale={locale}
+              primaryClassName="text-lg font-semibold text-ink-950"
+              secondaryClassName="text-sm text-ink-700"
+            />
           </p>
         </div>
       )}

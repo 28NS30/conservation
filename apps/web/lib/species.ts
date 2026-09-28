@@ -213,8 +213,10 @@ export async function getSpecies(id: number): Promise<SpeciesDetail | null> {
  */
 export async function reportableSpecies(id: number): Promise<{
   id: number;
+  taicolId: string;
   scientificName: string;
   commonNameZh: string | null;
+  commonNameEn: string | null;
   isInvasive: boolean;
   reportCount: number;
   pages: ReportPage[];
@@ -226,15 +228,18 @@ export async function reportableSpecies(id: number): Promise<{
     (tx) => tx<
       ({
         id: number;
+        taicolId: string;
         scientificName: string;
         commonNameZh: string | null;
+        commonNameEn: string | null;
         isInvasive: boolean;
         reportCount: number;
         offered: boolean;
       } & Record<`in_${ReportPage}`, boolean>)[]
     >`
-      select t.id, t.scientific_name as "scientificName",
+      select t.id, t.taicol_id as "taicolId", t.scientific_name as "scientificName",
              t.common_name_zh as "commonNameZh",
+             t.common_name_en as "commonNameEn",
              t.is_invasive as "isInvasive",
              coalesce(s.report_count, 0) as "reportCount",
              ${tx.unsafe(OFFERED)} as offered,
@@ -249,8 +254,10 @@ export async function reportableSpecies(id: number): Promise<{
   if (pages.length === 0) return null;
   return {
     id: row.id,
+    taicolId: row.taicolId,
     scientificName: row.scientificName,
     commonNameZh: row.commonNameZh,
+    commonNameEn: row.commonNameEn,
     isInvasive: row.isInvasive,
     reportCount: row.reportCount,
     pages,

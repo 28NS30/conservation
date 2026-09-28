@@ -88,8 +88,10 @@ export default async function ReportKindPage({
     found && found.pages.includes(kind)
       ? {
           id: found.id,
+          taicolId: found.taicolId,
           scientificName: found.scientificName,
           commonNameZh: found.commonNameZh,
+          commonNameEn: found.commonNameEn,
           isInvasive: found.isInvasive,
           reportCount: found.reportCount,
         }
