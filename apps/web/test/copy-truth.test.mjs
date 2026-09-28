@@ -284,7 +284,8 @@ describe("the copy does not contradict itself", () => {
 describe("the privacy page names what sees a reporter", () => {
   // It lists what the site collects and who receives it, and it left out the
   // two things every reporter passes through: Cloudflare Turnstile, which gets
-  // their IP address, and the rate limit, which counts reports per IP address.
+  // their IP address, and the rate limit, which counts reports per IP address
+  // — or per account, for a reporter who is signed in.
   const page = read("app/[locale]/(site)/privacy/page.tsx");
 
   test("Turnstile, while the report route checks it", () => {
@@ -299,8 +300,24 @@ describe("the privacy page names what sees a reporter", () => {
   });
 
   test("the per-address count, while the rate limit keeps one", () => {
-    if (!/`ip:\$\{ip\}`/.test(read("app/api/reports/route.ts"))) return;
-    for (const l of locales) assert.match(catalogues[l].privacy.turnstileBody, /IP/);
+    // The sentence about the count itself. /IP/ alone was satisfied by the
+    // Turnstile sentence beside it, so deleting this one still passed.
+    const route = code("app/api/reports/route.ts");
+    if (!/`ip:\$\{ip\}`/.test(route)) return;
+    for (const l of locales)
+      assert.match(
+        catalogues[l].privacy.turnstileBody,
+        /count how many reports each IP address|計算每個 IP 位址.*最近送出了幾筆/,
+        `${l}: privacy.turnstileBody no longer says reports are counted per address`,
+      );
+    // A signed-in reporter is counted by account, not by address.
+    if (!/`user:\$\{reporterId\}`/.test(route)) return;
+    for (const l of locales)
+      assert.match(
+        catalogues[l].privacy.turnstileBody,
+        /each account if you are signed in|登入時則是每個帳號/,
+        `${l}: privacy.turnstileBody says the count is per address for everyone`,
+      );
   });
 });
 

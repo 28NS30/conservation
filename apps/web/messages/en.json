@@ -381,7 +381,7 @@
     "locationTitle": "Location data",
     "locationBody": "True coordinates are stored in the database only. The public map shows a location adjusted according to the species' sensitivity rating. See the About page for how that works.",
     "turnstileTitle": "Checking that a report comes from a person",
-    "turnstileBody": "Anyone can send a report without an account, so without a check the form would be flooded by automated programs. Before a report is accepted, Cloudflare Turnstile checks that it was sent by a person rather than a program. To make that check, Cloudflare receives your IP address and technical information about your browser; we send it nothing from your report. We also count how many reports each IP address has sent recently, so that no single address can flood the form. That count is not stored with your report and is never shown.",
+    "turnstileBody": "Anyone can send a report without an account, so without a check the form would be flooded by automated programs. Before a report is accepted, Cloudflare Turnstile checks that it was sent by a person rather than a program. To make that check, Cloudflare receives your IP address and technical information about your browser; we send it nothing from your report. We also count how many reports each IP address, or each account if you are signed in, has sent recently, so that no single address or account can flood the form. That count is not stored with your report and is never shown.",
     "retentionTitle": "Retention and deletion",
     "retentionBody": "Reports are kept indefinitely, because their scientific value comes from accumulating over time. If you want your report or contact email removed, get in touch.",
     "thirdPartyTitle": "Third-party services",
