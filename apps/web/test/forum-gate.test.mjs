@@ -237,7 +237,10 @@ describe("every message an action can answer with is translated", () => {
     for (const m of src.matchAll(/\b(?:fail|ok)\("(\w+)"/g)) keys.add(m[1]);
     for (const m of src.matchAll(/\breturn "(\w+)";/g)) keys.add(m[1]);
     for (const m of src.matchAll(/error: "(\w+)"/g)) keys.add(m[1]);
-    for (const m of src.matchAll(/\b(?:fail|ok)\(\w+ \? "(\w+)" : "(\w+)"/g)) keys.add(m[1]), keys.add(m[2]);
+    for (const m of src.matchAll(/\b(?:fail|ok)\(\w+ \? "(\w+)" : "(\w+)"/g)) {
+      keys.add(m[1]);
+      keys.add(m[2]);
+    }
   }
   test("found the keys", () => assert.ok(keys.size > 40, `${keys.size}`));
   for (const k of keys) {

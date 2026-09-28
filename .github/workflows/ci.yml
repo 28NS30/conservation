@@ -191,3 +191,27 @@ jobs:
         # tile gzipped, CLS under 0.05. The byte and millisecond budgets print
         # and do not fail until someone records them against production.
         run: npm run test:perf --workspace @conservation/web
+
+      # ---- Discussion forum ------------------------------------------------
+      # The forum ships dark: it answers only on a server started with
+      # FORUM_ENABLED=1 (apps/web/lib/forum/gate.ts). The server above runs
+      # without it, exactly as production does, so everything above tests the
+      # site as it ships, and these two steps test the switch both ways.
+
+      - name: The forum is not there while it is switched off
+        # Every forum page in both languages, both forum API routes and every
+        # forum server action in the build manifest must answer 404, and
+        # nothing public may link to /community.
+        run: node apps/web/e2e/forum.spec.mjs
+
+      - name: The forum works when it is switched on
+        # A second server from the same build with the switch on. No second
+        # build is needed: every forum page is rendered per request, so the
+        # switch is read when a request arrives. The accounts the spec signs
+        # in with are made on the Supabase Auth stand-in started above.
+        env:
+          FORUM_ENABLED: "1"
+        run: |
+          npm run start --workspace @conservation/web -- -p 3001 &
+          npx wait-on http://localhost:3001/api/health --timeout 90000
+          TEST_BASE_URL=http://localhost:3001 node apps/web/e2e/forum.spec.mjs
