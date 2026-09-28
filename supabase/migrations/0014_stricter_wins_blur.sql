@@ -69,6 +69,16 @@
 -- protected: a species row never inherits from its subspecies, and the picker
 -- offers both.
 
+-- Give up rather than queue. The triggers below are replaced in place, which
+-- takes SHARE ROW EXCLUSIVE on `taxa`: it waits for writers and blocks the
+-- import, but readers go on. Waiting for a lock is still how a migration takes
+-- a site down — every later request queues behind the one waiting — so a lock
+-- that is not free within five seconds fails the migration instead. `local`
+-- scopes it to scripts/migrate.ts's one transaction per file. Under a plain
+-- `psql -f`, where every statement commits on its own and holds its locks for
+-- that statement only, Postgres warns that it has no transaction and ignores it.
+set local lock_timeout = '5s';
+
 -- ---------------------------------------------------------------------------
 -- Vocabulary
 -- ---------------------------------------------------------------------------
@@ -122,7 +132,18 @@ comment on table taxon_precision_floors is
 -- Nobody outside the server reads this. 0013 already revoked the default
 -- grants to anon and authenticated, so the table is closed on creation; RLS is
 -- the second layer, as 0013 did for `taxa`, so one stray grant does not open it.
-alter table taxon_precision_floors enable row level security;
+--
+-- Only when it is not on already. ALTER TABLE takes ACCESS EXCLUSIVE even when
+-- it changes nothing, and once this file has run, every report insert reads
+-- this table through the trigger: re-applying it held every submission until
+-- the migration committed.
+do $$
+begin
+  if not (select relrowsecurity from pg_class
+           where oid = 'public.taxon_precision_floors'::regclass) then
+    alter table taxon_precision_floors enable row level security;
+  end if;
+end $$;
 
 -- ---------------------------------------------------------------------------
 -- The rule
@@ -311,12 +332,17 @@ begin
   return null;
 end $$;
 
-drop trigger if exists taxa_reblur_reports on taxa;
-
 -- Also on insert: a species row imported after its subspecies already hold
 -- records is a new rating for those records. And on parent_taicol_id, rank and
 -- taicol_id, because each of those changes which rows a record inherits from.
-create trigger taxa_reblur_reports
+--
+-- `create or replace`, not drop-then-create. DROP TRIGGER takes ACCESS
+-- EXCLUSIVE on `taxa` and holds it to the end of the transaction, and every
+-- species page, map popup and report insert reads `taxa` (the reports trigger
+-- among them), so all of them stopped until the migration committed. Replacing
+-- in place takes SHARE ROW EXCLUSIVE, which readers do not wait for. It also
+-- leaves no moment in which `taxa` has no re-blur trigger at all. (Postgres 14+.)
+create or replace trigger taxa_reblur_reports
   after insert or update of sensitivity, protected_status, parent_taicol_id, rank, taicol_id
   on taxa
   for each row execute function reblur_reports_for_taxon();
@@ -330,9 +356,7 @@ begin
   return null;
 end $$;
 
-drop trigger if exists taxon_precision_floors_reblur on taxon_precision_floors;
-
-create trigger taxon_precision_floors_reblur
+create or replace trigger taxon_precision_floors_reblur
   after insert or update on taxon_precision_floors
   for each row execute function reblur_reports_for_floor();
 
