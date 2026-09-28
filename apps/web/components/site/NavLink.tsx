@@ -21,11 +21,14 @@ import { Link, usePathname } from "@/i18n/navigation";
  */
 export default function NavLink({
   href,
+  query,
   label,
   overlay = false,
   size = "normal",
 }: {
   href: string;
+  /** Carried on the link but not part of "am I here": /login?next=… is /login. */
+  query?: Record<string, string>;
   label: string;
   /** On the home hero the header floats over a dark map. */
   overlay?: boolean;
@@ -47,7 +50,7 @@ export default function NavLink({
 
   return (
     <Link
-      href={href}
+      href={query ? { pathname: href, query } : href}
       aria-current={current}
       // 14px text. The target is 40px tall inline and 36px on the phone's
       // wrapping row, where every extra pixel is multiplied by the number of

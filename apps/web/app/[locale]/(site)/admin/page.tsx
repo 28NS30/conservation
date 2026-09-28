@@ -6,6 +6,7 @@ import { currentRole } from "@/lib/auth";
 import { signedPhotoUrl } from "@/lib/supabase/service";
 import { CATEGORIES, type Category } from "@conservation/shared";
 import ModerationRow from "@/components/admin/ModerationRow";
+import { signInHref } from "@/components/auth/signInHref";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +40,7 @@ export default async function AdminPage({
       <Shell>
         <p className="text-sm text-ink-600">
           {t("signInRequired")}{" "}
-          <Link href="/login" className="text-ember-700 underline">
+          <Link href={signInHref(locale, "/admin")} className="text-ember-700 underline">
             {t("signInPrompt")}
           </Link>
         </p>

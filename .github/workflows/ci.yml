@@ -74,6 +74,23 @@ jobs:
           NEXT_PUBLIC_E2E: "1"
         run: npm run build
 
+      - name: Start a stand-in for Supabase Auth
+        # NEXT_PUBLIC_SUPABASE_URL above points at 127.0.0.1:54321, where
+        # nothing used to listen, so every test that needs Supabase Auth to
+        # answer skipped here: the proxy's session renewal in the built app,
+        # where /login sends someone who is already signed in (an open
+        # redirect needing no click was once possible there), and what a page
+        # does when Supabase stops answering. A green run said nothing about
+        # any of them. The stand-in answers the few endpoints those use, the
+        # way GoTrue does; apps/web/test/stub-gotrue.mjs says which. Locally
+        # the same tests run against the real local Supabase stack instead.
+        #
+        # http-get, not http: wait-on otherwise asks with HEAD, which the
+        # stand-in does not answer.
+        run: |
+          node apps/web/test/stub-gotrue.mjs &
+          npx wait-on http-get://127.0.0.1:54321/auth/v1/health --timeout 30000
+
       - name: Start server
         run: |
           npm run start --workspace @conservation/web &

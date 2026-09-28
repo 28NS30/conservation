@@ -36,10 +36,12 @@ const src = readFileSync(
 );
 
 /** The body of `currentUserId`, by brace matching rather than by line. */
-function currentUserIdBody() {
-  const start = src.indexOf("export async function currentUserId");
-  assert.notEqual(start, -1, "currentUserId is gone or renamed");
-  const open = src.indexOf("{", start);
+function currentUserIdBody(name = "currentUserId") {
+  const start = src.indexOf(`export async function ${name}(`);
+  assert.notEqual(start, -1, `${name} is gone or renamed`);
+  // The body's brace ends its line; a `{` in the return type (`Promise<{ id… }>`)
+  // does not.
+  const open = src.indexOf("{\n", start);
   let depth = 0;
   for (let i = open; i < src.length; i++) {
     if (src[i] === "{") depth++;
@@ -81,8 +83,21 @@ describe("a preview with no Supabase configuration can still build", () => {
 
   test("production still reaches the throw", () => {
     // Not duplicated here — it falls through to serverSupabase(), which throws.
+    // (With whatever arguments: the header's call passes a deadline, and the
+    // throw comes before anything looks at them.)
     const body = currentUserIdBody();
-    assert.match(body, /await serverSupabase\(\)/);
+    assert.match(body, /await serverSupabase\(/);
+  });
+
+  test("currentUser, which /me asks instead, carries the same guard", () => {
+    // /me is rendered per request, not prerendered, so here a missing guard
+    // would not fail the build — it would 500 the page on every preview.
+    const body = currentUserIdBody("currentUser");
+    assert.match(
+      body,
+      /if \(!authConfigured\(\) && process\.env\.VERCEL_ENV !== "production"\) return null;/,
+    );
+    assert.match(body, /await serverSupabase\(/);
   });
 });
 
