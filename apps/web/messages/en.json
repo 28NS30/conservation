@@ -131,7 +131,9 @@
       "photoUnreadable": "This photo can't be read. Use a different one, or take it again.",
       "taxon_not_found": "That species can't be found. Please choose it again.",
       "validation_failed": "Something in the form isn't right. Check it and send again.",
-      "server": "Something went wrong at our end and the report was not sent. What you entered is still here."
+      "server": "Something went wrong at our end and the report was not sent. What you entered is still here.",
+      "taxon_out_of_scope": "This page doesn't take that species. Choose one from the list, or report it on the page for that kind of report.",
+      "category_not_on_page": "This page can't file that kind of report. Reload the page and try again."
     },
     "privacyNote": "Locations of sensitive and protected species are automatically blurred before publication, so reports cannot be used to find them.",
     "receipt": {
