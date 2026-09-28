@@ -11,6 +11,7 @@ import { pageWindow } from "@/lib/paging";
 import PageHeader from "@/components/site/PageHeader";
 import Pager from "@/components/site/Pager";
 import StatusBadges from "@/components/species/StatusBadges";
+import SpeciesName from "@/components/species/SpeciesName";
 import SpeciesSearch from "@/components/species/SpeciesSearch";
 
 export const revalidate = 300;
@@ -79,7 +80,6 @@ export default async function SpeciesDirectory({
     limit: win.perPage,
     offset: win.offset,
   });
-  const zhFirst = locale.startsWith("zh");
 
   /*
    * When a search inside a filter finds nothing, ask whether the filter is what
@@ -185,10 +185,6 @@ export default async function SpeciesDirectory({
               /en/species laid out 364px inside a 320px viewport. */}
           <ul className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2 sm:gap-x-4">
             {species.map((s) => {
-              const headline =
-                zhFirst && s.commonNameZh ? s.commonNameZh : s.scientificName;
-              const secondary =
-                zhFirst && s.commonNameZh ? s.scientificName : s.commonNameZh;
               return (
                 <li key={s.id}>
                   <Link
@@ -196,14 +192,12 @@ export default async function SpeciesDirectory({
                     className="flex h-full items-start justify-between gap-3 rounded-lg border border-ink-900/10 bg-paper-100 px-4 py-3 transition hover:border-ink-900/20 hover:bg-paper-100"
                   >
                     <span className="min-w-0">
-                      <span className="block truncate text-sm text-ink-800">
-                        {headline}
-                      </span>
-                      {secondary && (
-                        <span className="block truncate text-xs italic text-ink-500">
-                          {secondary}
-                        </span>
-                      )}
+                      <SpeciesName
+                        species={s}
+                        locale={locale}
+                        primaryClassName="truncate text-sm text-ink-800"
+                        secondaryClassName="truncate text-xs text-ink-500"
+                      />
                       <StatusBadges {...s} />
                     </span>
                     {/* Number and unit on one line: stacked, the lone 筆 read as

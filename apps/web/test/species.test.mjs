@@ -199,10 +199,16 @@ describe("search endpoint", () => {
     );
     const { results } = await res.json();
     assert.ok(results.length > 0, "expected matches for 石虎");
+    // Since migration 0022 the records are on the subspecies 石虎, and the
+    // species 豹貓, which lists 石虎 as an alternate, still matches.
     assert.equal(
       results[0].scientificName,
-      "Prionailurus bengalensis",
-      "the species with records should rank first",
+      "Prionailurus bengalensis euptilurus",
+      "the taxon with records should rank first",
+    );
+    assert.ok(
+      results.some((r) => r.scientificName === "Prionailurus bengalensis"),
+      "the species is still found by its alternate name",
     );
   });
 
