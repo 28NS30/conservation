@@ -132,6 +132,7 @@ export type EntrySpecies = {
   id: number;
   scientificName: string;
   commonNameZh: string;
+  commonNameEn: string | null;
 };
 
 /**
@@ -147,7 +148,8 @@ export async function mapEntrySpecies(limit = 3): Promise<EntrySpecies[]> {
   return asPublic(
     (tx) => tx<EntrySpecies[]>`
       select t.id, t.scientific_name as "scientificName",
-             t.common_name_zh as "commonNameZh"
+             t.common_name_zh as "commonNameZh",
+             t.common_name_en as "commonNameEn"
         from species_report_stats s
         join taxa t on t.id = s.taxon_id
        where t.sensitivity is null

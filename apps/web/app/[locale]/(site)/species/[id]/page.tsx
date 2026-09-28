@@ -15,6 +15,8 @@ import StatusBadges from "@/components/species/StatusBadges";
 import HabitatChips from "@/components/species/HabitatChips";
 import MonthlyChart from "@/components/species/MonthlyChart";
 import SpeciesMap from "@/components/species/SpeciesMap";
+import SpeciesName from "@/components/species/SpeciesName";
+import { speciesLabel } from "@/lib/speciesNames";
 
 /** A heatmap built from a handful of points is noise; below this we plot them. */
 const HEATMAP_MIN_RECORDS = 6;
@@ -67,10 +69,9 @@ export async function generateMetadata({
   const s = await getSpecies(taxonId);
   if (!s) return {};
   const t = await getTranslations({ locale, namespace: "species" });
-  const name =
-    locale.startsWith("zh") && s.commonNameZh
-      ? s.commonNameZh
-      : s.scientificName;
+  // Both names in the title, the page's language first: a search result for
+  // "Leopard Cat" should say 石虎 too, and the other way round.
+  const name = speciesLabel(s, locale);
   return {
     title: name,
     description: t("metaDescription", { name, count: s.reportCount }),
@@ -113,12 +114,6 @@ export default async function SpeciesPage({
   const t = await getTranslations("species");
   const nav = await getTranslations("nav");
 
-  const zhFirst = locale.startsWith("zh");
-  const headline =
-    zhFirst && s.commonNameZh ? s.commonNameZh : s.scientificName;
-  const secondary =
-    zhFirst && s.commonNameZh ? s.scientificName : s.commonNameZh;
-
   const lineage = [s.kingdom, s.phylum, s.class, s.order, s.family].filter(
     Boolean,
   ) as string[];
@@ -144,18 +139,13 @@ export default async function SpeciesPage({
           of the site moved to a 3xl h1 and this was left at 20px. */}
       <header className="mt-5">
         <h1 className="text-3xl font-semibold leading-tight text-ink-900">
-          {headline}
+          <SpeciesName
+            species={s}
+            locale={locale}
+            author={s.nameAuthor}
+            secondaryClassName="mt-2 text-base font-normal text-ink-600"
+          />
         </h1>
-        {secondary && (
-          <p className="mt-2 text-base text-ink-600">
-            <span className="italic">{secondary}</span>
-            {s.nameAuthor && (
-              <span className="ml-1.5 not-italic text-ink-500">
-                {s.nameAuthor}
-              </span>
-            )}
-          </p>
-        )}
         {s.altNamesZh && s.altNamesZh.length > 0 && (
           <p className="mt-1 text-xs text-ink-500">
             {t("alsoKnownAs")}: {s.altNamesZh.join("、")}

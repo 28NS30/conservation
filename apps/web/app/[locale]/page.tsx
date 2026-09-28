@@ -12,6 +12,7 @@ import SiteHeader from "@/components/site/SiteHeader";
 import SiteFooter from "@/components/site/SiteFooter";
 import HeroSlideshow from "@/components/home/HeroSlideshow";
 import StoryRow, { SectionTitle } from "@/components/home/StoryRow";
+import SpeciesName from "@/components/species/SpeciesName";
 
 export const revalidate = 300;
 
@@ -249,8 +250,10 @@ export default async function HomePage({
                 <ul className="flex flex-wrap gap-2">
                   {entrySpecies.map((sp) => (
                     <li key={sp.id}>
-                      <Link href={`/map?taxonId=${sp.id}`} className={`${chip} ${zh ? "" : "italic"}`}>
-                        {zh ? sp.commonNameZh : sp.scientificName}
+                      {/* One name per chip, in the page's language, so the
+                          chips stay one short line each (speciesNames()). */}
+                      <Link href={`/map?taxonId=${sp.id}`} className={chip}>
+                        <SpeciesName species={sp} locale={locale} layout="primary" />
                       </Link>
                     </li>
                   ))}

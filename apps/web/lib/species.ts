@@ -14,6 +14,13 @@ export type SpeciesSummary = {
   nameAuthor: string | null;
   commonNameZh: string | null;
   altNamesZh: string[] | null;
+  /**
+   * From migration 0015 and scripts/english-names.json. Null where no source
+   * we trust names it: the page then shows no English name, never a guess.
+   */
+  commonNameEn: string | null;
+  /** Search-only: other English names and spellings ("Grey Heron"). */
+  altNamesEn: string[] | null;
   rank: string | null;
   family: string | null;
   reportCount: number;
@@ -52,6 +59,7 @@ export type SpeciesDetail = SpeciesSummary & {
 const SUMMARY_COLS = `
   t.id, t.scientific_name as "scientificName", t.name_author as "nameAuthor",
   t.common_name_zh as "commonNameZh", t.alt_names_zh as "altNamesZh",
+  t.common_name_en as "commonNameEn", t.alt_names_en as "altNamesEn",
   t.rank, t.family, t.protected_status as "protectedStatus",
   t.is_endemic as "isEndemic", t.is_invasive as "isInvasive", t.sensitivity,
   coalesce(s.report_count, 0) as "reportCount"`;
@@ -193,6 +201,14 @@ function speciesWhere(
        or exists (
          select 1 from unnest(t.alt_names_zh) a where a like ${like}
        )
+       -- English, whatever the page's language: a reader on the Chinese page
+       -- who knows the animal as "green iguana" should find it too. ILIKE,
+       -- because nobody types "Leopard Cat" with its capitals. Both spellings
+       -- of "gray/grey" are in alt_names_en, so either finds 蒼鷺.
+       or t.common_name_en ilike ${like}
+       or exists (
+         select 1 from unnest(t.alt_names_en) a where a ilike ${like}
+       )
      )`;
 }
 
@@ -255,6 +271,7 @@ export async function listSpecies(opts: {
   const term = q ?? null;
   const like = q ? `%${q}%` : null;
   const prefix = q ? `${q}%` : null;
+  const wordPrefix = q ? `% ${q}%` : null;
 
   return asPublic(
     (tx) => tx<SpeciesSummary[]>`
@@ -280,8 +297,16 @@ export async function listSpecies(opts: {
              -- below, which is the only evidence we have about which name is
              -- actually used for which taxon.
              or exists (select 1 from unnest(t.alt_names_zh) a where a = ${term})
+             -- An exact English name or English alternate, in any case.
+             or lower(t.common_name_en) = lower(${term})
+             or exists (select 1 from unnest(t.alt_names_en) a where lower(a) = lower(${term}))
              then 0
-           when t.common_name_zh like ${prefix} or t.scientific_name ilike ${prefix} then 1
+           when t.common_name_zh like ${prefix} or t.scientific_name ilike ${prefix}
+             -- "leopard" finds Leopard Cat, and "cat" finds it too: English
+             -- names are several words, and people type any one of them.
+             or t.common_name_en ilike ${prefix}
+             or t.common_name_en ilike ${wordPrefix}
+             then 1
            else 2
          end,
          (${preferNative}::boolean and t.alien_type is distinct from 'native'),
@@ -317,13 +342,20 @@ export async function publicSpeciesName(id: number): Promise<{
   id: number;
   scientificName: string;
   commonNameZh: string | null;
+  commonNameEn: string | null;
 } | null> {
   const rows = await asPublic(
     (tx) => tx<
-      { id: number; scientificName: string; commonNameZh: string | null }[]
+      {
+        id: number;
+        scientificName: string;
+        commonNameZh: string | null;
+        commonNameEn: string | null;
+      }[]
     >`
       select t.id, t.scientific_name as "scientificName",
-             t.common_name_zh as "commonNameZh"
+             t.common_name_zh as "commonNameZh",
+             t.common_name_en as "commonNameEn"
         from taxa t
         join species_report_stats s on s.taxon_id = t.id
        where t.id = ${id}`,

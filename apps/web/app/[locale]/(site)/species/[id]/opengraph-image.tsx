@@ -15,6 +15,7 @@ const BADGE = `data:image/png;base64,${(
 ).toString("base64")}`;
 
 import { getSpecies, parseSpeciesId } from "@/lib/species";
+import { speciesNames } from "@/lib/speciesNames";
 import { subsetFont } from "@/lib/ogFont";
 
 /**
@@ -37,12 +38,16 @@ export const alt = "Species record";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-const BARK_950 = "#0b1410";
-const PARCHMENT_50 = "#f6efe0";
-const PARCHMENT_200 = "#d8cbb0";
-const PARCHMENT_400 = "#9d9179";
-const EMBER = "#cf7238";
-const ROSE = "#fb7185";
+// The team's palette: forest ground, ivory type, the report orange as the one
+// accent. Measured on #183D32: ivory 10.98:1, the pale green 7.4:1, the muted
+// green 4.9:1, and the orange 3.3:1, which is why the orange is only ever set
+// at 34px and above, where 3:1 is the bar.
+const FOREST_900 = "#183D32";
+const IVORY = "#F7F5ED";
+const PALE = "#CFE0D3";
+const MUTED = "#A3BDAE";
+const ORANGE = "#D96B3B";
+const ROSE = "#F4A3AE";
 
 export default async function Image({
   params,
@@ -60,12 +65,17 @@ export default async function Image({
   const count = s && !withheld ? s.reportCount : null;
 
   const zh = locale.startsWith("zh");
-  const zhName = s?.commonNameZh ?? null;
+  // Both names, the page's language first (lib/speciesNames.ts).
+  const names = s ? speciesNames(s, locale) : null;
+  // TaiCOL's endemic flag on a subspecies means an endemic SUBSPECIES:
+  // 白頭翁's Taiwan form is endemic, the bird is not.
+  const subspecific = s?.rank !== undefined && s?.rank !== null && s.rank !== "Species";
 
   // What the card would say with a Chinese font available.
   const wanted = {
-    headline: zh && zhName ? zhName : binomial,
-    secondary: zh && zhName ? binomial : zhName,
+    headline: names ? names.primary.text : binomial,
+    other: names?.other?.text ?? null,
+    scientific: names?.scientific?.text ?? null,
     countLabel:
       count !== null
         ? zh
@@ -73,10 +83,12 @@ export default async function Image({
           : `${count.toLocaleString("en-US")} records`
         : null,
     protectedLabel: zh ? "保育類" : "Protected",
-    endemicLabel: zh ? "台灣特有種" : "Endemic to Taiwan",
+    endemicLabel: subspecific
+      ? zh ? "臺灣特有亞種" : "Endemic subspecies"
+      : zh ? "臺灣特有種" : "Endemic to Taiwan",
     footer: zh
-      ? "台灣路殺與野生動物紀錄 · 開放資料"
-      : "Roadkill and wildlife records from Taiwan · open data",
+      ? "臺灣路殺與野生動物紀錄"
+      : "Roadkill and wildlife records from Taiwan",
   };
 
   // One subset covering every character actually printed, Latin included — a
@@ -84,7 +96,8 @@ export default async function Image({
   const font = await subsetFont(
     [
       wanted.headline,
-      wanted.secondary ?? "",
+      wanted.other ?? "",
+      wanted.scientific ?? "",
       wanted.countLabel ?? "",
       wanted.protectedLabel,
       wanted.endemicLabel,
@@ -98,12 +111,13 @@ export default async function Image({
     ? wanted
     : {
         headline: binomial,
-        secondary: null,
+        other: null,
+        scientific: null,
         countLabel:
           count !== null ? `${count.toLocaleString("en-US")} records` : null,
         protectedLabel: "Protected",
-        endemicLabel: "Endemic to Taiwan",
-        footer: "Roadkill and wildlife records from Taiwan · open data",
+        endemicLabel: subspecific ? "Endemic subspecies" : "Endemic to Taiwan",
+        footer: "Roadkill and wildlife records from Taiwan",
       };
 
   return new ImageResponse(
@@ -114,7 +128,7 @@ export default async function Image({
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
-        background: BARK_950,
+        background: FOREST_900,
         padding: "68px 80px",
       }}
     >
@@ -124,7 +138,7 @@ export default async function Image({
           style={{
             fontSize: 25,
             letterSpacing: "0.26em",
-            color: PARCHMENT_400,
+            color: MUTED,
           }}
         >
           PROJECT FORMOSAWATCH
@@ -138,21 +152,17 @@ export default async function Image({
             // Italic is a Latin convention for a binomial and wrong for Hanzi.
             fontStyle: card.headline === binomial ? "italic" : "normal",
             lineHeight: 1.12,
-            color: PARCHMENT_50,
+            color: IVORY,
           }}
         >
           {card.headline}
         </div>
-        {card.secondary && (
-          <div
-            style={{
-              fontSize: 34,
-              fontStyle: card.secondary === binomial ? "italic" : "normal",
-              marginTop: 10,
-              color: PARCHMENT_200,
-            }}
-          >
-            {card.secondary}
+        {(card.other || card.scientific) && (
+          // Two children, so it declares display (satori's rule), and each
+          // name is its own node so only the binomial is italic.
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 18, marginTop: 10, fontSize: 34, color: PALE }}>
+            {card.other && <div style={{ fontStyle: "normal" }}>{card.other}</div>}
+            {card.scientific && <div style={{ fontStyle: "italic" }}>{card.scientific}</div>}
           </div>
         )}
 
@@ -168,7 +178,7 @@ export default async function Image({
             // One text node, not two. Satori refuses any div with more than
             // one child unless it declares display, and `{n} records` is an
             // interpolation plus a literal — which is two.
-            <div style={{ fontSize: 34, color: EMBER }}>{card.countLabel}</div>
+            <div style={{ fontSize: 34, color: ORANGE }}>{card.countLabel}</div>
           )}
           {s?.protectedStatus && (
             <div
@@ -189,8 +199,8 @@ export default async function Image({
               style={{
                 display: "flex",
                 fontSize: 22,
-                color: PARCHMENT_200,
-                border: `1px solid ${PARCHMENT_400}`,
+                color: PALE,
+                border: `1px solid ${MUTED}`,
                 borderRadius: 999,
                 padding: "6px 18px",
               }}
@@ -201,7 +211,7 @@ export default async function Image({
         </div>
       </div>
 
-      <div style={{ fontSize: 22, color: PARCHMENT_400 }}>{card.footer}</div>
+      <div style={{ fontSize: 22, color: MUTED }}>{card.footer}</div>
     </div>,
     font ? { ...size, fonts: [font] } : size,
   );
