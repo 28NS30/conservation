@@ -357,12 +357,19 @@ describe("the migration only tightens", () => {
     assert.equal(row.n, 0);
   });
 
-  test("replaying the one-time re-derive over every record: nothing goes down", async () => {
-    // Before 0014, every record sat at what the old rule gave it. Put them all
-    // back there, snapshot, run the migration's own re-derive, snapshot again.
-    // Two fixture records make it non-vacuous on any database, including CI's:
-    // one the new rules tighten, and one already stricter than any rule, which
-    // a re-derive without the guard would loosen.
+  test("replaying the one-time re-derive: nothing goes down", async () => {
+    // Before 0014, every record sat at what the old rule gave it. The first
+    // test above shows, read-only and for every record, that the new rules are
+    // never looser than that; what is left to show is that the re-derive
+    // itself never lowers a record, including one that is stricter than every
+    // rule. So two fixture records are put back at the old rule — one the new
+    // rules tighten, and one a person held at 50 km, which a re-derive without
+    // the guard would loosen — and the migration's own call runs over the
+    // whole table, with every record's precision compared before and after.
+    //
+    // Only the fixtures are rewritten. Rewriting every record put a row lock
+    // on all 46k of them for as long as the test ran, which stalled every
+    // other test and person updating a report on the shared database.
     await inRollback(async (tx) => {
       const sp = await taxon(tx, { sensitivity: "輕度" });
       const ssp = await taxon(tx, { rank: "Subspecies", parent: sp.taicol_id });
@@ -374,7 +381,8 @@ describe("the migration only tightens", () => {
         update reports r
            set location_precision = ${tx.unsafe(OLD_RULE)}
           from reports r2 left join taxa t on t.id = r2.taxon_id
-         where r2.id = r.id`;
+         where r2.id = r.id
+           and r.id in (${tightens.id}, ${kept.id})`;
       // Stricter than every rule that applies to it: a person's decision.
       await tx`update reports set location_precision = 'coarse_50km' where id = ${kept.id}`;
 
