@@ -26,13 +26,17 @@ Two ways, both from outside the repo:
 
 ## Schema
 
-**Migrations 0001–0013 are applied.** `/api/health` returns
+**Migrations 0001–0015 and 0021 are applied** (0016–0020 are numbers reserved
+for open pull requests; see "Changed on 28 September 2026, evening"). `/api/health` returns
 `"schemaCurrent": true`, and that is a *data* assertion rather than a shape
 check — `lib/schemaStatus.ts` verifies the rules the migrations were written to
 establish, not merely that the columns exist.
 
-**The `_migrations` ledger holds 13 rows.** It is baselined. `npm run db:migrate`
-is the whole procedure for 0014 onward; it does not need `--baseline` again.
+**The `_migrations` ledger holds 16 rows.** It is baselined. Production
+`DATABASE_URL` is not obtainable from here, so migrations since 0014 were
+applied through the Management API's query endpoint, each as one transaction
+ending in its own ledger row, after a dry run that aborts itself and reports
+what the file would change (the "only tightens" proof for every blur change).
 
 > `docs/plan-finish.md:345` still says migrations 0009 and 0010 are missing and
 > that "the live site rejects every submission", and prints a `--baseline`
@@ -172,6 +176,39 @@ yet either way.
 **The team's design is live** (#75): forest-green header with the report and
 language blocks, the rotating photo hero, photograph rows. The team's text
 changes are live (#74).
+
+## Changed on 28 September 2026, evening
+
+Each applied through the Management API and verified from outside.
+
+**0014 (#77), stricter wins.** A record's blur is the strictest of its own
+taxon, every row up to its species, a table of local floors the TaiCOL import
+never touches (53 rows), and its override. Dry run and apply: 0 records
+changed (the 30 above were already stamped), 0 loosened. The floors table is
+closed to `anon`, `authenticated` and `web_anon`.
+
+**0015 (#79), English names.** Four columns on `taxa`, then 2,515 names loaded
+from `scripts/english-names.json` and the overrides file, keyed by TaiCOL id
+(all 2,515 matched). No blur changed; the columns do not fire the re-blur
+trigger.
+
+**0021 (#81), the Red List.** Species Taiwan's Red List rates NCR, NEN, NVU or
+RE get at least 10 km, read from the species above a subspecies too.
+102 records went from exact to 10 km (長腳赤蛙 46, 粉紅鸚嘴 29, 緬甸蟒 12, 小雲雀
+9 and four more), 0 loosened, no other record moved. Map tiles are CDN-cached
+for up to a day with no version in the URL; the deploy that followed started a
+fresh cache, which is what made the change visible on the map.
+
+**Now live in the code:** sign-in with a 6-digit code as well as the link,
+return to the page you were on, a header sign-in link, session refresh (#78);
+the copy fixes across every page (#80); the season goal unlisted until a person
+files a report (#83); the GBIF importer skipping our own reports coming back
+through TaiRON (#84); a stable order on the records list and one species count
+everywhere (#85).
+
+**Pending at the time of writing:** 0022 moves 72 records onto the names that
+apply in Taiwan (石虎, 臺灣蛇蜥, a crab and a vole), tightening only; it is
+applied when #88 merges.
 
 ## Known outstanding, on the credential holder
 
