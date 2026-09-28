@@ -58,7 +58,12 @@ export default async function Image({
     name: zh ? site("title") : "PROJECT FORMOSAWATCH",
     latin: zh ? "PROJECT FORMOSAWATCH" : null,
     eyebrow: zh ? site("tagline") : "TAIWAN · CITIZEN SCIENCE",
-    headline: t("headline"),
+    // `home.headline` was deleted in d0f49ca and this line was not, so every
+    // shared link's card read the literal text "home.headline". next-intl
+    // returns the key path for a missing message instead of throwing — the
+    // failure is silent in the build and visible to everyone who shares a link.
+    // test/og-keys.test.mjs now checks every key a card reads.
+    headline: t("tagline"),
     sub: site("description"),
   };
 
