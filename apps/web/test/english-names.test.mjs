@@ -554,6 +554,12 @@ describe("the import", () => {
     });
   });
 
+  // Each of the next two tests blanks the English columns first. On a database
+  // the import has already been run against, applyEnglishNames finds nothing
+  // to change and updates no row, so no trigger fires and no digest moves
+  // whatever its SET list says: both tests passed with sensitivity = null
+  // written into it. Blanking makes it write every named row, as it does on
+  // a fresh database.
   test("sets the four English columns and names no other, so no rating trigger fires", async () => {
     // taxa_reblur_reports (0012) fires on UPDATE OF sensitivity or
     // protected_status (other branches add columns to that list), and fires
@@ -569,6 +575,7 @@ describe("the import", () => {
          where table_schema = 'public' and table_name = 'taxa'
            and column_name not in ${tx(ENGLISH_COLUMNS)}
          order by ordinal_position`;
+      await blankEnglishNames(tx);
       await tx.unsafe(`
         create function english_names_sentinel() returns trigger language plpgsql as $$
         begin
@@ -577,7 +584,8 @@ describe("the import", () => {
       await tx.unsafe(`
         create trigger english_names_sentinel before update of ${cols.map((c) => `"${c.column_name}"`).join(", ")}
           on taxa for each row execute function english_names_sentinel()`);
-      await applyEnglishNames(tx, final);
+      const r = await applyEnglishNames(tx, final);
+      assert.ok(r.changed > 0, "no row was written, so this proves nothing");
     });
   });
 
@@ -585,10 +593,11 @@ describe("the import", () => {
     // The values, as a second line: every other column of every row is the
     // same afterwards, ratings included, and so is every report's blur.
     await inRollback(async (tx) => {
+      await blankEnglishNames(tx);
       const taxaBefore = await taxaDigest(tx);
       const reportsBefore = await reportsDigest(tx);
       const r = await applyEnglishNames(tx, final);
-      assert.ok(r.changed > 0 || (await countNamed(tx)) > 0, "nothing was named, so this proves nothing");
+      assert.ok(r.changed > 0, "no row was written, so this proves nothing");
       assert.equal(await taxaDigest(tx), taxaBefore, "a column other than the English ones changed");
       assert.equal(await reportsDigest(tx), reportsBefore, "a report moved");
     });
@@ -630,6 +639,16 @@ async function taxaDigest(tx) {
     select md5(coalesce(string_agg(md5((to_jsonb(t) - ${ENGLISH_COLUMNS}::text[])::text), '' order by t.id), '')) as d
       from taxa t`;
   return d;
+}
+
+/** Every English column empty, as before the first import. Names no other column. */
+async function blankEnglishNames(tx) {
+  await tx`
+    update taxa
+       set common_name_en = null, alt_names_en = null,
+           common_name_en_source = null, common_name_en_inherited = false
+     where common_name_en is not null or alt_names_en is not null
+        or common_name_en_source is not null or common_name_en_inherited`;
 }
 
 async function countNamed(tx) {
