@@ -6,10 +6,10 @@ import { forumViewer, requireForum } from "@/lib/forum/server";
 import { categoryBySlug, listThreads, ownUnpublishedThreads, type ThreadRow } from "@/lib/forum/queries";
 import { queueCounts } from "@/lib/forum/moderation";
 import { THREADS_PER_PAGE } from "@/lib/forum/policy";
-import { displayHandle } from "@/lib/forum/nickname";
 import { pageWindow } from "@/lib/paging";
 import ForumHeading from "@/components/forum/ForumHeading";
 import MemberStatus from "@/components/forum/MemberStatus";
+import { StartedBy } from "@/components/forum/Nickname";
 import { ThreadComposer } from "@/components/forum/Composer";
 import ForumPager from "@/components/forum/ForumPager";
 import { badge, btnPrimary } from "@/components/forum/styles";
@@ -63,8 +63,9 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const mayStart = viewer.canPost && (!category.moderators_only_post || viewer.isModerator);
 
   const row = (th: ThreadRow) => (
-    <li key={th.id} className="border-b border-ink-900/10">
-      <Link href={`/community/t/${th.id}`} className="group block px-1 py-4 transition hover:bg-white/70">
+    // The title and the author are two links, side by side rather than one
+    // inside the other: a link cannot hold a link.
+    <li key={th.id} className="border-b border-ink-900/10 px-1 py-3">
         {(th.pinned_at || th.locked || th.status !== "visible") && (
           <span className="mb-1.5 flex flex-wrap gap-2">
             {th.status !== "visible" && (
@@ -76,17 +77,19 @@ export default async function CategoryPage({ params, searchParams }: Props) {
             {th.locked && <span className={`${badge} border border-ink-900/25 text-ink-700`}>{t("locked")}</span>}
           </span>
         )}
-        <span className="block text-[18px] font-semibold leading-snug text-forest-900 [overflow-wrap:anywhere] group-hover:underline">
+        <Link
+          href={`/community/t/${th.id}`}
+          className="block py-2.5 text-[18px] font-semibold leading-snug text-forest-900 [overflow-wrap:anywhere] hover:underline"
+        >
           {th.title}
-        </span>
-        <span className="mt-1 block text-[14px] text-ink-600">
-          {t("startedBy", { name: displayHandle(th.author_handle, locale) ?? t("deletedMember") })}
+        </Link>
+        <span className="block text-[14px] text-ink-600">
+          <StartedBy handle={th.author_handle} locale={locale} />
           {" · "}
           {t("replyCount", { count: th.reply_count })}
           {" · "}
           {t("lastActivity", { date: format.dateTime(th.last_activity_at, { dateStyle: "medium", timeStyle: "short" }) })}
         </span>
-      </Link>
     </li>
   );
 

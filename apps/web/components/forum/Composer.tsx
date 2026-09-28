@@ -17,11 +17,11 @@ async function Reminder() {
   return (
     <p className="mb-4 border-l-4 border-ember-500 bg-paper-100 px-4 py-3 text-[15px] leading-relaxed text-ink-800">
       {t("reminder")}{" "}
-      <Link href="/community/guidelines" className={link}>
+      <Link href="/community/guidelines" className={`${link} inline-flex min-h-11 items-center`}>
         {t("reminderLink")}
       </Link>
       {" · "}
-      <Link href="/report" className={link}>
+      <Link href="/report" className={`${link} inline-flex min-h-11 items-center`}>
         {t("fileReport")}
       </Link>
     </p>

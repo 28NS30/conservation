@@ -6,11 +6,10 @@ import { forumViewer, requireForum } from "@/lib/forum/server";
 import { listCategories, postsForViewer, threadForViewer, type PostRow } from "@/lib/forum/queries";
 import { POSTS_PER_PAGE } from "@/lib/forum/policy";
 import { LOCATION_REASONS } from "@/lib/forum/screen";
-import { displayHandle } from "@/lib/forum/nickname";
 import { forumSignInHref } from "@/lib/forum/signIn";
 import { pageWindow } from "@/lib/paging";
 import ForumHeading from "@/components/forum/ForumHeading";
-import Nickname from "@/components/forum/Nickname";
+import Nickname, { StartedBy } from "@/components/forum/Nickname";
 import ForumPager from "@/components/forum/ForumPager";
 import { ReplyComposer } from "@/components/forum/Composer";
 import { DeleteOwnForm, FlagForm } from "@/components/forum/PostActions";
@@ -122,7 +121,9 @@ export default async function ThreadPage({ params, searchParams }: Props) {
         zh={zh}
       >
         <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[14px] text-ink-600">
-          <span>{t("startedBy", { name: displayHandle(thread.author_handle, locale) ?? t("deletedMember") })}</span>
+          <span>
+            <StartedBy handle={thread.author_handle} locale={locale} />
+          </span>
           <span aria-hidden>·</span>
           <span>{when(thread.created_at)}</span>
           {thread.pinned_at && <span className={`${badge} bg-forest-900 text-paper-50`}>{t("pinned")}</span>}

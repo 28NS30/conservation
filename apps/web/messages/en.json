@@ -619,7 +619,7 @@
     "postReply": "Post reply",
     "pinned": "Pinned",
     "locked": "Locked",
-    "startedBy": "Started by {name}",
+    "startedBy": "Started by <link>{name}</link>",
     "deletedMember": "Deleted member",
     "moderatorBadge": "Moderator",
     "editedByModerator": "Edited by a moderator",

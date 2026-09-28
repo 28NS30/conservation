@@ -619,7 +619,7 @@
     "postReply": "送出回覆",
     "pinned": "置頂",
     "locked": "已鎖定",
-    "startedBy": "{name} 發起",
+    "startedBy": "<link>{name}</link> 發起",
     "deletedMember": "已刪除的成員",
     "moderatorBadge": "版主",
     "editedByModerator": "版主編輯過這則留言",

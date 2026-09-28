@@ -128,8 +128,17 @@ async function whenOff() {
     check(`${method} ${path} is a 404, even with the cron secret`, res.status === 404, `got ${res.status}`);
   }
 
+  // As many as the two action files export: an action the build does not list
+  // would be one this loop never tries.
+  const exported = ["actions.ts", join("moderation", "actions.ts")]
+    .map((f) => readFileSync(join(WEB, "app", "[locale]", "(site)", "community", f), "utf8"))
+    .reduce((n, src) => n + [...src.matchAll(/^export async function /gm)].length, 0);
   const actions = forumActions();
-  check("the build has the forum's server actions to try", actions.length >= 20, `${actions.length} found`);
+  check(
+    "the build lists every forum server action",
+    actions.length === exported && exported > 0,
+    `${actions.length} in the manifest, ${exported} exported`,
+  );
   for (const a of actions) {
     const status = await callAction(a);
     check(`server action ${a.name} (posted to ${a.path.replace(/[0-9a-f-]{36}/, "…")}) answers 404`, status === 404, `got ${status}`);
