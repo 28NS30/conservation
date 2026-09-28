@@ -30,10 +30,26 @@
 export const AUTO_ASSIGN_BANDS: ReadonlySet<string> = new Set(["high"]);
 
 /**
- * Categories whose label list is the whole Taiwan checklist, or the whole of
- * it minus animals that cannot be on a road. A confident answer from an open
- * list is evidence; a confident answer from a closed one is only the least bad
- * fit inside the closure.
+ * Categories whose answer may become the record's species.
+ *
+ * The condition is the label list the model is scored against, not the page:
+ * each of these lists holds every protected animal. `sighting` and `injured`
+ * are scored against the whole Taiwan checklist, `roadkill` against it minus
+ * the fish and other marine-only taxa that cannot be on a road, with the
+ * protected ones kept however marine they are (apps/ml/labelsets.py). A
+ * confident answer from a list that holds the right animal is evidence; from a
+ * list that leaves it out, it is only the least bad fit inside the closure, and
+ * a protected animal taken for an unprotected one is published at the wrong
+ * one's blur — to the metre, often. test/classify-policy.test.mjs reads
+ * labelsets.py to hold every category here to that.
+ *
+ * `injured` is not narrowed the way `roadkill` is, though both are filed from
+ * the same choice. An injured animal is not only found on a road: a stranded
+ * dolphin or sea turtle is exactly what 受傷野生動物 receives, and the roadkill
+ * list dropped all 37 marine mammals (36 of them protected) and all 5 sea
+ * turtles (all protected). Scored against that list, as was once proposed, a stranded 綠蠵龜
+ * could only be named as the nearest land or freshwater animal, and in the
+ * high band it would be published under that animal's name and blur.
  */
 export const AUTO_ASSIGN_CATEGORIES: ReadonlySet<string> = new Set([
   "roadkill",
@@ -64,19 +80,4 @@ export function classifierAction(input: {
   if (!input.hasPrediction) return "suggest";
   if (!AUTO_ASSIGN_CATEGORIES.has(input.category)) return "suggest";
   return AUTO_ASSIGN_BANDS.has(input.band) ? "assign" : "suggest";
-}
-
-/**
- * The category the model is asked to score against, which chooses its label
- * list (apps/ml/labelsets.py).
- *
- * An injured animal is filed from the same "roadkill or injured" choice as a
- * dead one and is found in the same places, but labelsets.py only narrowed
- * `roadkill` — so an injured animal was scored against the full checklist,
- * reef fish and all. Mapped here as well as there because a change to the
- * Python only takes effect when the Modal app is redeployed, and this one
- * takes effect with the website.
- */
-export function labelSetFor(category: string): string {
-  return category === "injured" ? "roadkill" : category;
 }

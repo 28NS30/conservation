@@ -21,7 +21,6 @@ import { join } from "node:path";
 import { sql, inRollback, insertReport } from "./helpers.mjs";
 import {
   classifierAction,
-  labelSetFor,
   AUTO_ASSIGN_CATEGORIES,
 } from "../lib/report/classifyPolicy.ts";
 
@@ -119,14 +118,46 @@ describe("the other pages are unchanged", () => {
   });
 });
 
-describe("an injured animal is scored like a dead one", () => {
-  test("the website asks for the roadkill label list", () => {
-    assert.equal(labelSetFor("injured"), "roadkill");
-    for (const c of ["roadkill", "invasive", "sighting"]) assert.equal(labelSetFor(c), c);
+describe("a species the model may name comes from a list that holds every protected animal", () => {
+  // A softmax over a list without the right answer puts its weight on the
+  // nearest wrong one. Scored against the roadkill list, which dropped every
+  // marine-only taxon, a stranded 綠蠵龜 filed as injured could only be named
+  // as some land or freshwater animal, and in the high band it would be
+  // published under that animal's blur. CI has no model, so the Python that
+  // chooses the list is read as source.
+  const py = code(LABELSETS);
+  const forCategory = py.slice(py.indexOf("def for_category"));
+  /** Each `if category ...:` branch, with the categories it names. */
+  const branches = forCategory
+    .split(/\n\s*if category /)
+    .slice(1)
+    .map((b) => ({
+      names: [...b.slice(0, b.indexOf(":")).matchAll(/"([a-z]+)"/g)].map((m) => m[1]),
+      body: b,
+    }));
+
+  test("the model service narrows some categories, so this is not vacuous", () => {
+    assert.deepEqual(branches.flatMap((b) => b.names).sort(), ["invasive", "roadkill"]);
   });
 
-  test("and so does the model service, for anything calling it directly", () => {
-    assert.match(code(LABELSETS), /if category in \("roadkill", "injured"\):/);
+  test("a narrowed category that may name a species keeps every protected taxon", () => {
+    for (const { names, body } of branches) {
+      if (!names.some((c) => AUTO_ASSIGN_CATEGORIES.has(c))) continue;
+      assert.match(
+        body,
+        /keep = [^\n]*\| self\._protected/,
+        `${names.join("/")} may be named by the model, but its list can drop a protected animal`,
+      );
+    }
+  });
+
+  test("an injured animal is scored against the whole checklist", () => {
+    // In no branch, so it falls through to every Taiwan taxon.
+    assert.ok(!branches.some((b) => b.names.includes("injured")));
+  });
+
+  test("and the website sends the page's own category, not a narrower one", () => {
+    assert.match(code(ROUTE), /callModel\(bytes\.toString\("base64"\), job\.category\)/);
   });
 });
 
@@ -138,10 +169,6 @@ describe("the route decides through the policy, not beside it", () => {
     assert.match(route, /if \(action === "assign"\)/);
     // The old inline test, which knew nothing of the category.
     assert.doesNotMatch(route, /AUTO_ASSIGN_BANDS\.has\(result\.band\) && !humanIdentified/);
-  });
-
-  test("it sends the label set, not the raw category, to the model", () => {
-    assert.match(route, /callModel\(\s*bytes\.toString\("base64"\),\s*labelSetFor\(job\.category\),?\s*\)/);
   });
 
   test("a species it names carries the binomial's strictest blur", () => {

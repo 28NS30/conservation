@@ -34,6 +34,7 @@ class LabelSets:
         self._invasive = self._mask(meta.get("invasive", []))
         self._marine = self._mask(meta.get("marine", []))
         self._terrestrial = self._mask(meta.get("terrestrial", []))
+        self._protected = self._mask(meta.get("protected", []))
 
     def _mask(self, indices: list[int]) -> np.ndarray:
         m = np.zeros(self.n, dtype=bool)
@@ -47,18 +48,25 @@ class LabelSets:
             # Only fall back to everything if the checklist has no invasives loaded.
             return self._invasive if self._invasive.any() else None
 
-        if category in ("roadkill", "injured"):
+        if category == "roadkill":
             # Roadkill is by definition terrestrial. Excluding marine-only taxa
             # removes ~20k fish that a road casualty can never be. Taxa with no
             # habitat flags are kept — absent data must not silently drop a species.
             #
-            # `injured` is filed from the same "roadkill or injured" choice and
-            # is found in the same places; it used to fall through to the whole
-            # checklist, reef fish included. The website already sends
-            # `roadkill` for it (labelSetFor in apps/web/lib/report/
-            # classifyPolicy.ts), so this matters to anything calling the model
-            # directly — evaluate.py, or an older deploy of the site.
-            keep = ~(self._marine & ~self._terrestrial)
+            # Protected taxa are kept whatever their habitat. A category whose
+            # answer can become the record's species (AUTO_ASSIGN_CATEGORIES in
+            # apps/web/lib/report/classifyPolicy.ts) must be scored against a
+            # list that still holds every protected animal: a softmax over a
+            # list without the right answer puts its weight on the nearest
+            # wrong one, and the record is published under that one's blur. The
+            # habitat mask alone dropped all 37 marine mammals (36 protected)
+            # and all 5 sea turtles, and a sea turtle does cross a coastal road.
+            #
+            # `injured` is deliberately NOT narrowed here and falls through to
+            # the whole checklist. It is filed from the same "roadkill or
+            # injured" choice, but a stranded dolphin or turtle is exactly what
+            # an injured-wildlife report is for.
+            keep = ~(self._marine & ~self._terrestrial) | self._protected
             return keep if keep.any() else None
 
         return None

@@ -2,11 +2,7 @@ import { sql } from "@/lib/db";
 import { downloadPhoto } from "@/lib/supabase/service";
 import { UNIDENTIFIED_PRECISION } from "@conservation/shared";
 import { photoIdentificationOverride } from "@/lib/report/precision";
-import {
-  AUTO_ASSIGN_BANDS,
-  classifierAction,
-  labelSetFor,
-} from "@/lib/report/classifyPolicy";
+import { AUTO_ASSIGN_BANDS, classifierAction } from "@/lib/report/classifyPolicy";
 
 /**
  * Classification worker, driven by Vercel Cron (see apps/web/vercel.json).
@@ -211,10 +207,11 @@ async function run(req: Request) {
       const bytes = await downloadPhoto(job.storage_path);
       if (!bytes) throw new Error("could not read photo from storage");
 
-      const result = await callModel(
-        bytes.toString("base64"),
-        labelSetFor(job.category),
-      );
+      // The page's own category chooses the label list (apps/ml/labelsets.py).
+      // Not remapped here: an injured animal is scored against the whole
+      // checklist, because a list without the stranded sea turtle cannot name
+      // it and would name something else (lib/report/classifyPolicy.ts).
+      const result = await callModel(bytes.toString("base64"), job.category);
       const best = result.predictions[0];
 
       // A person already said what this is — the reporter at submission, or a
