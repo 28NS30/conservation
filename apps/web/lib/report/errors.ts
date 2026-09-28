@@ -45,6 +45,7 @@ export type ErrorKey =
   | "photo"
   | "photoUnreadable"
   | "taxon_not_found"
+  | "taxon_not_accepted"
   | "validation_failed"
   | "server";
 
@@ -78,6 +79,10 @@ export function errorKey(code: string | null | undefined): ErrorKey {
   if (code === "rate_limited") return "rate_limited";
   if (code === "challenge_failed") return "challenge_failed";
   if (code === "taxon_not_found") return "taxon_not_found";
+  // A name TaiCOL has retired, or one not recorded in Taiwan. Most likely a
+  // report saved offline before the picker stopped offering such names, so
+  // the sentence says what to do about it rather than that it was wrong.
+  if (code === "taxon_not_accepted") return "taxon_not_accepted";
   if (code === "validation_failed") return "validation_failed";
   if (
     code === PHOTO_UPLOAD_FAILED ||
@@ -98,7 +103,7 @@ export function errorKey(code: string | null | undefined): ErrorKey {
  */
 export function slotOf(key: ErrorKey): ErrorSlot {
   if (key === "photo" || key === "photoUnreadable") return "photo";
-  if (key === "taxon_not_found") return "species";
+  if (key === "taxon_not_found" || key === "taxon_not_accepted") return "species";
   return "form";
 }
 

@@ -91,10 +91,22 @@ export async function POST(req: Request) {
 
   // A named species must exist. The foreign key would catch it, but as a 500
   // rather than as an answer, and the client can do nothing with a 500.
+  //
+  // And it must be one the picker could have offered: a name TaiCOL still
+  // accepts, for an animal recorded in Taiwan. The picker only offers those
+  // (speciesWhere in lib/species.ts), but the id arrives from the client, and
+  // a report saved offline before the picker changed, or a hand-built request,
+  // can still carry a retired name. Retired names are where TaiCOL's duplicates
+  // live, and a duplicate need not carry its twin's rating — the deleted
+  // 'Dopasia formosensis' row was unrated beside the one the law protects —
+  // so this is a privacy check as well as a tidy one.
   if (input.taxonId) {
-    const [taxon] = await sql<{ id: number }[]>`
-      select id from taxa where id = ${input.taxonId}`;
+    const [taxon] = await sql<{ offered: boolean }[]>`
+      select (taxon_status is not distinct from 'accepted' and is_in_taiwan) as offered
+        from taxa where id = ${input.taxonId}`;
     if (!taxon) return Response.json({ error: "taxon_not_found" }, { status: 400 });
+    if (!taxon.offered)
+      return Response.json({ error: "taxon_not_accepted" }, { status: 400 });
   }
 
   // Who says so. 'user' is the reporter's own word, which is the same claim as

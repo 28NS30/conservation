@@ -139,6 +139,15 @@ export async function getSpecies(id: number): Promise<SpeciesDetail | null> {
  * such bug is invisible until someone reaches the boundary.
  *
  * Both callers join `species_report_stats` as `s` and `taxa` as `t`.
+ *
+ * Accepted names only. TaiCOL keeps a name it has retired as a row marked
+ * `deleted`, often beside the accepted row for the same animal, and this used
+ * to offer both: 多線南蜥 Mabuya multifasciata sat in the invasive list next to
+ * 多線真稜蜥 Eutropis multifasciata, which is what TaiCOL retired it in favour
+ * of, and a reporter could file under either. 1,897 such rows are marked in
+ * Taiwan. Records already filed under one keep displaying — a record page
+ * reads its taxon by id through getSpecies(), which has no such filter — but
+ * nobody is offered one to choose. `POST /api/reports` refuses one as well.
  */
 function speciesWhere(
   tx: postgres.TransactionSql,
@@ -147,6 +156,7 @@ function speciesWhere(
 ) {
   return tx`
          t.is_in_taiwan
+     and t.taxon_status = 'accepted'
      and t.rank in ('Species','Subspecies')
      and (${filter}::text <> 'recorded'  or s.report_count is not null)
      and (${filter}::text <> 'invasive'  or t.is_invasive)

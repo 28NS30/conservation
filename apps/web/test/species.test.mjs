@@ -95,11 +95,14 @@ describe("directory paging", () => {
      * page — the property under test is that walking the pager visits every
      * matching taxon exactly once, whatever the number happens to be.
      */
+    // The directory's own predicate (speciesWhere in lib/species.ts),
+    // including its accepted-names-only rule.
     const [{ n }] = await sql`
       select count(*)::int as n
         from taxa t
         left join species_report_stats s on s.taxon_id = t.id
        where t.is_in_taiwan
+         and t.taxon_status = 'accepted'
          and t.rank in ('Species','Subspecies')
          and s.report_count is not null`;
 
