@@ -3,8 +3,9 @@ import assert from "node:assert/strict";
 import { sql, BASE_URL } from "./helpers.mjs";
 
 /**
- * The front page, as the owner asked for it in September 2026: a much larger
- * badge with only a little text beside it, and no picture of the record count.
+ * The front page, in the team's design (September 2026): a split hero with
+ * rotating photographs of Taiwan's animals, then photograph rows for the three
+ * report types and for exploring the records.
  */
 after(() => sql.end());
 
@@ -23,19 +24,22 @@ const MAP_PLACES = [
 ];
 
 describe("the front page", () => {
-  test("opens with the name and one line, then the three doors", async () => {
+  test("opens with the headline, and offers the three report types", async () => {
     const { status, html } = await page("/");
     assert.equal(status, 200);
-    assert.match(html, /福爾摩沙/);
-    assert.match(html, /臺灣的公開野生動物紀錄，任何人都能補上一筆。/);
-    assert.equal(html.match(/href="\/report\?category=/g)?.length, 3);
-    // The badge is the largest thing above the fold. Next marks a priority
-    // image with a preload for the sizes it is actually drawn at, so a phone
-    // fetches a phone-sized badge before the page has laid out.
+    // Both phrases of the headline, each bound so it never breaks inside itself.
+    assert.match(html, /為臺灣的野生動物/);
+    assert.match(html, /留下紀錄/);
+    // Every report type, each carrying its own category: nothing is chosen for
+    // the reporter. (The header menu offers the same three again.)
+    for (const c of ["roadkill", "invasive", "sighting"])
+      assert.match(html, new RegExp(`href="/report\\?category=${c}"`), `no way to report ${c}`);
+    // The first photograph is the largest thing above the fold, so Next marks
+    // it for preload rather than letting it wait for layout.
     assert.match(
       html,
-      /<link rel="preload" as="image"[^>]*brand-badge[^>]*imageSizes="\(min-width: 1024px\) 320px/,
-      "the badge must be preloaded at its drawn sizes",
+      /<link rel="preload" as="image"[^>]*blue-magpie/,
+      "the first hero photograph must be preloaded",
     );
   });
 
@@ -55,8 +59,8 @@ describe("the front page", () => {
   test("in English, the Chinese name is still marked as Chinese", async () => {
     const { status, html } = await page("/en");
     assert.equal(status, 200);
-    assert.match(html, /Taiwan&#x27;s open wildlife record|Taiwan's open wildlife record/);
-    assert.match(html, /<h1[^>]*>.*?lang="zh-TW"/s);
+    assert.match(html, /Taiwan&#x27;s wildlife,|Taiwan's wildlife,/);
+    assert.match(html, /<span lang="zh-TW">福爾摩沙守望計畫<\/span>/);
   });
 
   test("the animals offered are common, named, and not sensitive", async () => {

@@ -26,7 +26,7 @@
      to these greens reads clinical and glares against the night map alongside
      it. 200 is borders and dividers only — text never sits on it, which is why
      it is allowed to fall under 4.5:1 with the quieter inks. */
-  --color-paper-50: #faf7f0;
+  --color-paper-50: #F7F5ED; /* the team's "warm ivory" (design brief, Sep 2026) */
   --color-paper-100: #f3ece0;
   --color-paper-200: #e7dcc9;
 
@@ -34,6 +34,33 @@
      as the mark. Measured against paper-50 and paper-100: 900 is 15.1 and 13.7,
      600 is 6.9 and 6.3, 500 is 5.6 and 5.1 — all clear of WCAG AA. */
   --color-ink-900: #16241c;
+
+  /* ---- the team's palette (design brief, September 2026) ----
+
+     Forest is the navigation bar and headings; leaf is buttons and links. Both
+     were checked against WCAG before use rather than after:
+
+       forest-900 on paper-50   10.98:1   headings
+       paper-50 on forest-900   10.98:1   header text
+       leaf-600 on paper-50      4.53:1   links: passes by a hair, so it cannot
+                                          get any lighter
+       white on leaf-600         4.94:1   button text
+
+     ink-950 is the team's "black" for body text. Not #000: pure black beside
+     these greens reads harsher than the brief's references do. */
+  --color-forest-950: #0F2A22;
+  --color-forest-900: #183D32;
+  --color-forest-800: #21503F;
+  --color-forest-700: #2B6150;
+  --color-leaf-700: #2F6849;
+  --color-leaf-600: #397D58;
+  --color-leaf-500: #4A9169;
+  --color-ink-950: #121412;
+
+  /* Display face for headlines. Latin comes from Barlow Condensed, self-hosted
+     by next/font; Chinese has no condensed equivalent worth its weight, so it
+     falls through to the platform's heaviest CJK sans. */
+  --font-display: var(--font-barlow-condensed), "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
   --color-ink-800: #22362b;
   --color-ink-700: #2f4a3a;
   --color-ink-600: #435b4c;
@@ -82,7 +109,7 @@
      dead. Every other ramp here carries a lighter step; this one was missing it. */
   --color-ember-300: #eda471;
   --color-ember-400: #e08a4f;
-  --color-ember-500: #cf7238;
+  --color-ember-500: #D96B3B; /* the team's "warm orange". A FILL, never text: 3.2:1 on ivory. Dark text on it is 6.1:1; white is 3.4:1 and fails. */
   --color-ember-600: #b25c28;
 
   /* Living things. Deliberately distinct from the ground greens so a "healthy"

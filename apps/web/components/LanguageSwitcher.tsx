@@ -30,8 +30,16 @@ import { routing, LOCALE_LABELS, type Locale } from "@/i18n/routing";
  */
 export default function LanguageSwitcher({
   className = "",
+  size = "sm",
 }: {
   className?: string;
+  /**
+   * "md" is the site header's, where the team asked for a bigger bar. The footer
+   * and the design lab keep "sm" — the lab sets its own type through `t-note`,
+   * and two competing font-size utilities on one element resolve by stylesheet
+   * order, not by which class was written last.
+   */
+  size?: "sm" | "md";
 }) {
   const locale = useLocale() as Locale;
   const pathname = usePathname();
@@ -48,7 +56,7 @@ export default function LanguageSwitcher({
   };
 
   return (
-    <div className={`flex items-center gap-0.5 text-[11px] ${className}`}>
+    <div className={`flex items-center gap-0.5 ${size === "md" ? "text-sm" : "text-[11px]"} ${className}`}>
       {routing.locales.map((l, i) => (
         <span key={l} className="flex items-center gap-0.5">
           {i > 0 && <span className="opacity-40">/</span>}
@@ -62,7 +70,7 @@ export default function LanguageSwitcher({
             // around the text instead — a minimum box rather than padding,
             // because padding would also widen "English", and the phone
             // header's link row has no spare width at 320px.
-            className={`inline-flex min-h-6 min-w-6 items-center justify-center ${
+            className={`inline-flex ${size === "md" ? "min-h-9 md:min-h-10" : "min-h-6"} min-w-6 items-center justify-center ${
               l === locale
                 ? "font-medium"
                 : "opacity-60 transition hover:opacity-100"

@@ -17,7 +17,7 @@ const css = readFileSync(join(WEB, "app/globals.css"), "utf8");
 const defined = new Set(
   [...css.matchAll(/--color-([a-z]+-\d+)\s*:/g)].map((m) => m[1]),
 );
-const FAMILIES = ["paper", "ink", "ember", "moss", "bark", "parchment"];
+const FAMILIES = ["paper", "ink", "ember", "moss", "bark", "parchment", "forest", "leaf"];
 
 function* sources(dir) {
   for (const name of readdirSync(dir)) {

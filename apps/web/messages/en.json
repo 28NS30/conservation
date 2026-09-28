@@ -19,7 +19,8 @@
     "mine": "My reports",
     "contact": "Contact",
     "season": "This season's goal",
-    "team": "Team"
+    "team": "Team",
+    "fileReport": "File a report"
   },
   "categories": {
     "roadkill": "Roadkill",
@@ -341,7 +342,9 @@
     "models": "AI models",
     "modelsBody": "Species identification uses BioCLIP 2 (MIT) for zero-shot classification and MegaDetector (MIT) for cropping. Candidates are restricted to species on the Taiwan checklist. It is not switched on yet; a person identifies unnamed reports.",
     "ourData": "Data produced here",
-    "ourDataBody": "Reports submitted through this site belong to the people who made them. We intend to publish them back to GBIF as a Darwin Core Archive so the records are usable beyond this site."
+    "ourDataBody": "Reports submitted through this site belong to the people who made them. We intend to publish them back to GBIF as a Darwin Core Archive so the records are usable beyond this site.",
+    "photos": "Photographs",
+    "photosBody": "The photographs on the home page are from Wikimedia Commons, all taken in Taiwan. Each is credited where it appears; the photographer and licence are listed here too."
   },
   "about": {
     "title": "About",
@@ -500,7 +503,30 @@
       "taichung": "Taichung",
       "hualien": "Hualien",
       "kenting": "Kenting"
-    }
+    },
+    "heroTitle": "<ph>Taiwan's wildlife,</ph> <ph>on the record</ph>",
+    "heroBody": "Found an animal on the road, spotted an invasive species, or saw something wild? Filing a report takes about a minute and needs no account. Every record goes on an open map that helps protect Taiwan's wildlife.",
+    "heroExplore": "Explore the map",
+    "slideshowLabel": "Photographs of Taiwan's wildlife",
+    "slideshowPause": "Pause the photographs",
+    "slideshowPlay": "Play the photographs",
+    "slideshowGoTo": "Show photograph {n}",
+    "slideshowSlide": "{n} of {total}",
+    "photoBy": "Photo:",
+    "rowRoadkillTitle": "Found an animal on the road?",
+    "rowRoadkillBody": "Dead or injured, it counts. A photo and the place are enough, and you don't need to know the species.",
+    "rowRoadkillCta": "Report roadkill",
+    "rowInvasiveTitle": "Spotted an invasive species?",
+    "rowInvasiveBody": "Green iguanas, apple snails, sacred ibis. Invasive species crowd out Taiwan's native animals, and every report shows where they are spreading.",
+    "rowInvasiveCta": "Report an invasive species",
+    "rowSightingTitle": "Saw something wild?",
+    "rowSightingBody": "Any animal, alive and well: a frog on the trail, a bird outside the window. Sightings show where Taiwan's wildlife still lives.",
+    "rowSightingCta": "Report a sighting",
+    "exploreTitle": "Explore",
+    "exploreHint": "What the records show so far, on a map and species by species.",
+    "mapPrivacy": "Protected and sensitive species are shown only as a blurred area, never an exact spot.",
+    "speciesTitle": "{count, number} species on record",
+    "speciesBody": "Every animal recorded here has its own page: its names, its protection status, and where it has been seen."
   },
   "me": {
     "title": "My reports",
