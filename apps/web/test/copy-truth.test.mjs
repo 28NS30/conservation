@@ -278,6 +278,23 @@ describe("the copy does not contradict itself", () => {
     }
   });
 
+  test("why a record is blurred names the Red List, once the database does", () => {
+    // 0021 blurs the Red List's threatened categories. The pages that list why
+    // a record is blurred must say so, or a reader who checks a Vulnerable
+    // frog's rating and protection finds neither and concludes the map is
+    // hiding things at random.
+    const MIGRATIONS = join(WEB, "..", "..", "supabase", "migrations");
+    const live = readdirSync(MIGRATIONS)
+      .filter((f) => f.endsWith(".sql"))
+      .some((f) => /precision_from_redlist\(cur\.redlist\)/.test(readFileSync(join(MIGRATIONS, f), "utf8")));
+    if (!live) return;
+    for (const key of ["statsPage.coverageBody", "season.obscuredNote", "about.privacyBody", "list.obscuredLegend"]) {
+      const get = (l) => key.split(".").reduce((o, k) => o[k], catalogues[l]);
+      assert.match(get("en"), /threatened/, `en ${key}`);
+      assert.match(get("zh-TW"), /受威脅/, `zh-TW ${key}`);
+    }
+  });
+
   test("the link to the blurring explanation is labelled as that explanation", () => {
     // It said "About the project" and went to the top of /about. It now goes to
     // the section, and carries the section's own heading.
