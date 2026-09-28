@@ -16,6 +16,12 @@ export async function generateMetadata({
  * A factual description of what the system actually does with data, rather than
  * generic boilerplate. Taiwan's 個人資料保護法 applies since we collect location
  * and, optionally, an email address.
+ *
+ * Factual means complete, too. Cloudflare Turnstile runs on every report and
+ * receives the reporter's IP address, and the rate limit keeps a count per IP
+ * address in our own database; neither was mentioned here, on the one page
+ * that says it lists what the site collects. copy-truth.test.mjs fails if the
+ * page stops naming either.
  */
 export default async function PrivacyPage({
   params,
@@ -30,6 +36,7 @@ export default async function PrivacyPage({
     ["collectTitle", "collectBody"],
     ["photosTitle", "photosBody"],
     ["locationTitle", "locationBody"],
+    ["turnstileTitle", "turnstileBody"],
     ["retentionTitle", "retentionBody"],
     ["thirdPartyTitle", "thirdPartyBody"],
     ["analyticsTitle", "analyticsBody"],

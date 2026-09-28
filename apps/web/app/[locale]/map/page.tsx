@@ -1,6 +1,8 @@
+import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { asPublic, sql } from "@/lib/db";
 import { mapFilterSchema } from "@conservation/shared";
+import { recordedSpeciesCount } from "@/lib/stats";
 import HeatmapView from "@/components/map/HeatmapView";
 import SiteHeader from "@/components/site/SiteHeader";
 import SiteFooter from "@/components/site/SiteFooter";
@@ -8,9 +10,23 @@ import SiteFooter from "@/components/site/SiteFooter";
 // Stats are cheap but not worth recomputing per request.
 export const revalidate = 300;
 
+/**
+ * "地圖 · 福爾摩沙守望計畫" in the tab. The busiest page on the site was the
+ * one page with no title of its own: a tab, a bookmark and a shared link all
+ * read as the bare site name, the same as the front page.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "nav" });
+  return { title: t("map") };
+}
+
 type Stats = {
   reports: string;
-  species: string;
   obscured: string;
   earliest: string | null;
   latest: string | null;
@@ -47,7 +63,6 @@ async function namedTaxon(id: number): Promise<NamedTaxon | null> {
 async function getStats(): Promise<Stats> {
   const [row] = await sql<Stats[]>`
     select count(*)::text                                            as reports,
-           count(distinct taxon_id)::text                            as species,
            count(*) filter (where is_obscured)::text                 as obscured,
            to_char(min(observed_at), 'YYYY')                         as earliest,
            to_char(max(observed_at), 'YYYY')                         as latest
@@ -93,7 +108,9 @@ export default async function MapPage({
   const initialFilter = parsedFilter.success ? parsedFilter.data : {};
 
   const t = await getTranslations();
-  const s = await getStats();
+  // The species count is the directory's, like every other page that states
+  // one; see recordedSpeciesCount().
+  const [s, species] = await Promise.all([getStats(), recordedSpeciesCount()]);
   const taxonId = initialFilter.taxonId;
   const initialSpecies = taxonId ? await namedTaxon(taxonId) : null;
   const n = (v: string) => Number(v).toLocaleString(locale);
@@ -107,7 +124,7 @@ export default async function MapPage({
         variant="app"
         stats={{
           reports: n(s.reports),
-          species: n(s.species),
+          species: species.toLocaleString(locale),
           range: s.earliest && s.latest ? `${s.earliest}–${s.latest}` : null,
         }}
       />
@@ -131,10 +148,7 @@ export default async function MapPage({
         />
       </div>
 
-      <SiteFooter
-        variant="app"
-        obscured={Number(s.obscured) > 0 ? n(s.obscured) : undefined}
-      />
+      <SiteFooter variant="app" obscured={Number(s.obscured)} />
       <span className="sr-only">{t("site.title")}</span>
     </main>
   );

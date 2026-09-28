@@ -43,8 +43,9 @@ export default function MonthlyChart({ counts }: { counts: number[] }) {
           </div>
         ))}
       </div>
+      {/* The month by name. "peak in month 1" is how a database says January. */}
       <p className="mt-1.5 text-[11px] text-ink-500">
-        {t("seasonalityHint", { total, peak: counts.indexOf(max) + 1 })}
+        {t("seasonalityHint", { total, month: monthName(counts.indexOf(max)) })}
       </p>
       <ChartTable
         caption={t("seasonality")}

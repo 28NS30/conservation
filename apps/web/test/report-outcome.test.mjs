@@ -31,7 +31,7 @@ describe("outcomeOf", () => {
     });
   });
 
-  test("a report awaiting identification says a person does it, and when", () => {
+  test("a report awaiting identification is told what it waits for", () => {
     assert.deepEqual(outcomeOf("pending", true, 1), {
       title: "held",
       body: "heldForIdentification",

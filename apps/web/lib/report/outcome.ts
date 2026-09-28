@@ -17,9 +17,16 @@
  *
  * No duration appears anywhere in the outcomes. The old copy promised
  * identification "通常一兩分鐘 / usually a minute or two"; identification is a
- * daily cron that has never been deployed, so the honest answer about timing is
- * that there is no timetable, and the honest answer about who does it is a
- * person.
+ * daily cron that takes a few photos a run, so the honest answer about timing
+ * is that it is not immediate.
+ *
+ * Who does it is the classifier, not a person, and the copy said a person for
+ * a while after that stopped being true. app/api/jobs/classify/route.ts
+ * publishes a pending, unnamed report itself: under the species it names when
+ * it is confident, and otherwise unidentified at the blurred precision. A
+ * person sees a report first only when it has no photo, when the screen flags
+ * it, or when the model has failed on it five times. test/copy-truth.test.mjs
+ * holds the words to that.
  */
 
 /**

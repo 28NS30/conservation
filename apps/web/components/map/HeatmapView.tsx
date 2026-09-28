@@ -801,7 +801,7 @@ export default function HeatmapView({
             .setLngLat(e.lngLat)
             .setHTML(
               `<div style="font:13px/1.5 system-ui;color:#0b1410">
-               <div style="font-weight:600">${tr("map.cellCount", { count: n.toLocaleString() })}</div>
+               <div style="font-weight:600">${tr("map.cellCount", { count: n })}</div>
                <div style="color:#475569">${
                  km >= 1
                    ? tr("map.cellSize", { km })

@@ -25,13 +25,48 @@ export const dynamic = "force-dynamic";
 const UUID = /^[0-9a-f-]{36}$/i;
 
 /**
- * Keep whatever is not on the public map out of search results.
+ * The date a record was seen, as the source actually recorded it.
  *
- * A published record is indexed as it always was. A receipt is not: it exists
- * for one person holding one id, it says nothing an index could want, and a
- * crawler that finds one and keeps it would turn an id given to a reporter into
- * a public fact. The question asked here is only "is this in the public view",
- * so it takes no viewer and stays the same for everybody.
+ * GBIF gives a date and no time, stored as midnight UTC, which is 08:00 in
+ * Taipei — so every imported record, some forty-six thousand, was shown as seen
+ * at "上午8:00:00", a time nobody wrote down. Only a report filed here carries a
+ * real time, so only a report filed here shows one.
+ */
+function seenOn(observedAt: string, source: string, locale: string) {
+  const d = new Date(observedAt);
+  return source === "gbif"
+    ? d.toLocaleDateString(locale, { timeZone: "Asia/Taipei", dateStyle: "long" })
+    : d.toLocaleString(locale, {
+        timeZone: "Asia/Taipei",
+        dateStyle: "long",
+        timeStyle: "short",
+      });
+}
+
+/**
+ * A title for the tab and for a shared link, and search rules.
+ *
+ * A published record is titled by what was seen and when — "黑眶蟾蜍 · 2017年
+ * 12月31日" — and indexed as it always was. Every record page used to carry the
+ * bare site name, so a list of shared records was a list of identical titles.
+ *
+ * Anything not in the public view is kept out of search results. A receipt
+ * exists for one person holding one id, it says nothing an index could want,
+ * and a crawler that kept one would turn an id given to a reporter into a
+ * public fact.
+ *
+ * Its title follows what the page below it says. A held report's receipt is
+ * titled as the receipt, because the page says "Received" to anyone holding the
+ * id and a tab saying "isn't available" above that heading contradicted it.
+ * Everything else absent from the view — an id that never existed, a rejected
+ * report, a withheld record — gets one neutral title. The receipt title used to
+ * be on all of them, which put "Received" over a 404 for a mistyped link.
+ *
+ * Both questions are asked without a viewer, so the title is the same for
+ * everybody. `receiptState(id, null)` answers "held" for a pending report and
+ * nothing else: a rejection is disclosed only to its own reporter, and that
+ * page keeps the neutral title rather than asking who is looking. See
+ * lib/receipt.ts for why confirming a pending id to its holder is safe.
  */
 export async function generateMetadata({
   params,
@@ -42,16 +77,38 @@ export async function generateMetadata({
   if (!UUID.test(id)) return {};
 
   const [pub] = await asPublic(
-    (tx) => tx<{ one: number }[]>`
-      select 1 as one from reports_public where id = ${id}::uuid`,
+    (tx) => tx<
+      {
+        observedAt: string;
+        source: string;
+        category: Category;
+        scientificName: string | null;
+        commonNameZh: string | null;
+      }[]
+    >`
+      select rp.observed_at as "observedAt", rp.source, rp.category,
+             t.scientific_name as "scientificName",
+             t.common_name_zh as "commonNameZh"
+        from reports_public rp
+        left join taxa t on t.id = rp.taxon_id
+       where rp.id = ${id}::uuid`,
   );
-  if (pub) return {};
 
-  const t = await getTranslations({ locale, namespace: "detail" });
-  return {
-    title: t("receipt.title"),
-    robots: { index: false, follow: false },
-  };
+  const t = await getTranslations({ locale });
+  if (!pub) {
+    const held = (await receiptState(id, null)) === "held";
+    return {
+      title: held ? t("detail.receipt.title") : t("detail.unavailableTitle"),
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const zh = locale.startsWith("zh");
+  const name =
+    (zh && pub.commonNameZh) ||
+    pub.scientificName ||
+    t(`categories.${pub.category}`);
+  return { title: `${name} · ${seenOn(pub.observedAt, pub.source, locale)}` };
 }
 
 /**
@@ -220,9 +277,7 @@ export default async function ReportPage({
       </header>
 
       <p className="mt-1 text-xs text-ink-500">
-        {new Date(row.observed_at).toLocaleString(locale, {
-          timeZone: "Asia/Taipei",
-        })}
+        {seenOn(row.observed_at, row.source, locale)}
       </p>
 
       {urls.length > 0 && (
@@ -334,10 +389,15 @@ export default async function ReportPage({
       />
 
       <section className="mt-5 space-y-3 text-sm">
+        {/* "Source: GBIF · Taiwan Biodiversity Research Institute" named an
+            acronym most readers have never met. The sentence says what GBIF
+            is, and whose data this is; /attribution has the rest. */}
         {row.source === "gbif" && (
-          <p className="text-[11px] text-ink-500">
-            {t("detail.source")}: GBIF
-            {row.rights_holder && ` · ${row.rights_holder}`}
+          <p className="text-[11px] leading-relaxed text-ink-500">
+            {t("detail.source")}:{" "}
+            {row.rights_holder
+              ? t("detail.sourceGbif", { holder: row.rights_holder })
+              : t("detail.sourceGbifNoHolder")}
             {row.license && (
               <>
                 {" · "}
