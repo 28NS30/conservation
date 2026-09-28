@@ -79,6 +79,15 @@
  * 429, and are cached under data/cache/english-names/ so a re-run asks nothing
  * it has asked before.
  *
+ * REPRODUCIBILITY, and its limit. AviList, MDD and the Catalogue of Life are
+ * pinned releases: the same question gets the same answer anywhere. iNaturalist
+ * is not. Its API is live and unversioned, and the cache that makes
+ * `--offline` repeat a build exactly is not committed (data/ is ignored). On a
+ * machine without that cache a rebuild asks iNaturalist again, and a name its
+ * curators have changed since comes back changed. That is why the output is a
+ * committed file with one taxon a line: the diff of a rebuild is where such a
+ * change is seen and reviewed, before the import applies it anywhere.
+ *
  * SOURCE FILES. AviList and MDD are read from slim CSVs committed under
  * scripts/sources/, so this package needs no spreadsheet dependency. Each was
  * cut once from the pinned download below, keeping the species rows and only

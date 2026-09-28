@@ -554,15 +554,57 @@ describe("the import", () => {
     });
   });
 
-  test("touches no report: the reblur trigger must not fire", async () => {
-    // taxa_reblur_reports (0012) re-derives every report's blur on UPDATE OF
-    // sensitivity or protected_status. Setting English names must stay out of
-    // both columns, or naming an animal could move its records on the map.
+  test("sets the four English columns and names no other, so no rating trigger fires", async () => {
+    // taxa_reblur_reports (0012) fires on UPDATE OF sensitivity or
+    // protected_status (other branches add columns to that list), and fires
+    // whether or not the value changes. It only moves records when a rating
+    // got STRICTER, so a check on the reports alone would pass an update that
+    // wrote a rating unchanged, or wrote it looser, or null. What must hold is
+    // that the update names no column but its own four. A trigger that throws
+    // on UPDATE OF every other column says exactly that, whatever the reblur
+    // trigger listens to today; it is created and dropped inside the rollback.
     await inRollback(async (tx) => {
-      const before = await reportsDigest(tx);
+      const cols = await tx`
+        select column_name from information_schema.columns
+         where table_schema = 'public' and table_name = 'taxa'
+           and column_name not in ${tx(ENGLISH_COLUMNS)}
+         order by ordinal_position`;
+      await tx.unsafe(`
+        create function english_names_sentinel() returns trigger language plpgsql as $$
+        begin
+          raise exception 'applyEnglishNames named a column that is not one of the four English ones';
+        end $$`);
+      await tx.unsafe(`
+        create trigger english_names_sentinel before update of ${cols.map((c) => `"${c.column_name}"`).join(", ")}
+          on taxa for each row execute function english_names_sentinel()`);
       await applyEnglishNames(tx, final);
-      assert.equal(await reportsDigest(tx), before);
     });
+  });
+
+  test("changes nothing in taxa but the English columns, and touches no report", async () => {
+    // The values, as a second line: every other column of every row is the
+    // same afterwards, ratings included, and so is every report's blur.
+    await inRollback(async (tx) => {
+      const taxaBefore = await taxaDigest(tx);
+      const reportsBefore = await reportsDigest(tx);
+      const r = await applyEnglishNames(tx, final);
+      assert.ok(r.changed > 0 || (await countNamed(tx)) > 0, "nothing was named, so this proves nothing");
+      assert.equal(await taxaDigest(tx), taxaBefore, "a column other than the English ones changed");
+      assert.equal(await reportsDigest(tx), reportsBefore, "a report moved");
+    });
+  });
+
+  test("counts and names public records only, in the build and the import alike", () => {
+    // A taxon rated 座標不開放 must not be revealed as recorded. The build's
+    // scope is committed to a public repository, and the import prints the
+    // most-recorded unnamed taxa by name and runs against production, where its
+    // output gets pasted into pull requests. `reports` holds the suppressed
+    // records; reports_public does not.
+    for (const f of ["build-english-names.ts", "import-english-names.ts"]) {
+      const src = readFileSync(new URL(`../../../scripts/${f}`, import.meta.url), "utf8");
+      assert.doesNotMatch(src, /\b(?:from|join)\s+reports\b(?!_public)/i, `${f} reads reports`);
+      assert.match(src, /\breports_public\b/, f);
+    }
   });
 
   test("the public role reads the new columns, as it reads the Chinese ones", async () => {
@@ -576,6 +618,19 @@ describe("the import", () => {
     });
   });
 });
+
+const ENGLISH_COLUMNS = ["common_name_en", "alt_names_en", "common_name_en_source", "common_name_en_inherited"];
+
+/**
+ * Every column of every taxon except the four English ones. Hashed a row at a
+ * time and then together, so 125k rows cost 4 MB of hashes, not a 100 MB string.
+ */
+async function taxaDigest(tx) {
+  const [{ d }] = await tx`
+    select md5(coalesce(string_agg(md5((to_jsonb(t) - ${ENGLISH_COLUMNS}::text[])::text), '' order by t.id), '')) as d
+      from taxa t`;
+  return d;
+}
 
 async function countNamed(tx) {
   const [{ n }] = await tx`select count(*)::int as n from taxa where common_name_en is not null`;
