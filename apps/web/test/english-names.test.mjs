@@ -244,6 +244,8 @@ describe("what counts as an English name", () => {
       ["Kura kura Pipi putih", "Siebenrockiella crassicollis"],
       ["Tu Mama E Maraka", "Ophiophagus hannah"],
       ["Amboa Laolo", "Eupleres goudotii"],
+      ["Tombokatosody", "Fossa fossana"],
+      ["Swartwitpens", "Hippotragus niger"],
     ]) {
       assert.equal(nameProblem(name, sci), "not-english", name);
     }

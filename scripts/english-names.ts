@@ -312,6 +312,23 @@ const NOT_ENGLISH = new Set(
     "Kura-kura Pipi-putih", // Malay, on the black marsh turtle
     "Tu Mama E Maraka", // not English, on the king cobra
     "Amboa Laolo", // Malagasy, on the falanouc
+    // Found on a second reading, all among MDD's and iNaturalist's other
+    // names for animals on Taiwan's protected list. Local names that English
+    // has borrowed and uses (Saola, Vaquita, Tucuxi, Huillin) are not here.
+    "Ridarida", // Malagasy, on the falanouc
+    "Tombokatosody", // Malagasy, on the spotted fanaloka
+    "Tomkasodina", // Malagasy, on the spotted fanaloka
+    "Tambosadina", // Malagasy, on the spotted fanaloka
+    "Kavahy", // Malagasy, on the spotted fanaloka
+    "Swartwitpens", // Afrikaans, on the sable antelope
+    "Makobu", // Mentawai, on the pig-tailed langur
+    "Masepsep", // Mentawai, on the pig-tailed langur
+    "Costero", // Spanish, on the Guiana dolphin
+    "Cochito", // Spanish, on the vaquita
+    "Crucita", // Spanish, on Siam weed
+    "Jacarerana", // Portuguese, on the crocodile tegu
+    "Kelesa", // Malay, on the Asian arowana
+    "Biuku", // Indonesian, on the painted batagur
   ].map(normalise),
 );
 
