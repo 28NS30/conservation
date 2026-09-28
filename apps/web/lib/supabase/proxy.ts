@@ -1,6 +1,89 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import type { NextRequest, NextResponse } from "next/server";
 
+/*
+ * Giving up on Supabase Auth in time.
+ *
+ * supabase-js has no timeout of its own. A refresh that gets no answer, or an
+ * answer it counts as a network fault (a thrown fetch, any 5xx), is retried
+ * with backoff for up to 30 seconds; any other request simply waits for as long
+ * as the socket does. The proxy renews sessions and the header asks who is
+ * signed in on every page, so during a Supabase outage both would hold every
+ * page a signed-in person opens for that long. `fetchUntil` and `settledBy`
+ * let each of them stop at a deadline and carry on as if nobody were signed
+ * in, which is what the outage means anyway.
+ *
+ * They live here rather than in a module of their own because the unit tests
+ * import this file directly under Node, which cannot follow an extensionless
+ * relative import; lib/supabase/server.ts imports them from here.
+ */
+
+/**
+ * A fetch for supabase-js that stops at `deadline`.
+ *
+ * Aborting the request in flight is not enough by itself: supabase-js reads
+ * the abort as a network fault and retries, and would spin through its backoff
+ * for the rest of the 30 seconds in the background. So once the deadline has
+ * passed, the next request is not sent; it is answered here with a 408, which
+ * supabase-js takes as a real refusal and stops on. A refusal also makes it
+ * clear the session it was renewing, so a client given this fetch must ignore
+ * cookie writes once the deadline has passed (both callers do), or a slow
+ * Supabase would sign people out.
+ *
+ * The cost, accepted knowingly: if Supabase did renew the session but answered
+ * after the deadline, the new refresh token is lost with the aborted response.
+ * The browser still holds the old one, which Supabase honours for its reuse
+ * interval (10 s by default) and treats as theft after it, ending that session.
+ * That takes an answer slower than the deadline followed by a pause of over
+ * ten seconds — a Supabase in real trouble — and the alternative is every page
+ * waiting out that trouble.
+ */
+export function fetchUntil(deadline: AbortSignal): typeof fetch {
+  return async (input, init) => {
+    if (deadline.aborted)
+      return Response.json(
+        { code: 408, error_code: "request_timeout", msg: "Abandoned at the auth deadline" },
+        { status: 408 },
+      );
+    return fetch(input, {
+      ...init,
+      signal: init?.signal ? AbortSignal.any([init.signal, deadline]) : deadline,
+    });
+  };
+}
+
+/** What `settledBy` gives back when the deadline came first. */
+export const LATE: unique symbol = Symbol("late");
+
+/**
+ * `work`, or LATE if `deadline` passes first.
+ *
+ * `fetchUntil` alone does not bound the wait: at the deadline supabase-js may
+ * be asleep between retries, and only notices on waking. This returns at the
+ * deadline whatever it is doing; the work finishes in the background, where
+ * `fetchUntil` makes sure it finishes quickly.
+ */
+export function settledBy<T>(work: Promise<T>, deadline: AbortSignal): Promise<T | typeof LATE> {
+  if (deadline.aborted) {
+    work.catch(() => {});
+    return Promise.resolve(LATE);
+  }
+  return new Promise((resolve, reject) => {
+    const late = () => resolve(LATE);
+    deadline.addEventListener("abort", late, { once: true });
+    work.then(
+      (value) => {
+        deadline.removeEventListener("abort", late);
+        resolve(value);
+      },
+      (error) => {
+        deadline.removeEventListener("abort", late);
+        reject(error);
+      },
+    );
+  });
+}
+
 /**
  * The auth cookie's name for this project: supabase-js names it
  * `sb-<first label of the API host>-auth-token`, and splits a long session
@@ -55,13 +138,14 @@ export type Refreshed = {
  * trip to Supabase to every signed-in request, prefetches included.
  *
  * Returns what the response must carry, or null when nothing changed. Never
- * throws: a Supabase that is down or slow must not take the site with it.
+ * throws: a Supabase that is down or slow must not take the proxy with it.
  *
  * And never waits long. supabase-js retries a refresh that gets no answer, with
  * backoff, for up to 30 seconds; in the proxy that would hold every page a
  * signed-in person opens for half a minute during an outage. So the attempt has
- * a deadline, after which the page renders with the session it came with — as
- * it would have before this existed.
+ * a deadline (`fetchUntil` above), after which the page renders with the
+ * session it came with — as it would have before this existed. The page's own
+ * question, who is signed in, has a deadline of its own (server.ts).
  */
 export async function refreshSession(
   request: NextRequest,
@@ -81,31 +165,15 @@ export async function refreshSession(
 
   const deadline = AbortSignal.timeout(deadlineMs);
   let out: Refreshed | null = null;
-  let late = false;
   try {
     const supabase = createServerClient(url, key, {
-      global: {
-        // A request still open at the deadline is aborted. One asked for after
-        // it is answered here with a 408 and never sent: supabase-js retries
-        // anything that throws, so only a real HTTP refusal ends its backoff
-        // loop rather than leaving it to spin on for the rest of its 30 seconds.
-        fetch: async (input, init) => {
-          if (deadline.aborted)
-            return Response.json(
-              { code: 408, error_code: "request_timeout", msg: "Session refresh abandoned at the proxy's deadline" },
-              { status: 408 },
-            );
-          return fetch(input, {
-            ...init,
-            signal: init?.signal ? AbortSignal.any([init.signal, deadline]) : deadline,
-          });
-        },
-      },
+      global: { fetch: fetchUntil(deadline) },
       cookies: {
         getAll: () => request.cookies.getAll(),
         setAll: (list, headers) => {
-          // Past the deadline the response has already gone.
-          if (late) return;
+          // Past the deadline the response has already gone, and what is left
+          // to write is supabase-js clearing the session it gave up on.
+          if (deadline.aborted) return;
           for (const { name, value, options } of list) {
             // RequestCookies rewrites the Cookie header as it goes, and
             // next-intl forwards that header to the render.
@@ -119,13 +187,7 @@ export async function refreshSession(
         },
       },
     });
-    const timedOut = new Promise<"late">((resolve) =>
-      deadline.addEventListener("abort", () => resolve("late"), { once: true }),
-    );
-    if ((await Promise.race([supabase.auth.getSession(), timedOut])) === "late") {
-      late = true;
-      return null;
-    }
+    if ((await settledBy(supabase.auth.getSession(), deadline)) === LATE) return null;
   } catch {
     return null;
   }

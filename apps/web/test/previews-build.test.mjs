@@ -83,8 +83,10 @@ describe("a preview with no Supabase configuration can still build", () => {
 
   test("production still reaches the throw", () => {
     // Not duplicated here — it falls through to serverSupabase(), which throws.
+    // (With whatever arguments: the header's call passes a deadline, and the
+    // throw comes before anything looks at them.)
     const body = currentUserIdBody();
-    assert.match(body, /await serverSupabase\(\)/);
+    assert.match(body, /await serverSupabase\(/);
   });
 
   test("currentUser, which /me asks instead, carries the same guard", () => {
@@ -95,7 +97,7 @@ describe("a preview with no Supabase configuration can still build", () => {
       body,
       /if \(!authConfigured\(\) && process\.env\.VERCEL_ENV !== "production"\) return null;/,
     );
-    assert.match(body, /await serverSupabase\(\)/);
+    assert.match(body, /await serverSupabase\(/);
   });
 });
 

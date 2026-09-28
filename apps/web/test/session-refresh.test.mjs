@@ -16,13 +16,16 @@ import { createServer } from "node:http";
 // next has no "exports" map, so Node needs the file name.
 import { NextRequest, NextResponse } from "next/server.js";
 import {
+  LATE,
   applyRefreshed,
   authCookieName,
+  fetchUntil,
   hasSessionCookie,
   refreshSession,
+  settledBy,
 } from "../lib/supabase/proxy.ts";
 
-/** What the stand-in does with the next refresh: "ok", "reject" or "hang". */
+/** What the stand-in does with the next refresh: "ok", "reject", "unavailable" or "hang". */
 let mode = "ok";
 let calls = 0;
 let server;
@@ -48,6 +51,11 @@ before(async () => {
       calls++;
       if (mode === "hang") return; // never answers
       res.setHeader("content-type", "application/json");
+      if (mode === "unavailable") {
+        // At once, and a status supabase-js counts as a network fault and retries.
+        res.statusCode = 503;
+        return res.end(JSON.stringify({ code: 503, msg: "Service Unavailable" }));
+      }
       if (mode === "reject") {
         res.statusCode = 400;
         return res.end(
@@ -164,6 +172,72 @@ describe("an expired session", () => {
     } finally {
       process.env.NEXT_PUBLIC_SUPABASE_URL = saved;
     }
+  });
+});
+
+/**
+ * The deadline both the proxy and the page's "who is signed in" use
+ * (lib/supabase/server.ts). Aborting at the deadline is not enough on its own:
+ * supabase-js reads an abort as a network fault and retries for 30 seconds.
+ */
+describe("giving up in time", () => {
+  const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  /** Counts requests actually handed to the network, whoever makes them. */
+  async function countingSent(fn) {
+    const real = globalThis.fetch;
+    const counter = { sent: 0 };
+    globalThis.fetch = (...args) => {
+      counter.sent++;
+      return real(...args);
+    };
+    try {
+      return await fn(counter);
+    } finally {
+      globalThis.fetch = real;
+    }
+  }
+
+  test("settledBy hands back the work when it finishes in time", async () => {
+    assert.equal(await settledBy(Promise.resolve("done"), AbortSignal.timeout(1000)), "done");
+    await assert.rejects(settledBy(Promise.reject(new Error("no")), AbortSignal.timeout(1000)), /no/);
+  });
+
+  test("settledBy returns at the deadline when the work never finishes", async () => {
+    const started = Date.now();
+    assert.equal(await settledBy(new Promise(() => {}), AbortSignal.timeout(100)), LATE);
+    assert.ok(Date.now() - started < 1000, `waited ${Date.now() - started}ms`);
+    assert.equal(await settledBy(new Promise(() => {}), AbortSignal.abort()), LATE);
+  });
+
+  test("past the deadline, a request is answered with a refusal and never sent", async () => {
+    await countingSent(async (counter) => {
+      calls = 0;
+      const res = await fetchUntil(AbortSignal.abort())(`${base}/auth/v1/token?grant_type=refresh_token`, {
+        method: "POST",
+      });
+      // 408: a status supabase-js does not retry, unlike the 5xx and thrown
+      // errors that keep its backoff loop going.
+      assert.equal(res.status, 408);
+      assert.equal(counter.sent, 0);
+      assert.equal(calls, 0);
+    });
+  });
+
+  test("a Supabase that keeps failing is not retried in the background after the deadline", async () => {
+    mode = "unavailable";
+    await countingSent(async (counter) => {
+      const req = request({ [cookieName()]: encode(session("old", "rt", now() - 60)) });
+      assert.equal(await refreshSession(req, { deadlineMs: 300 }), null);
+      const atDeadline = counter.sent;
+      assert.ok(atDeadline >= 1, "it should have tried before the deadline");
+      // Its backoff would try again at about 0.6 s and 1.4 s. Each is answered
+      // in place now, and the loop stops at the first.
+      await pause(1600);
+      assert.equal(counter.sent, atDeadline, "still retrying after the deadline");
+      // And the refusal that ended it did not clear the session it came with.
+      assert.equal(decode(req.cookies.get(cookieName()).value).refresh_token, "rt");
+    });
   });
 });
 
