@@ -33,6 +33,26 @@ export async function recordedSpeciesCount(): Promise<number> {
   return countSpecies({ filter: "recorded" });
 }
 
+/**
+ * The denominator /season sets beside recordedSpeciesCount(): every animal
+ * taxon on Taiwan's checklist, counted by the same `speciesWhere()`.
+ *
+ * It was `rank = 'Species'` alone, under a numerator that counts species and
+ * subspecies rows alike, so "500 of 42,061" divided 328 species plus 172
+ * subspecies by species only. Counting subspecies on both sides keeps the
+ * numerator the one number every other page states, and makes the ratio like
+ * over like. Collapsing subspecies into their species instead would have given
+ * /season a species count of its own (477 locally) beside /stats's 500, which
+ * is the disagreement recordedSpeciesCount() exists to end.
+ *
+ * Animals, because only animals are reported here. The whole checklist —
+ * plants, fungi and bacteria included — made the site look 0.8% done at
+ * recording things it never set out to record.
+ */
+export async function checklistAnimalTaxaCount(): Promise<number> {
+  return countSpecies({ filter: "all", kingdom: "Animalia" });
+}
+
 export type Overview = {
   reports: number;
   obscured: number;

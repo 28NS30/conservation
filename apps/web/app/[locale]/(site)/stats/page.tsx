@@ -310,9 +310,11 @@ export default async function StatsPage({
 
         <Section title={t("coverage")} span>
           <p className="text-xs leading-relaxed text-ink-500">
+            {/* Numbers, not n(): both are plurals in English, and a plural
+                of a formatted string is NaN. */}
             {t("coverageBody", {
-              obscured: n(ov.obscured),
-              total: n(ov.reports),
+              obscured: ov.obscured,
+              total: ov.reports,
             })}
           </p>
           {/* To the section that answers the question, not to the top of

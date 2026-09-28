@@ -206,6 +206,19 @@ describe("the copy does not contradict itself", () => {
       assert.equal(quoted, zh.report.speciesUnsure, "how2Body quotes a label the form does not use");
   });
 
+  test("a chart's busiest month is not called most of the records", () => {
+    // MonthlyChart names counts.indexOf(max): the month with the most records,
+    // which holds more than half of them for about one species in twenty.
+    // "412 records, most of them in April" was false on the other nineteen.
+    assert.match(code("components/species/MonthlyChart.tsx"), /counts\.indexOf\(max\)/);
+    for (const l of locales)
+      assert.doesNotMatch(
+        catalogues[l].species.seasonalityHint,
+        /most of them|majority|大部分|大多數|過半/i,
+        `${l}: species.seasonalityHint calls the peak month a majority`,
+      );
+  });
+
   test("nothing calls the records recent", () => {
     // /reports was "Recent reports" above a first row dated 2017-12-31. Its lede
     // now states the span from the data instead.
@@ -227,6 +240,28 @@ describe("the copy does not contradict itself", () => {
       matching(/injured wildlife or|受傷野生動物或|roadkill, an injured animal|路殺、受傷/i),
       [],
     );
+  });
+
+  test("why a record is blurred names protection by law, as the database does", () => {
+    // precision_from_taxon() blurs a species protected by law to 10 km even
+    // when TaiCOL gives it no sensitivity rating. That is 1,606 of the 7,170
+    // blurred public records locally — and /stats, /season and /about each
+    // said the reason was a TaiCOL rating or a missing identification. No
+    // blur was loosened; the trust page just understated the protection.
+    const MIGRATIONS = join(WEB, "..", "..", "supabase", "migrations");
+    const defining = readdirSync(MIGRATIONS)
+      .filter((f) => f.endsWith(".sql"))
+      .sort()
+      .map((f) => readFileSync(join(MIGRATIONS, f), "utf8"))
+      .filter((s) => /function precision_from_taxon\b/.test(s))
+      .at(-1);
+    assert.ok(defining, "precision_from_taxon() is defined in no migration");
+    if (!/when prot is not null and prot <> '' then 'coarse_10km'/.test(defining)) return;
+    for (const key of ["statsPage.coverageBody", "season.obscuredNote", "about.privacyBody"]) {
+      const get = (l) => key.split(".").reduce((o, k) => o[k], catalogues[l]);
+      assert.match(get("en"), /protected by law/, `en ${key}`);
+      assert.match(get("zh-TW"), /法定保育類/, `zh-TW ${key}`);
+    }
   });
 
   test("the link to the blurring explanation is labelled as that explanation", () => {
@@ -274,12 +309,48 @@ describe("house style the catalogues can check", () => {
     // "1 records" in the species directory, "1 reports waiting to send" on the
     // report page, "7169 locations blurred". A count belongs inside an ICU
     // plural, where both the noun and the number's formatting follow it.
+    //
+    // One word is allowed between them ("{n} public records"), and a bare
+    // count followed by a plural verb ("{obscured} are shown") is the same
+    // defect without a noun.
     const offenders = entries(catalogues.en)
-      .filter(([, v]) =>
-        /\{\w+(?:, number)?\}\s+(?:records?|reports?|locations?)\b/.test(v),
+      .filter(
+        ([, v]) =>
+          /\{\w+(?:, number)?\}\s+(?:[a-z]+\s+)?(?:records?|reports?|locations?)\b/.test(v) ||
+          /\{\w+(?:, number)?\}\s+(?:are|were|have)\b/.test(v),
       )
       .map(([k, v]) => `${k} — ${v}`);
     assert.deepEqual(offenders, []);
+  });
+
+  test("a plural is handed a number, not a formatted string", () => {
+    // intl-messageformat picks a plural form by subtracting the offset from the
+    // value, and "1,234" - 0 is NaN: the lab map rendered every cell of a
+    // thousand records or more as "NaN records here" / "此區 非數值 筆紀錄".
+    // The message formats the number itself, for the reader's locale.
+    const plurals = new Map(); // last key segment -> plural argument names
+    for (const [k, v] of entries(catalogues.en))
+      for (const [, arg] of v.matchAll(/\{(\w+), (?:plural|selectordinal),/g)) {
+        const leaf = k.split(".").pop();
+        plurals.set(leaf, new Set([...(plurals.get(leaf) ?? []), arg]));
+      }
+    const offenders = [];
+    for (const dir of ["app", "components", "lib"])
+      for (const file of sources(join(WEB, dir))) {
+        const src = readFileSync(file, "utf8");
+        for (const [, key, args] of src.matchAll(
+          /\b\w+\(\s*"([\w.]+)"\s*,\s*\{([\s\S]*?)\}\s*\)/g,
+        )) {
+          const argNames = plurals.get(key.split(".").pop());
+          if (!argNames) continue;
+          for (const arg of argNames)
+            if (
+              new RegExp(`\\b${arg}\\s*:\\s*(?:n\\(|String\\(|[^,}]*\\.toLocaleString\\()`).test(args)
+            )
+              offenders.push(`${file.slice(WEB.length)}: ${key} — ${arg}`);
+        }
+      }
+    assert.deepEqual(offenders, [], "pass the number; the message formats it");
   });
 
   test("the Chinese addresses the reader as 你, not 您", () => {
@@ -328,13 +399,38 @@ describe("one species count", () => {
   });
 
   test("the pages that state it ask the one function", () => {
+    // In code: /stats and /map each explain recordedSpeciesCount() in a
+    // comment, which was enough to pass with the call itself deleted.
     for (const p of [
       "app/[locale]/(site)/stats/page.tsx",
       "app/[locale]/(site)/season/page.tsx",
       "app/[locale]/map/page.tsx",
     ])
-      assert.match(read(p), /recordedSpeciesCount\(\)/, p);
-    assert.match(read("lib/stats.ts"), /countSpecies\(\{ filter: "recorded" \}\)/);
+      assert.match(code(p), /recordedSpeciesCount\(\)/, p);
+    assert.match(code("lib/stats.ts"), /countSpecies\(\{ filter: "recorded" \}\)/);
+  });
+
+  test("/season divides that count by one of the same kind", () => {
+    // The directory counts species and subspecies rows alike, and /season set
+    // that over the checklist's species rows alone: locally 328 species plus
+    // 172 subspecies, over species only. The denominator now goes through the
+    // same speciesWhere() with only the filter changed, so the two sides count
+    // the same kind of row, and the label says what that kind is.
+    const season = code("app/[locale]/(site)/season/page.tsx");
+    assert.match(season, /checklistAnimalTaxaCount\(\)/);
+    assert.match(
+      code("lib/stats.ts"),
+      /countSpecies\(\{ filter: "all", kingdom: "Animalia" \}\)/,
+    );
+    assert.doesNotMatch(
+      code("lib/coverage.ts"),
+      /from taxa/,
+      "lib/coverage.ts counts checklist taxa with a rule of its own again",
+    );
+    if (/t\.rank in \('Species','Subspecies'\)/.test(code("lib/species.ts"))) {
+      assert.match(catalogues.en.season.speciesCovered, /subspecies/);
+      assert.match(catalogues["zh-TW"].season.speciesCovered, /亞種/);
+    }
   });
 });
 

@@ -858,7 +858,9 @@ export default function LabMap({
     >
       <div className="flex items-start justify-between gap-4">
         <h2 className="t-head font-bold">
-          {t("map.cellCount", { count: cell.count.toLocaleString() })}
+          {/* The number itself: map.cellCount is a plural, and a plural of
+              "1,234" is NaN. The message formats it for the locale. */}
+          {t("map.cellCount", { count: cell.count })}
         </h2>
         <button
           type="button"

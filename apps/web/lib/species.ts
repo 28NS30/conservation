@@ -167,19 +167,30 @@ function speciesWhere(
      )`;
 }
 
-/** How many taxa the same query matches, for the directory's pager. */
+/**
+ * How many taxa the same query matches, for the directory's pager.
+ *
+ * `kingdom` narrows it for a caller that needs a checklist total to set beside
+ * the recorded count — /season's "of Taiwan's animal species and subspecies".
+ * That figure goes through this function rather than a query of its own so
+ * that it counts the same kind of thing as the number above it: the directory
+ * counts species and subspecies rows alike, and a denominator of species rows
+ * alone divided two different kinds of count. The directory never passes it.
+ */
 export async function countSpecies(opts: {
   q?: string;
   filter?: SpeciesFilter;
+  kingdom?: string;
 }): Promise<number> {
-  const { q, filter = "recorded" } = opts;
+  const { q, filter = "recorded", kingdom = null } = opts;
   const like = q ? `%${q}%` : null;
   const rows = await asPublic(
     (tx) => tx<{ n: number }[]>`
       select count(*)::int as n
         from taxa t
         left join species_report_stats s on s.taxon_id = t.id
-       where ${speciesWhere(tx, filter, like)}`,
+       where ${speciesWhere(tx, filter, like)}
+         and (${kingdom}::text is null or t.kingdom = ${kingdom})`,
   );
   return rows[0]?.n ?? 0;
 }

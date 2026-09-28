@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { coverage, SEASON_TARGET, COVERAGE_CELL_M } from "@/lib/coverage";
-import { recordedSpeciesCount } from "@/lib/stats";
+import { checklistAnimalTaxaCount, recordedSpeciesCount } from "@/lib/stats";
 import PageHeader from "@/components/site/PageHeader";
 
 export const revalidate = 900;
@@ -42,10 +42,12 @@ export async function generateMetadata({
  * name. (The page used to say they were "published as open data"; nothing has
  * been sent to GBIF yet, so it no longer does.)
  *
- * The species figure is the directory's count over the animal species on
- * Taiwan's checklist. It was every taxon with a record over every species of
- * every kingdom: two different kinds of count, and a denominator full of plants
- * and fungi that nobody reports here.
+ * The species figure is the directory's count over the animal taxa on
+ * Taiwan's checklist, both counted by the directory's own rule, so subspecies
+ * are entries on both sides of the slash. It was every taxon with a record over
+ * every species of every kingdom, and then the directory's species-and-
+ * subspecies count over species alone: two different kinds of count each time.
+ * See checklistAnimalTaxaCount().
  */
 export default async function SeasonPage({
   params,
@@ -56,7 +58,11 @@ export default async function SeasonPage({
   setRequestLocale(locale);
   const t = await getTranslations("season");
 
-  const [c, species] = await Promise.all([coverage(), recordedSpeciesCount()]);
+  const [c, species, checklist] = await Promise.all([
+    coverage(),
+    recordedSpeciesCount(),
+    checklistAnimalTaxaCount(),
+  ]);
   const km = COVERAGE_CELL_M / 1000;
   const pct = Math.min(100, (c.newThisSeason / SEASON_TARGET) * 100);
   const n = (v: number) => v.toLocaleString(locale);
@@ -119,14 +125,14 @@ export default async function SeasonPage({
           hint={t("cellsHint")}
         />
         <Figure
-          value={`${n(species)} / ${n(c.animalSpeciesInChecklist)}`}
+          value={`${n(species)} / ${n(checklist)}`}
           label={t("speciesCovered")}
           hint={t("speciesHint")}
         />
       </dl>
 
       <p className="mt-6 text-sm leading-relaxed text-ink-600">
-        {t("obscuredNote", { n: n(c.unplaceable), km })}
+        {t("obscuredNote", { n: c.unplaceable, km })}
       </p>
 
       {/* ---------------- why it is shaped like this ---------------- */}
