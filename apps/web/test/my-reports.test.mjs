@@ -34,16 +34,18 @@ describe("my reports", () => {
   test("the query is scoped to the signed-in user", () => {
     assert.match(
       src,
-      /where\s+r\.reporter_id\s*=\s*\$\{userId\}/,
+      /where\s+r\.reporter_id\s*=\s*\$\{user\.id\}/,
       "reports must be filtered by the session's user id, not by any parameter",
     );
   });
 
   test("the user id comes from the session, never from the request", () => {
+    // currentUser() rather than currentUserId() since the page began showing
+    // whose account it is; both read the same verified session.
     assert.match(
       src,
-      /const userId = await currentUserId\(\)/,
-      "userId must come from the auth session",
+      /const user = await currentUser\(\)/,
+      "the user must come from the auth session",
     );
     // A searchParams-derived user would let anyone read anyone's reports.
     assert.ok(
@@ -53,7 +55,7 @@ describe("my reports", () => {
   });
 
   test("signed-out visitors get the sign-in prompt, not a query", () => {
-    const guardAt = src.indexOf("if (!userId)");
+    const guardAt = src.indexOf("if (!user)");
     const queryAt = src.indexOf("from reports r");
     assert.ok(guardAt > 0, "there must be a signed-out guard");
     assert.ok(

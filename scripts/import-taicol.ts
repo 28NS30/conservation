@@ -60,6 +60,11 @@ function toRow(t: TaicolTaxon) {
     alien_type: t.alien_type,
     // TaiCOL encodes invasiveness inside alien_type rather than as a flag.
     is_invasive: (t.alien_type ?? "").toLowerCase().includes("invasive"),
+    // Overwritten on every run, so a hand edit to either never lasts. Where
+    // TaiCOL's value is too lenient — the law protects an animal under a name
+    // TaiCOL has moved, or TaiCOL relaxes a rating — the fix goes in
+    // scripts/taxa-overrides.csv, which this import never touches and which
+    // the blur takes the stricter of (migration 0014).
     protected_status: t.protected,
     cites: t.cites,
     iucn: t.iucn,

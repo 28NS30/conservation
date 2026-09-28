@@ -1,7 +1,11 @@
 import { sql } from "@/lib/db";
 import { downloadPhoto } from "@/lib/supabase/service";
 import { UNIDENTIFIED_PRECISION } from "@conservation/shared";
-import { keepDeliberateOverride } from "@/lib/report/precision";
+import {
+  photoIdentificationOverride,
+  suggestionOverride,
+} from "@/lib/report/precision";
+import { AUTO_ASSIGN_BANDS, classifierAction } from "@/lib/report/classifyPolicy";
 
 /**
  * Classification worker, driven by Vercel Cron (see apps/web/vercel.json).
@@ -29,8 +33,6 @@ const BATCH = 3;
  * Longer than any plausible run, short enough that a stuck job recovers quickly.
  */
 const STALE_AFTER = "5 minutes";
-/** Only auto-assign a species when the model is confident; see apps/ml/evaluate.py. */
-const AUTO_ASSIGN_BANDS = new Set(["high"]);
 
 /**
  * Vercel kills the function at this many seconds — 60 is the Hobby ceiling. The
@@ -208,6 +210,10 @@ async function run(req: Request) {
       const bytes = await downloadPhoto(job.storage_path);
       if (!bytes) throw new Error("could not read photo from storage");
 
+      // The page's own category chooses the label list (apps/ml/labelsets.py).
+      // Not remapped here: an injured animal is scored against the whole
+      // checklist, because a list without the stranded sea turtle cannot name
+      // it and would name something else (lib/report/classifyPolicy.ts).
       const result = await callModel(bytes.toString("base64"), job.category);
       const best = result.predictions[0];
 
@@ -221,7 +227,16 @@ async function run(req: Request) {
       // the model preferred.
       const humanIdentified =
         job.taxon_id !== null && job.taxon_source !== null && job.taxon_source !== "ai";
-      const assign = Boolean(best) && AUTO_ASSIGN_BANDS.has(result.band) && !humanIdentified;
+      // Whether the model may name the species is decided by the page the
+      // report was filed on as well as by the band: an invasive report's answer
+      // comes from a closed list and is only ever a suggestion. See
+      // lib/report/classifyPolicy.ts for what that list did to native animals.
+      const action = classifierAction({
+        category: job.category,
+        band: result.band,
+        hasPrediction: Boolean(best),
+        humanIdentified,
+      });
 
       await sql.begin(async (tx) => {
         await tx`delete from classifications where report_id = ${job.report_id}::uuid`;
@@ -231,7 +246,7 @@ async function run(req: Request) {
             values (${job.report_id}::uuid, ${p.taxon_id}, ${p.score}, ${p.rank}, ${result.modelVersion})`;
         }
 
-        if (assign) {
+        if (action === "assign") {
           // Clearing the override hands control back to the taxon's own policy —
           // which will re-blur immediately if the identified species is sensitive,
           // because the trigger fires on `taxon_id`.
@@ -241,19 +256,23 @@ async function run(req: Request) {
           // report nobody has named, so the two are the same answer today; it is
           // written this way so that the rule lives in one place and cannot drift
           // back apart, which is how the three of them disagreed to begin with.
+          //
+          // `photoIdentificationOverride` is that rule plus one more: the blur is
+          // at least the strictest of every row sharing the named taxon's
+          // binomial, because a photograph cannot say which of them it is.
           await tx`
             update reports
                set taxon_id = ${best.taxon_id},
                    taxon_source = 'ai',
                    ai_confidence = ${best.score},
                    ai_band = ${result.band},
-                   precision_override = ${keepDeliberateOverride()},
+                   precision_override = ${photoIdentificationOverride(best.taxon_id)},
                    -- Claim and process are two transactions, so a moderator can
                    -- reject a report in between. Publishing may lift a hold; it
                    -- may not reverse a decision.
                    status = case when status = 'pending' then 'published' else status end
              where id = ${job.report_id}::uuid`;
-        } else if (humanIdentified) {
+        } else if (action === "record") {
           // Keep their identification and the precision it implies; record what
           // the model thought, and say so if the two disagree. Nothing here
           // changes what is published — a disagreement is a note for a reviewer,
@@ -273,24 +292,35 @@ async function run(req: Request) {
                    }
              where id = ${job.report_id}::uuid`;
         } else {
-          // Not confident enough to name a species. Publish it as an unidentified
-          // record, but keep the conservative precision: an unknown animal might
-          // be a protected one.
+          // Not a species the model may name: either it is not confident enough,
+          // or this is a report whose answer can only ever be a suggestion (an
+          // invasive report, scored against a closed list). Publish it as an
+          // unidentified record, but keep the conservative precision: an unknown
+          // animal might be a protected one.
           //
           // `ai_band` is what decides whether the reporter is offered the top-5 to
           // confirm. In the medium band that list is worth showing — measured top-5
           // is 91.6%. In the low band it is 68%, and report_ai_suggestions withholds
           // it, because a confidently-presented wrong species anchors the reporter
           // and a bad identification is worse for the dataset than none.
+          //
+          // Where the list is shown, the record is blurred at least as hard as the
+          // strictest species on it; see suggestionOverride. The rows it reads are
+          // the ones inserted above, in this transaction.
           await tx`
             update reports
-               set precision_override = ${UNIDENTIFIED_PRECISION},
+               set precision_override = ${suggestionOverride(
+                 job.report_id,
+                 result.band !== "low",
+               )},
                    status = case when status = 'pending' then 'published' else status end,
                    ai_band = ${result.band},
                    flagged_reason = ${
                      result.band === "low"
                        ? "model could not identify this with any confidence"
-                       : "low confidence identification"
+                       : AUTO_ASSIGN_BANDS.has(result.band)
+                         ? "the model only suggests a species for this kind of report"
+                         : "low confidence identification"
                    }
              where id = ${job.report_id}::uuid`;
         }
@@ -323,9 +353,13 @@ async function run(req: Request) {
           // worse, would falsify the invariant lib/receipt.ts relies on to
           // decide whose id it may confirm. A row that is pending must have
           // been pending since it was written.
+          //
+          // At least the unidentified blur, never less than the record already
+          // has: see suggestionOverride for who else may have held it coarser.
           await tx`
             update reports
-               set precision_override = ${UNIDENTIFIED_PRECISION},
+               set precision_override = stricter_precision(precision_override,
+                                                           ${UNIDENTIFIED_PRECISION}::text),
                    flagged_reason = 'classification unavailable'
              where id = ${job.report_id}::uuid
                and status = 'pending'`;

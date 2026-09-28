@@ -8,6 +8,7 @@
     "import:taicol": "tsx import-taicol.ts",
     "build:names-en": "tsx build-english-names.ts",
     "import:names-en": "tsx import-english-names.ts",
+    "apply:overrides": "tsx apply-taxa-overrides.ts",
     "import:gbif": "tsx import-gbif.ts",
     "build:evalset": "tsx build-evalset.ts",
     "make:fixture": "tsx make-test-fixture.ts",

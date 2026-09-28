@@ -25,6 +25,10 @@
  * rather than silently shipping a fuzzed point as if it were exact. Suppressed
  * records are omitted altogether.
  *
+ * A record goes out under the licence its contributor granted, or not at all,
+ * and without its free-text notes. Both rules, and why, are in
+ * dwc-occurrences.ts.
+ *
  * Output is a directory, not a zip: `meta.xml`, `eml.xml`, `occurrence.txt`. Zip
  * it with `cd data/export/dwca && zip -r ../dwca.zip .` when uploading to an IPT.
  */
@@ -32,7 +36,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { sql } from "./db.ts";
-import { UNCERTAINTY, generalisation } from "./dwc-terms.ts";
+import { TERMS, selectOccurrences, toOccurrence } from "./dwc-occurrences.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -54,7 +58,13 @@ const DATASET = {
     "a moderator; the identificationVerificationStatus field distinguishes these, and only the last " +
     "involves a second observer. Locations of species rated sensitive by the Catalogue of Life in " +
     "Taiwan (TaiCOL) are generalised, and coordinateUncertaintyInMeters reflects that.",
-  /** CC BY 4.0: matches what we ask contributors to agree to, and what we received. */
+  /**
+   * The licence the DATASET is published under — the EML's intellectualRights
+   * — and nothing more. It is not a licence for any record in it. The report
+   * form does not yet ask contributors for one, so no user record has one to
+   * give, and a record is exported only under the licence it carries itself
+   * (dwc-occurrences.ts). Until contributors are asked, that is none of them.
+   */
   license: "http://creativecommons.org/licenses/by/4.0/legalcode",
   licenseLabel: "CC BY 4.0",
   homepage: "https://example.org",
@@ -62,45 +72,9 @@ const DATASET = {
 };
 
 /* ------------------------------------------------------------------ *
- * Darwin Core mapping
+ * Darwin Core mapping: which records, and what each says, is in
+ * dwc-occurrences.ts. This file writes the archive around them.
  * ------------------------------------------------------------------ */
-
-/**
- * Column order here defines the archive. `meta.xml` is generated from this same
- * list, so the two cannot drift — a mismatched meta.xml is the single most common
- * way a DwC-A is rejected, and it fails silently as misaligned columns.
- */
-const TERMS = [
-  "occurrenceID",
-  "basisOfRecord",
-  "eventDate",
-  "year",
-  "month",
-  "day",
-  "countryCode",
-  "decimalLatitude",
-  "decimalLongitude",
-  "geodeticDatum",
-  "coordinateUncertaintyInMeters",
-  "scientificName",
-  "taxonID",
-  "kingdom",
-  "phylum",
-  "class",
-  "order",
-  "family",
-  "genus",
-  "taxonRank",
-  "vernacularName",
-  "identificationVerificationStatus",
-  "occurrenceRemarks",
-  "occurrenceStatus",
-  "dataGeneralizations",
-  "informationWithheld",
-  "license",
-  "rightsHolder",
-  "datasetName",
-] as const;
 
 /** Darwin Core term URIs, in the same order. */
 const TERM_URI: Record<string, string> = {
@@ -136,57 +110,12 @@ const TERM_URI: Record<string, string> = {
 };
 
 /**
- * How the identification was arrived at, in GBIF's controlled-ish vocabulary.
- *
- * `user` is NOT "verified". It is the reporter agreeing with one of the
- * classifier's own suggestions for their own photograph — one person, no second
- * opinion. "Verified by" is a claim about a second party, and on that path there
- * is no second party; a downstream modeller filtering for verified records would
- * have been handed self-assertions. Only `expert` involves someone other than
- * the reporter, and only that one says verified.
- */
-const VERIFICATION: Record<string, string> = {
-  user: "Unverified — reporter's own identification",
-  expert: "Verified by moderator",
-  ai: "Unverified — machine identification above measured confidence threshold",
-  imported: "Unverified",
-};
-
-type Row = {
-  id: string;
-  category: string;
-  /** postgres.js parses timestamptz into a Date, not a string. */
-  observed_at: Date;
-  notes: string | null;
-  location_precision: string;
-  is_obscured: boolean;
-  /** Read only to say WHY a coordinate was generalised; never published itself. */
-  sensitivity: string | null;
-  protected_status: string | null;
-  taxon_source: string | null;
-  lat: number | null;
-  lng: number | null;
-  scientific_name: string | null;
-  taxon_id: number | null;
-  kingdom: string | null;
-  phylum: string | null;
-  class: string | null;
-  order: string | null;
-  family: string | null;
-  genus: string | null;
-  rank: string | null;
-  common_name_zh: string | null;
-  license: string | null;
-  rights_holder: string | null;
-  source: string;
-};
-
-/**
  * Escape a value for a tab-delimited DwC file.
  *
- * Tabs, newlines and carriage returns inside free-text notes would otherwise
- * shift every subsequent column of that row, and because the archive has no
- * quoting, a single pasted newline silently corrupts the file from that point on.
+ * Tabs, newlines and carriage returns inside any value — a rights holder's
+ * name, say — would otherwise shift every subsequent column of that row, and
+ * because the archive has no quoting, a single pasted newline silently corrupts
+ * the file from that point on.
  */
 function cell(v: unknown): string {
   if (v === null || v === undefined) return "";
@@ -268,26 +197,12 @@ async function main(): Promise<void> {
   const outDir = outIdx >= 0 ? args[outIdx + 1] : join(ROOT, "data", "export", "dwca");
   const includeUnidentified = args.includes("--include-unidentified");
 
-  // reports_public already excludes unpublished records and applies obscuring.
-  // Joining back to `reports` is only to read `source`, which the public view
-  // does expose — the filter below is the whole point of this export.
-  const rows = await sql<Row[]>`
-    select r.id::text, r.category, r.observed_at, r.notes,
-           r.location_precision, r.is_obscured, r.taxon_source, r.source,
-           r.license, r.rights_holder,
-           st_y(r.location_public::geometry) as lat,
-           st_x(r.location_public::geometry) as lng,
-           t.scientific_name, t.id as taxon_id, t.kingdom, t.phylum, t.class,
-           t."order", t.family, t.genus, t.rank, t.common_name_zh,
-           t.sensitivity, t.protected_status
-      from reports_public r
-      left join taxa t on t.id = r.taxon_id
-     where r.source = 'user'
-       and r.location_precision <> 'suppressed'
-       and (${includeUnidentified} or r.taxon_id is not null)
-     order by r.observed_at`;
+  // reports_public already excludes unpublished records and applies obscuring;
+  // the `source = 'user'` filter inside selectOccurrences is the whole point of
+  // this export.
+  const rows = await selectOccurrences(sql, { includeUnidentified });
 
-  // Belt and braces. If the query above is ever edited carelessly, this stops an
+  // Belt and braces. If the query is ever edited carelessly, this stops an
   // archive containing 路殺社's records from being uploaded under our name.
   const foreign = rows.filter((r) => r.source !== "user");
   if (foreign.length) {
@@ -299,51 +214,19 @@ async function main(): Promise<void> {
     );
   }
 
+  // Unlicensed records are left out here rather than in SQL, so that the count
+  // of what was withheld can be printed: an archive that is empty because
+  // nobody has granted a licence yet should say so, not look like a bug.
+  const published = rows.flatMap((r) => {
+    const values = toOccurrence(r, DATASET.title);
+    return values ? [{ r, values }] : [];
+  });
+  const unlicensed = rows.length - published.length;
+
   await mkdir(outDir, { recursive: true });
 
   const lines = [TERMS.join("\t")];
-  for (const r of rows) {
-    const d = new Date(r.observed_at);
-    // Why this coordinate is coarse, decided per record rather than asserted.
-    // See scripts/dwc-terms.ts: since 0011 a record can be blurred because
-    // nobody has identified it, which is not a statement about any taxon.
-    const withheld = generalisation(r);
-
-    const values: Record<string, unknown> = {
-      // Stable and opaque. A UUID means republishing after an edit updates the
-      // existing GBIF occurrence instead of creating a duplicate.
-      occurrenceID: r.id,
-      basisOfRecord: "HumanObservation",
-      eventDate: r.observed_at ? r.observed_at.toISOString() : "",
-      year: d.getUTCFullYear(),
-      month: d.getUTCMonth() + 1,
-      day: d.getUTCDate(),
-      countryCode: "TW",
-      decimalLatitude: r.lat?.toFixed(6),
-      decimalLongitude: r.lng?.toFixed(6),
-      geodeticDatum: "EPSG:4326",
-      coordinateUncertaintyInMeters: UNCERTAINTY[r.location_precision] ?? "",
-      scientificName: r.scientific_name,
-      taxonID: r.taxon_id ? `TaiCOL:${r.taxon_id}` : "",
-      kingdom: r.kingdom,
-      phylum: r.phylum,
-      class: r.class,
-      order: r.order,
-      family: r.family,
-      genus: r.genus,
-      taxonRank: r.rank?.toLowerCase(),
-      vernacularName: r.common_name_zh,
-      identificationVerificationStatus: VERIFICATION[r.taxon_source ?? ""] ?? "Unverified",
-      // The reporter's own note plus the report category, which is real
-      // ecological signal: "roadkill" is how the animal was encountered.
-      occurrenceRemarks: [r.category, r.notes].filter(Boolean).join("; "),
-      occurrenceStatus: "present",
-      dataGeneralizations: withheld.dataGeneralizations,
-      informationWithheld: withheld.informationWithheld,
-      license: r.license ?? DATASET.license,
-      rightsHolder: r.rights_holder ?? DATASET.title,
-      datasetName: DATASET.title,
-    };
+  for (const { values } of published) {
     lines.push(TERMS.map((t) => cell(values[t])).join("\t"));
   }
 
@@ -351,19 +234,28 @@ async function main(): Promise<void> {
   await writeFile(join(outDir, "meta.xml"), metaXml(), "utf8");
   await writeFile(
     join(outDir, "eml.xml"),
-    emlXml(rows.length, rows[0]?.observed_at ?? null, rows.at(-1)?.observed_at ?? null),
+    emlXml(
+      published.length,
+      published[0]?.r.observed_at ?? null,
+      published.at(-1)?.r.observed_at ?? null,
+    ),
     "utf8",
   );
 
-  const obscured = rows.filter((r) => r.is_obscured).length;
+  const obscured = published.filter(({ r }) => r.is_obscured).length;
   console.log(`Darwin Core Archive -> ${outDir}`);
-  console.log(`  ${rows.length.toLocaleString()} occurrence records (source='user' only)`);
+  console.log(`  ${published.length.toLocaleString()} occurrence records (source='user' only)`);
   console.log(`  ${obscured.toLocaleString()} with generalised coordinates, declared as such`);
-  if (rows.length === 0) {
+  if (unlicensed > 0) {
     console.log(
-      "\n  Nothing to publish yet: every record currently in the database was\n" +
-        "  imported from GBIF, and those are deliberately excluded. This archive\n" +
-        "  becomes meaningful once the site has its own submissions.",
+      `  ${unlicensed.toLocaleString()} left out: their contributors have not granted a licence`,
+    );
+  }
+  if (published.length === 0) {
+    console.log(
+      "\n  Nothing to publish yet. Records imported from GBIF are deliberately\n" +
+        "  excluded, and a record of our own goes out only under a licence its\n" +
+        "  contributor granted, which the report form does not yet ask for.",
     );
   } else {
     console.log(`\n  Zip it:  cd ${outDir} && zip -r ../dwca.zip .`);

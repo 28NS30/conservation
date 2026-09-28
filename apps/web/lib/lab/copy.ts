@@ -631,7 +631,7 @@ const zhTW: LabCopy = {
     publishedLink: "看這筆紀錄",
     held: "收到了，還沒公開",
     heldNoSpecies:
-      "沒有物種名稱，要先確認是什麼動物才會公開。這是人工處理，時間不一定。",
+      "沒有物種名稱，要先確認是什麼動物才會公開。辨識模型會先試著從照片判斷；判斷不出來，就會以未鑑定、位置模糊化的方式公開。",
     heldNoPhoto: "沒有照片的通報，會先由人看過才公開。",
     heldReview: "這筆通報會先由人看過才公開。",
     queued: "存在手機裡了，還沒送出",
@@ -988,7 +988,7 @@ const en: LabCopy = {
     publishedLink: "See this record",
     held: "Received. Not public yet.",
     heldNoSpecies:
-      "Without a species name it waits until the animal is identified. That is done by hand, with no timetable.",
+      "Without a species name it waits until the animal is identified. Our identification model tries to name it from your photo; if it can't, the record is published unidentified, at a blurred location.",
     heldNoPhoto: "Reports without a photo are checked by a person first.",
     heldReview: "This report is checked by a person before it is published.",
     queued: "Saved on this phone. Not sent yet",

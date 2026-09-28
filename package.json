@@ -18,6 +18,7 @@
     "import:taicol": "npm run import:taicol --workspace @conservation/scripts --",
     "build:names-en": "npm run build:names-en --workspace @conservation/scripts --",
     "import:names-en": "npm run import:names-en --workspace @conservation/scripts --",
+    "apply:overrides": "npm run apply:overrides --workspace @conservation/scripts --",
     "import:gbif": "npm run import:gbif --workspace @conservation/scripts --",
     "build:evalset": "npm run build:evalset --workspace @conservation/scripts --",
     "test:map": "npm run test:map --workspace @conservation/web",

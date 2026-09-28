@@ -4,7 +4,10 @@ import { revalidatePath } from "next/cache";
 import { sql } from "@/lib/db";
 import { currentRole } from "@/lib/auth";
 import { recategorise, type Category } from "@conservation/shared";
-import { keepDeliberateOverride } from "@/lib/report/precision";
+import {
+  keepDeliberateOverride,
+  photoIdentificationOverride,
+} from "@/lib/report/precision";
 
 /**
  * Moderation mutations.
@@ -82,6 +85,12 @@ export async function rejectReport(reportId: string, reason: string) {
  * that had been stamped "we do not know what this is yet" left the stamp in
  * place, and the record they had just done the work of naming stayed blurred
  * to 10 km for good.
+ *
+ * And, naming a species, through `photoIdentificationOverride` like the other
+ * two: the record takes at least the strictest rule of any row sharing the
+ * binomial. A moderator works from the same photograph the model did, and the
+ * names they can type include subspecies and species rows that need not carry
+ * the same rating. Removing a name (null) has no binomial to consult.
  */
 export async function setReportTaxon(reportId: string, taxonId: number | null) {
   const actor = await requireModerator();
@@ -101,7 +110,11 @@ export async function setReportTaxon(reportId: string, taxonId: number | null) {
     await tx`update reports
                 set taxon_id = ${taxonId}, taxon_source = 'expert',
                     category = ${category},
-                    precision_override = ${keepDeliberateOverride()}
+                    precision_override = ${
+                      taxonId === null
+                        ? keepDeliberateOverride()
+                        : photoIdentificationOverride(taxonId)
+                    }
               where id = ${reportId}::uuid`;
     await tx`insert into moderation_actions (report_id, actor_id, action, reason)
              values (${reportId}::uuid, ${actor}::uuid, 'retaxon', ${String(taxonId)})`;

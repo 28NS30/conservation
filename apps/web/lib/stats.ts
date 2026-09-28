@@ -1,4 +1,5 @@
 import { asPublic } from "@/lib/db";
+import { countSpecies } from "@/lib/species";
 import type { Category } from "@conservation/shared";
 
 /**
@@ -11,9 +12,49 @@ import type { Category } from "@conservation/shared";
  * way to leak a location, so it gets the extra restriction below.
  */
 
+/**
+ * How many species have a record here: the one number every page states.
+ *
+ * It is the species directory's own count, and deliberately not a second query
+ * that looks like it. Two definitions were in use and they disagreed in public:
+ * /stats, /season and the map's header counted `distinct taxon_id` over the
+ * public view and said 506 in production, while the directory — the page a
+ * reader opens to check — listed 501. The five in between hold records filed
+ * under names that do not apply in Taiwan (Dopasia harti is a Fujian lizard),
+ * which the directory hides while they wait to be moved to the right species.
+ * A statistic that counts a species the reader cannot find is one the reader
+ * cannot trust.
+ *
+ * So the definition lives in exactly one place, `speciesWhere()` in
+ * lib/species.ts, and this is how everything else asks it. Subspecies count as
+ * their own rows there, as they do in the directory's list.
+ */
+export async function recordedSpeciesCount(): Promise<number> {
+  return countSpecies({ filter: "recorded" });
+}
+
+/**
+ * The denominator /season sets beside recordedSpeciesCount(): every animal
+ * taxon on Taiwan's checklist, counted by the same `speciesWhere()`.
+ *
+ * It was `rank = 'Species'` alone, under a numerator that counts species and
+ * subspecies rows alike, so "500 of 42,061" divided 328 species plus 172
+ * subspecies by species only. Counting subspecies on both sides keeps the
+ * numerator the one number every other page states, and makes the ratio like
+ * over like. Collapsing subspecies into their species instead would have given
+ * /season a species count of its own (477 locally) beside /stats's 500, which
+ * is the disagreement recordedSpeciesCount() exists to end.
+ *
+ * Animals, because only animals are reported here. The whole checklist —
+ * plants, fungi and bacteria included — made the site look 0.8% done at
+ * recording things it never set out to record.
+ */
+export async function checklistAnimalTaxaCount(): Promise<number> {
+  return countSpecies({ filter: "all", kingdom: "Animalia" });
+}
+
 export type Overview = {
   reports: number;
-  species: number;
   obscured: number;
   identified: number;
   firstYear: number | null;
@@ -24,7 +65,6 @@ export async function overview(): Promise<Overview> {
   const [row] = await asPublic(
     (tx) => tx<Overview[]>`
       select count(*)::int                                         as reports,
-             count(distinct taxon_id)::int                         as species,
              count(*) filter (where is_obscured)::int              as obscured,
              count(*) filter (where taxon_id is not null)::int     as identified,
              extract(year from min(observed_at))::int              as "firstYear",
