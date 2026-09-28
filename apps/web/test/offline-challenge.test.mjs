@@ -103,13 +103,27 @@ describe("offline queue challenge", () => {
     assert.match(banner, /items\.filter\(\(i\) => !autoFlushedRef\.current\.has\(i\.id\)\)/);
   });
 
+  test("a request that never answers cannot hold the queue", () => {
+    // Every later flush is coalesced into the one in flight, so a POST that
+    // never came back on one bar of signal kept every queued report on the
+    // phone until the page was reloaded.
+    assert.equal(
+      (flush.match(/signal: AbortSignal\.timeout\(REQUEST_TIMEOUT_MS\)/g) ?? []).length,
+      2,
+      "both of the flush's own requests must give up in the end",
+    );
+  });
+
   test("no network is not called a fault at our end, and costs no attempt", () => {
     // `navigator.onLine` says true on one bar of signal, so the flush does run
     // with no way through, and `fetch` rejects with a TypeError. That was
     // stored as "unknown" and shown as "something went wrong at our end" —
     // under a banner that had just said there was no signal — and each one
     // spent one of the report's eight attempts.
-    assert.match(flush, /const network = e instanceof TypeError;/);
+    assert.match(
+      flush,
+      /const network =\s*e instanceof TypeError \|\|\s*\(e instanceof DOMException && e\.name === "TimeoutError"\);/,
+    );
     assert.match(flush, /network \? NETWORK : "unknown"/);
     assert.match(flush, /const attempts = network \? item\.attempts : item\.attempts \+ 1;/);
     const en = JSON.parse(read("messages", "en.json"));

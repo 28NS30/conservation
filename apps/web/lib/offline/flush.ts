@@ -54,6 +54,19 @@ export type TokenProvider = () => Promise<string | undefined>;
 
 const MAX_ATTEMPTS = 8;
 
+/**
+ * How long one request may go unanswered before the flush gives up on it.
+ *
+ * On one bar of signal a request can simply never come back, and a flush
+ * waiting on it holds the queue: every later trigger — `online`, the tab
+ * coming back, the banner's own send — is coalesced into the one that is
+ * stuck, so nothing leaves the phone until the page is reloaded. Generous,
+ * because a cold server is slow too; and safe to cut short, because the
+ * report's nonce makes the retry of a request that did land a duplicate the
+ * server answers with the row it already has.
+ */
+const REQUEST_TIMEOUT_MS = 30_000;
+
 let inFlight: Promise<FlushResult> | null = null;
 /** Whether the flush in flight can get challenge tokens. See flushQueue. */
 let inFlightHasToken = false;
@@ -68,6 +81,7 @@ async function uploadPhotos(item: QueuedReport): Promise<string[]> {
   const res = await fetch(withBase("/api/uploads/sign"), {
     method: "POST",
     headers: { "content-type": "application/json" },
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     // The queued blobs came out of the same canvas re-encode, so their own
     // type is the honest answer.
     body: JSON.stringify({
@@ -123,6 +137,7 @@ async function sendOne(
     const res = await fetch(withBase("/api/reports"), {
       method: "POST",
       headers: { "content-type": "application/json" },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       body: JSON.stringify({
         ...item.payload,
         photoPaths,
@@ -171,8 +186,11 @@ async function sendOne(
     // that had just said there was no signal. It has its own code, and like a
     // missing token it costs no attempt: `navigator.onLine` says true on one
     // bar of signal, or on a captive portal, and eight such flushes would
-    // otherwise grind a perfectly good report down to `failed`.
-    const network = e instanceof TypeError;
+    // otherwise grind a perfectly good report down to `failed`. A request
+    // that went out and never came back (REQUEST_TIMEOUT_MS) is the same.
+    const network =
+      e instanceof TypeError ||
+      (e instanceof DOMException && e.name === "TimeoutError");
     const code = e instanceof ReportError ? e.code : network ? NETWORK : "unknown";
     if (!(e instanceof ReportError) && !network) console.error("[flush]", e);
     const attempts = network ? item.attempts : item.attempts + 1;
