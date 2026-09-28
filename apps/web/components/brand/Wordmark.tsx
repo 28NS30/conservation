@@ -56,8 +56,11 @@ export default function Wordmark({
             look like a dense block, and opening them up is what makes the name
             read as a mark rather than as a line of body text. */}
         <span className={`block font-medium ${zh}`}>福爾摩沙守望計畫</span>
+        {/* 0.2em at the smallest size: at 0.3em "PROJECT FORMOSAWATCH" was the
+            widest thing in the phone header, and beside the report block it
+            pushed a 320px English page 8px sideways. */}
         <span
-          className={`mt-1 block font-medium uppercase tracking-[0.3em] opacity-70 ${latin}`}
+          className={`mt-1 block font-medium uppercase opacity-70 ${size === "sm" ? "tracking-[0.2em]" : "tracking-[0.3em]"} ${latin}`}
         >
           Project FormosaWatch
         </span>

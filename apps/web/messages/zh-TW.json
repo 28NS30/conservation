@@ -19,7 +19,8 @@
     "mine": "我的通報",
     "contact": "聯絡",
     "season": "本季目標",
-    "team": "團隊"
+    "team": "團隊",
+    "fileReport": "我要通報"
   },
   "categories": {
     "roadkill": "路殺",
@@ -341,7 +342,9 @@
     "models": "AI 模型",
     "modelsBody": "物種辨識使用 BioCLIP 2（MIT 授權）進行零樣本分類，並以 MegaDetector（MIT 授權）裁切影像。候選名單限縮為臺灣物種名錄中的物種。目前尚未啟用；沒有物種名稱的通報由人確認。",
     "ourData": "本站產生的資料",
-    "ourDataBody": "使用者通報的紀錄由通報者提供。我們計畫依照 Darwin Core 標準將這些紀錄回饋給 GBIF，讓資料能被更廣泛使用。"
+    "ourDataBody": "使用者通報的紀錄由通報者提供。我們計畫依照 Darwin Core 標準將這些紀錄回饋給 GBIF，讓資料能被更廣泛使用。",
+    "photos": "照片",
+    "photosBody": "首頁的照片來自 Wikimedia Commons，都是在臺灣拍攝的。每張照片出現的地方都有標示來源，攝影者與授權也列在這裡。"
   },
   "about": {
     "title": "關於本站",
@@ -500,7 +503,30 @@
       "taichung": "臺中",
       "hualien": "花蓮",
       "kenting": "墾丁"
-    }
+    },
+    "heroTitle": "<ph>為臺灣的野生動物</ph><ph>留下紀錄</ph>",
+    "heroBody": "在路上遇到動物、發現外來入侵種，或看見了野生動物？通報大約只要一分鐘，也不需要帳號。每一筆紀錄都會放上公開地圖，幫助保護臺灣的野生動物。",
+    "heroExplore": "探索地圖",
+    "slideshowLabel": "臺灣野生動物照片",
+    "slideshowPause": "暫停照片輪播",
+    "slideshowPlay": "播放照片輪播",
+    "slideshowGoTo": "顯示第 {n} 張照片",
+    "slideshowSlide": "第 {n} 張，共 {total} 張",
+    "photoBy": "攝影：",
+    "rowRoadkillTitle": "在路上遇到動物？",
+    "rowRoadkillBody": "不論已經死亡還是受傷，都值得通報。一張照片加上地點就夠了，不需要知道是什麼物種。",
+    "rowRoadkillCta": "通報路殺",
+    "rowInvasiveTitle": "發現外來入侵種？",
+    "rowInvasiveBody": "綠鬣蜥、福壽螺、埃及聖䴉……外來入侵種會排擠臺灣的原生動物，每一筆通報都能顯示牠們擴散到了哪裡。",
+    "rowInvasiveCta": "通報外來入侵種",
+    "rowSightingTitle": "看見野生動物？",
+    "rowSightingBody": "任何活生生的動物都可以：步道上的青蛙、窗外的鳥。目擊紀錄能顯示臺灣的野生動物還在哪些地方生活。",
+    "rowSightingCta": "通報目擊",
+    "exploreTitle": "探索",
+    "exploreHint": "這些紀錄目前呈現了什麼：在地圖上，也依物種整理。",
+    "mapPrivacy": "受保護與敏感的物種只會顯示模糊的範圍，不會標出確切位置。",
+    "speciesTitle": "已記錄 {count, number} 種",
+    "speciesBody": "這裡記錄到的每一種動物都有自己的頁面：名稱、保育等級，以及曾經在哪裡被看見。"
   },
   "me": {
     "title": "我的通報",

@@ -3,6 +3,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import PageHeader from "@/components/site/PageHeader";
 import { licenseLabel } from "@/lib/license";
 import { asPublic } from "@/lib/db";
+import { PHOTOS } from "@/lib/home/photos";
 
 export const revalidate = 3600;
 
@@ -33,6 +34,7 @@ export default async function AttributionPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("attribution");
+  const zhFirst = locale.startsWith("zh");
 
   const licenses = await asPublic(
     (tx) => tx<
@@ -152,6 +154,30 @@ export default async function AttributionPage({
         <p className="mt-2 text-sm leading-relaxed text-ink-600">
           {t("modelsBody")}
         </p>
+      </section>
+
+      {/* The home page's photographs. Each is credited under the photo, which
+          is what CC BY and CC BY-SA require; this is the same list in one
+          place, generated from lib/home/photos.ts so the two cannot differ. */}
+      <section className="mt-10">
+        <h2 className="text-lg font-semibold text-ink-900">{t("photos")}</h2>
+        <p className="mt-2 text-sm leading-relaxed text-ink-600">{t("photosBody")}</p>
+        <ul className="mt-4 divide-y divide-ink-900/10 border-y border-ink-900/10 text-sm">
+          {Object.values(PHOTOS).map((p) => (
+            <li key={p.src} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2.5">
+              <span className="text-ink-900">{zhFirst ? p.name.zh : p.name.en}</span>
+              <span className="text-ink-600">
+                <a href={p.source} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-ink-900">
+                  {p.author}
+                </a>
+                {" · "}
+                <a href={p.licenseUrl} target="_blank" rel="noopener noreferrer" className="whitespace-nowrap underline underline-offset-2 hover:text-ink-900">
+                  {p.license}
+                </a>
+              </span>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section className="mt-10">

@@ -82,39 +82,42 @@ const REQUIRED_LAYERS = ["reports-cells", "reports-dots", "reports-points"];
 /**
  * The front page's layout promises, at the sizes people actually use.
  *
- * The owner asked for a much larger badge with only a little text beside it,
- * and the doors still have to be reachable without scrolling. Each of these
- * broke at least once while the page was being built.
+ * The page was rebuilt in September 2026 to the team's design brief (a split
+ * hero with rotating photographs, then photograph rows alternating side to
+ * side). The promises below are the old page's, carried over rather than
+ * dropped, each in the form the new layout needs:
+ *
+ * - A WAY TO REPORT WITHOUT SCROLLING. The old page kept its three doors above
+ *   the fold on a 360x740 phone. Now the header's "File a report" block is
+ *   sticky, on screen at every size, and it opens exactly the three report
+ *   types, so the promise holds on every page, not only this one.
+ * - NO PHRASE OF THE HEADLINE BREAKS INSIDE ITSELF. The old check stopped the
+ *   name breaking as 福爾摩沙守望 / 計畫. The new headline is bound into
+ *   phrases (never "WILDLIFE, ON / THE RECORD", never 野生 / 動物), and this is
+ *   what notices if that binding is lost.
+ * - THE CHINESE NAME IS MARKED AS CHINESE in the English page, so a screen
+ *   reader does not read 福爾摩沙守望計畫 as English. It moved from the h1 to
+ *   the line above it.
+ * - EVERY PHOTOGRAPH CARRIES ITS CREDIT. They are CC BY and CC BY-SA, which
+ *   require one; a row added without a credit would be a licence breach.
  */
 async function checkHome(page, pg, plate) {
   const errs = [];
-  // [width, height, expected badge width or null to skip, Latin name must be one line]
   const sizes = [
-    [1440, 900, 320, true],
-    [1366, 700, 272, true], // a short laptop screen gets the smaller badge
-    [640, 900, 272, true], // the narrowest sm layout, where the name once broke mid-word
-    [390, 844, 172, true],
-    [360, 740, null, true], // min(44vw, 172px) — about 158
-    [320, 640, null, false], // the WCAG reflow width; no fold or one-line promise here
+    [1440, 900],
+    [1366, 700],
+    [640, 900],
+    [390, 844],
+    [360, 740],
+    [320, 640], // the WCAG reflow width
   ];
-  for (const [w, h, badge, oneLine] of sizes) {
+  for (const [w, h] of sizes) {
     await page.setViewportSize({ width: w, height: h });
     await page.waitForTimeout(300);
     const m = await page.evaluate(() => {
-      const img = document.querySelector("main section img");
-      const doors = [...document.querySelectorAll('a[href*="/report?category="]')];
-      const h1 = document.querySelector("main h1");
-      const latin = [...(h1?.querySelectorAll("span") ?? [])].find((e) =>
-        /^\s*Project FormosaWatch\s*$/i.test(e.textContent ?? ""),
-      );
-      // Lines of TEXT, from the text's own boxes. The element's box is one
-      // rect whether or not the words inside it wrap, which is why an earlier
-      // version of this check could never fail.
+      // Lines of TEXT, from the text's own boxes: an element's box is one rect
+      // whether or not the words inside it wrap.
       const lineTops = (el) => {
-        if (!el) return 0;
-        // Text nodes only: the decorative dot beside the Latin name is an
-        // element with its own box at a different height, and counted as a
-        // second line of text.
         const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
         const tops = [];
         for (let n = walker.nextNode(); n; n = walker.nextNode()) {
@@ -124,46 +127,60 @@ async function checkHome(page, pg, plate) {
           for (const r of range.getClientRects()) if (r.width > 0) tops.push(r.top);
         }
         tops.sort((a, b) => a - b);
-        // Rects on one line can differ by a pixel; a new line is at least half
-        // a line-height further down.
         let lines = 0;
         let last = -Infinity;
         for (const t of tops) if (t - last > 4) { lines++; last = t; }
         return lines;
       };
-      const halves = [...(h1?.querySelectorAll('[lang="zh-TW"] > span') ?? [])];
+      const header = document.querySelector("header");
+      const report = header?.querySelector("details > summary");
+      const rr = report?.getBoundingClientRect();
+      const choices = [...(header?.querySelectorAll('details a[href*="/report?category="]') ?? [])]
+        .map((a) => new URL(a.href).searchParams.get("category"));
+      const rows = [...document.querySelectorAll('main a[href*="/report?category="]')]
+        .map((a) => new URL(a.href).searchParams.get("category"));
+      const phrases = [...(document.querySelector("main h1")?.querySelectorAll(".inline-block") ?? [])];
       return {
         overflow: document.documentElement.scrollWidth > innerWidth,
-        badge: img ? Math.round(img.getBoundingClientRect().width) : 0,
-        doorsBottom: Math.max(...doors.map((d) => d.getBoundingClientRect().bottom)),
-        doors: doors.length,
-        latinLines: lineTops(latin),
-        latinOverflows: latin ? latin.scrollWidth > latin.clientWidth + 1 : true,
-        // Neither half of the name may itself break across lines.
-        brokenHalves: halves.filter((el) => lineTops(el) > 1).map((el) => el.textContent),
+        reportVisible: !!rr && rr.width > 0 && rr.height >= 24 && rr.top >= 0 && rr.bottom <= innerHeight,
+        choices,
+        rows,
+        phrases: phrases.length,
+        brokenPhrases: phrases.filter((el) => lineTops(el) > 1).map((el) => el.textContent),
       };
     });
     const at = `${w}x${h}`;
     if (m.overflow) errs.push(`home scrolls sideways at ${at}`);
-    if (badge !== null && m.badge !== badge)
-      errs.push(`badge is ${m.badge}px at ${at}, expected ${badge}`);
-    if (badge === null && m.badge > 158)
-      errs.push(`badge is ${m.badge}px at ${at}, expected 158 or less`);
-    if (m.doors !== 3) errs.push(`${m.doors} report doors at ${at}, expected 3`);
-    if (w >= 360 && m.doorsBottom > h)
-      errs.push(`report doors fall below the fold at ${at}`);
-    if (oneLine && m.latinLines !== 1)
-      errs.push(`"Project FormosaWatch" is on ${m.latinLines} lines at ${at}`);
-    if (oneLine && m.latinOverflows)
-      errs.push(`"Project FormosaWatch" overflows its column at ${at}`);
-    if (m.brokenHalves.length)
-      errs.push(`the name breaks inside ${m.brokenHalves.join(", ")} at ${at}`);
+    if (!m.reportVisible) errs.push(`the header's "File a report" block is not on screen at ${at}`);
+    if (new Set(m.choices).size !== 3)
+      errs.push(`the report menu offers ${m.choices.join(",") || "nothing"} at ${at}, expected three distinct types`);
+    if (new Set(m.rows).size !== 3)
+      errs.push(`the page's report rows offer ${m.rows.join(",") || "nothing"} at ${at}, expected three distinct types`);
+    if (m.phrases < 2) errs.push(`the headline is not bound into phrases at ${at}`);
+    if (m.brokenPhrases.length)
+      errs.push(`the headline breaks inside "${m.brokenPhrases.join('", "')}" at ${at}`);
   }
   await page.setViewportSize({ width: 1000, height: 800 });
   if (plate.length) errs.push("home still requests /field.svg");
+
+  const credits = await page.evaluate(() => {
+    const figures = [...document.querySelectorAll("main figure")];
+    const hero = document.querySelector('main [aria-roledescription="carousel"]');
+    return {
+      figures: figures.length,
+      uncredited: figures.filter((f) => !/CC BY/.test(f.querySelector("figcaption")?.textContent ?? "")).length,
+      heroCredited: !!hero && /CC BY/.test(hero.textContent ?? ""),
+    };
+  });
+  if (credits.figures < 6) errs.push(`expected six photograph rows, found ${credits.figures}`);
+  if (credits.uncredited) errs.push(`${credits.uncredited} photograph(s) without a CC credit`);
+  if (!credits.heroCredited) errs.push("the hero photograph has no CC credit");
+
   if (pg.path.startsWith("/en")) {
-    const marked = await page.evaluate(() => !!document.querySelector('h1 [lang="zh-TW"]'));
-    if (!marked) errs.push("the Chinese name in the English h1 is not marked lang=zh-TW");
+    const marked = await page.evaluate(() =>
+      [...document.querySelectorAll('main [lang="zh-TW"]')].some((e) => e.textContent?.includes("福爾摩沙守望計畫")),
+    );
+    if (!marked) errs.push("the Chinese name on the English page is not marked lang=zh-TW");
   }
   return errs;
 }
