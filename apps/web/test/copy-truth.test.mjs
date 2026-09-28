@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 /**
@@ -26,7 +26,6 @@ import { join } from "node:path";
  *    whole site, before a locale exists — so it holds its own copy of the name
  *    and the description, and that copy was three years of renames out of date.
  *    A duplicate that nothing checks is a duplicate that drifts.
- *
  * This guards facts, not phrasing. A rewrite that stays true passes; changing
  * one of these assertions to accommodate new copy means the new copy is false.
  */
@@ -76,6 +75,75 @@ describe("the catalogues claim nothing that is not true", () => {
         `${l}: errors.backHome is "${label}", but the link goes to the front page`,
       );
     }
+  });
+});
+
+const read = (p) => readFileSync(join(WEB, p), "utf8");
+describe("house style the catalogues can check", () => {
+  test("no English count is a number beside a fixed plural noun", () => {
+    // "1 records" in the species directory, "1 reports waiting to send" on the
+    // report page, "7169 locations blurred". A count belongs inside an ICU
+    // plural, where both the noun and the number's formatting follow it.
+    const offenders = entries(catalogues.en)
+      .filter(([, v]) =>
+        /\{\w+(?:, number)?\}\s+(?:records?|reports?|locations?)\b/.test(v),
+      )
+      .map(([k, v]) => `${k} — ${v}`);
+    assert.deepEqual(offenders, []);
+  });
+});
+
+describe("one species count", () => {
+  /*
+   * /stats and /season said 506 species while the directory listed 501, and the
+   * map's header agreed with neither page it linked to. They were two queries:
+   * `count(distinct taxon_id)` over the public view, and the directory's own,
+   * which leaves out names that do not apply in Taiwan. Every page now asks
+   * recordedSpeciesCount(), which asks the directory.
+   *
+   * Checked in the source rather than by comparing rendered pages. Each page is
+   * cached on its own timer, and the suite commits reports while it runs, so
+   * two correct pages can briefly disagree by one. And CI's fixture holds none
+   * of the names the two queries disagree about, so there a rendered comparison
+   * would pass with either query. What does not vary is which function a page
+   * calls.
+   */
+  const KNOWN = new Map([
+    // Outside the change that unified the others, each with its one-line fix:
+    // use recordedSpeciesCount() from lib/stats.ts. Remove the entry with it.
+    ["app/[locale]/page.tsx", "the home page's '{count} species on record' row"],
+    ["app/api/health/route.ts", "the count the parent site reads from /api/health"],
+  ]);
+
+  function* sources(dir) {
+    for (const name of readdirSync(dir)) {
+      const p = join(dir, name);
+      if (statSync(p).isDirectory()) yield* sources(p);
+      else if (/\.(tsx?|mjs)$/.test(name)) yield p;
+    }
+  }
+
+  test("no page counts species with a query of its own", () => {
+    const offenders = [];
+    for (const dir of ["app", "lib", "components"])
+      for (const file of sources(join(WEB, dir))) {
+        const rel = file.slice(WEB.length);
+        if (KNOWN.has(rel)) continue;
+        // Code, not comments: lib/stats.ts explains the old query by name.
+        const code = readFileSync(file, "utf8").replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
+        if (/count\(\s*distinct\s+(?:\w+\.)?taxon_id/i.test(code)) offenders.push(rel);
+      }
+    assert.deepEqual(offenders, [], "use recordedSpeciesCount() from lib/stats.ts");
+  });
+
+  test("the pages that state it ask the one function", () => {
+    for (const p of [
+      "app/[locale]/(site)/stats/page.tsx",
+      "app/[locale]/(site)/season/page.tsx",
+      "app/[locale]/map/page.tsx",
+    ])
+      assert.match(read(p), /recordedSpeciesCount\(\)/, p);
+    assert.match(read("lib/stats.ts"), /countSpecies\(\{ filter: "recorded" \}\)/);
   });
 });
 

@@ -39,10 +39,15 @@ export type Coverage = {
   newThisSeason: number;
   /** Records the grid cannot place, because their species is sensitive. */
   unplaceable: number;
-  /** Distinct taxa with at least one published record. */
-  speciesRecorded: number;
-  /** Species on TaiCOL's Taiwan checklist — the denominator. */
-  speciesInChecklist: number;
+  /**
+   * Animal species on TaiCOL's Taiwan checklist — the denominator beside the
+   * species count (which is recordedSpeciesCount(), the directory's).
+   *
+   * Animals, because only animals are reported here. The whole checklist —
+   * plants, fungi and bacteria included — is 66,201, and set against it the
+   * site looked 0.8% done at comparing things it never set out to record.
+   */
+  animalSpeciesInChecklist: number;
   seasonStart: string;
   seasonEnd: string;
 };
@@ -88,10 +93,9 @@ export async function coverage(): Promise<Coverage> {
           where first_at >= (select season_start from bounds) and fresh > 0)
           as "newThisSeason",
         (select count(*)::int from reports_public where is_obscured) as unplaceable,
-        (select count(distinct taxon_id)::int from reports_public
-          where taxon_id is not null) as "speciesRecorded",
-        (select count(*)::int from taxa where is_in_taiwan and rank = 'Species')
-          as "speciesInChecklist",
+        (select count(*)::int from taxa
+          where is_in_taiwan and rank = 'Species' and kingdom = 'Animalia')
+          as "animalSpeciesInChecklist",
         (select season_start from bounds)::text as "seasonStart",
         ((select season_start from bounds) + interval '3 months' - interval '1 day')::date::text
           as "seasonEnd"`,

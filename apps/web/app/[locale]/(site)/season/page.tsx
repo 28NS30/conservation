@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { coverage, SEASON_TARGET, COVERAGE_CELL_M } from "@/lib/coverage";
+import { recordedSpeciesCount } from "@/lib/stats";
 import PageHeader from "@/components/site/PageHeader";
 
 export const revalidate = 900;
@@ -36,8 +37,15 @@ export async function generateMetadata({
  * describe those roads well and the rest of the island not at all.
  *
  * There is no reward, no currency and no leaderboard here, and that is a
- * decision rather than an omission. Rewarding submission would put a price on
- * records that are published to GBIF under this project's name.
+ * decision rather than an omission. Rewarding submission would reward careless
+ * and invented records too, and every record is public under this project's
+ * name. (The page used to say they were "published as open data"; nothing has
+ * been sent to GBIF yet, so it no longer does.)
+ *
+ * The species figure is the directory's count over the animal species on
+ * Taiwan's checklist. It was every taxon with a record over every species of
+ * every kingdom: two different kinds of count, and a denominator full of plants
+ * and fungi that nobody reports here.
  */
 export default async function SeasonPage({
   params,
@@ -48,7 +56,7 @@ export default async function SeasonPage({
   setRequestLocale(locale);
   const t = await getTranslations("season");
 
-  const c = await coverage();
+  const [c, species] = await Promise.all([coverage(), recordedSpeciesCount()]);
   const km = COVERAGE_CELL_M / 1000;
   const pct = Math.min(100, (c.newThisSeason / SEASON_TARGET) * 100);
   const n = (v: number) => v.toLocaleString(locale);
@@ -111,7 +119,7 @@ export default async function SeasonPage({
           hint={t("cellsHint")}
         />
         <Figure
-          value={`${n(c.speciesRecorded)} / ${n(c.speciesInChecklist)}`}
+          value={`${n(species)} / ${n(c.animalSpeciesInChecklist)}`}
           label={t("speciesCovered")}
           hint={t("speciesHint")}
         />

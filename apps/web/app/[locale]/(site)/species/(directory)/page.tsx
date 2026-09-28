@@ -49,6 +49,7 @@ export default async function SpeciesDirectory({
   const { q: rawQ, filter: rawFilter, page: rawPage } = await searchParams;
 
   const t = await getTranslations("species");
+  const ts = await getTranslations("stats");
 
   // Defaults to species that actually have records: only 442 of 68,944 Taiwanese
   // taxa do, so an unfiltered list is 68,500 empty pages and useless as a
@@ -206,12 +207,14 @@ export default async function SpeciesDirectory({
                       <StatusBadges {...s} />
                     </span>
                     {/* Number and unit on one line: stacked, the lone 筆 read as
-                        a stray glyph floating under the count. */}
+                        a stray glyph floating under the count. One plural
+                        message rather than a number beside a fixed word, which
+                        printed "1 records" for every species seen once. */}
                     <span className="shrink-0 whitespace-nowrap text-xs tabular-nums text-ink-500">
-                      <span className="text-sm text-ink-700">
-                        {s.reportCount.toLocaleString(locale)}
-                      </span>{" "}
-                      {t("recordsShort")}
+                      {ts.rich("recordTally", {
+                        count: s.reportCount,
+                        n: (c) => <span className="text-sm text-ink-700">{c}</span>,
+                      })}
                     </span>
                   </Link>
                 </li>
