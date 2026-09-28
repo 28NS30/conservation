@@ -19,18 +19,26 @@ export default async function SiteFooter({
   obscured,
 }: {
   variant?: "site" | "app";
-  obscured?: string;
+  /**
+   * How many public records are blurred. A number, formatted here: the home
+   * page passed its SQL count through as the string "7169" and the map passed
+   * "7,169", so the same footer printed the same count two ways.
+   */
+  obscured?: number | string;
 }) {
   const t = await getTranslations();
+  const blurred = Number(obscured);
 
+  // One message rather than words glued around links. The glue was English —
+  // "TaiRON via GBIF" sat in the middle of the Chinese footer on every page.
   const sources = (
     <>
-      {t("footer.dataSource")}:{" "}
-      <ExternalLink href="https://roadkill.tw">TaiRON</ExternalLink> via{" "}
-      <ExternalLink href="https://www.gbif.org">GBIF</ExternalLink> (CC BY 4.0)
-      · {t("footer.checklist")}{" "}
-      <ExternalLink href="https://taicol.tw">TaiCOL</ExternalLink>
-      {obscured && <> · {t("footer.blurredCount", { count: obscured })}</>}
+      {t.rich("footer.sources", {
+        tairon: (c) => <ExternalLink href="https://roadkill.tw">{c}</ExternalLink>,
+        gbif: (c) => <ExternalLink href="https://www.gbif.org">{c}</ExternalLink>,
+        taicol: (c) => <ExternalLink href="https://taicol.tw">{c}</ExternalLink>,
+      })}
+      {blurred > 0 && <> · {t("footer.blurredCount", { count: blurred })}</>}
     </>
   );
 

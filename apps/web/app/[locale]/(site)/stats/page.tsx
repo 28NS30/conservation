@@ -9,6 +9,7 @@ import {
   yearlyTotals,
   topSpecies,
   hotspots,
+  recordedSpeciesCount,
 } from "@/lib/stats";
 import { speciesSlug } from "@/lib/species";
 import PageHeader from "@/components/site/PageHeader";
@@ -66,14 +67,16 @@ export default async function StatsPage({
   const tc = await getTranslations("categories");
 
   // Independent aggregates, so issue them together rather than serially.
-  const [ov, cats, months, years, species, spots] = await Promise.all([
-    overview(),
-    categoryCounts(),
-    monthlyTotals(),
-    yearlyTotals(),
-    topSpecies(15),
-    hotspots(8),
-  ]);
+  const [ov, speciesCount, cats, months, years, species, spots] =
+    await Promise.all([
+      overview(),
+      recordedSpeciesCount(),
+      categoryCounts(),
+      monthlyTotals(),
+      yearlyTotals(),
+      topSpecies(15),
+      hotspots(8),
+    ]);
 
   const n = (v: number) => v.toLocaleString(locale);
   const zhFirst = locale.startsWith("zh");
@@ -107,29 +110,12 @@ export default async function StatsPage({
     <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-12">
       <PageHeader title={t("title")} lede={t("intro")} />
 
-      {/* The one number on this site that is a target rather than a
-          description. It belongs next to the descriptive ones. */}
-      <Link
-        href="/season"
-        className="mb-6 flex items-center justify-between gap-4 rounded-xl border border-ember-500/30 bg-ember-500/8 px-5 py-4 transition hover:border-ember-500/50 hover:bg-ember-500/12"
-      >
-        <span>
-          <span className="block text-sm font-semibold text-ink-900">
-            {t("seasonLink")}
-          </span>
-          <span className="mt-0.5 block text-[12px] leading-relaxed text-ink-600">
-            {t("seasonLinkHint")}
-          </span>
-        </span>
-        <span aria-hidden className="shrink-0 text-ember-700">
-          →
-        </span>
-      </Link>
-
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           { k: "records", v: n(ov.reports) },
-          { k: "species", v: n(ov.species) },
+          // The directory's count, so this number and the list a reader opens
+          // to check it are the same number. See recordedSpeciesCount().
+          { k: "species", v: n(speciesCount) },
           {
             k: "identified",
             v: ov.reports
@@ -307,10 +293,14 @@ export default async function StatsPage({
                     </span>
                   </span>
                   {/* One line: stacked, the lone unit character read as a
-                      stray glyph floating under the count. */}
+                      stray glyph floating under the count. The number sits
+                      inside the plural message, so a cell of one reads
+                      "1 record" rather than "1 records". */}
                   <span className="shrink-0 whitespace-nowrap text-[10px] tabular-nums text-ink-500">
-                    <span className="text-sm text-ink-700">{n(h.n)}</span>{" "}
-                    {t("perCell")}
+                    {ts.rich("recordTally", {
+                      count: h.n,
+                      n: (c) => <span className="text-sm text-ink-700">{c}</span>,
+                    })}
                   </span>
                 </Link>
               </li>
@@ -320,19 +310,45 @@ export default async function StatsPage({
 
         <Section title={t("coverage")} span>
           <p className="text-xs leading-relaxed text-ink-500">
+            {/* Numbers, not n(): both are plurals in English, and a plural
+                of a formatted string is NaN. */}
             {t("coverageBody", {
-              obscured: n(ov.obscured),
-              total: n(ov.reports),
+              obscured: ov.obscured,
+              total: ov.reports,
             })}
           </p>
+          {/* To the section that answers the question, not to the top of
+              /about. The link was labelled "About the project", which is what
+              a reader expects of that page, not of "why are these blurred". */}
           <Link
-            href="/about"
+            href="/about#blurred"
             className="mt-2 inline-block text-xs text-ember-700 transition hover:underline"
           >
             {t("howObscuringWorks")} →
           </Link>
         </Section>
       </div>
+
+      {/* The one number on this site that is a target rather than a
+          description. It used to open the page, so the first thing a stranger
+          read on the statistics page was a goal nobody had reached yet
+          ("0 / 40") rather than the statistics. It follows them now. */}
+      <Link
+        href="/season"
+        className="mt-6 flex items-center justify-between gap-4 rounded-xl border border-ember-500/30 bg-ember-500/8 px-5 py-4 transition hover:border-ember-500/50 hover:bg-ember-500/12"
+      >
+        <span>
+          <span className="block text-sm font-semibold text-ink-900">
+            {t("seasonLink")}
+          </span>
+          <span className="mt-0.5 block text-[12px] leading-relaxed text-ink-600">
+            {t("seasonLinkHint")}
+          </span>
+        </span>
+        <span aria-hidden className="shrink-0 text-ember-700">
+          →
+        </span>
+      </Link>
     </main>
   );
 }

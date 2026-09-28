@@ -10,7 +10,7 @@ This file exists so that stops happening. It records **verified** production
 state, with the date, the method, and — where it matters — an explicit "not
 known". It is not a plan and contains no intentions.
 
-Last verified **25 September 2026, 19:40 (Asia/Taipei)**.
+Last verified **25 September 2026, 19:40 (Asia/Taipei)**; section "Changed on 28 September 2026" verified that day.
 
 ## How these were checked
 
@@ -141,10 +141,44 @@ exercised against production data.
 `/lab/journal/map` and `/lab/journal/report/stepper` 404 **by design** — only
 home is built for both directions (`lib/lab/directions.ts`).
 
+## Changed on 28 September 2026
+
+Each verified from outside after the change.
+
+**30 bird records blurred to 10 km.** TaiCOL's 12 August 2026 update rated four
+species 輕度 (sensitive) that our copy of TaiCOL still had as unrated: 棕背伯勞
+*Lanius schach*, 小水鴨 *Anas crecca*, 黑腹濱鷸 *Calidris alpina*, 紅胸濱鷸
+*Calidris ruficollis* — confirmed against TaiCOL's live API, not taken from the
+audit. Their 30 records were at exact coordinates. Each got
+`precision_override = 'coarse_10km'`, which the trigger combines with the taxon
+policy by taking the stricter, so it can only tighten, and it survives a
+TaiCOL re-import that would wipe a hand-edited rating. Both site-wide invariants
+were re-checked at zero afterwards. The durable fix is the TaiCOL refresh in the
+plan.
+
+**Sign-in URLs.** Supabase's `site_url` was `http://localhost:3000`, so every
+sign-in email pointed at localhost and nobody could sign in. It is now
+`https://preservation-web-one.vercel.app`, and the redirect allow-list holds the
+exact callback URL (`/auth/callback`, no query string).
+
+**Sign-in code length: 6** (was 8). But the email TEMPLATES could not be
+changed: Supabase refuses template edits on a free-tier project that uses its
+built-in mailer ("Please upgrade your plan or configure a custom SMTP
+provider"). So emails still contain only the link, in English, until a custom
+SMTP provider is configured. The built-in mailer also sends only 2 emails an
+hour and only to members of the Supabase project, so the public cannot sign in
+yet either way.
+
+**The team's design is live** (#75): forest-green header with the report and
+language blocks, the rotating photo hero, photograph rows. The team's text
+changes are live (#74).
+
 ## Known outstanding, on the credential holder
 
 - The legacy HS256 JWT signing key is `previously_used`, which still **verifies**.
   Retiring it needs the app moved to `sb_publishable_` / `sb_secret_` first.
+- **A custom SMTP provider.** Unlocks public sign-in, the email-code template
+  and a sane rate limit. Needs a sending domain, which needs the domain below.
 - No custom domain, and the Vercel project `apps/biowatch/.vercel/project.json`
   points at does not exist — the team has exactly one project,
   `conservation-web`. So the parent site is finished code with no deployment
