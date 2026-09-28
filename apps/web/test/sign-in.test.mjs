@@ -1,8 +1,10 @@
-import { test, describe } from "node:test";
+import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { randomUUID } from "node:crypto";
 import { BASE_URL } from "./helpers.mjs";
+import { STUB_NAME } from "./stub-gotrue.mjs";
 
 /**
  * Return paths that must never take anyone off the site. The last six are on
@@ -27,6 +29,15 @@ const SITE = new URL(BASE_URL).origin;
 
 /** Where a Location header sends a browser that asked BASE_URL. */
 const resolved = (res) => new URL(res.headers.get("location") ?? "", BASE_URL);
+
+/** How @supabase/ssr stores a session: base64url JSON behind a prefix. */
+const encode = (s) => `base64-${Buffer.from(JSON.stringify(s)).toString("base64url")}`;
+const decode = (v) => JSON.parse(Buffer.from(v.replace(/^base64-/, ""), "base64url").toString());
+const now = () => Math.floor(Date.now() / 1000);
+const authCookie = () => {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  return url ? `sb-${new URL(url).hostname.split(".")[0]}-auth-token` : null;
+};
 
 /**
  * The props the page handed a client component, read from the RSC payload.
@@ -236,12 +247,7 @@ describe("the header's way in", () => {
  * visitor, not an error.
  */
 describe("a session cookie never breaks a page", () => {
-  const name = () => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    return url ? `sb-${new URL(url).hostname.split(".")[0]}-auth-token` : null;
-  };
-  const encode = (s) => `base64-${Buffer.from(JSON.stringify(s)).toString("base64url")}`;
-  const now = () => Math.floor(Date.now() / 1000);
+  const name = authCookie;
 
   test("garbage in the cookie renders the page signed out", async () => {
     if (!name()) return;
@@ -276,5 +282,162 @@ describe("a session cookie never breaks a page", () => {
     const cleared = res.headers.getSetCookie().find((c) => c.startsWith(`${name()}=`));
     assert.match(cleared ?? "", /Max-Age=0/i, "the dead session must be cleared, or every request retries it");
     assert.match(res.headers.get("cache-control") ?? "", /no-store/);
+  });
+});
+
+/**
+ * Signed in, through the built app, against a real Supabase Auth.
+ *
+ * Which Supabase Auth: the local stack when run locally, and in CI the
+ * stand-in at test/stub-gotrue.mjs, which CI starts where the app expects
+ * Supabase to be. These make a throwaway user through the admin API and
+ * delete it afterwards, so they refuse to run against anything that is not
+ * this machine, whatever the environment says.
+ */
+describe("signed in", () => {
+  const auth = {
+    url: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    anon: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
+    service: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  };
+  /** null when usable; otherwise why these are skipped. */
+  let unusable = "not checked yet";
+  /** Whether the Supabase Auth answering is the stand-in. */
+  let stub = false;
+  const made = [];
+
+  before(async () => {
+    if (!auth.url || !auth.service) return void (unusable = "no Supabase configured");
+    if (!["127.0.0.1", "localhost", "[::1]"].includes(new URL(auth.url).hostname))
+      return void (unusable = `${new URL(auth.url).origin} is not this machine`);
+    const health = await fetch(`${auth.url}/auth/v1/health`, {
+      headers: { apikey: auth.anon },
+      signal: AbortSignal.timeout(2000),
+    }).then((r) => (r.ok ? r.json() : null), () => null);
+    if (!health) return void (unusable = "no Supabase auth running");
+    stub = health.name === STUB_NAME;
+    unusable = null;
+  });
+
+  after(async () => {
+    for (const id of made) await admin("DELETE", `/admin/users/${id}`).catch(() => {});
+  });
+
+  async function admin(method, path, body) {
+    const res = await fetch(`${auth.url}/auth/v1${path}`, {
+      method,
+      headers: {
+        apikey: auth.service,
+        authorization: `Bearer ${auth.service}`,
+        "content-type": "application/json",
+      },
+      body: body && JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`admin ${method} ${path}: ${res.status}`);
+    return res.json();
+  }
+
+  /**
+   * A cookie holding a fresh session for a new throwaway user, stored the way
+   * @supabase/ssr stores one. `expired` backdates only the expiry the client
+   * reads, which is what makes the proxy renew it.
+   */
+  async function signedIn({ prefix = "sign-in-test", expired = false } = {}) {
+    const email = `${prefix}-${randomUUID()}@example.com`;
+    const password = randomUUID();
+    made.push((await admin("POST", "/admin/users", { email, password, email_confirm: true })).id);
+    const res = await fetch(`${auth.url}/auth/v1/token?grant_type=password`, {
+      method: "POST",
+      headers: { apikey: auth.anon, "content-type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    assert.equal(res.status, 200, "could not sign the test user in");
+    const s = await res.json();
+    const stored = {
+      access_token: s.access_token,
+      token_type: "bearer",
+      expires_in: s.expires_in,
+      expires_at: expired ? now() - 60 : s.expires_at,
+      refresh_token: s.refresh_token,
+      user: { id: s.user.id },
+    };
+    return { cookie: `${authCookie()}=${encode(stored)}`, refreshToken: s.refresh_token };
+  }
+
+  const signedInHeader = /href="\/en\/me"/;
+  const signedOutHeader = /href="\/en\/login\?next=/;
+
+  test("the header knows who is signed in", async (t) => {
+    // The control for everything below: a session these tests make is one the
+    // app accepts.
+    if (unusable) return t.skip(unusable);
+    const { cookie } = await signedIn();
+    const html = await fetch(`${BASE_URL}/en/about`, { headers: { cookie } }).then((r) => r.text());
+    assert.match(html, signedInHeader);
+    assert.doesNotMatch(html, signedOutHeader);
+  });
+
+  test("/login sends someone already signed in on to where they were going", async (t) => {
+    if (unusable) return t.skip(unusable);
+    const { cookie } = await signedIn();
+    const res = await fetch(`${BASE_URL}/en/login?next=${encodeURIComponent("/en/map?x=1")}`, {
+      ...opts,
+      headers: { cookie },
+    });
+    assert.equal(res.status, 307);
+    assert.equal(resolved(res).href, `${SITE}/en/map?x=1`);
+  });
+
+  test("…and never off the site, without a click", async (t) => {
+    // The one place the dot-segment escape needed nothing from its victim but
+    // opening a link while signed in: the page redirected before rendering.
+    if (unusable) return t.skip(unusable);
+    const { cookie } = await signedIn();
+    for (const evil of OFF_SITE) {
+      const res = await fetch(`${BASE_URL}/en/login?next=${encodeURIComponent(evil)}`, {
+        ...opts,
+        headers: { cookie },
+      });
+      const why = `${JSON.stringify(evil)} became ${location(res)}`;
+      assert.equal(res.status, 307, why);
+      assert.ok(!location(res).startsWith("//"), why);
+      assert.equal(resolved(res).origin, SITE, why);
+      assert.equal(resolved(res).pathname, "/en", why);
+    }
+  });
+
+  test("an expired session is renewed on the way in, and the page renders with the renewal", async (t) => {
+    // The proxy's renewal has to reach two places: the browser (Set-Cookie on
+    // whatever response routing produced) and this render (the request's
+    // cookies, which next-intl forwards). The unit test drives a hand-built
+    // request; this is the built app under `next start`.
+    if (unusable) return t.skip(unusable);
+    const { cookie, refreshToken } = await signedIn({ expired: true });
+    const res = await fetch(`${BASE_URL}/en/about`, { headers: { cookie } });
+    assert.equal(res.status, 200);
+    const set = res.headers.getSetCookie().find((c) => c.startsWith(`${authCookie()}=`));
+    assert.ok(set, "the renewed session must be sent to the browser");
+    const renewed = decode(set.split(";")[0].slice(authCookie().length + 1));
+    assert.notEqual(renewed.refresh_token, refreshToken, "the refresh token was not rotated");
+    assert.ok(renewed.expires_at > now(), "the new session is already expired");
+    assert.match(res.headers.get("cache-control") ?? "", /no-store/);
+    assert.match(await res.text(), signedInHeader, "the page rendered without the renewal");
+  });
+
+  test("a Supabase that stops answering costs a page seconds, not the page", async (t) => {
+    // Only the stand-in can be told to stop answering (for a user whose
+    // address begins "hang-"). Before the page had a deadline of its own,
+    // this request waited for as long as the socket did.
+    if (unusable) return t.skip(unusable);
+    if (!stub) return t.skip("needs the stand-in, which can be made to hang");
+    const { cookie } = await signedIn({ prefix: "hang" });
+    const started = Date.now();
+    const res = await fetch(`${BASE_URL}/en/about`, {
+      headers: { cookie },
+      signal: AbortSignal.timeout(20_000),
+    });
+    assert.equal(res.status, 200);
+    assert.match(await res.text(), signedOutHeader, "with no answer, nobody is signed in");
+    assert.ok(Date.now() - started < 10_000, `took ${Date.now() - started}ms`);
   });
 });
