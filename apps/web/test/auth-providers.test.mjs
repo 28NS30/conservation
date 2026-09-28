@@ -101,9 +101,17 @@ describe("asking Supabase", () => {
         }),
     );
     const check = createGoogleCheck({ url: "https://x", fetch: f, timeoutMs: 50 });
-    const started = Date.now();
-    assert.equal(await check(), false);
-    assert.ok(Date.now() - started < 1000, "the timeout must actually cut the request off");
+    // AbortSignal.timeout's timer does not hold Node's event loop open. In the
+    // server something always does; here nothing else would, and Node 22 ends
+    // the run with the promise still pending before the timeout can fire.
+    const hold = setInterval(() => {}, 1000);
+    try {
+      const started = Date.now();
+      assert.equal(await check(), false);
+      assert.ok(Date.now() - started < 1000, "the timeout must actually cut the request off");
+    } finally {
+      clearInterval(hold);
+    }
   });
 });
 
