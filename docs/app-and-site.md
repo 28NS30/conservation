@@ -1,5 +1,15 @@
 # The app submits; the site explains
 
+> **Superseded in part, 27 September 2026.** The team reversed the headline:
+> *"We do want them to be able to submit through the website."* The web report
+> form stays, and is being split into three pages (roadkill, invasive species,
+> wildlife sighting). A native app is still planned, and everything below about
+> it — attestation, EXIF, the stack — still holds. What no longer holds is
+> "submission moves to the app": the site keeps submission AND explains the
+> project. Where this document says the web form is going away, read it as
+> history. The current plan is the roadmap page the team was given; the
+> decisions are recorded in the pull requests that implement them.
+
 Recorded 23 September 2026, from the team.
 
 **The website becomes a homepage about the project** — what it is, what it is
