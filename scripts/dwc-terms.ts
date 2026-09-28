@@ -27,6 +27,8 @@
  * connection.
  */
 
+import { conditionOf, type Category } from "@conservation/shared";
+
 /** Uncertainty we declare for each precision level, in metres. */
 export const UNCERTAINTY: Record<string, number> = {
   // Phone GPS under tree cover, honestly stated. Claiming better would be a lie
@@ -85,5 +87,65 @@ export function generalisation(r: ObscuringFacts): {
   return {
     dataGeneralizations: `Coordinates generalised to ${km} by the publisher; this taxon carries no TaiCOL sensitivity rating of its own`,
     informationWithheld: "Exact coordinates withheld by the publisher",
+  };
+}
+
+/**
+ * dwc:vitality — whether the animal was alive or dead when it was recorded.
+ *
+ * Read off the category, which is the page the report was filed on: the
+ * roadkill page asks "dead or injured", and only `roadkill` means dead. An
+ * injured animal is alive, and so is everything filed on the wildlife and
+ * invasive pages. Before this term existed the only place the archive said so
+ * was occurrenceRemarks, as the word "roadkill", which a GBIF user filtering
+ * for dead specimens would never find. `alive` and `dead` are the TDWG
+ * vocabulary's own words (dwc:vitality, issued 2023-06-28).
+ */
+export function vitality(category: string): "alive" | "dead" {
+  return conditionOf(category as Category) === "dead" ? "dead" : "alive";
+}
+
+/**
+ * dwc:establishmentMeans and dwc:degreeOfEstablishment, from TaiCOL's alien
+ * status for the record's species.
+ *
+ * establishmentMeans says how the species came to be here: `native`, or
+ * `introduced` for everything TaiCOL files as alien — invasive, naturalized,
+ * cultured or cultivated. A species TaiCOL has no alien status for gets
+ * nothing, because "not recorded" is not "native". So does a record with no
+ * species, which is not a statement about any taxon.
+ *
+ * degreeOfEstablishment says `invasive` for exactly the records in the site's
+ * invasive collection that name a species (reports_public.is_invasive, 0016):
+ * an animal TaiCOL tags invasive, under a name it accepts. A record filed on
+ * the invasive page with no species named is in that collection too, but
+ * saying "invasive" of it to GBIF would be a claim about a species nobody has
+ * identified. The other alien statuses are left blank rather than mapped onto
+ * the TDWG vocabulary's finer steps, which TaiCOL's categories do not line up
+ * with.
+ *
+ * TaiCOL keeps one alien status for Taiwan, Kinmen and Matsu together, so a
+ * bird native only on the outlying islands (喜鵲, 鵲鴝, 黑領椋鳥, 大陸畫眉) is
+ * `native` here even when it was seen on the main island, where it was
+ * introduced. The note that would say so is TaiCOL's alien_status_note, which
+ * the import does not keep.
+ */
+export function establishment(r: {
+  taxon_id: number | null;
+  alien_type: string | null;
+  is_invasive: boolean;
+}): { establishmentMeans: string; degreeOfEstablishment: string } {
+  if (r.taxon_id === null || r.taxon_id === undefined)
+    return { establishmentMeans: "", degreeOfEstablishment: "" };
+  const alien = r.alien_type?.trim() ?? "";
+  const establishmentMeans =
+    alien === "native"
+      ? "native"
+      : ["invasive", "naturalized", "cultured", "cultivated"].includes(alien)
+        ? "introduced"
+        : "";
+  return {
+    establishmentMeans,
+    degreeOfEstablishment: r.is_invasive ? "invasive" : "",
   };
 }

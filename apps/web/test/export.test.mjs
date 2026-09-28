@@ -195,3 +195,72 @@ describe("the reporter's notes stay here", () => {
     });
   });
 });
+
+describe("alive or dead, native or introduced", () => {
+  /*
+   * The archive used to say how an animal was found only as the word
+   * "roadkill" in occurrenceRemarks, and nothing at all about whether the
+   * species belongs here. Darwin Core has terms for both, and the invasive
+   * collection is exactly the records a GBIF user would filter on them for.
+   */
+  const CC_BY_LOCAL = "http://creativecommons.org/licenses/by/4.0/legalcode";
+
+  async function exported(tx, { category, invasive }) {
+    const [t] = await tx`
+      insert into taxa (taicol_id, scientific_name, rank, kingdom, is_in_taiwan,
+                        taxon_status, is_invasive, alien_type)
+      values (${`test-dwc-${process.pid}-${Date.now()}-${category}`},
+              ${`Testudofixtura dwc${process.pid}`}, 'Species', 'Animalia', true,
+              'accepted', ${invasive}, ${invasive ? "invasive" : "native"})
+      returning id`;
+    const r = await insertReport(tx, { taxonId: t.id, category });
+    await tx`update reports set source = 'user', license = ${CC_BY_LOCAL}
+              where id = ${r.id}::uuid`;
+    const row = (await exportable(tx, true)).find((x) => x.id === r.id);
+    assert.ok(row, "fixture precondition: a licensed user record is exported");
+    return toOccurrence(row, DATASET_TITLE);
+  }
+
+  test("the terms are in the archive's columns", () => {
+    for (const term of ["vitality", "establishmentMeans", "degreeOfEstablishment"])
+      assert.ok(TERMS.includes(term), `${term} is not a column`);
+  });
+
+  test("a road-killed invasive animal is dead, introduced and invasive", async () => {
+    await inRollback(async (tx) => {
+      const out = await exported(tx, { category: "roadkill", invasive: true });
+      assert.equal(out.vitality, "dead");
+      assert.equal(out.establishmentMeans, "introduced");
+      assert.equal(out.degreeOfEstablishment, "invasive");
+    });
+  });
+
+  test("a native animal seen alive is alive and native", async () => {
+    await inRollback(async (tx) => {
+      const out = await exported(tx, { category: "sighting", invasive: false });
+      assert.equal(out.vitality, "alive");
+      assert.equal(out.establishmentMeans, "native");
+      assert.equal(out.degreeOfEstablishment, "");
+    });
+  });
+
+  test("an injured animal is alive", async () => {
+    await inRollback(async (tx) => {
+      const out = await exported(tx, { category: "injured", invasive: false });
+      assert.equal(out.vitality, "alive");
+    });
+  });
+
+  test("the meta.xml maps each new term to its Darwin Core URI", () => {
+    const script = readFileSync(
+      join(import.meta.dirname, "..", "..", "..", "scripts", "export-dwca.ts"),
+      "utf8",
+    );
+    for (const term of ["vitality", "establishmentMeans", "degreeOfEstablishment"])
+      assert.match(
+        script,
+        new RegExp(`${term}: "http://rs\\.tdwg\\.org/dwc/terms/${term}"`),
+        `${term} has no URI, so meta.xml would declare an empty term`,
+      );
+  });
+});
