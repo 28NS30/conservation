@@ -49,7 +49,13 @@ export async function generateMetadata({
  *
  * A WebGL canvas is unusable with a screen reader, so the same data needs a
  * non-map representation. This is also simply useful — it is the fastest way to
- * see what was reported recently, and it works with no JavaScript at all.
+ * see every record, newest first, and it works with no JavaScript at all.
+ *
+ * It used to introduce itself as "Recent reports", above a first row dated
+ * 2017-12-31: every record is from the imported 2011–2017 dataset. So the lede
+ * now says what the records are — how many, and the years they span — read from
+ * the same public view the table is, which keeps it true the day the first
+ * report of this year arrives.
  */
 export default async function ReportsListPage({
   params,
@@ -110,6 +116,24 @@ export default async function ReportsListPage({
 
   const hasNext = rows.length > PAGE_SIZE;
   const visible = rows.slice(0, PAGE_SIZE);
+
+  // The whole public set, not the filtered page: the lede describes what this
+  // list is, and the "Filtered by" line below describes what is in view.
+  const [span] = await asPublic(
+    (tx) => tx<{ n: number; from: number | null; to: number | null }[]>`
+      select count(*)::int as n,
+             extract(year from min(observed_at))::int as "from",
+             extract(year from max(observed_at))::int as "to"
+        from reports_public`,
+  );
+  const lede =
+    span && span.n > 0 && span.from && span.to
+      ? `${t("subtitle")} ${t("span", {
+          count: span.n,
+          from: String(span.from),
+          to: String(span.to),
+        })}`
+      : t("subtitle");
 
   /*
    * One thumbnail per row.
@@ -223,7 +247,7 @@ export default async function ReportsListPage({
 
   return (
     <main className="mx-auto w-full max-w-4xl px-6 pb-24 pt-12">
-      <PageHeader title={t("title")} lede={t("subtitle")} />
+      <PageHeader title={t("title")} lede={lede} />
 
       <nav
         aria-label={t("filterByCategory")}
