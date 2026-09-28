@@ -34,8 +34,10 @@ const ACTIONS = join(
 );
 const src = readFileSync(ACTIONS, "utf8");
 
+// The export's per-record mapping, which moved out of export-dwca.ts so it
+// could be tested; VERIFICATION lives there now.
 const EXPORT = readFileSync(
-  join(import.meta.dirname, "..", "..", "..", "scripts", "export-dwca.ts"),
+  join(import.meta.dirname, "..", "..", "..", "scripts", "dwc-occurrences.ts"),
   "utf8",
 );
 
