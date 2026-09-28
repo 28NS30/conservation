@@ -123,6 +123,17 @@ export const ROUTES = [
     why: "Duttaphrynus melanostictus: in the CI fixture and in the full dataset, with enough records to draw every band of the chart.",
   },
   { name: "stats", path: "/stats", settle: 3500 },
+  // The three collections, each a page of its own: a statement over a
+  // photograph, counts, the newest records and, on /invasive, the 209-row
+  // species list with its search box.
+  { name: "roadkill", path: "/roadkill", settle: 3000 },
+  { name: "invasive", path: "/invasive", settle: 3000 },
+  {
+    name: "wildlife",
+    path: "/wildlife",
+    settle: 3000,
+    why: "Empty on today's data: every record is roadkill, so this is the page's empty state until the first sighting is filed.",
+  },
   { name: "season", path: "/season", settle: 2500 },
   { name: "about", path: "/about", settle: 2500 },
   {

@@ -38,6 +38,10 @@ const PAGES = [
     settle: 7000,
   },
   { path: "/reports", name: "reports list", widths: true },
+  { path: "/roadkill", name: "roadkill collection" },
+  { path: "/en/invasive", name: "invasive collection (en)", widths: true },
+  { path: "/invasive", name: "invasive collection (zh-TW)" },
+  { path: "/en/wildlife", name: "wildlife collection (en)" },
   { path: "/login", name: "sign in", widths: true },
   { path: "/report", name: "submission form" },
   { path: "/about", name: "about" },
@@ -70,6 +74,7 @@ const NAMESPACES = [
   "about",
   "privacy",
   "list",
+  "collections",
 ];
 const LEAKED_KEY = new RegExp(
   `\\b(?:${NAMESPACES.join("|")})\\.[a-zA-Z][a-zA-Z0-9]*\\b`,

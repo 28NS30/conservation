@@ -1,5 +1,6 @@
 import type postgres from "postgres";
 import { asPublic } from "@/lib/db";
+import { selectionFor, type Collection } from "@conservation/shared";
 
 export type SpeciesFilter =
   | "recorded"
@@ -205,21 +206,36 @@ function speciesWhere(
  * that it counts the same kind of thing as the number above it: the directory
  * counts species and subspecies rows alike, and a denominator of species rows
  * alone divided two different kinds of count. The directory never passes it.
+ *
+ * `collection` narrows it to taxa with at least one public record in that
+ * collection, for the collection pages' "species named" — the same kind of row
+ * the directory counts, so a collection's figure can be checked against the
+ * directory and against the site's total, and never exceeds the total. The
+ * collection is read through selectionFor(), as the map and the list read it.
  */
 export async function countSpecies(opts: {
   q?: string;
   filter?: SpeciesFilter;
   kingdom?: string;
+  collection?: Collection;
 }): Promise<number> {
-  const { q, filter = "recorded", kingdom = null } = opts;
+  const { q, filter = "recorded", kingdom = null, collection = null } = opts;
   const like = q ? `%${q}%` : null;
+  const { categories, invasiveOnly } = selectionFor(
+    collection ? { collection } : {},
+  );
   const rows = await asPublic(
     (tx) => tx<{ n: number }[]>`
       select count(*)::int as n
         from taxa t
         left join species_report_stats s on s.taxon_id = t.id
        where ${speciesWhere(tx, filter, like)}
-         and (${kingdom}::text is null or t.kingdom = ${kingdom})`,
+         and (${kingdom}::text is null or t.kingdom = ${kingdom})
+         and (${collection}::text is null or exists (
+               select 1 from reports_public rp
+                where rp.taxon_id = t.id
+                  and (${categories}::text[] is null or rp.category = any(${categories}))
+                  and (not ${invasiveOnly}::boolean or rp.is_invasive)))`,
   );
   return rows[0]?.n ?? 0;
 }

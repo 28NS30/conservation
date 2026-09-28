@@ -1,6 +1,5 @@
 import { asPublic } from "@/lib/db";
 import { countSpecies } from "@/lib/species";
-import type { Category } from "@conservation/shared";
 
 /**
  * Aggregates behind /stats.
@@ -72,16 +71,6 @@ export async function overview(): Promise<Overview> {
         from reports_public`,
   );
   return row;
-}
-
-export async function categoryCounts(): Promise<
-  { category: Category; n: number }[]
-> {
-  return asPublic(
-    (tx) => tx<{ category: Category; n: number }[]>`
-      select category, count(*)::int as n
-        from reports_public group by 1 order by n desc`,
-  );
 }
 
 /** Twelve buckets, Jan–Dec, zero-filled. Roadkill is strongly seasonal. */
