@@ -6,6 +6,7 @@ import { currentUserId } from "@/lib/supabase/server";
 import { speciesSlug } from "@/lib/species";
 import { CATEGORIES, type Category } from "@conservation/shared";
 import PageHeader from "@/components/site/PageHeader";
+import ForumAccount from "@/components/forum/ForumAccount";
 
 export const dynamic = "force-dynamic";
 
@@ -259,6 +260,8 @@ export default async function MyReportsPage({
           </p>
         </>
       )}
+      {/* Export and delete for the forum; nothing, and no query, while it is off. */}
+      <ForumAccount locale={locale} />
     </main>
   );
 }
