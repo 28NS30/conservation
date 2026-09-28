@@ -204,10 +204,19 @@ describe("giving up in time", () => {
   });
 
   test("settledBy returns at the deadline when the work never finishes", async () => {
-    const started = Date.now();
-    assert.equal(await settledBy(new Promise(() => {}), AbortSignal.timeout(100)), LATE);
-    assert.ok(Date.now() - started < 1000, `waited ${Date.now() - started}ms`);
-    assert.equal(await settledBy(new Promise(() => {}), AbortSignal.abort()), LATE);
+    // AbortSignal.timeout's timer does not hold Node's event loop open, and a
+    // promise that never settles holds nothing, so on Node 22 the run could
+    // end before the deadline fired (as auth-providers.test once did). The
+    // stand-in server above happens to hold it; this does not rely on that.
+    const hold = setInterval(() => {}, 1000);
+    try {
+      const started = Date.now();
+      assert.equal(await settledBy(new Promise(() => {}), AbortSignal.timeout(100)), LATE);
+      assert.ok(Date.now() - started < 1000, `waited ${Date.now() - started}ms`);
+      assert.equal(await settledBy(new Promise(() => {}), AbortSignal.abort()), LATE);
+    } finally {
+      clearInterval(hold);
+    }
   });
 
   test("past the deadline, a request is answered with a refusal and never sent", async () => {
