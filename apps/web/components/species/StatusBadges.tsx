@@ -1,4 +1,5 @@
 import { useTranslations } from "next-intl";
+import { speciesNotes } from "@/lib/speciesNotes";
 
 type Props = {
   protectedStatus?: string | null;
@@ -12,6 +13,8 @@ type Props = {
   kingdom?: string | null;
   /** TaiCOL's rank, which decides what "endemic" means; see below. */
   rank?: string | null;
+  /** For the notes TaiCOL's data does not carry (lib/speciesNotes.ts). */
+  taicolId?: string | null;
 };
 
 /**
@@ -94,6 +97,10 @@ export default function StatusBadges(p: Props) {
     chips.push({ key: "invasive", label: t("invasive"), tone: tone.warn });
   else if (p.alienType && p.alienType !== "native") {
     chips.push({ key: "alien", label: t("alien"), tone: tone.muted });
+  } else if (speciesNotes(p.taicolId).includes("introducedMainIsland")) {
+    // TaiCOL says "native" for Taiwan, Kinmen and Matsu together; these birds
+    // are native only to the islands. See lib/speciesNotes.ts.
+    chips.push({ key: "introduced", label: t("introducedMainIsland"), tone: tone.muted });
   }
 
   /*

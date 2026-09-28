@@ -10,6 +10,8 @@ export type SpeciesFilter =
 
 export type SpeciesSummary = {
   id: number;
+  /** Stable across imports, unlike id; keys lib/speciesNotes.ts. */
+  taicolId: string;
   scientificName: string;
   nameAuthor: string | null;
   commonNameZh: string | null;
@@ -57,7 +59,7 @@ export type SpeciesDetail = SpeciesSummary & {
  * prevent.
  */
 const SUMMARY_COLS = `
-  t.id, t.scientific_name as "scientificName", t.name_author as "nameAuthor",
+  t.id, t.taicol_id as "taicolId", t.scientific_name as "scientificName", t.name_author as "nameAuthor",
   t.common_name_zh as "commonNameZh", t.alt_names_zh as "altNamesZh",
   t.common_name_en as "commonNameEn", t.alt_names_en as "altNamesEn",
   t.rank, t.family, t.protected_status as "protectedStatus",
@@ -291,11 +293,11 @@ export async function listSpecies(opts: {
              or t.scientific_name ilike ${term}
              -- An exact alternate name counts as exact, not as a lesser match.
              -- 石虎 is the common name of the subspecies euptilurus and an
-             -- alternate for the species itself, which is the row holding all
-             -- 46,334 records; ranking the exact common name above it sent a
-             -- reporter to a page with nothing on it. Tie broken by records
-             -- below, which is the only evidence we have about which name is
-             -- actually used for which taxon.
+             -- alternate for the species 豹貓. The records sat on the species
+             -- until migration 0022 moved them to the subspecies, and ranking
+             -- the exact common name above them sent a reporter to a page with
+             -- nothing on it. Tie broken by records below, which is the only
+             -- evidence we have about which name is used for which taxon.
              or exists (select 1 from unnest(t.alt_names_zh) a where a = ${term})
              -- An exact English name or English alternate, in any case.
              or lower(t.common_name_en) = lower(${term})

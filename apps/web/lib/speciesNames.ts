@@ -27,10 +27,14 @@
  * italicised in any field guide.
  */
 
+import { displayNameZh } from "./speciesNotes.ts";
+
 export type NameFields = {
   scientificName: string;
   commonNameZh: string | null;
   commonNameEn?: string | null;
+  /** Lets a curated Chinese name replace a misleading one (lib/speciesNotes.ts). */
+  taicolId?: string | null;
 };
 
 /** BCP 47 tags for the `lang` attribute. Traditional Chinese, English, Latin. */
@@ -50,9 +54,10 @@ export type SpeciesNames = {
 const blank = (s: string | null | undefined) => !s || !s.trim();
 
 export function speciesNames(s: NameFields, locale: string): SpeciesNames {
-  const zh: NamePart | null = blank(s.commonNameZh)
+  const zhName = displayNameZh(s.taicolId, s.commonNameZh);
+  const zh: NamePart | null = blank(zhName)
     ? null
-    : { text: s.commonNameZh!.trim(), lang: "zh-Hant", italic: false };
+    : { text: zhName!.trim(), lang: "zh-Hant", italic: false };
   const en: NamePart | null = blank(s.commonNameEn)
     ? null
     : { text: s.commonNameEn!.trim(), lang: "en", italic: false };
