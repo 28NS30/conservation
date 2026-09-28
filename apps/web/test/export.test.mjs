@@ -9,20 +9,30 @@
  * pollutes a shared scientific commons and it is visibly bad faith.
  *
  * So the filter in scripts/export-dwca.ts is pinned here.
+ *
+ * The export's own query and mapping are used, from scripts/dwc-occurrences.ts,
+ * rather than a copy "kept in step" — a copy is what drifts.
  */
 import { test, describe, after } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { sql, inRollback, insertReport, taxonWhere } from "./helpers.mjs";
+import {
+  selectOccurrences,
+  toOccurrence,
+  TERMS,
+} from "../../../scripts/dwc-occurrences.ts";
 
 after(() => sql.end());
 
-/** The export's row query, kept in step with scripts/export-dwca.ts. */
-const exportable = (tx, includeUnidentified = false) => tx`
-  select r.id::text, r.source, r.location_precision
-    from reports_public r
-   where r.source = 'user'
-     and r.location_precision <> 'suppressed'
-     and (${includeUnidentified} or r.taxon_id is not null)`;
+/** The export's row query, run on the test's own transaction. */
+const exportable = (tx, includeUnidentified = false) =>
+  selectOccurrences(tx, { includeUnidentified });
+
+const DATASET_TITLE = "Test dataset";
+const CC_BY = "http://creativecommons.org/licenses/by/4.0/legalcode";
+const CC0 = "http://creativecommons.org/publicdomain/zero/1.0/legalcode";
 
 describe("Darwin Core export", () => {
   test("never includes a record imported from GBIF", async () => {
@@ -89,6 +99,99 @@ describe("Darwin Core export", () => {
       const with_ = await exportable(tx, true);
       assert.ok(!without.some((x) => x.id === r.id), "excluded by default");
       assert.ok(with_.some((x) => x.id === r.id), "included with --include-unidentified");
+    });
+  });
+});
+
+describe("a licence is the contributor's to grant", () => {
+  /*
+   * The report form has never asked anyone for a licence, so a user record
+   * carries none. The export used to fill the gap with the dataset's own
+   * CC BY 4.0 — telling GBIF, and everyone downstream of it, that each
+   * reporter had granted a licence they were never asked for. A record now
+   * goes out under the licence it carries, or not at all.
+   */
+  async function userRecord(tx, { license = null } = {}) {
+    const taxonId = await taxonWhere(
+      "is_in_taiwan and sensitivity is null and protected_status is null",
+    );
+    const r = await insertReport(tx, { taxonId });
+    await tx`update reports set source = 'user', license = ${license}
+              where id = ${r.id}::uuid`;
+    const row = (await exportable(tx, true)).find((x) => x.id === r.id);
+    assert.ok(row, "fixture precondition: a published user record is a candidate");
+    return row;
+  }
+
+  test("a user record nobody licensed is not exported", async () => {
+    await inRollback(async (tx) => {
+      const row = await userRecord(tx, { license: null });
+      assert.equal(
+        toOccurrence(row, DATASET_TITLE),
+        null,
+        "an unlicensed record was published under a licence nobody granted",
+      );
+    });
+  });
+
+  test("nor is one whose licence is blank", async () => {
+    await inRollback(async (tx) => {
+      const row = await userRecord(tx, { license: "   " });
+      assert.equal(toOccurrence(row, DATASET_TITLE), null);
+    });
+  });
+
+  test("a licensed one goes out under its own licence, not the dataset's", async () => {
+    await inRollback(async (tx) => {
+      const row = await userRecord(tx, { license: CC0 });
+      const out = toOccurrence(row, DATASET_TITLE);
+      assert.ok(out, "a licensed record should be exported");
+      assert.equal(out.license, CC0);
+      assert.notEqual(out.license, CC_BY);
+    });
+  });
+
+  test("the script has no fallback to the dataset's licence", () => {
+    const script = readFileSync(
+      join(import.meta.dirname, "..", "..", "..", "scripts", "export-dwca.ts"),
+      "utf8",
+    );
+    assert.doesNotMatch(script, /\?\?\s*DATASET\.license/);
+    assert.match(script, /toOccurrence\(r, DATASET\.title\)/);
+  });
+});
+
+describe("the reporter's notes stay here", () => {
+  /*
+   * Free text typed into a report form, by someone told it was a note to us.
+   * It can hold a name, a phone number or the exact place in words — the one
+   * thing the coordinate blur cannot reach. It used to be appended to
+   * occurrenceRemarks.
+   */
+  const NOTE = "under the bridge behind No. 12 Zhongshan Rd, call 0912-345-678";
+
+  test("no field of the archive carries them", async () => {
+    await inRollback(async (tx) => {
+      const taxonId = await taxonWhere(
+        "is_in_taiwan and sensitivity is null and protected_status is null",
+      );
+      const r = await insertReport(tx, { taxonId });
+      await tx`update reports set source = 'user', license = ${CC_BY}, notes = ${NOTE}
+                where id = ${r.id}::uuid`;
+      const row = (await exportable(tx, true)).find((x) => x.id === r.id);
+      assert.ok(row, "fixture precondition");
+      assert.ok(!("notes" in row), "the query should not even read them");
+
+      // And the mapping ignores them even if a later query hands them over:
+      // two independent guards, so one careless edit is not enough.
+      const out = toOccurrence({ ...row, notes: NOTE }, DATASET_TITLE);
+      assert.ok(out);
+      for (const term of TERMS)
+        assert.ok(
+          !String(out[term] ?? "").includes("Zhongshan"),
+          `${term} carries the reporter's note`,
+        );
+      assert.equal(out.occurrenceRemarks, "roadkill", "the category, and only that");
     });
   });
 });

@@ -187,14 +187,18 @@ export default async function SpeciesPage({
             {t("coordinatesWithheld")}
           </p>
         ) : s.reportCount === 0 ? (
-          <div className="mt-2 rounded-lg border border-ink-900/10 bg-paper-100 px-3 py-4 text-center">
-            <Link
-              href={{ pathname: "/report", query: { taxonId: s.id } }}
-              className="inline-block rounded-full bg-ember-500 px-3.5 py-1.5 text-xs font-semibold text-bark-950 hover:bg-ember-400"
-            >
-              + {t("beFirst")}
-            </Link>
-          </div>
+          // No "be the first" on a name nobody can file under: the report
+          // form would open without it (see OFFERED in lib/species.ts).
+          s.offered && (
+            <div className="mt-2 rounded-lg border border-ink-900/10 bg-paper-100 px-3 py-4 text-center">
+              <Link
+                href={{ pathname: "/report", query: { taxonId: s.id } }}
+                className="inline-block rounded-full bg-ember-500 px-3.5 py-1.5 text-xs font-semibold text-bark-950 hover:bg-ember-400"
+              >
+                + {t("beFirst")}
+              </Link>
+            </div>
+          )
         ) : (
           <>
             <p className="mt-1 text-sm text-ink-600">
@@ -256,7 +260,7 @@ export default async function SpeciesPage({
         )}
       </section>
 
-      {!withheld && s.reportCount > 0 && (
+      {!withheld && s.offered && s.reportCount > 0 && (
         <Link
           href={{ pathname: "/report", query: { taxonId: s.id } }}
           className="mt-6 inline-block rounded-full border border-ink-900/12 px-3.5 py-1.5 text-xs text-ink-600 hover:bg-paper-200"

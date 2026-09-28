@@ -34,8 +34,10 @@ const ACTIONS = join(
 );
 const src = readFileSync(ACTIONS, "utf8");
 
+// The export's per-record mapping, which moved out of export-dwca.ts so it
+// could be tested; VERIFICATION lives there now.
 const EXPORT = readFileSync(
-  join(import.meta.dirname, "..", "..", "..", "scripts", "export-dwca.ts"),
+  join(import.meta.dirname, "..", "..", "..", "scripts", "dwc-occurrences.ts"),
   "utf8",
 );
 
@@ -130,14 +132,21 @@ describe("every path that names a species applies one override rule", () => {
       join(import.meta.dirname, "..", "app", "api", "jobs", "classify", "route.ts"),
       "utf8",
     );
+    // The classifier uses photoIdentificationOverride, which is this rule plus
+    // the blur a photograph needs (test/classify-policy.test.mjs pins that it
+    // is built on keepDeliberateOverride and not beside it).
     for (const [name, source] of [
       ["confirmSpecies", src],
       ["setReportTaxon", ADMIN],
       ["the classifier", CLASSIFY],
     ]) {
+      // One of the two shared fragments, or a choice between them.
+      const shared = String.raw`(?:keepDeliberateOverride\(\)|photoIdentificationOverride\([^)]*\))`;
       assert.match(
         source,
-        /precision_override = \$\{keepDeliberateOverride\(\)\}/,
+        new RegExp(
+          String.raw`precision_override = \$\{\s*(?:[^?}]*\?\s*${shared}\s*:\s*)?${shared}\s*\}`,
+        ),
         `${name} does not use the shared rule`,
       );
       assert.doesNotMatch(
@@ -146,6 +155,62 @@ describe("every path that names a species applies one override rule", () => {
         `${name} still clears the override unconditionally`,
       );
     }
+  });
+});
+
+describe("a species named from the model's suggestions", () => {
+  // The classifier blurs a species it names itself at least as hard as the
+  // strictest row sharing the binomial, because a photograph cannot tell those
+  // rows apart and the label list holds deleted rows and duplicates. Invasive
+  // answers and medium-band answers are only ever suggestions, so most
+  // species named from a photograph are named here instead, by a tap on one
+  // of those same suggestions — and here the rule was missing.
+  let seq = 0;
+  const name = () => `Testudofixtura c${process.pid}x${Date.now()}x${seq++}`;
+  async function row(tx, scientificName, { status = "accepted", protectedStatus = null } = {}) {
+    const [t] = await tx`
+      insert into taxa (taicol_id, scientific_name, rank, is_in_taiwan,
+                        taxon_status, protected_status)
+      values (${`test-cs-${process.pid}-${Date.now()}-${seq++}`}, ${scientificName},
+              'Species', true, ${status}, ${protectedStatus})
+      returning id`;
+    return t.id;
+  }
+
+  test("both confirm paths name a species through the photograph rule", () => {
+    assert.match(src, /precision_override = \$\{photoIdentificationOverride\(taxonId\)\}/);
+    assert.match(
+      ADMIN,
+      /taxonId === null\s*\?\s*keepDeliberateOverride\(\)\s*:\s*photoIdentificationOverride\(taxonId\)/,
+    );
+  });
+
+  test("the unrated twin of a protected row is not published exactly", async () => {
+    await inRollback(async (tx) => {
+      const binomial = name();
+      const open = await row(tx, binomial);
+      await row(tx, binomial, { status: "deleted", protectedStatus: "II" });
+
+      // As the classifier leaves a medium-band report: unidentified, stamped,
+      // with its candidates stored.
+      const r = await insertReport(tx, { taxonId: null, override: "coarse_10km" });
+      await tx`insert into classifications (report_id, taxon_id, score, rank, model_version)
+               values (${r.id}::uuid, ${open}, 0.5, 1, 'test')`;
+
+      // The action's own statement, reduced to the columns under test. With
+      // keepDeliberateOverride() alone this publishes exact.
+      const [row_] = await tx`
+        update reports
+           set taxon_id = ${open},
+               taxon_source = 'user',
+               precision_override = stricter_precision(
+                 case when taxon_id is null then null else precision_override end,
+                 binomial_precision_floor(${open}))
+         where id = ${r.id}::uuid
+        returning precision_override, location_precision`;
+      assert.equal(row_.location_precision, "coarse_10km",
+        "a tapped suggestion was published looser than its protected twin");
+    });
   });
 });
 

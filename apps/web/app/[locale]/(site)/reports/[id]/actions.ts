@@ -5,7 +5,7 @@ import { sql } from "@/lib/db";
 import { currentRole } from "@/lib/auth";
 import { withinRateLimit } from "@/lib/abuse";
 import { recategorise, type Category } from "@conservation/shared";
-import { keepDeliberateOverride } from "@/lib/report/precision";
+import { photoIdentificationOverride } from "@/lib/report/precision";
 
 /**
  * Confirm or correct a report's species.
@@ -79,6 +79,18 @@ export async function confirmSpecies(reportId: string, taxonId: number) {
   // set a taxon now share: clear the system's "we do not know yet" stamp,
   // never a decision that this record stays coarser than its rating asks.
   //
+  // Through `photoIdentificationOverride`, which is that rule plus the blur a
+  // photograph needs, as when the classifier names the species itself. What
+  // is picked here is one of the model's own candidates — always for a
+  // reporter, and in practice for a moderator too, since SpeciesConfirm offers
+  // nothing else — drawn from a label list that holds deleted rows and
+  // duplicates beside the accepted ones, and species beside their protected
+  // subspecies. Auto-assigned, such a row took the strictest blur of its
+  // binomial; confirmed by a tap on the same suggestion, it was published
+  // under its own row's rule, often to the metre. Since the classifier stopped
+  // naming invasive answers itself, and never named medium-band ones, this
+  // tap is the usual way a species gets named from a photograph at all.
+  //
   // And the category follows the species. It was written once at insert and
   // never revisited, so a `sighting` confirmed to be a listed invasive stayed
   // a `sighting` and never appeared under the map's invasive filter.
@@ -97,7 +109,7 @@ export async function confirmSpecies(reportId: string, taxonId: number) {
          set taxon_id = ${taxonId},
              taxon_source = ${moderator && report.reporter_id !== userId ? "expert" : "user"},
              category = ${category},
-             precision_override = ${keepDeliberateOverride()}
+             precision_override = ${photoIdentificationOverride(taxonId)}
        where id = ${reportId}::uuid`;
     await tx`
       insert into moderation_actions (report_id, actor_id, action, reason)

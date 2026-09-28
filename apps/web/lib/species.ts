@@ -24,6 +24,8 @@ export type SpeciesSummary = {
 };
 
 export type SpeciesDetail = SpeciesSummary & {
+  /** Whether a reporter can file under this name; see OFFERED. */
+  offered: boolean;
   kingdom: string | null;
   phylum: string | null;
   class: string | null;
@@ -53,6 +55,22 @@ const SUMMARY_COLS = `
   t.rank, t.family, t.protected_status as "protectedStatus",
   t.is_endemic as "isEndemic", t.is_invasive as "isInvasive", t.sensitivity,
   coalesce(s.report_count, 0) as "reportCount"`;
+
+/**
+ * A name a reporter can file a report under: one TaiCOL still accepts, for an
+ * animal recorded in Taiwan.
+ *
+ * One definition because three places ask and they disagreed. The picker and
+ * the directory offered only these, `POST /api/reports` accepted only these,
+ * and the report form's "report this species" prefill, reached from any
+ * species page, took whatever id it was given. A species page for a retired
+ * name therefore sent its visitor into a report the server would not file as
+ * named — and a report queued offline is marked failed on any 4xx, with no way
+ * to choose again, so the observation was lost.
+ *
+ * `t` is `taxa`. `is not distinct from` because `taxon_status` is nullable.
+ */
+export const OFFERED = `(t.taxon_status is not distinct from 'accepted' and t.is_in_taiwan)`;
 
 /** URL slug: `32116-prionailurus-bengalensis`. Ids stay stable; humans get a hint. */
 export function speciesSlug(s: { id: number; scientificName: string }): string {
@@ -117,6 +135,7 @@ export async function getSpecies(id: number): Promise<SpeciesDetail | null> {
   const rows = await asPublic(
     (tx) => tx<SpeciesDetail[]>`
       select ${tx.unsafe(SUMMARY_COLS)},
+             ${tx.unsafe(OFFERED)} as offered,
              t.kingdom, t.phylum, t.class, t."order", t.genus,
              t.cites, t.iucn, t.redlist, t.alien_type as "alienType",
              t.is_terrestrial as "isTerrestrial", t.is_freshwater as "isFreshwater",
@@ -139,6 +158,16 @@ export async function getSpecies(id: number): Promise<SpeciesDetail | null> {
  * such bug is invisible until someone reaches the boundary.
  *
  * Both callers join `species_report_stats` as `s` and `taxa` as `t`.
+ *
+ * Accepted names only. TaiCOL keeps a name it has retired as a row marked
+ * `deleted`, often beside the accepted row for the same animal, and this used
+ * to offer both: 多線南蜥 Mabuya multifasciata sat in the invasive list next to
+ * 多線真稜蜥 Eutropis multifasciata, which is what TaiCOL retired it in favour
+ * of, and a reporter could file under either. 1,897 such rows are marked in
+ * Taiwan. Records already filed under one keep displaying — a record page
+ * reads its taxon by id through getSpecies(), which has no such filter — but
+ * nobody is offered one to choose. The rule is OFFERED, which the report form
+ * and `POST /api/reports` share.
  */
 function speciesWhere(
   tx: postgres.TransactionSql,
@@ -146,7 +175,7 @@ function speciesWhere(
   like: string | null,
 ) {
   return tx`
-         t.is_in_taiwan
+         ${tx.unsafe(OFFERED)}
      and t.rank in ('Species','Subspecies')
      and (${filter}::text <> 'recorded'  or s.report_count is not null)
      and (${filter}::text <> 'invasive'  or t.is_invasive)

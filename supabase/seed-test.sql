@@ -777,3 +777,42 @@ insert into reports (id, category, location, location_public, observed_at, taxon
   ('d6b7cd65-b6d0-4e2c-8179-1e1bc9dbb1ba'::uuid, 'roadkill', st_setsrid(st_makepoint(120.73720,23.83506),4326)::geography, st_setsrid(st_makepoint(120.73720,23.83506),4326)::geography, '2014-08-29 00:00:00+00', 32116, 'imported', 'published', 'gbif', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14428', 'http://creativecommons.org/licenses/by/4.0/legalcode', 'Taiwan Biodiversity Research Institute (臺灣生物多樣性研究所)'),
   ('b14628a3-6647-4835-ba5d-d6348d5e8335'::uuid, 'roadkill', st_setsrid(st_makepoint(120.74440,23.83303),4326)::geography, st_setsrid(st_makepoint(120.74440,23.83303),4326)::geography, '2014-11-12 00:00:00+00', 32116, 'imported', 'published', 'gbif', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19519', 'http://creativecommons.org/licenses/by/4.0/legalcode', 'Taiwan Biodiversity Research Institute (臺灣生物多樣性研究所)')
 on conflict (id) do nothing;
+
+-- TaiCOL's name status and parent. The generator did not carry either until
+-- migration 0014 made both matter: the picker, the directory and the report
+-- form accept names TaiCOL still accepts, and a subspecies takes its species'
+-- rating when that is stricter. Every row above is 'accepted' in the database
+-- this fixture was cut from.
+update taxa set taxon_status = 'accepted' where taxon_status is null;
+update taxa set parent_taicol_id = 't0032116' where taicol_id = 't0105762';
+
+-- The rows 0014's floors and the accepted-names rule are about, as they are in
+-- TaiCOL. Each is a way a name used to publish a protected animal exactly, or
+-- to be offered to a reporter when it should not be:
+--   Dopasia formosensis t0028707   臺灣蛇蜥, protected by law under an old name
+--                                  TaiCOL moved to a row not in Taiwan (below)
+--   Dopasia formosensis t0124331   the same animal again, a deleted row
+--   Dopasia harti       t0124472   the row TaiCOL gave the protection to
+--   Cacatua goffiniana / goffini   one cockatoo, two accepted rows, one protected
+--   Mabuya multifasciata           deleted, and still flagged invasive beside
+--                                  Eutropis multifasciata (29144, above)
+--   Thainycteris torquatus         黃頸蝠 twice: t0072234 accepted and unrated,
+--                                  t0102479 deleted and rated 縣市. A floor carries
+--                                  the rating over; RETIRED_TWINS_SQL finds such
+--                                  pairs, and this one keeps that test honest
+--   Dorcus hopei t0102470          a species whose only Taiwan form,
+--                  / t0028710      臺灣大鍬形蟲, is protected class III
+insert into taxa (id,taicol_id,parent_taicol_id,taxon_status,scientific_name,common_name_zh,rank,kingdom,phylum,class,"order",family,is_in_taiwan,is_endemic,alien_type,is_invasive,protected_status,sensitivity,bioclip_prompt) values
+  (28707,'t0028707','t0018891','accepted','Dopasia formosensis','臺灣蛇蜥','Species','Animalia','Chordata','Reptilia','Squamata','Anguidae',true,true,'native',false,NULL,NULL,'a photo of Animalia Chordata Reptilia Squamata Anguidae Dopasia formosensis.'),
+  (76951,'t0076951','t0011147','accepted','Cacatua goffiniana','戈芬氏鳳頭鸚鵡','Species','Animalia','Chordata','Aves','Psittaciformes','Cacatuidae',true,false,'invasive',true,'I','輕度','a photo of Animalia Chordata Aves Psittaciformes Cacatuidae Cacatua goffiniana.'),
+  (123835,'t0123866','t0092849','deleted','Mabuya multifasciata','多線南蜥','Species','Animalia','Chordata','Reptilia','Squamata','Scincidae',true,false,'invasive',true,NULL,NULL,'a photo of Animalia Chordata Reptilia Squamata Scincidae Mabuya multifasciata.'),
+  (124300,'t0124331','t0018891','deleted','Dopasia formosensis',NULL,'Species','Animalia','Chordata','Reptilia','Squamata','Anguidae',true,true,'native',false,NULL,NULL,'a photo of Animalia Chordata Reptilia Squamata Anguidae Dopasia formosensis.'),
+  (124441,'t0124472','t0018891','accepted','Dopasia harti','哈特氏蛇蜥','Species','Animalia','Chordata','Reptilia','Squamata','Anguidae',false,false,NULL,false,'II','輕度',NULL),
+  (125407,'t0125438','t0011147','accepted','Cacatua goffini','戈芬氏鳳頭鸚鵡','Species','Animalia','Chordata','Aves','Psittaciformes','Cacatuidae',true,false,'naturalized',false,NULL,NULL,'a photo of Animalia Chordata Aves Psittaciformes Cacatuidae Cacatua goffini.'),
+  (28710,'t0028710','t0102470','accepted','Dorcus hopei formosanus','臺灣大鍬形蟲','Subspecies','Animalia','Arthropoda','Insecta','Coleoptera','Lucanidae',true,true,'native',false,'III',NULL,'a photo of Animalia Arthropoda Insecta Coleoptera Lucanidae Dorcus hopei formosanus.'),
+  (72234,'t0072234','t0102569','accepted','Thainycteris torquatus','黃頸蝠','Species','Animalia','Chordata','Mammalia','Chiroptera','Vespertilionidae',true,true,'native',false,NULL,NULL,'a photo of Animalia Chordata Mammalia Chiroptera Vespertilionidae Thainycteris torquatus.'),
+  (102470,'t0102470','t0018893','accepted','Dorcus hopei',NULL,'Species','Animalia','Arthropoda','Insecta','Coleoptera','Lucanidae',true,false,'native',false,NULL,NULL,'a photo of Animalia Arthropoda Insecta Coleoptera Lucanidae Dorcus hopei.'),
+  (102479,'t0102479','t0102569','deleted','Thainycteris torquatus','黃頸蝠','Species','Animalia','Chordata','Mammalia','Chiroptera','Vespertilionidae',true,true,'native',false,NULL,'縣市','a photo of Animalia Chordata Mammalia Chiroptera Vespertilionidae Thainycteris torquatus.')
+on conflict (id) do nothing;
+
+select setval(pg_get_serial_sequence('taxa','id'), (select max(id) from taxa));
