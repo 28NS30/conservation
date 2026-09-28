@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { sql } from "@/lib/db";
-import { currentUserId } from "@/lib/supabase/server";
+import { currentUser } from "@/lib/supabase/server";
 import { speciesSlug } from "@/lib/species";
 import { CATEGORIES, type Category } from "@conservation/shared";
 import PageHeader from "@/components/site/PageHeader";
+import { signInHref } from "@/components/auth/signInHref";
+import { signOut } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -71,13 +73,13 @@ export default async function MyReportsPage({
   const t = await getTranslations("me");
   const tc = await getTranslations("categories");
 
-  const userId = await currentUserId();
-  if (!userId) {
+  const user = await currentUser();
+  if (!user) {
     return (
       <main className="mx-auto w-full max-w-2xl px-6 pb-24 pt-12">
         <PageHeader title={t("title")} lede={t("signedOut")} />
         <Link
-          href="/login"
+          href={signInHref(locale, "/me")}
           className="inline-block rounded-full bg-ember-500 px-5 py-2.5 text-sm font-semibold text-bark-950 transition hover:bg-ember-400"
         >
           {t("signIn")}
@@ -96,7 +98,7 @@ export default async function MyReportsPage({
            t.common_name_zh as "commonNameZh"
       from reports r
       left join taxa t on t.id = r.taxon_id
-     where r.reporter_id = ${userId}::uuid
+     where r.reporter_id = ${user.id}::uuid
      order by r.created_at desc
      limit 200`;
 
@@ -131,7 +133,24 @@ export default async function MyReportsPage({
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 pb-24 pt-12">
-      <PageHeader title={t("title")} lede={t("lede")} />
+      <PageHeader title={t("title")} lede={t("lede")}>
+        {/* Whose account this is, and the way out of it. A form posting to a
+            server action, so it works before the page's script has loaded. */}
+        <form
+          action={signOut}
+          className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-ink-700"
+        >
+          {user.email && (
+            <span className="[overflow-wrap:anywhere]">{t("signedInAs", { email: user.email })}</span>
+          )}
+          <button
+            type="submit"
+            className="inline-flex min-h-11 items-center rounded-lg border border-ink-900/15 px-4 font-medium text-ink-800 transition hover:border-ink-900/30 hover:bg-paper-100"
+          >
+            {t("signOut")}
+          </button>
+        </form>
+      </PageHeader>
 
       {rows.length === 0 ? (
         <div className="rounded-xl border border-ink-900/12 bg-paper-100 p-8 text-center">
