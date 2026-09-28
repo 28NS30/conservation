@@ -1,0 +1,362 @@
+{
+  "_comment": "Shared by apps/ml/test_contract.py (against evaluate.py's mirror of the rules) and apps/web/test/classify-evidence.test.mjs (against lib/report/classifyPolicy.ts). The thresholds are fitted by the Python mirror and applied by the TypeScript; if the two disagreed about which candidate a profile may name, the numbers in classifier-thresholds.json would describe a rule the website does not run. Rows are shaped like RESOLVE_CANDIDATES_SQL's output. guardCases: the congener guard (guardCongeners in TypeScript, congener_guard in Python); every candidate is a land animal the wildlife rule set may name.",
+  "cases": [
+    {
+      "name": "the invasive page scores every animal: a native top answer stays native",
+      "category": "invasive",
+      "candidates": [
+        {
+          "taicol_id": "tNativeFrog",
+          "score": 0.9,
+          "scientific_name": "Polypedates braueri",
+          "kingdom": "Animalia",
+          "class": "Amphibia",
+          "is_invasive": false
+        },
+        {
+          "taicol_id": "tInvasiveFrog",
+          "score": 0.08,
+          "scientific_name": "Polypedates megacephalus",
+          "kingdom": "Animalia",
+          "class": "Amphibia",
+          "is_invasive": true
+        }
+      ],
+      "expect": {
+        "best": "tNativeFrog",
+        "invasive": "native"
+      }
+    },
+    {
+      "name": "an invasive top answer is suspected",
+      "category": "invasive",
+      "candidates": [
+        {
+          "taicol_id": "tIguana",
+          "score": 0.97,
+          "scientific_name": "Iguana iguana",
+          "kingdom": "Animalia",
+          "class": "Reptilia",
+          "is_invasive": true
+        },
+        {
+          "taicol_id": "tLizard",
+          "score": 0.02,
+          "scientific_name": "Diploderma swinhonis",
+          "kingdom": "Animalia",
+          "class": "Reptilia",
+          "is_invasive": false
+        }
+      ],
+      "expect": {
+        "best": "tIguana",
+        "invasive": "suspected"
+      }
+    },
+    {
+      "name": "a species with an invasive subspecies is mixed, not native and not invasive",
+      "category": "invasive",
+      "candidates": [
+        {
+          "taicol_id": "tSlider",
+          "score": 0.8,
+          "scientific_name": "Trachemys scripta",
+          "kingdom": "Animalia",
+          "class": "Reptilia",
+          "is_invasive": false,
+          "has_invasive_infraspecific": true
+        }
+      ],
+      "expect": {
+        "best": "tSlider",
+        "invasive": "mixed"
+      }
+    },
+    {
+      "name": "no page names a plant",
+      "category": "sighting",
+      "candidates": [
+        {
+          "taicol_id": "tCypress",
+          "score": 0.78,
+          "scientific_name": "Taxodium distichum",
+          "kingdom": "Plantae",
+          "class": "Pinopsida"
+        },
+        {
+          "taicol_id": "tOwl",
+          "score": 0.15,
+          "scientific_name": "Otus lettia",
+          "kingdom": "Animalia",
+          "class": "Aves"
+        }
+      ],
+      "expect": {
+        "best": "tOwl",
+        "invasive": null
+      }
+    },
+    {
+      "name": "roadkill drops a marine-only fish; wildlife would not",
+      "category": "roadkill",
+      "candidates": [
+        {
+          "taicol_id": "tFish",
+          "score": 0.6,
+          "scientific_name": "Scarus ghobban",
+          "kingdom": "Animalia",
+          "class": "Actinopteri",
+          "is_marine": true,
+          "is_terrestrial": false
+        },
+        {
+          "taicol_id": "tSnake",
+          "score": 0.3,
+          "scientific_name": "Ptyas mucosa",
+          "kingdom": "Animalia",
+          "class": "Reptilia",
+          "is_terrestrial": true
+        }
+      ],
+      "expect": {
+        "best": "tSnake",
+        "invasive": null
+      }
+    },
+    {
+      "name": "injured is judged as roadkill",
+      "category": "injured",
+      "candidates": [
+        {
+          "taicol_id": "tFish",
+          "score": 0.6,
+          "scientific_name": "Scarus ghobban",
+          "kingdom": "Animalia",
+          "class": "Actinopteri",
+          "is_marine": true,
+          "is_terrestrial": false
+        },
+        {
+          "taicol_id": "tSnake",
+          "score": 0.3,
+          "scientific_name": "Ptyas mucosa",
+          "kingdom": "Animalia",
+          "class": "Reptilia",
+          "is_terrestrial": true
+        }
+      ],
+      "expect": {
+        "best": "tSnake",
+        "invasive": null
+      }
+    },
+    {
+      "name": "a sighting keeps the fish",
+      "category": "sighting",
+      "candidates": [
+        {
+          "taicol_id": "tFish",
+          "score": 0.6,
+          "scientific_name": "Scarus ghobban",
+          "kingdom": "Animalia",
+          "class": "Actinopteri",
+          "is_marine": true,
+          "is_terrestrial": false
+        },
+        {
+          "taicol_id": "tSnake",
+          "score": 0.3,
+          "scientific_name": "Ptyas mucosa",
+          "kingdom": "Animalia",
+          "class": "Reptilia",
+          "is_terrestrial": true
+        }
+      ],
+      "expect": {
+        "best": "tFish",
+        "invasive": null
+      }
+    },
+    {
+      "name": "roadkill keeps a protected sea turtle whatever its habitat flags",
+      "category": "roadkill",
+      "candidates": [
+        {
+          "taicol_id": "tTurtle",
+          "score": 0.9,
+          "scientific_name": "Chelonia mydas",
+          "kingdom": "Animalia",
+          "class": "Reptilia",
+          "is_marine": true,
+          "is_protected": true
+        }
+      ],
+      "expect": {
+        "best": "tTurtle",
+        "invasive": null
+      }
+    },
+    {
+      "name": "roadkill keeps a land crab flagged marine-only, because TaiRON finds it on roads",
+      "category": "roadkill",
+      "candidates": [
+        {
+          "taicol_id": "tCrab",
+          "score": 0.7,
+          "scientific_name": "Cardisoma carnifex",
+          "kingdom": "Animalia",
+          "class": "Malacostraca",
+          "is_marine": true,
+          "is_terrestrial": false,
+          "recorded_on_roads": true
+        },
+        {
+          "taicol_id": "tHermit",
+          "score": 0.2,
+          "scientific_name": "Coenobita purpureus",
+          "kingdom": "Animalia",
+          "class": "Malacostraca",
+          "is_terrestrial": true
+        }
+      ],
+      "expect": {
+        "best": "tCrab",
+        "invasive": null
+      }
+    },
+    {
+      "name": "a missing habitat flag never drops a species",
+      "category": "roadkill",
+      "candidates": [
+        {
+          "taicol_id": "tUnknownHabitat",
+          "score": 0.5,
+          "scientific_name": "Hebius sauteri",
+          "kingdom": "Animalia",
+          "class": "Reptilia"
+        }
+      ],
+      "expect": {
+        "best": "tUnknownHabitat",
+        "invasive": null
+      }
+    },
+    {
+      "name": "nothing a roadkill report may be named as",
+      "category": "roadkill",
+      "candidates": [
+        {
+          "taicol_id": "tFish",
+          "score": 0.95,
+          "scientific_name": "Scarus ghobban",
+          "kingdom": "Animalia",
+          "class": "Actinopteri",
+          "is_marine": true,
+          "is_terrestrial": false
+        }
+      ],
+      "expect": {
+        "best": null,
+        "invasive": null
+      }
+    }
+  ],
+  "guardCases": [
+    {
+      "name": "a congener blurred more strictly stops the model naming the species (紅頭綠鳩 taken for 綠鳩)",
+      "candidates": [
+        {
+          "taicol_id": "tSieboldii",
+          "score": 0.981,
+          "scientific_name": "Treron sieboldii",
+          "blur": null
+        },
+        {
+          "taicol_id": "tFormosae",
+          "score": 0.004,
+          "scientific_name": "Treron formosae",
+          "blur": "coarse_10km"
+        }
+      ],
+      "blocked": true
+    },
+    {
+      "name": "a stricter species of another genus does not",
+      "candidates": [
+        {
+          "taicol_id": "tBulbul",
+          "score": 0.99,
+          "scientific_name": "Pycnonotus sinensis",
+          "blur": null
+        },
+        {
+          "taicol_id": "tMyna",
+          "score": 0.005,
+          "scientific_name": "Acridotheres cristatellus",
+          "blur": "coarse_10km"
+        }
+      ],
+      "blocked": false
+    },
+    {
+      "name": "a congener blurred no more strictly does not",
+      "candidates": [
+        {
+          "taicol_id": "tA",
+          "score": 0.99,
+          "scientific_name": "Rattus losea",
+          "blur": "coarse_10km"
+        },
+        {
+          "taicol_id": "tB",
+          "score": 0.005,
+          "scientific_name": "Rattus tanezumi",
+          "blur": "coarse_10km"
+        }
+      ],
+      "blocked": false
+    },
+    {
+      "name": "a stricter congener beyond the five shown does not",
+      "candidates": [
+        {
+          "taicol_id": "t1",
+          "score": 0.97,
+          "scientific_name": "Hebius sauteri",
+          "blur": null
+        },
+        {
+          "taicol_id": "t2",
+          "score": 0.01,
+          "scientific_name": "Ptyas mucosa",
+          "blur": null
+        },
+        {
+          "taicol_id": "t3",
+          "score": 0.008,
+          "scientific_name": "Lycodon ruhstrati",
+          "blur": null
+        },
+        {
+          "taicol_id": "t4",
+          "score": 0.006,
+          "scientific_name": "Oligodon formosanus",
+          "blur": null
+        },
+        {
+          "taicol_id": "t5",
+          "score": 0.004,
+          "scientific_name": "Sibynophis chinensis",
+          "blur": null
+        },
+        {
+          "taicol_id": "t6",
+          "score": 0.001,
+          "scientific_name": "Hebius miyajimae",
+          "blur": "coarse_50km"
+        }
+      ],
+      "blocked": false
+    }
+  ]
+}
