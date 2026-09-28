@@ -230,7 +230,8 @@ export async function anniversaryLedger(limit = 12): Promise<LedgerRow[]> {
       )
       select id, "observedAt", lat, lng, "commonNameZh", "scientificName"
         from near where rn = 1
-       order by "observedAt" desc
+       -- id breaks ties between records of the same day.
+       order by "observedAt" desc, id
        limit ${limit}`,
   );
 }
@@ -273,14 +274,17 @@ export async function hotspots(limit = 8): Promise<Hotspot[]> {
       ),
       totals as (
         select gx, gy, sum(n)::int as n
-          from cells group by 1, 2 order by n desc limit ${limit}
+          -- The cell breaks ties at the cut, so equal cells do not trade
+          -- places between loads.
+          from cells group by 1, 2 order by n desc, gx, gy limit ${limit}
       ),
       dominant as (
         select distinct on (c.gx, c.gy) c.gx, c.gy, c.taxon_id
           from cells c
           join totals t on t.gx = c.gx and t.gy = c.gy
          where c.taxon_id is not null
-         order by c.gx, c.gy, c.n desc
+         -- taxon_id settles a tie for the most-recorded animal in a cell.
+         order by c.gx, c.gy, c.n desc, c.taxon_id
       )
       select t.n,
              d.taxon_id as "taxonId",

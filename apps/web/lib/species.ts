@@ -395,7 +395,8 @@ export async function recentRecords(taxonId: number, limit = 12) {
              category, is_obscured as "isObscured"
         from reports_public
        where taxon_id = ${taxonId}
-       order by observed_at desc
+       -- id breaks ties, so the same records are shown on every load.
+       order by observed_at desc, id
        limit ${limit}`,
   );
 }

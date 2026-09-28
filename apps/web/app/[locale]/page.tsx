@@ -6,7 +6,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { sql } from "@/lib/db";
 import { Link } from "@/i18n/navigation";
 import { REPORT_GROUPS, type ReportGroup } from "@conservation/shared";
-import { mapEntrySpecies } from "@/lib/stats";
+import { mapEntrySpecies, recordedSpeciesCount } from "@/lib/stats";
 import { PHOTOS, HERO, type PhotoKey } from "@/lib/home/photos";
 import SiteHeader from "@/components/site/SiteHeader";
 import SiteFooter from "@/components/site/SiteFooter";
@@ -26,14 +26,24 @@ export async function generateMetadata({
   return { title: { absolute: t("title") }, description: t("description") };
 }
 
-type Stats = { species: string; obscured: string };
+type Stats = { species: number; obscured: string };
 
+/**
+ * The species figure is recordedSpeciesCount(), the one definition every other
+ * page uses. This page counted `distinct taxon_id` on its own and said 506
+ * while /species, /stats, /map and /season said 501: the five in between are
+ * records filed under names that do not apply in Taiwan, which the directory
+ * hides. A number the reader cannot reproduce by opening the directory is one
+ * they stop trusting.
+ */
 async function getStats(): Promise<Stats> {
-  const [row] = await sql<Stats[]>`
-    select count(distinct taxon_id)::text                as species,
-           count(*) filter (where is_obscured)::text     as obscured
-      from reports_public`;
-  return row;
+  const [[row], species] = await Promise.all([
+    sql<{ obscured: string }[]>`
+      select count(*) filter (where is_obscured)::text as obscured
+        from reports_public`,
+    recordedSpeciesCount(),
+  ]);
+  return { species, obscured: row.obscured };
 }
 
 /**
@@ -280,7 +290,7 @@ export default async function HomePage({
             photo={PHOTOS.mikado}
             zh={zh}
             photoBy={photoBy}
-            title={t("speciesTitle", { count: Number(s.species) })}
+            title={t("speciesTitle", { count: s.species })}
             body={t("speciesBody")}
             cta={t("speciesLink")}
             href="/species"
