@@ -167,6 +167,15 @@ describe("every forum server action asks first", () => {
     assert.match(body, /throw new Error\("forbidden"\)/);
   });
 
+  test("a suspended moderator cannot moderate", () => {
+    // An admin suspends a moderator to stop them acting as one. A check on the
+    // role alone would leave the console open to them.
+    const guard = moderation.slice(moderation.indexOf("async function requireModerator"));
+    const body = guard.slice(0, guard.indexOf("\n}"));
+    assert.match(body, /from forum_sanctions/);
+    assert.match(body, /if \(standing\.suspended\) throw new Error/);
+  });
+
   test("requireAdmin needs the admin role, not just moderator", () => {
     const guard = moderation.slice(moderation.indexOf("async function requireAdmin"));
     assert.match(guard.slice(0, guard.indexOf("\n}")), /actor\.role !== "admin"/);

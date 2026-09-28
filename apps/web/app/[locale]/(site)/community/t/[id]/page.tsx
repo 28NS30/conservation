@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   requireForum();
   const { id } = await params;
   const viewer = await forumViewer();
-  const thread = await threadForViewer(id, viewer);
+  const thread = await threadForViewer(id, { userId: viewer.userId, isModerator: viewer.canModerate });
   return thread ? { title: thread.title } : {};
 }
 
@@ -53,19 +53,22 @@ export default async function ThreadPage({ params, searchParams }: Props) {
   const zh = locale.startsWith("zh");
 
   const viewer = await forumViewer();
-  const thread = await threadForViewer(id, viewer);
+  // Held and hidden posts are shown to someone who can act on them now, not
+  // to a moderator who is suspended or has not joined.
+  const reader = { userId: viewer.userId, isModerator: viewer.canModerate };
+  const thread = await threadForViewer(id, reader);
   if (!thread) notFound();
 
   const { page: requested } = await searchParams;
-  const first = await postsForViewer(thread.id, 0, viewer);
+  const first = await postsForViewer(thread.id, 0, reader);
   const paging = pageWindow(requested, first.total, POSTS_PER_PAGE);
-  const posts = paging.offset === 0 ? first : await postsForViewer(thread.id, paging.offset, viewer);
+  const posts = paging.offset === 0 ? first : await postsForViewer(thread.id, paging.offset, reader);
 
   const [t, tr, format, categories] = await Promise.all([
     getTranslations("forum"),
     getTranslations("forum.reason"),
     getFormatter(),
-    viewer.isModerator ? listCategories() : Promise.resolve([]),
+    viewer.canModerate ? listCategories() : Promise.resolve([]),
   ]);
 
   const categoryName = zh ? thread.category_name_zh : thread.category_name_en;
@@ -127,7 +130,7 @@ export default async function ThreadPage({ params, searchParams }: Props) {
         </p>
       </ForumHeading>
 
-      {viewer.isModerator && (
+      {viewer.canModerate && (
         <ThreadTools
           threadId={thread.id}
           locked={thread.locked}
@@ -168,7 +171,7 @@ export default async function ThreadPage({ params, searchParams }: Props) {
                   <FlagForm postId={p.id} />
                 )}
               </footer>
-              {viewer.isModerator && p.status !== "deleted" && (
+              {viewer.canModerate && p.status !== "deleted" && (
                 <div className="mt-4 border-t border-ink-900/10 pt-3">
                   <ModeratePost
                     postId={p.id}

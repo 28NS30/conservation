@@ -56,7 +56,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   ]);
   const [mine, counts] = await Promise.all([
     viewer.userId && viewer.member ? ownUnpublishedThreads(category.id, viewer.userId) : Promise.resolve([]),
-    viewer.isModerator ? queueCounts() : Promise.resolve(null),
+    viewer.canModerate ? queueCounts() : Promise.resolve(null),
   ]);
 
   const name = zh ? category.name_zh : category.name_en;
@@ -68,7 +68,9 @@ export default async function CategoryPage({ params, searchParams }: Props) {
         {(th.pinned_at || th.locked || th.status !== "visible") && (
           <span className="mb-1.5 flex flex-wrap gap-2">
             {th.status !== "visible" && (
-              <span className={`${badge} bg-ember-500 text-ink-950`}>{t("awaitingReview")}</span>
+              <span className={`${badge} bg-ember-500 text-ink-950`}>
+                {th.status === "hidden" ? t("hiddenTitle") : t("awaitingReview")}
+              </span>
             )}
             {th.pinned_at && <span className={`${badge} bg-forest-900 text-paper-50`}>{t("pinned")}</span>}
             {th.locked && <span className={`${badge} border border-ink-900/25 text-ink-700`}>{t("locked")}</span>}

@@ -104,7 +104,7 @@ export default async function MemberStatus({
   return (
     <>
       {body}
-      {viewer.isModerator && (
+      {viewer.canModerate && (
         <p className="-mt-5 mb-8">
           <Link href="/community/moderation" className={`${link} inline-flex min-h-11 items-center text-[15px]`}>
             {t("moderationWaiting", { count: waiting ?? 0 })}

@@ -36,7 +36,7 @@ export default async function CommunityPage({ params }: { params: Promise<{ loca
     forumViewer(),
     listCategories(),
   ]);
-  const counts = viewer.isModerator ? await queueCounts() : null;
+  const counts = viewer.canModerate ? await queueCounts() : null;
 
   return (
     <main>

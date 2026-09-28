@@ -82,6 +82,13 @@ export default async function ModerationPage({ params }: { params: Promise<{ loc
       </p>,
     );
 
+  if (viewer.suspendedUntil)
+    return shell(
+      <p className="text-[16px] text-ink-800">
+        {tf("suspendedUntil", { date: format.dateTime(viewer.suspendedUntil, { dateStyle: "medium", timeStyle: "short" }) })}
+      </p>,
+    );
+
   const admin = viewer.role === "admin";
   const [held, flagged, suspensions, words, log, roles] = await Promise.all([
     heldQueue(),

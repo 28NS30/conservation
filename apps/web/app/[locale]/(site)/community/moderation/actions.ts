@@ -44,18 +44,27 @@ import { fail, ok, type ActionResult } from "@/lib/forum/result";
 type Actor = { id: string; role: ForumRole };
 
 /**
- * A moderator or admin who has joined the forum.
+ * A moderator or admin who has joined the forum and is not suspended.
  *
  * Joined, because the audit log names people by their forum nickname — a
- * moderator without one would act anonymously. Throws rather than returning an
- * error result: a non-moderator reaching this is not a user mistake to be
- * explained, it is someone posting to an endpoint they were never shown.
+ * moderator without one would act anonymously. Not suspended, because the one
+ * reason an admin suspends a moderator is to stop them acting as one; a
+ * suspension that left the console open would stop only their posting.
+ *
+ * Throws rather than returning an error result: a non-moderator reaching this
+ * is not a user mistake to be explained, it is someone posting to an endpoint
+ * they were never shown.
  */
 async function requireModerator(): Promise<Actor> {
   const { userId, role } = await currentRole();
   if (!userId || !isModeratorRole(role)) throw new Error("forbidden");
-  const [member] = await sql`select 1 from forum_profiles where user_id = ${userId}::uuid`;
-  if (!member) throw new Error("forbidden: join the forum first");
+  const [standing] = await sql<{ suspended: boolean }[]>`
+    select exists (select 1 from forum_sanctions s
+                    where s.user_id = fp.user_id and s.lifted_at is null
+                      and s.starts_at <= now() and s.ends_at > now()) as suspended
+      from forum_profiles fp where fp.user_id = ${userId}::uuid`;
+  if (!standing) throw new Error("forbidden: join the forum first");
+  if (standing.suspended) throw new Error("forbidden: suspended");
   return { id: userId, role };
 }
 

@@ -43,7 +43,15 @@ export type ForumViewer = {
   suspendedUntil: Date | null;
   /** Joined, on the current guidelines, and not suspended. */
   canPost: boolean;
+  /** Holds the moderator or admin role, from `profiles`. */
   isModerator: boolean;
+  /**
+   * May act as one right now: the role, a forum profile (actions are logged
+   * under it), and no suspension in force. Pages grant moderator powers —
+   * seeing held posts, the tools, the console — on this, never on the role
+   * alone, and the actions check the same three things themselves.
+   */
+  canModerate: boolean;
 };
 
 /**
@@ -55,7 +63,15 @@ export type ForumViewer = {
 export const forumViewer = cache(async (): Promise<ForumViewer> => {
   const userId = await currentUserId();
   if (!userId) {
-    return { userId: null, role: null, member: null, suspendedUntil: null, canPost: false, isModerator: false };
+    return {
+      userId: null,
+      role: null,
+      member: null,
+      suspendedUntil: null,
+      canPost: false,
+      isModerator: false,
+      canModerate: false,
+    };
   }
   const [row] = await sql<
     {
@@ -100,6 +116,7 @@ export const forumViewer = cache(async (): Promise<ForumViewer> => {
     suspendedUntil,
     canPost: Boolean(member && member.guidelinesVersion >= GUIDELINES_VERSION && !suspendedUntil),
     isModerator: isModeratorRole(role),
+    canModerate: isModeratorRole(role) && member !== null && !suspendedUntil,
   };
 });
 
