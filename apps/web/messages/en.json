@@ -2,7 +2,7 @@
   "site": {
     "title": "Project FormosaWatch",
     "tagline": "Taiwan · open wildlife records",
-    "description": "An open map of wildlife records for Taiwan, built on TaiRON roadkill data. Anyone can add a report."
+    "description": "An open map of Taiwan's wildlife — roadkill, invasive species and sightings. Anyone can file a report."
   },
   "nav": {
     "backToMap": "← Back to map",
@@ -346,7 +346,7 @@
   "about": {
     "title": "About",
     "whatTitle": "What this is",
-    "whatBody": "An open map of wildlife records for Taiwan. Today's records were collected by 路殺社 (TaiRON) volunteers and released under CC BY 4.0. Anyone can report roadkill, an injured animal, an invasive species or a sighting; no account is needed.",
+    "whatBody": "An open map of wildlife records for Taiwan, run by a nonprofit of high school students who are passionate about wildlife conservation. It includes records collected by 路殺社 (TaiRON) volunteers and released under CC BY 4.0. Anyone can report roadkill, an injured animal, an invasive species or a wildlife sighting; no account is needed.",
     "privacyTitle": "Why some locations are blurred",
     "privacyBody": "Publishing precise coordinates of protected or sensitive species is, functionally, a map for poachers. GBIF, eBird and iNaturalist all obscure such records, and so do we: for those species the public map shows a deliberately coarsened location rather than the real one, and the most sensitive show no coordinates at all.",
     "unknownTitle": "Reports that aren't identified yet",
@@ -472,7 +472,7 @@
     "provenanceSource": "Source:",
     "provenanceOrg": "Taiwan Roadkill Observation Network (TaiRON)",
     "provenanceVia": "via GBIF · CC BY 4.0",
-    "ask": "What did you see?",
+    "ask": "File a report",
     "askHint": "Pick one. It takes about a minute, and needs no account.",
     "doorRoadkill": "An animal dead on the road, or alive and hurt.",
     "doorInvasive": "Green iguana, apple snail, sacred ibis.",
@@ -481,9 +481,9 @@
     "whatTitle": "What this is",
     "whatBody": "An open database of wildlife records for Taiwan. Anyone can report roadkill, an invasive species, an injured animal or a sighting; every record is public. We plan to publish reports made here to GBIF as a Darwin Core Archive.",
     "whoTitle": "Who runs it",
-    "whoBody": "An independent volunteer project — not a government agency, and not part of any institution. Write to Neo Su.",
+    "whoBody": "A nonprofit run by high school students who are passionate about wildlife conservation. We are not a government agency. Write to Neo Su.",
     "taironTitle": "Where 路殺社 fits",
-    "taironBody": "Every record on this site was collected by 路殺社 (TaiRON) volunteers — crouching at the roadside, photographing, noting the species and the coordinate — and published openly under CC BY 4.0. This is not a replacement for that work: it shows those records, and plans to release new reports as open data in turn.",
+    "taironBody": "Many of the records here were collected by 路殺社 (TaiRON) volunteers — crouching at the roadside, photographing, noting the species and the coordinate — and published openly under CC BY 4.0. We build on that work rather than replace it, and plan to share the reports made here as open data in turn.",
     "ledgerTitle": "This week, in other years",
     "ledgerHint": "One real record for each date, from within a few days of today across 2011–2017. The first line is blank.",
     "ledgerBlank": "File the first one",
