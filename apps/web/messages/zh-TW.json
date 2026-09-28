@@ -147,9 +147,9 @@
       "another": "再通報一筆",
       "notVerified": "尚未查證",
       "invasiveNextTitle": "接下來會怎樣",
-      "invasiveNextBody": "我們會保存這筆紀錄，並由管理員查證物種。在那之前，它會標示為「尚未查證」，位置至少模糊化到 10 公里。不會有人前往現場，你也不需要再做什麼。",
+      "invasiveNextBody": "我們會保存這筆紀錄，並由審核人員查證物種。在那之前，它會標示為「尚未查證」，位置至少模糊化到 10 公里。不會有人前往現場，你也不需要再做什麼。",
       "taironTitle": "也可以通報給路殺社（TaiRON）",
-      "taironBody": "路殺社（TaiRON）有自己的臺灣路殺紀錄。想把這筆也加進去，請到他們的網站通報；你需要有自己的 TaiRON 帳號。我們不會替你轉送。",
+      "taironBody": "路殺社（TaiRON）有自己的臺灣路殺紀錄。想把這筆也加進去，請到他們的網站通報；你需要有自己的 TaiRON 帳號。我們不會替你送過去。",
       "taironLink": "前往 roadkill.tw"
     },
     "needChallenge": "請先完成人機驗證",

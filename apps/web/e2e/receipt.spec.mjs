@@ -92,8 +92,11 @@ try {
     );
   }
 
-  /** The form, filled far enough to submit: one tap on the map. */
-  async function fileReport(page, path, answer) {
+  /**
+   * The form, filled far enough to submit: one tap on the map, and on the
+   * roadkill page the dead-or-hurt answer it will not send without.
+   */
+  async function fileReport(page, path, answer, before = async () => {}) {
     await page.route("**/api/reports", (route) =>
       route.fulfill({
         status: 201,
@@ -106,6 +109,7 @@ try {
     await canvas.waitFor({ timeout: 20000 });
     // MapLibre needs the style before it answers clicks.
     await page.waitForTimeout(5000);
+    await before();
     await canvas.scrollIntoViewIfNeeded();
     await canvas.click({ position: { x: 150, y: 100 } });
     await page.getByRole("button", { name: /送出通報|Submit report/ }).click();
@@ -221,6 +225,45 @@ try {
       } finally {
         await page.close();
       }
+    }
+  }
+
+  // What the roadkill and invasive pages add to the same card. The words are
+  // pinned in test/report-form.test.mjs; this is the card actually showing
+  // them, after a real submit, on the page they belong to.
+  if (fresh) {
+    const zh = CATALOGUE["zh-TW"].report;
+    {
+      const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+      await fileReport(
+        page,
+        "/report/roadkill",
+        { id: publishedId, status: "published", awaitingIdentification: false },
+        () => page.getByRole("button", { name: zh.condition.roadkill }).click(),
+      );
+      const text = await page.locator("main").innerText();
+      // Inside <main>: the site footer credits TaiRON with a link of its own.
+      const tairon = page.locator('main a[href="https://roadkill.tw"]');
+      check("roadkill: the receipt offers 路殺社, and says an account is needed", text.includes(zh.receipt.taironTitle) && text.includes(zh.receipt.taironBody));
+      check(
+        "roadkill: the 路殺社 link opens their site in a new tab",
+        (await tairon.count()) === 1 && (await tairon.getAttribute("target")) === "_blank",
+      );
+      check("roadkill: nothing is marked unverified", !text.includes(zh.receipt.notVerified));
+      await page.close();
+    }
+    {
+      const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+      await fileReport(page, "/report/invasive", {
+        id: pendingId,
+        status: "pending",
+        awaitingIdentification: false,
+      });
+      const text = await page.locator("main").innerText();
+      check("invasive: the receipt says it is not yet verified", text.includes(zh.receipt.notVerified));
+      check("invasive: and what happens next", text.includes(zh.receipt.invasiveNextBody));
+      check("invasive: no 路殺社 link", (await page.locator('main a[href="https://roadkill.tw"]').count()) === 0);
+      await page.close();
     }
   }
 } finally {

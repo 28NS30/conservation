@@ -334,9 +334,55 @@ async function checkState(browser) {
   return errs;
 }
 
+/**
+ * The three report pages, reached the ways people actually arrive.
+ *
+ * test/report-pages.test.mjs pins the redirect's status and Location over
+ * HTTP; this is the browser following it, in both languages, and landing on a
+ * page where nothing has been chosen for the reporter — the old form opened
+ * on "roadkill, dead", and an old `?category=injured` link is exactly where a
+ * default would creep back in.
+ */
+async function checkReportPages(browser) {
+  const errs = [];
+  for (const [locale, prefix] of [
+    ["zh-TW", ""],
+    ["en-US", "/en"],
+  ]) {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, locale });
+    const page = await ctx.newPage();
+
+    await page.goto(`${BASE}${prefix}/report`, { waitUntil: "load" });
+    const offered = await page.evaluate(() =>
+      [...document.querySelectorAll("main a.group")].map((a) => new URL(a.href).pathname),
+    );
+    const want = ["roadkill", "invasive", "wildlife"].map((k) => `${prefix}/report/${k}`);
+    if (JSON.stringify(offered) !== JSON.stringify(want))
+      errs.push(`${prefix || "/"}report offers ${JSON.stringify(offered)}`);
+
+    for (const [category, kind] of [
+      ["injured", "roadkill"],
+      ["invasive", "invasive"],
+      ["sighting", "wildlife"],
+    ]) {
+      await page.goto(`${BASE}${prefix}/report?category=${category}&taxonId=28758`, {
+        waitUntil: "load",
+      });
+      await page.waitForTimeout(1500);
+      const at = new URL(page.url());
+      if (at.pathname !== `${prefix}/report/${kind}` || at.search !== "?taxonId=28758")
+        errs.push(`?category=${category} (${locale}) landed on ${at.pathname}${at.search}`);
+      const pressed = await page.locator('main [aria-pressed="true"]').count();
+      if (pressed) errs.push(`${at.pathname} opened with ${pressed} answer(s) already chosen`);
+    }
+    await ctx.close();
+  }
+  return errs;
+}
+
 const browser = await chromium.launch();
 const failures = [];
-const CHECKS = PAGES.length + 1;
+const CHECKS = PAGES.length + 2;
 
 for (const pg of PAGES) {
   // The browser's language set deliberately, to match the path. Playwright's
@@ -509,6 +555,11 @@ const stateErrs = await checkState(browser);
 if (stateErrs.length)
   failures.push({ page: "URL state", path: "(several)", errs: stateErrs });
 else console.log("  ok   URL state survives a language switch and a search");
+
+const reportErrs = await checkReportPages(browser);
+if (reportErrs.length)
+  failures.push({ page: "report pages", path: "/report/*", errs: reportErrs });
+else console.log("  ok   old report links land on their page, with nothing chosen");
 
 await browser.close();
 
