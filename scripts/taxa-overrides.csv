@@ -1,0 +1,12 @@
+taicol_id,min_precision,reason
+t0028707,coarse_10km,"臺灣蛇蜥 Dopasia formosensis. The 2025-02-07 protected-species list protects the Taiwan animal as class II under its old name Dopasia harti; TaiCOL moved that status to a D. harti row not in Taiwan on 2026-04-24 and left this row unprotected and unrated."
+t0124331,coarse_10km,"臺灣蛇蜥 again: a deleted TaiCOL row for Dopasia formosensis, unrated, beside t0028707. The species picker and the report form refuse deleted names, but the classifier's label list still holds this one."
+t0125438,coarse_10km,"戈芬氏鳳頭鸚鵡 Cacatua goffini. A second accepted TaiCOL row for the bird whose other row, Cacatua goffiniana t0076951, is protected class I and rated 輕度. The protected-species list names goffini as its synonym."
+t0096004,coarse_10km,"棕背伯勞 Lanius schach. TaiCOL rates the species 輕度 (checked 2026-09-28); our copy predates the rating. Covers the subspecies L. s. schach, which holds the records."
+t0099969,coarse_10km,"小水鴨 Anas crecca. TaiCOL rates the species 輕度 (checked 2026-09-28); our copy predates the rating. Covers the subspecies A. c. crecca, which holds the records."
+t0097440,coarse_10km,"黑腹濱鷸 Calidris alpina. TaiCOL rates it 輕度 (checked 2026-09-28); our copy predates the rating."
+t0077070,coarse_10km,"紅胸濱鷸 Calidris ruficollis. TaiCOL rates it 輕度 (checked 2026-09-28); our copy predates the rating."
+t0097786,coarse_10km,"花翅山椒鳥, our row Coracina macei. The protected-species list names Coracina macei class II. TaiCOL has since renamed this row Coracina javensis and removed its protection, so a refresh would publish new reports exactly."
+t0066574,coarse_50km,"黃魚鴞 Ketupa flavipes. Our copy rates it 重度; TaiCOL relaxed it to 輕度 on 2026-08-12. Kept at the stricter level until the owner decides otherwise."
+t0098180,coarse_50km,"黃鸝 Oriolus chinensis. Our copy rates it 重度; TaiCOL relaxed it to 輕度 on 2026-08-12. Kept at the stricter level until the owner decides otherwise."
+t0098063,coarse_50km,"熊鷹 Nisaetus nipalensis. Our copy rates it 重度; TaiCOL relaxed it to 輕度 on 2026-08-12. Kept at the stricter level until the owner decides otherwise."

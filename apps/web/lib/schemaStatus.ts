@@ -71,6 +71,35 @@ export const REQUIRED_SCHEMA: SchemaCheck[] = [
                and t.tgname = 'taxa_reblur_reports'
                and not t.tgisinternal) as ok`,
   },
+  {
+    // The classifier calls this when it names a species. Without it every
+    // confident classification fails, retries five times and is held as
+    // "classification unavailable" — safe, but nothing gets identified.
+    name: "0014 the classifier's sibling blur exists",
+    sql: `select exists (
+            select 1 from pg_proc
+             where proname = 'binomial_precision_floor') as ok`,
+  },
+  {
+    // A rule check, like 0011's. The trigger function is `create or replace`d
+    // by 0003, 0011 and 0014, so re-running an older file puts the one-row
+    // rule back while every object this list asks about still exists. Asking
+    // what the live function body calls is what notices.
+    name: "0014 a record takes the strictest rule that applies",
+    sql: `select exists (
+            select 1 from pg_proc
+             where proname = 'set_report_public_location'
+               and prosrc like '%report_precision(%') as ok`,
+  },
+  {
+    name: "0014 precision floors re-blur their records",
+    sql: `select exists (
+            select 1 from pg_trigger t
+              join pg_class c on c.oid = t.tgrelid
+             where c.relname = 'taxon_precision_floors'
+               and t.tgname = 'taxon_precision_floors_reblur'
+               and not t.tgisinternal) as ok`,
+  },
 ];
 
 /**

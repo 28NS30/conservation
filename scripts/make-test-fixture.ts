@@ -45,6 +45,13 @@ async function main() {
       union (select id from taxa where scientific_name = 'Pomacea canaliculata' limit 1)
       union (select id from taxa
               where scientific_name = 'Prionailurus bengalensis euptilurus' limit 1)
+      -- Migration 0014's cases: 臺灣蛇蜥 under its accepted and its deleted row,
+      -- the non-Taiwan row TaiCOL moved its protection to, both cockatoo rows,
+      -- and a deleted name still flagged invasive. See the floors in
+      -- scripts/taxa-overrides.csv.
+      union (select id from taxa
+              where taicol_id in ('t0028707', 't0124331', 't0124472',
+                                  't0125438', 't0076951', 't0123866'))
       union (select id from taxa where sensitivity = '座標不開放' limit 2)
       union (select id from taxa where sensitivity = '重度' limit 2)
       union (select id from taxa where sensitivity = '輕度' limit 3)
@@ -53,7 +60,11 @@ async function main() {
               where taxon_id is not null and source = 'gbif'
               order by id limit 60)
     )
-    select t.id, t.taicol_id, t.scientific_name, t.common_name_zh, t.rank,
+    select t.id, t.taicol_id,
+           -- Both matter since 0014: only accepted names are offered, and a
+           -- subspecies inherits a stricter rating from the row above it.
+           t.parent_taicol_id, t.taxon_status,
+           t.scientific_name, t.common_name_zh, t.rank,
            t.kingdom, t.phylum, t.class, t."order", t.family,
            t.is_in_taiwan, t.is_endemic, t.alien_type, t.is_invasive,
            t.protected_status, t.sensitivity, t.alt_names_zh,
@@ -99,7 +110,8 @@ async function main() {
      limit ${REPORT_SAMPLE}`;
 
   const taxaCols = [
-    "id","taicol_id","scientific_name","common_name_zh","rank","kingdom","phylum","class",
+    "id","taicol_id","parent_taicol_id","taxon_status",
+    "scientific_name","common_name_zh","rank","kingdom","phylum","class",
     '"order"',"family","is_in_taiwan","is_endemic","alien_type","is_invasive",
     "protected_status","sensitivity","alt_names_zh","iucn","redlist","cites",
     "bioclip_prompt",
