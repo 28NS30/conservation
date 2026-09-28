@@ -17,7 +17,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "福爾摩沙守望計畫 · Project FormosaWatch",
     short_name: "福爾摩沙守望",
     description:
-      "臺灣的公開野生動物紀錄地圖，資料來自路殺社（TaiRON），任何人都能通報。An open map of wildlife records for Taiwan, built on TaiRON roadkill data. Anyone can add a report.",
+      "臺灣野生動物的公開地圖——路殺、外來入侵種與目擊紀錄，任何人都能通報。An open map of Taiwan's wildlife — roadkill, invasive species and sightings. Anyone can file a report.",
     start_url: withBase("/"),
     display: "standalone",
     background_color: "#0b1410",
