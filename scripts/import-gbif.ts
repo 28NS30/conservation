@@ -23,6 +23,7 @@ import {
   type TaxonIndex,
 } from "./taxon-names.ts";
 import { isInTaiwanBounds } from "@conservation/shared";
+import { ownReportIdCandidates, type BackReferences } from "./own-report-ids.ts";
 
 const API = "https://api.gbif.org/v1/occurrence/search";
 const PAGE = 300;
@@ -33,8 +34,7 @@ const MAX_UNCERTAINTY_M = 5_000;
 
 const TAIRON_DATASET = "db09684b-0fd1-431e-b5fa-4c1532fbdb14";
 
-type Occurrence = {
-  occurrenceID?: string;
+type Occurrence = BackReferences & {
   gbifID?: string | number;
   species?: string;
   scientificName?: string;
@@ -118,6 +118,8 @@ type Row = {
   source_id: string;
   license: string | null;
   rights_holder: string | null;
+  /** UUIDs the record carries that could be our own report ids; see own-report-ids.ts. */
+  own_ids: string[];
 };
 
 /** GBIF eventDate may be a range ("2017-01-02/2017-01-03") or absent. */
@@ -144,6 +146,7 @@ const stats = {
   skippedFuzzy: 0,
   skippedNoDate: 0,
   skippedNoId: 0,
+  skippedOwn: 0,
   matchedTaxon: 0,
   unmatchedTaxon: 0,
   /** Which matcher rule answered, so a run says how it got its names. */
@@ -210,13 +213,35 @@ function toRow(
     verbatim_name: m.verbatim,
     // Namespace by dataset: occurrenceID is only unique within a dataset.
     source_id: `${o.datasetKey ?? "gbif"}:${sourceId}`,
+    own_ids: ownReportIdCandidates(o),
     license: o.license ?? null,
     // Per-occurrence first; the dataset's publisher when the record is silent.
     rights_holder: o.rightsHolder ?? fallbackRightsHolder,
   };
 }
 
-async function insertBatch(rows: Row[]): Promise<number> {
+/**
+ * Drop the records that are ours coming back: a report filed here, sent to
+ * TaiRON, and returned through TaiRON's GBIF dataset. See own-report-ids.ts.
+ */
+async function withoutOwnReports(rows: Row[]): Promise<Row[]> {
+  const ids = [...new Set(rows.flatMap((r) => r.own_ids))];
+  if (!ids.length) return rows;
+  const ours = new Set(
+    (
+      await sql<{ id: string }[]>`
+        select id::text as id from reports
+         where source = 'user' and id = any(${ids}::uuid[])`
+    ).map((r) => r.id),
+  );
+  if (!ours.size) return rows;
+  const kept = rows.filter((r) => !r.own_ids.some((id) => ours.has(id)));
+  stats.skippedOwn += rows.length - kept.length;
+  return kept;
+}
+
+async function insertBatch(all: Row[]): Promise<number> {
+  const rows = await withoutOwnReports(all);
   if (!rows.length) return 0;
   // json_to_recordset keeps this to one round trip while still letting each row
   // build its own PostGIS point. The BEFORE trigger overwrites location_public
@@ -383,7 +408,8 @@ async function main() {
            off-map   ${stats.skippedOutOfBounds.toLocaleString()}
            too fuzzy ${stats.skippedFuzzy.toLocaleString()}
            no date   ${stats.skippedNoDate.toLocaleString()}
-           no id     ${stats.skippedNoId.toLocaleString()}`);
+           no id     ${stats.skippedNoId.toLocaleString()}
+           ours      ${stats.skippedOwn.toLocaleString()} (reports filed here, coming back through TaiRON)`);
 
   if (failedOffsets.length) {
     console.log(`
