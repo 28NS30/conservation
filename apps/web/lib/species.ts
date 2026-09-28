@@ -78,9 +78,15 @@ const SUMMARY_COLS = `
  * named — and a report queued offline is marked failed on any 4xx, with no way
  * to choose again, so the observation was lost.
  *
+ * A species or subspecies, as the picker offers: a species page for a family
+ * or a genus (Felidae, 99 such pages are protected or invasive as a group)
+ * showed "be the first to report it" and opened the form on a name nobody
+ * could pick.
+ *
  * `t` is `taxa`. `is not distinct from` because `taxon_status` is nullable.
  */
-export const OFFERED = `(t.taxon_status is not distinct from 'accepted' and t.is_in_taiwan)`;
+export const OFFERED = `(t.taxon_status is not distinct from 'accepted' and t.is_in_taiwan
+  and t.rank in ('Species', 'Subspecies'))`;
 
 /** URL slug: `32116-prionailurus-bengalensis`. Ids stay stable; humans get a hint. */
 export function speciesSlug(s: { id: number; scientificName: string }): string {
@@ -119,6 +125,7 @@ export function parseSpeciesId(param: string): number | null {
  * one of them answers a question somebody might have typed.
  */
 export function isIndexworthy(s: {
+  rank?: string | null;
   reportCount: number;
   protectedStatus: string | null;
   iucn?: string | null;
@@ -129,6 +136,9 @@ export function isIndexworthy(s: {
   commonNameZh: string | null;
   altNamesZh: string[] | null;
 }): boolean {
+  // A family or a genus page has a name and a lineage and nothing else of its
+  // own; the species under it are the pages worth finding.
+  if (s.rank && s.rank !== "Species" && s.rank !== "Subspecies") return false;
   return Boolean(
     s.reportCount > 0 ||
     s.protectedStatus ||
