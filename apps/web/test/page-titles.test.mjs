@@ -60,8 +60,8 @@ describe("a record page", () => {
   });
 
   test("an id that is not public gets a neutral title, not a receipt's", async () => {
-    // The same title for a mistyped id and a held report, so the title says
-    // nothing the status code does not. It used to say "Received" to both.
+    // A mistyped id is not a receipt, so the title says nothing the status code
+    // does not. It used to say "Received" to it.
     //
     // Read from the streamed payload, not the <title> tag: on a 404 the tag
     // holds the layout's default, and the page's own title arrives later in
@@ -77,6 +77,37 @@ describe("a record page", () => {
       assert.equal(status, 404);
       assert.ok(html.includes(`${neutral} · ${site}`), `${prefix || "/"}: the neutral title is missing`);
       assert.ok(!html.includes(`${receipt} · ${site}`), `${prefix || "/"}: a mistyped id is titled as a receipt`);
+    }
+  });
+
+  test("a held report's receipt is titled as the receipt it shows", async () => {
+    // The page says "Received. Not public right now." to anyone holding the id
+    // of a pending report; a tab saying "This record isn't available" above it
+    // contradicted the heading. Titling it the same hides nothing the page
+    // does not already say, and it stays out of search results.
+    //
+    // A held report of the kind the form produces with no photo, committed
+    // because the assertion is about what the running server serves.
+    const [row] = await sql`
+      insert into reports (category, location, location_public, observed_at,
+                           status, source, flagged_reason)
+      values ('roadkill',
+              st_setsrid(st_makepoint(120.95, 23.74), 4326)::geography,
+              st_setsrid(st_makepoint(120.95, 23.74), 4326)::geography,
+              now(), 'pending', 'user', 'no photo on a category that expects one')
+      returning id`;
+    try {
+      for (const [prefix, site, receipt] of [
+        ["", "福爾摩沙守望計畫", "收到了，目前沒有公開"],
+        ["/en", "Project FormosaWatch", "Received. Not public right now."],
+      ]) {
+        const { status, title, html } = await page(`${prefix}/reports/${row.id}`);
+        assert.equal(status, 200);
+        assert.equal(title, `${receipt} · ${site}`, `${prefix || "/"}: title is "${title}"`);
+        assert.match(html, /<meta name="robots" content="noindex/);
+      }
+    } finally {
+      await sql`delete from reports where id = ${row.id}::uuid`;
     }
   });
 });

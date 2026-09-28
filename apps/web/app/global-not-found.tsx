@@ -33,7 +33,7 @@ export const metadata: Metadata = {
  * buttons in Chinese — so an English reader who mistyped one letter was sent
  * to a page they could not use, with a way home they could not read. Now each
  * language has its own heading, sentence and buttons, and each language's
- * buttons go to that language's site. test/not-found.test.mjs holds it there.
+ * buttons go to that language's site. test/page-titles.test.mjs holds it there.
  */
 export default function GlobalNotFound() {
   const button =

@@ -50,14 +50,23 @@ function seenOn(observedAt: string, source: string, locale: string) {
  * 12月31日" — and indexed as it always was. Every record page used to carry the
  * bare site name, so a list of shared records was a list of identical titles.
  *
- * Anything not in the public view gets the same neutral title and is kept out
- * of search results, whether it is a held report's receipt or an id that never
- * existed. The receipt title used to be "Received. Not public right now." for
- * both, which put "received" over a 404 page for a mistyped link. A receipt
+ * Anything not in the public view is kept out of search results. A receipt
  * exists for one person holding one id, it says nothing an index could want,
  * and a crawler that kept one would turn an id given to a reporter into a
- * public fact. The question asked here is only "is this in the public view",
- * so it takes no viewer and stays the same for everybody.
+ * public fact.
+ *
+ * Its title follows what the page below it says. A held report's receipt is
+ * titled as the receipt, because the page says "Received" to anyone holding the
+ * id and a tab saying "isn't available" above that heading contradicted it.
+ * Everything else absent from the view — an id that never existed, a rejected
+ * report, a withheld record — gets one neutral title. The receipt title used to
+ * be on all of them, which put "Received" over a 404 for a mistyped link.
+ *
+ * Both questions are asked without a viewer, so the title is the same for
+ * everybody. `receiptState(id, null)` answers "held" for a pending report and
+ * nothing else: a rejection is disclosed only to its own reporter, and that
+ * page keeps the neutral title rather than asking who is looking. See
+ * lib/receipt.ts for why confirming a pending id to its holder is safe.
  */
 export async function generateMetadata({
   params,
@@ -87,8 +96,9 @@ export async function generateMetadata({
 
   const t = await getTranslations({ locale });
   if (!pub) {
+    const held = (await receiptState(id, null)) === "held";
     return {
-      title: t("detail.unavailableTitle"),
+      title: held ? t("detail.receipt.title") : t("detail.unavailableTitle"),
       robots: { index: false, follow: false },
     };
   }
