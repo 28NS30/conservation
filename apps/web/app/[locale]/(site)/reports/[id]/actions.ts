@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { sql } from "@/lib/db";
 import { currentRole } from "@/lib/auth";
 import { withinRateLimit } from "@/lib/abuse";
-import { recategorise, type Category } from "@conservation/shared";
 import { photoIdentificationOverride } from "@/lib/report/precision";
 
 /**
@@ -50,10 +49,8 @@ export async function confirmSpecies(reportId: string, taxonId: number) {
     throw new Error("too many identification changes — try again later");
   }
 
-  const [report] = await sql<
-    { reporter_id: string | null; category: string }[]
-  >`
-    select reporter_id, category from reports where id = ${reportId}::uuid`;
+  const [report] = await sql<{ reporter_id: string | null }[]>`
+    select reporter_id from reports where id = ${reportId}::uuid`;
   if (!report) throw new Error("report not found");
 
   if (!moderator && report.reporter_id !== userId) {
@@ -91,24 +88,19 @@ export async function confirmSpecies(reportId: string, taxonId: number) {
   // naming invasive answers itself, and never named medium-band ones, this
   // tap is the usual way a species gets named from a photograph at all.
   //
-  // And the category follows the species. It was written once at insert and
-  // never revisited, so a `sighting` confirmed to be a listed invasive stayed
-  // a `sighting` and never appeared under the map's invasive filter.
-  // `recategorise` only ever moves sighting <-> invasive: condition wins over
-  // species, and nobody revises whether the animal was dead.
+  // The category is NOT touched. It is the page the report was filed on,
+  // fixed at submission. It used to be rewritten here (`recategorise`) so that
+  // a `sighting` confirmed to be an invasive species would show under the
+  // map's invasive filter — but the classifier's own naming never rewrote it
+  // and a TaiCOL refresh never could, so the copy drifted. Whether the animal
+  // is invasive is now read from the species whenever the record is shown
+  // (`reports_public.is_invasive`, 0016): naming the species is all it takes
+  // for the record to join the invasive collection, and to leave it.
   await sql.begin(async (tx) => {
-    const [taxon] = await tx<{ is_invasive: boolean | null }[]>`
-      select is_invasive from taxa where id = ${taxonId}`;
-    const category = recategorise(
-      report.category as Category,
-      taxon?.is_invasive ?? null,
-    );
-
     await tx`
       update reports
          set taxon_id = ${taxonId},
              taxon_source = ${moderator && report.reporter_id !== userId ? "expert" : "user"},
-             category = ${category},
              precision_override = ${photoIdentificationOverride(taxonId)}
        where id = ${reportId}::uuid`;
     await tx`

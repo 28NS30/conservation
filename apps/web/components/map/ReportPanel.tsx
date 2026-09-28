@@ -8,6 +8,7 @@ import type { Category } from "@conservation/shared";
 import HabitatChips, {
   type HabitatFlags,
 } from "@/components/species/HabitatChips";
+import InvasiveBadge from "@/components/collections/InvasiveBadge";
 
 type Report = {
   id: string;
@@ -20,6 +21,8 @@ type Report = {
   commonNameZh: string | null;
   photo: string | null;
   habitat: HabitatFlags;
+  /** Absent from a response built before 0016; read as not invasive. */
+  isInvasive?: boolean;
 };
 
 /**
@@ -132,7 +135,7 @@ export default function ReportPanel({
           <dl className="space-y-2 text-xs">
             <div>
               <dt className="text-parchment-500">{t("detail.species")}</dt>
-              <dd className="text-parchment-100">
+              <dd className="flex flex-wrap items-center gap-x-2 gap-y-1 text-parchment-100">
                 {name ? (
                   report.taxonId ? (
                     <Link
@@ -146,6 +149,20 @@ export default function ReportPanel({
                   )
                 ) : (
                   t("map.unidentified")
+                )}
+                {report.isInvasive && (
+                  <InvasiveBadge
+                    label={t(
+                      report.taxonId
+                        ? "collections.badge.invasive"
+                        : "collections.badge.reported",
+                    )}
+                    title={t(
+                      report.taxonId
+                        ? "collections.badge.invasiveWhy"
+                        : "collections.badge.reportedWhy",
+                    )}
+                  />
                 )}
               </dd>
             </div>

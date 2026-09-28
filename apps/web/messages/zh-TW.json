@@ -581,5 +581,99 @@
       "flamawatch": "哥倫比亞 大西洋省"
     },
     "email": "電子郵件"
+  },
+  "collections": {
+    "name": {
+      "roadkill": "路殺",
+      "invasive": "入侵種",
+      "wildlife": "野生動物目擊"
+    },
+    "filterLabel": "資料集",
+    "conditionLabel": "活體或死亡",
+    "condition": {
+      "any": "不限",
+      "alive": "活體目擊",
+      "dead": "死亡或受傷"
+    },
+    "aboutCollection": "關於「{name}」資料集",
+    "mapType": {
+      "roadkill": "死亡或受傷",
+      "invasive": "入侵種（活體）",
+      "wildlife": "其他動物（活體）"
+    },
+    "badge": {
+      "invasive": "入侵種",
+      "reported": "通報為入侵種",
+      "invasiveWhy": "臺灣物種名錄（TaiCOL）將這種動物列為入侵種。",
+      "reportedWhy": "以入侵種通報但沒有填物種，尚未確認。"
+    },
+    "hub": {
+      "kicker": "資料集",
+      "records": "紀錄",
+      "species": "物種數",
+      "years": "年份",
+      "viewOnMap": "在地圖上查看",
+      "file": {
+        "roadkill": "通報路殺",
+        "invasive": "通報入侵種",
+        "wildlife": "通報野生動物目擊"
+      },
+      "holdsTitle": "收錄內容",
+      "holdsHeading": "收錄什麼",
+      "overlapHeading": "也會出現在哪裡",
+      "blurHeading": "位置",
+      "blur": "法定保育類或被列為敏感的物種，位置在公開前都會先模糊化，這裡和網站其他地方都一樣。還沒辨識出物種的紀錄也會模糊化。",
+      "newestTitle": "最新紀錄",
+      "newestHint": "依發現日期由新到舊排列。最新的一筆是 {date}，這裡的紀錄發現於 {years} 年間。",
+      "recordCount": "{count, plural, other {# 筆紀錄}}",
+      "seeAll": "以列表查看全部 {count, plural, other {# 筆紀錄}}",
+      "sources": "來自經 GBIF 分享的公開資料：{imported, number} 筆；在本站通報：{filed, number} 筆。"
+    },
+    "roadkill": {
+      "lede": "發現時已死亡或受傷的動物，大多在道路上。每一筆紀錄都標出道路與野生動物交會的地點，累積起來就能看出哪些路段對動物最危險。",
+      "holds": "所有以死亡或受傷通報的紀錄，不論是什麼動物：本土種或入侵種、已辨識或尚未辨識。",
+      "overlap": "死亡或受傷的入侵種同時在這個資料集和「入侵種」資料集。活體動物則收在「野生動物目擊」。",
+      "empty": "目前還沒有路殺紀錄。"
+    },
+    "invasive": {
+      "lede": "被人帶進臺灣、現在危害本土生態的動物，例如綠鬣蜥和斑腿樹蛙。這些紀錄能顯示牠們在哪裡生活、往哪裡擴散。",
+      "holds": "物種被臺灣物種名錄（TaiCOL）列為入侵動物的所有紀錄，不論活體或死亡、從哪個頁面通報，都收在這裡。不需要勾選，是不是入侵種由物種決定。以入侵種通報但沒有填物種的紀錄也會收進來，並標示「通報為入侵種」，直到有人確認是什麼動物。",
+      "overlap": "活體的入侵種也在「野生動物目擊」；死亡或受傷的也在「路殺」。可以在下方選「活體目擊」或「死亡或受傷」分開查看。",
+      "empty": "目前還沒有入侵種紀錄。",
+      "listTitle": "臺灣的入侵動物",
+      "listHint": "臺灣物種名錄（TaiCOL）列為入侵種的所有動物，共 {count} 個物種與亞種，只列 TaiCOL 採用的學名。數字是這個資料集裡的紀錄筆數。",
+      "catsDogs": "臺灣物種名錄（TaiCOL）也把家貓和家犬列為入侵種，依據是 Ho 等人（2024、2025）的研究與全球入侵種資料庫（GISD）。我們依照 TaiCOL，所以貓狗的紀錄也在這個資料集。",
+      "searchLabel": "搜尋動物",
+      "searchPlaceholder": "中文名或學名",
+      "matches": "{count, plural, other {符合的有 # 種}}",
+      "noMatch": "沒有符合「{q}」的入侵動物。",
+      "total": "{count, plural, other {共 # 種}}，依類群排列如下。",
+      "groupCount": "{count, plural, other {# 種}}",
+      "taicolNote": "TaiCOL 備註：{note}",
+      "protected": "保育類",
+      "records": "{count, plural, =0 {尚無紀錄} other {# 筆紀錄}}"
+    },
+    "wildlife": {
+      "lede": "在這裡通報的所有活體野生動物，不論是不是本土種。入侵種也包含在內並加上標示，所以這個資料集呈現大家看到的活體動物全貌。",
+      "holds": "所有活體動物的通報：以野生動物目擊通報的，以及在入侵種頁面通報的。物種被 TaiCOL 列為入侵種的紀錄會加上標示，不論從哪個頁面通報。",
+      "overlap": "活體的入侵種同時在這個資料集和「入侵種」資料集。死亡或受傷的動物則收在「路殺」。",
+      "empty": "目前還沒有人通報野生動物目擊。看到活的野生動物了嗎？你可以成為第一個通報的人。"
+    },
+    "group": {
+      "birds": "鳥類",
+      "reptiles": "爬行類",
+      "amphibians": "兩棲類",
+      "mammals": "哺乳類",
+      "fish": "魚類",
+      "insects": "昆蟲",
+      "molluscs": "螺貝類",
+      "crustaceans": "甲殼類",
+      "arachnids": "蜘蛛與蟎",
+      "other": "其他動物"
+    },
+    "stats": {
+      "title": "各資料集",
+      "hint": "資料集之間會重疊（例如被路殺的入侵種同時屬於「路殺」和「入侵種」），所以比例加起來會超過 100%。"
+    }
   }
 }

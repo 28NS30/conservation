@@ -5,13 +5,16 @@ import { Link } from "@/i18n/navigation";
 import { asPublic } from "@/lib/db";
 import {
   CATEGORIES,
-  REPORT_GROUP_KEYS,
-  categoriesIn,
+  COLLECTION_KEYS,
+  RECORD_CONDITION_KEYS,
   filterToQuery,
-  mapFilterSchema,
+  pageFilter,
+  selectionFor,
   type Category,
+  type Collection,
   type LocationPrecision,
 } from "@conservation/shared";
+import InvasiveBadge from "@/components/collections/InvasiveBadge";
 import { publicSpeciesName, speciesSlug } from "@/lib/species";
 import { signedPhotoUrls } from "@/lib/supabase/service";
 import { sql } from "@/lib/db";
@@ -32,6 +35,14 @@ type Row = {
   taxonId: number | null;
   scientificName: string | null;
   commonNameZh: string | null;
+  isInvasive: boolean;
+};
+
+/** The swatch beside a collection's chip, as on the map's toggles. */
+const COLLECTION_SWATCH: Record<Collection, string> = {
+  roadkill: CATEGORIES.roadkill.color,
+  invasive: CATEGORIES.invasive.color,
+  wildlife: CATEGORIES.sighting.color,
 };
 
 export async function generateMetadata({
@@ -72,25 +83,27 @@ export default async function ReportsListPage({
   // filter survives the jump from the map. This page is the accessibility
   // fallback for a canvas nobody can read with a screen reader; if it silently
   // dropped the species and date filters it would not actually be an equivalent.
-  const parsed = mapFilterSchema.safeParse(sp);
-  const f = parsed.success ? parsed.data : {};
+  // An old `group=` link is read as the collection it meant (pageFilter).
+  const f = pageFilter(sp);
   const taxonId = f.taxonId ?? null;
   const from = f.from ?? null;
   const to = f.to ?? null;
 
   const t = await getTranslations("list");
   const tc = await getTranslations("categories");
-  // The chips are the form's three choices, so they take the form's own words.
-  const tr = await getTranslations("report");
+  // The chips are the three collections, in the words the map's toggles use.
+  const tcol = await getTranslations("collections");
   const tp = await getTranslations("precision");
   // The map already has a word for this and the two controls do the same thing.
   const tm = await getTranslations("map");
 
-  // The filter jumps here from the map, so it has to be the same three buckets
-  // the map offers — this page is that map's accessible equivalent, and an
-  // equivalent that filtered differently would not be one.
-  const group = f.group ?? null;
-  const categories = group ? [...categoriesIn(group)] : null;
+  // The filter jumps here from the map, so it has to be the same collections
+  // the map offers, read by the same selectionFor() the tiles use — this page
+  // is that map's accessible equivalent, and an equivalent that filtered
+  // differently would not be one.
+  const collection = f.collection ?? null;
+  const condition = f.condition ?? null;
+  const { categories, invasiveOnly } = selectionFor(f);
   const page = Math.max(1, Number(rawPage) || 1);
   const offset = (page - 1) * PAGE_SIZE;
 
@@ -103,10 +116,12 @@ export default async function ReportsListPage({
              rp.is_obscured as "isObscured",
              rp.taxon_id as "taxonId",
              t.scientific_name as "scientificName",
-             t.common_name_zh as "commonNameZh"
+             t.common_name_zh as "commonNameZh",
+             rp.is_invasive as "isInvasive"
         from reports_public rp
         left join taxa t on t.id = rp.taxon_id
        where (${categories}::text[] is null or rp.category = any(${categories}))
+         and (not ${invasiveOnly}::boolean or rp.is_invasive)
          and (${taxonId}::bigint is null or rp.taxon_id = ${taxonId})
          and (${from}::date is null or rp.observed_at >= ${from}::date)
          and (${to}::date   is null or rp.observed_at <  (${to}::date + 1))
@@ -181,9 +196,10 @@ export default async function ReportsListPage({
   const showPhotos = thumb.size > 0;
   const zhFirst = locale.startsWith("zh");
 
-  /** Carry every active filter through paging and the type chips. */
+  /** Carry every active filter through paging and the collection chips. */
   const activeFilter = filterToQuery({
-    ...(group ? { group } : {}),
+    ...(collection ? { collection } : {}),
+    ...(condition ? { condition } : {}),
     ...(taxonId ? { taxonId } : {}),
     ...(from ? { from } : {}),
     ...(to ? { to } : {}),
@@ -192,6 +208,32 @@ export default async function ReportsListPage({
     const p = new URLSearchParams(activeFilter);
     for (const [k, v] of Object.entries(extra)) p.set(k, v);
     return `/reports?${p}`;
+  };
+  /**
+   * The list with a different collection (or none) and the species and dates
+   * kept. Built through filterToQuery so the keys come out in the one order the
+   * map and the tiles use. The alive/dead split belongs to the invasive
+   * collection and does not survive leaving it.
+   */
+  const withCollection = (c: Collection | null) => {
+    const q = filterToQuery({
+      ...(c ? { collection: c } : {}),
+      ...(c === "invasive" && condition ? { condition } : {}),
+      ...(taxonId ? { taxonId } : {}),
+      ...(from ? { from } : {}),
+      ...(to ? { to } : {}),
+    });
+    return q ? `/reports?${q}` : "/reports";
+  };
+  const withCondition = (c: "alive" | "dead" | null) => {
+    const q = filterToQuery({
+      collection: "invasive",
+      ...(c ? { condition: c } : {}),
+      ...(taxonId ? { taxonId } : {}),
+      ...(from ? { from } : {}),
+      ...(to ? { to } : {}),
+    });
+    return `/reports?${q}`;
   };
   const qs = (p: number) => withFilter({ page: String(p) });
   /**
@@ -239,57 +281,100 @@ export default async function ReportsListPage({
     ? `${t("tableCaption")} — ${t("filteredBy")}: ${filterParts.join("; ")}`
     : t("tableCaption");
 
-  // Clearing from the filter line keeps the category chips, which are their own
-  // control with their own "All"; clearing from the empty state clears
+  // Clearing from the filter line keeps the collection chips, which are their
+  // own control with their own "All"; clearing from the empty state clears
   // everything, because there is nothing left on screen to clear it from.
-  const withoutSpeciesAndDates = group ? `/reports?group=${group}` : "/reports";
-  const anyFilter = Boolean(group || taxonId || from || to);
+  const collectionOnly = filterToQuery({
+    ...(collection ? { collection } : {}),
+    ...(condition ? { condition } : {}),
+  });
+  const withoutSpeciesAndDates = collectionOnly
+    ? `/reports?${collectionOnly}`
+    : "/reports";
+  const anyFilter = Boolean(collection || taxonId || from || to);
+
+  const chip = (on: boolean) =>
+    `flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-sm transition ${
+      on
+        ? "border-forest-900 bg-forest-900 font-medium text-paper-50"
+        : "border-ink-900/12 bg-paper-100/70 text-ink-700 hover:bg-paper-200"
+    }`;
 
   return (
     <main className="mx-auto w-full max-w-4xl px-6 pb-24 pt-12">
       <PageHeader title={t("title")} lede={lede} />
 
+      {/* The three collections, as on the map. They overlap: a live invasive
+          animal is in wildlife and in invasive, so the counts across the chips
+          add up to more than "All". */}
       <nav
-        aria-label={t("filterByCategory")}
+        aria-label={tcol("filterLabel")}
         className="mt-4 flex flex-wrap gap-1.5"
       >
         <Link
-          href={
-            withFilter({})
-              .replace(/([?&])group=[^&]*&?/, "$1")
-              .replace(/[?&]$/, "") || "/reports"
-          }
-          aria-current={!group ? "page" : undefined}
-          className={`rounded-full border px-3 py-1.5 text-xs transition ${
-            !group
-              ? "border-ink-900 bg-ink-900 font-medium text-paper-50"
-              : "border-ink-900/12 bg-paper-100/70 text-ink-600 hover:bg-paper-200"
-          }`}
+          href={withCollection(null)}
+          aria-current={!collection ? "page" : undefined}
+          className={chip(!collection)}
         >
           {t("all")}
         </Link>
-        {REPORT_GROUP_KEYS.map((g) => (
+        {COLLECTION_KEYS.map((c) => (
           <Link
-            key={g}
-            href={withFilter({ group: g })}
-            aria-current={group === g ? "page" : undefined}
-            className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition ${
-              group === g
-                ? "border-ink-900 bg-ink-900 font-medium text-paper-50"
-                : "border-ink-900/12 bg-paper-100/70 text-ink-600 hover:bg-paper-200"
-            }`}
+            key={c}
+            href={withCollection(c)}
+            aria-current={collection === c ? "page" : undefined}
+            className={chip(collection === c)}
           >
             <span
               className="h-2 w-2 rounded-full"
-              style={{
-                background: CATEGORIES[categoriesIn(g)[0]].color,
-              }}
+              style={{ background: COLLECTION_SWATCH[c] }}
               aria-hidden
             />
-            {tr(`group.${g}`)}
+            {tcol(`name.${c}`)}
           </Link>
         ))}
       </nav>
+
+      {/* Alive or dead, inside the invasive collection only — the one that
+          holds both, since a road-killed myna is still an invasive animal. */}
+      {collection === "invasive" && (
+        <nav
+          aria-label={tcol("conditionLabel")}
+          className="mt-2 flex flex-wrap gap-1.5"
+        >
+          <Link
+            href={withCondition(null)}
+            aria-current={!condition ? "page" : undefined}
+            className={chip(!condition)}
+          >
+            {tcol("condition.any")}
+          </Link>
+          {RECORD_CONDITION_KEYS.map((c) => (
+            <Link
+              key={c}
+              href={withCondition(c)}
+              aria-current={condition === c ? "page" : undefined}
+              className={chip(condition === c)}
+            >
+              {tcol(`condition.${c}`)}
+            </Link>
+          ))}
+        </nav>
+      )}
+
+      {/* What the collection is, one tap away: its own page explains it and
+          lists what it holds. */}
+      {collection && (
+        <p className="mt-3 text-[14px]">
+          <Link
+            href={`/${collection}`}
+            className="inline-flex min-h-11 items-center gap-1 text-leaf-700 underline underline-offset-2 hover:text-forest-900"
+          >
+            {tcol("aboutCollection", { name: tcol(`name.${collection}`) })}
+            <span aria-hidden>→</span>
+          </Link>
+        </p>
+      )}
 
       {filterParts.length > 0 && (
         <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-600">
@@ -400,18 +485,26 @@ export default async function ReportsListPage({
                   </td>
                   <td className="py-1.5 text-ink-500">{tc(r.category)}</td>
                   <td className="py-1.5">
-                    {r.taxonId && r.scientificName ? (
-                      <Link
-                        href={`/species/${speciesSlug({ id: r.taxonId, scientificName: r.scientificName })}`}
-                        className="text-ink-700 hover:text-ember-700"
-                      >
-                        {zhFirst && r.commonNameZh
-                          ? r.commonNameZh
-                          : r.scientificName}
-                      </Link>
-                    ) : (
-                      <span className="text-ink-500">—</span>
-                    )}
+                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      {r.taxonId && r.scientificName ? (
+                        <Link
+                          href={`/species/${speciesSlug({ id: r.taxonId, scientificName: r.scientificName })}`}
+                          className="text-ink-700 hover:text-ember-700"
+                        >
+                          {zhFirst && r.commonNameZh
+                            ? r.commonNameZh
+                            : r.scientificName}
+                        </Link>
+                      ) : (
+                        <span className="text-ink-500">—</span>
+                      )}
+                      {r.isInvasive && (
+                        <InvasiveBadge
+                          label={tcol(r.taxonId ? "badge.invasive" : "badge.reported")}
+                          title={tcol(r.taxonId ? "badge.invasiveWhy" : "badge.reportedWhy")}
+                        />
+                      )}
+                    </span>
                   </td>
                   <td className="py-1.5 tabular-nums text-ink-500">
                     {r.lat.toFixed(3)}, {r.lng.toFixed(3)}

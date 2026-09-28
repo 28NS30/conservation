@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   CATEGORIES,
-  REPORT_GROUPS,
-  REPORT_GROUP_KEYS,
-  type ReportGroup,
+  COLLECTION_KEYS,
+  RECORD_CONDITION_KEYS,
+  type Collection,
+  type RecordCondition,
   type MapFilter,
 } from "@conservation/shared";
 
@@ -18,7 +19,19 @@ export type SpeciesHit = {
 };
 
 /**
- * Category, date-range and species filters.
+ * The swatch beside each collection's toggle: the colour its records mostly
+ * take when the map is coloured by type. Invasive records that were found dead
+ * are drawn as roadkill, so this is the collection's own colour, not a promise
+ * about every dot in it.
+ */
+const COLLECTION_SWATCH: Record<Collection, string> = {
+  roadkill: CATEGORIES.roadkill.color,
+  invasive: CATEGORIES.invasive.color,
+  wildlife: CATEGORIES.sighting.color,
+};
+
+/**
+ * Collection, date-range and species filters.
  *
  * All three are already supported by the tile endpoint and folded into the query
  * string, which doubles as the CDN cache key — so a filtered view is cached
@@ -59,7 +72,7 @@ export default function MapFilters({
   const [panelOpen, setPanelOpen] = useState(
     Boolean(
       initialSpecies ||
-        value.group ||
+        value.collection ||
         value.from ||
         value.to,
     ),
@@ -97,8 +110,18 @@ export default function MapFilters({
   // setState in an effect triggers a cascading render.
   const visibleHits = speciesQuery.trim().length >= 1 ? hits : [];
 
-  const pickGroup = (g?: ReportGroup) =>
-    onChange({ ...value, group: value.group === g ? undefined : g });
+  // Leaving the invasive collection drops the alive/dead split, which only
+  // that collection offers; the tile endpoint refuses it anywhere else.
+  const pickCollection = (c?: Collection) => {
+    const next = value.collection === c ? undefined : c;
+    onChange({
+      ...value,
+      collection: next,
+      condition: next === "invasive" ? value.condition : undefined,
+    });
+  };
+  const pickCondition = (c?: RecordCondition) =>
+    onChange({ ...value, condition: value.condition === c ? undefined : c });
 
   const yearOptions = years
     ? Array.from(
@@ -116,13 +139,24 @@ export default function MapFilters({
   };
 
   const yearOf = (iso?: string) => (iso ? iso.slice(0, 4) : "");
-  const active = value.group || value.taxonId || value.from || value.to;
+  const active = value.collection || value.taxonId || value.from || value.to;
 
   // How many filters are on, for the collapsed button's badge.
   const activeCount =
-    (value.group ? 1 : 0) +
+    (value.collection ? 1 : 0) +
+    (value.condition ? 1 : 0) +
     (value.taxonId ? 1 : 0) +
     (value.from || value.to ? 1 : 0);
+
+  // 14px and 44px tall, the site's floor for text and for a tap, on the two
+  // rows of toggles that choose what the map is of. The controls below them
+  // are older and still smaller.
+  const chip = (on: boolean) =>
+    `flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium backdrop-blur transition ${
+      on
+        ? "border-parchment-200/70 bg-parchment-50/90 text-bark-950"
+        : "border-parchment-200/20 bg-bark-900/90 text-parchment-200 hover:bg-bark-800/80"
+    }`;
 
   return (
     <div className="pointer-events-auto flex flex-col items-start gap-1.5">
@@ -160,39 +194,67 @@ export default function MapFilters({
 
       {panelOpen && (
         <div className="flex flex-col gap-1.5 rounded-xl border border-parchment-200/15 bg-bark-900/92 p-2.5 backdrop-blur">
-          {/* The three the form offers, generated from the same constant. */}
-          <div className="flex max-w-md flex-wrap gap-1.5">
+          {/* The three collections, from the constant the tile endpoint and
+              the list read. They overlap — a live invasive animal is in
+              wildlife and invasive both — so these are three views, not three
+              slices of one pie. */}
+          <div
+            role="group"
+            aria-label={t("collections.filterLabel")}
+            className="flex max-w-md flex-wrap gap-1.5"
+          >
             <button
-              onClick={() => pickGroup(undefined)}
-              className={`rounded-full border px-3 py-1.5 text-xs font-medium backdrop-blur transition ${
-                !value.group
-                  ? "border-parchment-200/70 bg-parchment-50/90 text-bark-950"
-                  : "border-parchment-200/20 bg-bark-900/90 text-parchment-200 hover:bg-bark-800/80"
-              }`}
+              aria-pressed={!value.collection}
+              onClick={() => pickCollection(undefined)}
+              className={chip(!value.collection)}
             >
               {t("map.all")}
             </button>
-            {REPORT_GROUP_KEYS.map((g) => (
+            {COLLECTION_KEYS.map((c) => (
               <button
-                key={g}
-                aria-pressed={value.group === g}
-                onClick={() => pickGroup(g)}
-                className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium backdrop-blur transition ${
-                  value.group === g
-                    ? "border-parchment-200/70 bg-parchment-50/90 text-bark-950"
-                    : "border-parchment-200/20 bg-bark-900/90 text-parchment-200 hover:bg-bark-800/80"
-                }`}
+                key={c}
+                aria-pressed={value.collection === c}
+                onClick={() => pickCollection(c)}
+                className={chip(value.collection === c)}
               >
                 <span
+                  aria-hidden
                   className="h-2 w-2 shrink-0 rounded-full"
-                  style={{
-                    background: CATEGORIES[REPORT_GROUPS[g].categories[0]].color,
-                  }}
+                  style={{ background: COLLECTION_SWATCH[c] }}
                 />
-                {t(`report.group.${g}`)}
+                {t(`collections.name.${c}`)}
               </button>
             ))}
           </div>
+
+          {/* Alive or dead, inside the invasive collection only: it is the one
+              collection that holds both, because a road-killed myna is still an
+              invasive animal. */}
+          {value.collection === "invasive" && (
+            <div
+              role="group"
+              aria-label={t("collections.conditionLabel")}
+              className="flex max-w-md flex-wrap gap-1.5"
+            >
+              <button
+                aria-pressed={!value.condition}
+                onClick={() => pickCondition(undefined)}
+                className={chip(!value.condition)}
+              >
+                {t("collections.condition.any")}
+              </button>
+              {RECORD_CONDITION_KEYS.map((c) => (
+                <button
+                  key={c}
+                  aria-pressed={value.condition === c}
+                  onClick={() => pickCondition(c)}
+                  className={chip(value.condition === c)}
+                >
+                  {t(`collections.condition.${c}`)}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Species + years */}
           <div className="flex flex-wrap items-center gap-1.5">

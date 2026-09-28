@@ -178,7 +178,7 @@ describe("sending the same report twice", () => {
     );
     // Only the taxon. The row deliberately stays `pending`: publishing it here
     // would put a live `sighting` at 120.9, 23.8 for the length of the run,
-    // and tiles.test.mjs asserts that the sighting group is empty because
+    // and tiles.test.mjs asserts that the wildlife collection is empty because
     // every seeded record is imported roadkill. One test's fixture is another
     // test's premise, and the suite runs its files concurrently.
     await sql`update reports set taxon_id = ${taxonId}, taxon_source = 'expert'

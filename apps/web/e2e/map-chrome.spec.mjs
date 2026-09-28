@@ -234,8 +234,12 @@ const visibleLinks = (page) =>
 
 /* ---- the map and the list are two views of one question ---- */
 for (const [path, list] of [
-  ["/map?group=roadkill", "/reports?group=roadkill"],
-  ["/en/map?group=roadkill", "/en/reports?group=roadkill"],
+  ["/map?collection=roadkill", "/reports?collection=roadkill"],
+  ["/en/map?collection=invasive", "/en/reports?collection=invasive"],
+  // An old `group=` link still opens its collection, and what the map offers
+  // onward is the new name: the tile endpoint refuses `group`.
+  ["/map?group=sighting", "/reports?collection=wildlife"],
+  ["/en/map?group=roadkill", "/en/reports?collection=roadkill"],
 ]) {
   const { ctx, page } = await openMap(path, { mode: "dots", colour: "density" });
   const links = await visibleLinks(page);
@@ -248,8 +252,9 @@ for (const [path, list] of [
 }
 
 for (const [path, map] of [
-  ["/reports?group=roadkill&page=2", "/map?group=roadkill"],
-  ["/en/reports?group=roadkill&page=2", "/en/map?group=roadkill"],
+  ["/reports?collection=roadkill&page=2", "/map?collection=roadkill"],
+  ["/en/reports?collection=roadkill&page=2", "/en/map?collection=roadkill"],
+  ["/reports?group=roadkill&page=2", "/map?collection=roadkill"],
 ]) {
   const ctx = await browser.newContext({
     viewport: { width: 390, height: 844 },
