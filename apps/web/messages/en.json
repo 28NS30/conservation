@@ -176,7 +176,7 @@
     "notYetIdentified": "Not yet identified",
     "notes": "Notes",
     "location": "Location",
-    "aiSuggested": "AI suggestion",
+    "aiIdentified": "Identified by AI",
     "blurredNotice": "This is a sensitive or protected species. {precision} before publication, so this record cannot be used to find it.",
     "blurredUnknownNotice": "{precision} — this record has not been identified, and until we know what the animal is we cannot tell whether it is sensitive.",
     "suggestions": "Suggestions",

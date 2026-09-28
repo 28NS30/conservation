@@ -176,7 +176,7 @@
     "notYetIdentified": "尚未辨識",
     "notes": "備註",
     "location": "位置",
-    "aiSuggested": "AI 建議",
+    "aiIdentified": "由 AI 辨識",
     "blurredNotice": "此物種屬敏感或保育類，座標已{precision}後才公開，以避免成為盜獵線索。",
     "blurredUnknownNotice": "{precision}——這筆紀錄還沒辨識出物種；在還不知道是什麼動物之前，我們無法判斷牠是否敏感。",
     "suggestions": "AI 建議",
