@@ -70,6 +70,8 @@ const HARP_FROG = "t0106675"; // Nidirana okinavana 豎琴蛙
 const LARGEMOUTH_BASS = "t0028011"; // Micropterus salmoides 大口黑鱸
 const TAIWAN_PANGOLIN = "t0085879"; // Manis pentadactyla pentadactyla 臺灣穿山甲, 27 records
 const TAIWAN_CLOUDED_LEOPARD = "t0085962"; // Neofelis nebulosa brachyura 臺灣雲豹
+const TAIWAN_HARE = "t0085835"; // Lepus sinensis formosus 臺灣野兔, 71 records
+const DOMESTIC_GOOSE = "t0057686"; // Anser anser domesticus 家鵝
 const BULBUL_STRESEMANN = "t0104373"; // Hypsipetes amaurotis harterti, with the wrong authority
 
 /** A names file built by hand, so an assertion is about one rule only. */
@@ -492,14 +494,19 @@ describe("overrides", () => {
       ["t0096009", "European Herring Gull", "Herring Gull"], // 銀鷗
       ["t0076154", "Eden's Whale", "Bryde's Whale"], // 布氏鯨
       ["t0098168", "Red Mountain Ratsnake", "Taiwanese Bamboo Ratsnake"], // 紅竹蛇
-      [TAIWAN_CLOUDED_LEOPARD, "Mainland Clouded Leopard", "Clouded Leopard"],
+      ["t0096534", "Mainland Clouded Leopard", "Clouded Leopard"], // 雲豹
+      [TAIWAN_CLOUDED_LEOPARD, "Mainland Clouded Leopard", "Formosan Clouded Leopard"],
       [TAIWAN_PANGOLIN, "Short-tailed Pangolin", "Taiwan Pangolin"],
+      [TAIWAN_HARE, "Chinese Hare", "Taiwan Hare"],
+      [DOMESTIC_GOOSE, "Graylag Goose", "Domestic Goose"],
     ]) {
       assert.equal(FILE.names[id].name, was, `${id}: the build's answer changed; review this row`);
       assert.equal(name(id), is, id);
     }
-    // 臺灣雲豹 gets its name from its species, as a subspecies should.
-    assert.equal(final.get(TAIWAN_CLOUDED_LEOPARD)?.inherited, true);
+    // No Taiwanese animal reads Mainland, however it came by the name.
+    for (const [id, f] of final) {
+      if (/^Mainland\b/.test(f.name ?? "")) assert.fail(`${id} ${FILE.names[id]?.common_name_zh}: "${f.name}"`);
+    }
     // Another animal's name must not find these in a search either.
     assert.ok(!alts(HARP_FROG).includes("Ryukyu Brown Frog"), "the harp frog is found by Rana ulma's name");
     assert.ok(!alts(LARGEMOUTH_BASS).some((n) => /Florida/.test(n)), "the largemouth is found by the Florida bass's names");
