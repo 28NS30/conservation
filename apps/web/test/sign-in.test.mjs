@@ -148,6 +148,18 @@ describe("the sign-in page", () => {
   });
 });
 
+describe("the header's way in", () => {
+  test("a signed-out page links to sign-in, returning to that page", async () => {
+    for (const [path, href] of [
+      ["/species", "/login?next=%2Fspecies"],
+      ["/en/stats", "/en/login?next=%2Fen%2Fstats"],
+    ]) {
+      const html = await fetch(`${BASE_URL}${path}`).then((r) => r.text());
+      assert.ok(html.includes(`href="${href}"`), `${path} has no ${href}`);
+    }
+  });
+});
+
 /**
  * The proxy renews sessions now. Whatever it finds in the cookie, the page
  * still has to render: a stale, forged or garbled session is a signed-out
@@ -168,6 +180,7 @@ describe("a session cookie never breaks a page", () => {
         headers: { cookie: `${name()}=${value}` },
       });
       assert.equal(res.status, 200, value);
+      assert.match(await res.text(), /href="\/en\/login\?next=/);
     }
   });
 

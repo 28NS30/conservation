@@ -551,6 +551,8 @@
     "lede": "你送出的所有通報，以及目前的處理狀態。",
     "signedOut": "登入後可以查看自己送出的通報。通報本身不需要帳號。",
     "signIn": "登入",
+    "signedInAs": "目前登入：{email}",
+    "signOut": "登出",
     "empty": "還沒有通報紀錄。",
     "first": "送出第一筆",
     "unidentified": "尚未辨識",

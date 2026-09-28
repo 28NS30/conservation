@@ -75,3 +75,16 @@ export async function currentUserId(): Promise<string | null> {
   const { data } = await (await serverSupabase()).auth.getUser();
   return data?.user?.id ?? null;
 }
+
+/**
+ * The signed-in person's id and email, for /me, which says whose account it is.
+ *
+ * Worth saying there: a student may have a school address and a personal one,
+ * and they are separate accounts with separate report histories. Same guard as
+ * `currentUserId`, for the same reason.
+ */
+export async function currentUser(): Promise<{ id: string; email: string | null } | null> {
+  if (!authConfigured() && process.env.VERCEL_ENV !== "production") return null;
+  const { data } = await (await serverSupabase()).auth.getUser();
+  return data?.user ? { id: data.user.id, email: data.user.email ?? null } : null;
+}

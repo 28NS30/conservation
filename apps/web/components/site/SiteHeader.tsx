@@ -5,6 +5,7 @@ import Wordmark from "@/components/brand/Wordmark";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import NavLink from "@/components/site/NavLink";
 import ReportMenu from "@/components/site/ReportMenu";
+import SignInLink from "@/components/auth/SignInLink";
 import { currentUserId } from "@/lib/supabase/server";
 
 /**
@@ -45,7 +46,8 @@ export default async function SiteHeader({
   const t = await getTranslations();
   // Only shown when there is something behind it. An always-visible "my reports"
   // that leads to a sign-in wall reads as a gate on a site whose whole promise
-  // is that reporting needs no account.
+  // is that reporting needs no account. Signed out, the same slot is "Sign in":
+  // one account link either way, never both.
   const signedIn = (await currentUserId()) !== null;
   const app = variant === "app";
 
@@ -99,6 +101,9 @@ export default async function SiteHeader({
             {nav.map((l) => (
               <NavLink key={l.href} href={l.href} label={l.label} overlay size={app ? "normal" : "large"} />
             ))}
+            {!signedIn && (
+              <SignInLink label={t("nav.signIn")} overlay size={app ? "normal" : "large"} />
+            )}
           </nav>
 
           <ReportMenu label={t("nav.fileReport")} shortLabel={t("nav.report")} choices={choices} plain={app} />
@@ -118,7 +123,13 @@ export default async function SiteHeader({
           app ? "py-1.5" : "py-2"
         }`}
       >
-        <nav className="flex flex-wrap items-center gap-x-5 gap-y-1">
+        {/* Five links now, the fifth being the account one ("Sign in" or "My
+            reports"). On the map the row must stay one line at 390 in English
+            (map-chrome.spec caps the header at 89px), and at the old 20px gaps
+            the five 12px links plus the language switch came to 360px of the
+            358 available — so the map's gaps are 12px. The pages' row may wrap,
+            and in English at 390 it now does; the tab bar replaces it. */}
+        <nav className={`flex flex-wrap items-center gap-y-1 ${app ? "gap-x-3" : "gap-x-5"}`}>
           {nav.map((l) => (
             <NavLink
               key={l.href}
@@ -128,6 +139,9 @@ export default async function SiteHeader({
               size={app ? "compact" : "normal"}
             />
           ))}
+          {!signedIn && (
+            <SignInLink label={t("nav.signIn")} overlay size={app ? "compact" : "normal"} />
+          )}
         </nav>
         {/* Compact on purpose: in English the links and "中文 / English" do
             not fit side by side at 375px at the larger size, and the switch

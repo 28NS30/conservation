@@ -551,6 +551,8 @@
     "lede": "Everything you have submitted, and where each one has got to.",
     "signedOut": "Sign in to see the reports you have submitted. Reporting itself needs no account.",
     "signIn": "Sign in",
+    "signedInAs": "Signed in as {email}",
+    "signOut": "Sign out",
     "empty": "No reports yet.",
     "first": "File your first",
     "unidentified": "Not yet identified",
