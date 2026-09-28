@@ -8,7 +8,7 @@ import {
 } from "./queue";
 import { withBase } from "@/lib/basePath";
 import { turnstileEnabled } from "@/lib/turnstile";
-import { ReportError, PHOTO_UPLOAD_FAILED } from "@/lib/report/errors";
+import { ReportError, PHOTO_UPLOAD_FAILED, NETWORK } from "@/lib/report/errors";
 
 /**
  * Runs the full submission pipeline for queued reports.
@@ -55,6 +55,8 @@ export type TokenProvider = () => Promise<string | undefined>;
 const MAX_ATTEMPTS = 8;
 
 let inFlight: Promise<FlushResult> | null = null;
+/** Whether the flush in flight can get challenge tokens. See flushQueue. */
+let inFlightHasToken = false;
 
 async function uploadPhotos(item: QueuedReport): Promise<string[]> {
   // Resume rather than restart: re-uploading photos that already landed would
@@ -162,11 +164,21 @@ async function sendOne(
     // (500)", "verification expired — will retry" — which was then shown
     // verbatim to a Taiwanese reporter. A code can be translated; a sentence
     // written in this file cannot.
-    const code = e instanceof ReportError ? e.code : "unknown";
-    if (!(e instanceof ReportError)) console.error("[flush]", e);
-    const attempts = item.attempts + 1;
+    //
+    // A request that never reached us — `fetch` rejects with a TypeError when
+    // there is no network — is not something wrong with the report, and it
+    // used to be shown as "something went wrong at our end", under a banner
+    // that had just said there was no signal. It has its own code, and like a
+    // missing token it costs no attempt: `navigator.onLine` says true on one
+    // bar of signal, or on a captive portal, and eight such flushes would
+    // otherwise grind a perfectly good report down to `failed`.
+    const network = e instanceof TypeError;
+    const code = e instanceof ReportError ? e.code : network ? NETWORK : "unknown";
+    if (!(e instanceof ReportError) && !network) console.error("[flush]", e);
+    const attempts = network ? item.attempts : item.attempts + 1;
     await updateQueued(item.id, {
       status: attempts >= MAX_ATTEMPTS ? "failed" : "queued",
+      attempts,
       lastError: code,
     });
     return "failed";
@@ -178,9 +190,21 @@ export async function flushQueue(
 ): Promise<FlushResult> {
   // Coalesce overlapping triggers — page load, `online`, and visibilitychange can
   // easily fire together, and two concurrent flushes would double-upload photos.
-  if (inFlight) return inFlight;
+  //
+  // Except into a flush that cannot get a token. The service worker's
+  // Background Sync ping runs one (components/ServiceWorker.tsx), and when a
+  // challenge is required it skips every report. The banner's own flush often
+  // starts a moment later — the ping is registered by the same mount — and
+  // folded into the tokenless one it did nothing: the report sat waiting on a
+  // page that could have sent it, until the page was opened again. So a flush
+  // that can get tokens waits for that one to finish, then runs.
+  if (inFlight) {
+    if (!getToken || inFlightHasToken) return inFlight;
+    await inFlight.catch(() => undefined);
+    return flushQueue(getToken);
+  }
 
-  inFlight = (async () => {
+  const run = (async () => {
     let sent = 0;
     let failed = 0;
     let skipped = 0;
@@ -204,11 +228,18 @@ export async function flushQueue(
 
     return { sent, failed, skipped, remaining: await pending() };
   })();
+  inFlight = run;
+  inFlightHasToken = Boolean(getToken);
 
   try {
-    return await inFlight;
+    return await run;
   } finally {
-    inFlight = null;
+    // Only this flush's own slot: a caller that waited for it may already
+    // have started the next one.
+    if (inFlight === run) {
+      inFlight = null;
+      inFlightHasToken = false;
+    }
   }
 }
 

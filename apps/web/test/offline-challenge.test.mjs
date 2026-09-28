@@ -83,6 +83,33 @@ describe("offline queue challenge", () => {
     );
   });
 
+  test("a flush that can get tokens is never folded into one that cannot", () => {
+    // The service worker's Background Sync ping flushes with no token provider
+    // and, under a challenge, skips every report. Registered by the same mount
+    // as the banner, it often starts just before the banner's own flush, and
+    // the banner's flush used to be coalesced into it: the report stayed
+    // waiting on a page that could have sent it. Seen in e2e/offline.spec.mjs
+    // against a build with a Turnstile site key.
+    assert.match(flush, /if \(!getToken \|\| inFlightHasToken\) return inFlight;/);
+    assert.match(flush, /await inFlight\.catch\(\(\) => undefined\);\s*return flushQueue\(getToken\);/);
+    assert.match(flush, /inFlightHasToken = Boolean\(getToken\);/);
+  });
+
+  test("no network is not called a fault at our end, and costs no attempt", () => {
+    // `navigator.onLine` says true on one bar of signal, so the flush does run
+    // with no way through, and `fetch` rejects with a TypeError. That was
+    // stored as "unknown" and shown as "something went wrong at our end" —
+    // under a banner that had just said there was no signal — and each one
+    // spent one of the report's eight attempts.
+    assert.match(flush, /const network = e instanceof TypeError;/);
+    assert.match(flush, /network \? NETWORK : "unknown"/);
+    assert.match(flush, /const attempts = network \? item\.attempts : item\.attempts \+ 1;/);
+    const en = JSON.parse(read("messages", "en.json"));
+    const zh = JSON.parse(read("messages", "zh-TW.json"));
+    assert.match(en.report.errors.network, /report page/);
+    assert.match(zh.report.errors.network, /通報頁面/);
+  });
+
   test("something on screen owns the widget whenever the queue is non-empty", () => {
     assert.match(
       banner,
