@@ -16,13 +16,17 @@
  *
  * THE OVERRIDES FILE is the team's word and always wins over the sources:
  *
- *   taicol_id,common_name_en,note,reviewer
- *   t0032116,Leopard Cat,"MDD says Mainland Leopard Cat; …",team
- *   t0000000,,"no English name is right for this one",team
+ *   taicol_id,common_name_en,note,reviewer,alts
+ *   t0032116,Leopard Cat,"MDD says Mainland Leopard Cat; …",team,
+ *   t0106675,Kampira Falls Frog,"iNaturalist's name is Rana ulma's; …",team,Yaeyama Harpist Frog
+ *   t0000000,,"no English name is right for this one",team,
  *
  * A blank common_name_en means "show no English name", which is how a wrong
- * pick is removed without waiting for the source to fix it. An override on a
- * species reaches its subspecies (see resolveNames()).
+ * pick is removed without waiting for the source to fix it. A named override
+ * keeps the name it replaced as a searchable alternate; `alts` (separated by
+ * |, or "-" for none) replaces the alternates instead, for when the replaced
+ * name is another animal's. An override on a species reaches its subspecies
+ * (see resolveNames()).
  *
  * The database ends up holding exactly what the two files say: a name a source
  * stops giving is cleared on the next run rather than left behind.

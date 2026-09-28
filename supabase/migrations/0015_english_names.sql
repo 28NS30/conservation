@@ -27,11 +27,13 @@
 --                             import, and a future re-import can tell which
 --                             rows a source owns.
 --   common_name_en_inherited  true when a subspecies shows its species' name.
---                             No authority names Taiwan's subspecies in
---                             English, so 石虎 (P. b. euptilurus) says "Leopard
---                             Cat" because its species does. The flag lets the
---                             display say so rather than implying a name the
---                             subspecies does not have.
+--                             Few of Taiwan's subspecies have an English name
+--                             of their own that fits them, so 石虎 (P. b.
+--                             euptilurus) says "Leopard Cat" because its
+--                             species does; the few that do (the Red-eared
+--                             Slider) are named in the overrides file. The flag
+--                             lets the display say so rather than implying a
+--                             name the subspecies does not have.
 --
 -- TaiCOL's upsert (scripts/import-taicol.ts) lists every column it writes and
 -- these are not among them, so re-importing TaiCOL leaves the English names in

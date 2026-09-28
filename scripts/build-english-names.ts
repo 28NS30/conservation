@@ -30,17 +30,29 @@
  *               English name, its other English names as alternates.
  *   4. the Catalogue of Life (2026-09-11 base release), only when it gives
  *               exactly one English name. Several means nobody agrees, and
- *               choosing between them would be us inventing an answer.
+ *               choosing between them would be us inventing an answer. And
+ *               only when its Chinese names, if it has any, include TaiCOL's:
+ *               otherwise the record is carrying another animal's names.
  *   5. nothing. A taxon no source names gets no English name — never a
  *               translation of the Chinese — and `why` in the file says so,
  *               which makes the file the review queue for the team.
  *
- * Subspecies, varieties and forms are not looked up: no authority names
- * Taiwan's subspecies in English. They show their species' name, marked
- * `inherited_from`, and the import sets common_name_en_inherited — unless the
- * source has raised that subspecies to a species of its own, when it gets that
- * species' name instead (see nameElevated(): 櫻花鉤吻鮭 is the Formosan
- * Landlocked Salmon, not its species' Cherry Salmon).
+ * Subspecies, varieties and forms are not looked up under their own names.
+ * They show their species' name, marked `inherited_from`, and the import sets
+ * common_name_en_inherited — unless the source has raised that subspecies to a
+ * species of its own, when it gets that species' name instead (see
+ * nameElevated(): 櫻花鉤吻鮭 is the Formosan Landlocked Salmon, not its species'
+ * Cherry Salmon), or it is a pathogen's host form, which gets no inherited
+ * name at all (see inheritsSpeciesName()).
+ *
+ * Why not ask iNaturalist, which does name some subspecies? Because the
+ * subspecies it names are where a name is most likely to be about somewhere
+ * else. It calls *Prionailurus bengalensis euptilurus*, TaiCOL's name for
+ * Taiwan's 石虎, the "Amur Leopard Cat", and a subspecies with a name of its
+ * own no longer inherits the team's "Leopard Cat" from its species. The
+ * subspecies whose own English name matters (the Red-eared Slider, on the
+ * invasive register) are few enough to name in the overrides file, with a
+ * reason each.
  *
  * The reverse case the build can only report: when TaiCOL keeps a species
  * whole and the source has split Taiwan's birds off into another species, the
@@ -92,10 +104,13 @@ import {
   AVILIST_CSV,
   MDD_CSV,
   NAMES_PATH,
+  chineseNamesAgree,
   capitalise,
   cleanAlts,
   csvRecords,
   epithetStem,
+  inheritsSpeciesName,
+  loadOverrides,
   nameParts,
   nameProblem,
   sameAuthority,
@@ -238,6 +253,7 @@ type Taxon = {
   parent_taicol_id: string | null;
   scientific_name: string;
   common_name_zh: string | null;
+  alt_names_zh: string[] | null;
   rank: string | null;
   kingdom: string | null;
   class: string | null;
@@ -250,8 +266,18 @@ type Taxon = {
  */
 type Hit = { name: string; alts: string[]; source: string; matched: string; authority: string | null };
 
-/** Why the sources said nothing usable, collected for the file's `why`. */
-type Ctx = { sci: string; kingdom: string | null; why: string[] };
+/**
+ * The taxon a source is being asked about — its scientific name, kingdom and
+ * TaiCOL's Chinese names — and why the sources said nothing usable, collected
+ * for the file's `why`.
+ */
+type Ctx = { sci: string; kingdom: string | null; zh: (string | null)[]; why: string[] };
+const ctxOf = (t: Taxon): Ctx => ({
+  sci: t.scientific_name,
+  kingdom: t.kingdom,
+  zh: [t.common_name_zh, ...(t.alt_names_zh ?? [])],
+  why: [],
+});
 
 const INFRASPECIFIC = new Set(["Subspecies", "Variety", "Form", "Special Form"]);
 
@@ -370,10 +396,11 @@ function fromAviList(n: string, ctx: Ctx): Hit | null {
 
 function fromMdd(n: string, ctx: Ctx): Hit | null {
   const hit = MDD(n);
-  if (!hit || !acceptable(ctx, "mdd", hit.row.main)) return null;
+  const display = hit ? hit.row.main : null;
+  if (!hit || !acceptable(ctx, "mdd", display)) return null;
   return {
-    name: hit.row.main,
-    alts: cleanAlts(hit.row.other, hit.row.main, ctx.sci),
+    name: display,
+    alts: cleanAlts(hit.row.other, display, ctx.sci),
     source: "mdd-v2.5",
     matched: hit.sci,
     authority: hit.row.authority,
@@ -450,6 +477,17 @@ async function fromCol(n: string, ctx: Ctx): Promise<Hit | null> {
     ctx.why.push(`col has ${eng.length} different English names`);
     return null;
   }
+  // A record carrying another species' vernaculars gives itself away in its
+  // Chinese names; see chineseNamesAgree(). COL's Dopasia formosensis holds
+  // D. harti's 脆蛇蜥 and "Hart's Glass Lizard", and D. harti is on this site
+  // with records of its own, so the two would have shown one English name.
+  // Only COL is held to this: it is the source of last resort, taken on a
+  // single name with nothing else to corroborate it.
+  const zho = (v ?? []).filter((x) => x.language === "zho" && x.name).map((x) => x.name!.trim());
+  if (chineseNamesAgree(zho, ctx.zh) === false) {
+    ctx.why.push(`col's Chinese name ${zho.join("/")} is not TaiCOL's, so its English one may be another species'`);
+    return null;
+  }
   const display = capitalise(eng[0]);
   if (!acceptable(ctx, "col", display)) return null;
   return { name: display, alts: cleanAlts([], display, ctx.sci), source: COL_SOURCE, matched, authority: null };
@@ -465,7 +503,7 @@ async function nameSpecies(t: Taxon): Promise<Hit | { why: string }> {
   const parts = nameParts(t.scientific_name);
   if (parts.length < 2 || parts.includes("×") || /^x$/i.test(parts[1])) return { why: "not a binomial" };
   const own = `${parts[0]} ${parts[1]}`;
-  const ctx: Ctx = { sci: t.scientific_name, kingdom: t.kingdom, why: [] };
+  const ctx = ctxOf(t);
 
   let candidates: string[] | null = null;
   const tryNames = async (fn: (n: string) => Promise<Hit | null> | Hit | null) => {
@@ -496,7 +534,8 @@ async function nameSpecies(t: Taxon): Promise<Hit | { why: string }> {
   const col = await tryNames((n) => fromCol(n, ctx));
   if (col) return col;
   if (!ctx.why.some((w) => w.startsWith("col"))) ctx.why.push("no English name in COL");
-  return { why: ctx.why.join("; ") };
+  // A synonym COL files under the same record gets the same answer; say it once.
+  return { why: [...new Set(ctx.why)].join("; ") };
 }
 
 /**
@@ -520,7 +559,7 @@ async function nameElevated(t: Taxon, species: Hit | null): Promise<Hit | null> 
   const p = nameParts(t.scientific_name);
   if (t.kingdom !== "Animalia") return null;
   if (p.length < 3 || epithetStem(p[2]) === epithetStem(p[1])) return null;
-  const ctx: Ctx = { sci: t.scientific_name, kingdom: t.kingdom, why: [] };
+  const ctx = ctxOf(t);
   const genera = [...new Set([p[0], species ? nameParts(species.matched)[0] : null])].filter(
     (g): g is string => !!g,
   );
@@ -560,7 +599,7 @@ async function colAuthorship(name: string, kingdom: string | null): Promise<stri
 
 async function loadScope(): Promise<{ scope: Taxon[]; byId: Map<string, Taxon> }> {
   const scope = await sql<Taxon[]>`
-    select t.taicol_id, t.parent_taicol_id, t.scientific_name, t.common_name_zh,
+    select t.taicol_id, t.parent_taicol_id, t.scientific_name, t.common_name_zh, t.alt_names_zh,
            t.rank, t.kingdom, t.class, t.name_author
       from taxa t
      where t.id in (select taxon_id from reports_public where taxon_id is not null)
@@ -585,7 +624,8 @@ async function loadScope(): Promise<{ scope: Taxon[]; byId: Map<string, Taxon> }
   ];
   const parents = parentIds.length
     ? await sql<Taxon[]>`
-        select taicol_id, parent_taicol_id, scientific_name, common_name_zh, rank, kingdom, class, name_author
+        select taicol_id, parent_taicol_id, scientific_name, common_name_zh, alt_names_zh,
+               rank, kingdom, class, name_author
           from taxa where taicol_id = any(${parentIds}::text[])`
     : [];
   const byId = new Map<string, Taxon>();
@@ -604,10 +644,18 @@ async function main() {
     ...rest,
   });
 
-  // Each infraspecific taxon's species, or the reason it has none.
+  // Each infraspecific taxon's species, or the reason it shows none. A pathogen's
+  // host form does not look its species up at all (see inheritsSpeciesName()).
   const speciesOf = new Map<string, Taxon | string>();
   for (const t of scope) {
     if (!INFRASPECIFIC.has(t.rank ?? "")) continue;
+    if (!inheritsSpeciesName(t.rank, t.kingdom)) {
+      speciesOf.set(
+        t.taicol_id,
+        `a ${t.rank} in ${t.kingdom ?? "an unknown kingdom"} is taken for a pathogen's host form, which its species' name does not describe`,
+      );
+      continue;
+    }
     const p = t.parent_taicol_id ? byId.get(t.parent_taicol_id) : undefined;
     speciesOf.set(t.taicol_id, p && p.rank === "Species" ? p : `parent ${t.parent_taicol_id ?? "none"} is not a species`);
   }
@@ -637,8 +685,11 @@ async function main() {
 
   // Species whose Taiwanese subspecies a source has made a species of its own:
   // the species' name may describe animals Taiwan does not have. Printed for
-  // review, and settled in the overrides file.
-  const splits: string[] = [];
+  // review, and settled in the overrides file. The ones already settled are
+  // printed apart, so an unsettled one cannot hide among them — Larus
+  // argentatus sat in this list as "European Herring Gull" through a review.
+  const settled = new Set(loadOverrides().map((o) => o.taicol_id));
+  const splits: { line: string; settled: boolean }[] = [];
   for (const t of scope) {
     if (names[t.taicol_id]) continue;
     const s = speciesOf.get(t.taicol_id);
@@ -648,10 +699,12 @@ async function main() {
       if (own) {
         names[t.taicol_id] = entry(t, { name: own.name, alts: own.alts, source: own.source, via: own.matched });
         if (parentHit && !sameName(parentHit.name, own.name))
-          splits.push(
-            `${s.taicol_id} ${s.scientific_name} "${parentHit.name}" — its subspecies ${t.taicol_id} ` +
+          splits.push({
+            line:
+              `${s.taicol_id} ${s.scientific_name} "${parentHit.name}" — its subspecies ${t.taicol_id} ` +
               `${t.scientific_name} is ${own.matched} "${own.name}" in ${own.source}`,
-          );
+            settled: settled.has(s.taicol_id) || settled.has(t.taicol_id),
+          });
         continue;
       }
       const p = names[s.taicol_id];
@@ -690,9 +743,17 @@ async function main() {
   }
   console.log(`\n  wrote ${NAMES_PATH}\n  ${all.length.toLocaleString()} taxa, ${all.filter((e) => e.name).length.toLocaleString()} named`);
   for (const [k, v] of [...bySource].sort((a, b) => b[1] - a[1])) console.log(`    ${String(v).padStart(5)}  ${k}`);
-  if (splits.length) {
-    console.log(`\n  ${splits.length} species whose Taiwanese subspecies a source treats as its own species; review the species' name:`);
-    for (const x of splits) console.log(`    ${x}`);
+  const openSplits = splits.filter((x) => !x.settled);
+  const settledSplits = splits.filter((x) => x.settled);
+  if (openSplits.length) {
+    console.log(
+      `\n  ${openSplits.length} species whose subspecies a source treats as its own species; review the species' name:`,
+    );
+    for (const x of openSplits) console.log(`    ${x.line}`);
+  }
+  if (settledSplits.length) {
+    console.log(`\n  ${settledSplits.length} more, whose species or subspecies already has a row in the overrides file:`);
+    for (const x of settledSplits) console.log(`    ${x.line}`);
   }
   if (notRaised.length) {
     console.log(`\n  ${notRaised.length} subspecies NOT taken for the species that shares their epithet (different authority):`);

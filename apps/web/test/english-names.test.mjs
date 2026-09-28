@@ -25,8 +25,10 @@ import {
   SOURCE_PATTERN,
   applyEnglishNames,
   capitalise,
+  chineseNamesAgree,
   cleanAlts,
   epithetStem,
+  inheritsSpeciesName,
   loadNamesFile,
   loadOverrides,
   nameProblem,
@@ -52,6 +54,15 @@ const CATTLE_EGRET = "t0029968"; // Bubulcus ibis coromandus 黃頭鷺, 27 recor
 const FORMOSAN_SALMON = "t0031284"; // Oncorhynchus masou formosanus 臺灣櫻花鉤吻鮭
 const BULBUL_KURODA = "t0123707"; // Microscelis amaurotis harterti Kuroda, 1922
 const PACIFIC_SWALLOW_SSP = "t0085756"; // Hirundo tahitica namiyei 洋燕, 49 records
+const TAIWAN_GLASS_LIZARD = "t0028707"; // Dopasia formosensis 臺灣蛇蜥
+const HARTS_GLASS_LIZARD = "t0124472"; // Dopasia harti 哈特氏蛇蜥, 30 records
+const BANANA_WILT = "t0086534"; // Fusarium oxysporum fo. cubense 香蕉分化型尖鐮孢菌
+const RED_EARED_SLIDER = "t0033457"; // Trachemys scripta elegans 紅耳泥龜, 25 records
+const HARP_FROG = "t0106675"; // Nidirana okinavana 豎琴蛙
+const LARGEMOUTH_BASS = "t0028011"; // Micropterus salmoides 大口黑鱸
+const TAIWAN_PANGOLIN = "t0085879"; // Manis pentadactyla pentadactyla 臺灣穿山甲, 27 records
+const TAIWAN_CLOUDED_LEOPARD = "t0085962"; // Neofelis nebulosa brachyura 臺灣雲豹
+const BULBUL_STRESEMANN = "t0104373"; // Hypsipetes amaurotis harterti, with the wrong authority
 
 /** A names file built by hand, so an assertion is about one rule only. */
 function file(names) {
@@ -148,6 +159,42 @@ describe("a subspecies raised to a species", () => {
     const kuroda = FILE.names[BULBUL_KURODA];
     assert.doesNotMatch(kuroda.name ?? "", /Golden-Bulbul/);
     assert.equal(kuroda.inherited_from, "t0097351");
+  });
+});
+
+describe("inheriting the species' name", () => {
+  test("is for subspecies, varieties and a botanist's or zoologist's forms", () => {
+    assert.equal(inheritsSpeciesName("Subspecies", "Animalia"), true);
+    assert.equal(inheritsSpeciesName("Variety", "Plantae"), true);
+    assert.equal(inheritsSpeciesName("Form", "Plantae"), true);
+    assert.equal(inheritsSpeciesName("Form", "Animalia"), true);
+  });
+
+  test("is not for a pathogen's host form, whatever rank TaiCOL files it under", () => {
+    // TaiCOL files the banana wilt fungus as rank "Form", "fo. cubense"; its
+    // species is iNaturalist's "Cucumber Fusarium".
+    assert.equal(inheritsSpeciesName("Form", "Fungi"), false);
+    assert.equal(inheritsSpeciesName("Special Form", "Fungi"), false);
+    assert.equal(inheritsSpeciesName("Form", "Bacteria"), false);
+    const wilt = FILE.names[BANANA_WILT];
+    assert.equal(wilt.name, null, `香蕉分化型尖鐮孢菌 is "${wilt.name}"`);
+    assert.equal(wilt.inherited_from, undefined);
+    assert.match(wilt.why, /host form/);
+  });
+});
+
+describe("the Catalogue of Life", () => {
+  test("is not trusted when its Chinese name for a taxon is not TaiCOL's", () => {
+    // COL's Dopasia formosensis carries D. harti's names: 脆蛇蜥 and "Hart's
+    // Glass Lizard". TaiCOL calls it 臺灣蛇蜥.
+    assert.equal(chineseNamesAgree(["脆蛇蜥"], ["臺灣蛇蜥", "哈特氏蛇蜥", "蛇蜥"]), false);
+    assert.equal(chineseNamesAgree(["台灣蛇蜥"], ["臺灣蛇蜥"]), true, "台 and 臺 are one character to TaiCOL");
+    assert.equal(chineseNamesAgree([], ["臺灣蛇蜥"]), null, "no Chinese name is not evidence either way");
+    const lizard = FILE.names[TAIWAN_GLASS_LIZARD];
+    assert.equal(lizard.name, null, `臺灣蛇蜥 is "${lizard.name}"`);
+    assert.match(lizard.why, /Chinese name/);
+    // So the two lizards no longer show one English name between them.
+    assert.equal(FILE.names[HARTS_GLASS_LIZARD].name, "Hart's Glass Lizard");
   });
 });
 
@@ -328,6 +375,28 @@ describe("overrides", () => {
     assert.equal(final.get("t0000004").name, "Yellow-grey Freshwater Crab");
   });
 
+  test("with alternates of their own, drop the replaced name: it was another animal's", () => {
+    // iNaturalist's "Ryukyu Brown Frog" is Rana ulma. Kept as an alternate, a
+    // search for that frog would find the harp frog it was wrongly given to.
+    const frog = file({
+      t0000005: {
+        scientific_name: "Nidirana okinavana",
+        name: "Ryukyu Brown Frog",
+        alts: ["Kampira Falls frog", "Yaeyama harpist frog"],
+        source: "inat-2026-09",
+      },
+    });
+    const head = "taicol_id,common_name_en,note,reviewer,alts\n";
+    const replaced = resolveNames(frog, parseOverrides(`${head}t0000005,Kampira Falls Frog,,team,Yaeyama Harpist Frog\n`));
+    assert.deepEqual(replaced.get("t0000005").alts, ["Yaeyama Harpist Frog"]);
+    const none = resolveNames(frog, parseOverrides(`${head}t0000005,Kampira Falls Frog,,team,-\n`));
+    assert.equal(none.get("t0000005").alts, null);
+    // With the column empty, the replaced name stays searchable, as for the leopard cat.
+    const kept = resolveNames(frog, parseOverrides(`${head}t0000005,Kampira Falls Frog,,team,\n`));
+    assert.ok(kept.get("t0000005").alts.includes("Ryukyu Brown Frog"));
+    assert.throws(() => parseOverrides(`${head}t0000005,,,team,Some Frog\n`), /alternates but no name/);
+  });
+
   test("a subspecies with no name of its own shows its species' name", () => {
     const final = resolveNames(base, []);
     assert.deepEqual(final.get("t0000002"), {
@@ -360,6 +429,36 @@ describe("overrides", () => {
     assert.equal(FILE.names[PACIFIC_SWALLOW_SSP].name, "Tahiti Swallow", "the build alone gets it wrong");
     assert.equal(final.get(PACIFIC_SWALLOW_SSP)?.name, "Pacific Swallow");
     assert.equal(final.get(PACIFIC_SWALLOW_SSP)?.inherited, true);
+  });
+
+  test("no name from the review of this file contradicts the animal it is on", () => {
+    // Each was the build's answer, and each was wrong for the animal beside its
+    // Chinese name: a subspecies inheriting its species' name, a source's name
+    // that now belongs to another animal, or a species name from a source that
+    // split Taiwan's population off.
+    const final = resolveNames(FILE, OVERRIDES);
+    const name = (id) => final.get(id)?.name ?? null;
+    const alts = (id) => final.get(id)?.alts ?? [];
+    for (const [id, was, is] of [
+      [RED_EARED_SLIDER, "Pond Slider", "Red-eared Slider"],
+      ["t0086368", "Pond Slider", "Yellow-bellied Slider"], // 黃耳龜, T. s. scripta
+      [HARP_FROG, "Ryukyu Brown Frog", "Kampira Falls Frog"],
+      [LARGEMOUTH_BASS, "Florida Bass", "Largemouth Bass"],
+      ["t0096009", "European Herring Gull", "Herring Gull"], // 銀鷗
+      ["t0076154", "Eden's Whale", "Bryde's Whale"], // 布氏鯨
+      ["t0098168", "Red Mountain Ratsnake", "Taiwanese Bamboo Ratsnake"], // 紅竹蛇
+      [TAIWAN_CLOUDED_LEOPARD, "Mainland Clouded Leopard", "Clouded Leopard"],
+      [TAIWAN_PANGOLIN, "Short-tailed Pangolin", "Taiwan Pangolin"],
+    ]) {
+      assert.equal(FILE.names[id].name, was, `${id}: the build's answer changed; review this row`);
+      assert.equal(name(id), is, id);
+    }
+    // 臺灣雲豹 gets its name from its species, as a subspecies should.
+    assert.equal(final.get(TAIWAN_CLOUDED_LEOPARD)?.inherited, true);
+    // Another animal's name must not find these in a search either.
+    assert.ok(!alts(HARP_FROG).includes("Ryukyu Brown Frog"), "the harp frog is found by Rana ulma's name");
+    assert.ok(!alts(LARGEMOUTH_BASS).some((n) => /Florida/.test(n)), "the largemouth is found by the Florida bass's names");
+    assert.ok(!alts(BULBUL_STRESEMANN).some((n) => /Banggai/.test(n)), "the bulbul is found by the golden bulbul's name");
   });
 
   test("the team's 石虎 decision reaches 豹貓 and the subspecies 石虎", () => {

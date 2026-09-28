@@ -228,6 +228,56 @@ export function sameEpithet(a: string, b: string): boolean {
   return !!ea && !!eb && epithetStem(ea) === epithetStem(eb);
 }
 
+/**
+ * Whether a source's Chinese names for a taxon are TaiCOL's, or null when the
+ * source gives none to compare.
+ *
+ * A source record can carry another animal's vernaculars. The Catalogue of
+ * Life's *Dopasia formosensis*, Taiwan's endemic glass lizard, holds the names
+ * of *D. harti*, the species it was long lumped with: "Hart's Glass Lizard"
+ * and 脆蛇蜥. Its English name looks like any other. Its Chinese name is the
+ * tell, because TaiCOL calls the lizard 臺灣蛇蜥 (and lists D. harti, with
+ * records of its own, as 哈特氏蛇蜥). So when a source's record has Chinese
+ * names and none of them is one of TaiCOL's, its English name is not trusted
+ * either.
+ *
+ * Compared on the Chinese characters alone (COL has "呂賴氏蜓蜥’’ (Lü Lài Shì
+ * Tíng X ī)" in one field) after folding 台 to 臺, the one variant TaiCOL
+ * itself mixes. A simplified-script name TaiCOL writes in traditional script
+ * therefore disagrees, and costs a name; a missing name is this file's
+ * accepted failure, and a wrong one is not.
+ */
+export function chineseNamesAgree(sourceZh: string[], taicolZh: (string | null | undefined)[]): boolean | null {
+  const fold = (s: string) => s.replace(/[^\p{Script=Han}]/gu, "").replace(/台/g, "臺");
+  const theirs = sourceZh.map(fold).filter(Boolean);
+  if (theirs.length === 0) return null;
+  const ours = new Set(taicolZh.filter((s): s is string => !!s).map(fold));
+  return theirs.some((n) => ours.has(n));
+}
+
+/**
+ * Whether an infraspecific taxon shows its species' English name when it has
+ * none of its own.
+ *
+ * A subspecies, variety or ordinary form is a part of its species, and its
+ * species' name is true of it. A forma specialis is not: it is the strain of a
+ * pathogen that attacks one host, and its species' name, if it has one, is
+ * usually another host's disease. TaiCOL's *Fusarium oxysporum* is
+ * iNaturalist's "Cucumber Fusarium", and inheriting that labelled the banana
+ * wilt fungus 香蕉分化型尖鐮孢菌 as a cucumber disease beside its own Chinese
+ * name. TaiCOL files most formae speciales as rank "Form" with "fo." (the
+ * banana wilt fungus among them; only two rows are "Special Form"), so rank
+ * alone cannot tell them from a botanist's forma. Kingdom nearly can: outside
+ * plants and animals no "Form" inherits. That also refuses a lichen's or a
+ * diatom's forma, which would have inherited harmlessly, but a lichen or a
+ * diatom with an English name to inherit is rare, and none is in scope.
+ */
+export function inheritsSpeciesName(rank: string | null, kingdom: string | null): boolean {
+  if (rank === "Subspecies" || rank === "Variety") return true;
+  if (rank === "Form") return kingdom === "Plantae" || kingdom === "Animalia";
+  return false;
+}
+
 // ---------------------------------------------------------------------------
 // What counts as an English name
 // ---------------------------------------------------------------------------
@@ -361,6 +411,14 @@ export type Override = {
   taicol_id: string;
   /** null = the team decided this taxon shows no English name. */
   common_name_en: string | null;
+  /**
+   * The alternates to store instead of the ones the sources gave, or null to
+   * keep theirs and the name this override replaced. Given when the replaced
+   * name belongs to another animal: "Ryukyu Brown Frog" is Rana ulma, and must
+   * not stay searchable on the harp frog it was wrongly given to. Empty
+   * (written "-" in the file) keeps none of them.
+   */
+  alts: string[] | null;
   note: string;
   reviewer: string;
 };
@@ -376,9 +434,16 @@ export function parseOverrides(text: string): Override[] {
     if (seen.has(id)) throw new Error(`overrides: ${id} appears twice`);
     seen.add(id);
     const name = (r.common_name_en ?? "").trim();
+    const rawAlts = (r.alts ?? "").trim();
+    const alts =
+      rawAlts === "" ? null : rawAlts === "-" ? [] : rawAlts.split("|").map((s) => s.trim()).filter(Boolean);
+    // A blank name removes the alternates too; alternates with no name to be
+    // alternates of is a row that says two contradictory things.
+    if (!name && alts) throw new Error(`overrides: ${id} has alternates but no name`);
     out.push({
       taicol_id: id,
       common_name_en: name || null,
+      alts,
       note: r.note ?? "",
       reviewer: r.reviewer ?? "",
     });
@@ -413,9 +478,10 @@ export type FinalName = {
  *
  * Overrides win, always. A named override keeps the name it replaced as an
  * alternate, so "Mainland Leopard Cat" is still searchable after the team chose
- * "Leopard Cat". A blank override removes the name AND its alternates: a name
- * that is wrong for the animal usually came with alternates from the same wrong
- * match.
+ * "Leopard Cat" — unless it lists alternates of its own, which replace all of
+ * the sources' (the replaced name was another animal's). A blank override
+ * removes the name AND its alternates: a name that is wrong for the animal
+ * usually came with alternates from the same wrong match.
  *
  * Inheritance is resolved last, from the species' final name, so an override on
  * a species reaches every subspecies that shows the species' name — and an
@@ -430,7 +496,7 @@ export function resolveNames(file: NamesFile, overrides: Override[]): Map<string
     if (o) {
       if (!o.common_name_en) return { name: null, alts: null, source: "curated", inherited: false };
       const sci = e?.scientific_name ?? "";
-      const alts = cleanAlts([e?.name, ...(e?.alts ?? [])], o.common_name_en, sci);
+      const alts = cleanAlts(o.alts ?? [e?.name, ...(e?.alts ?? [])], o.common_name_en, sci);
       return { name: o.common_name_en, alts: alts.length ? alts : null, source: "curated", inherited: false };
     }
     if (!e || !e.name) return { name: null, alts: null, source: null, inherited: false };
