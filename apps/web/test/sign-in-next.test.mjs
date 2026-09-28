@@ -20,6 +20,40 @@ import {
 } from "../lib/signInNext.ts";
 import { sendFailure, verifyFailure } from "../lib/signInErrors.ts";
 
+/** Written to leave the origin outright. */
+const LEAVES = [
+  "//evil.example",
+  "//evil.example/path",
+  "/\\evil.example",
+  "/\\/evil.example",
+  "\\\\evil.example",
+  "/\t/evil.example",
+  "/\n/evil.example",
+  "https://evil.example/",
+  "http:evil.example",
+  "javascript:alert(1)",
+  "evil.example",
+  "",
+];
+
+/** Written to stay on it, until the dots are resolved. */
+const DOT_ESCAPES = [
+  "/.//evil.example",
+  "/%2e//evil.example",
+  "/%2E//evil.example",
+  "/..//evil.example",
+  "/%2e%2e//evil.example",
+  "/.%2E//evil.example",
+  "/a/..//evil.example",
+  "/a/b/../..//evil.example",
+  "/./\\evil.example",
+  "/.\\/evil.example",
+  "/\t.//evil.example",
+  "/.\n//evil.example",
+  "/.//evil.example/x?y=1#z",
+  "/.//",
+];
+
 describe("safeNextPath keeps people on this site", () => {
   test("ordinary paths pass through, query and hash included", () => {
     for (const p of [
@@ -39,20 +73,14 @@ describe("safeNextPath keeps people on this site", () => {
   });
 
   test("anything that leaves the origin is refused", () => {
-    for (const p of [
-      "//evil.example",
-      "//evil.example/path",
-      "/\\evil.example",
-      "/\\/evil.example",
-      "\\\\evil.example",
-      "/\t/evil.example",
-      "/\n/evil.example",
-      "https://evil.example/",
-      "http:evil.example",
-      "javascript:alert(1)",
-      "evil.example",
-      "",
-    ])
+    for (const p of LEAVES) assert.equal(safeNextPath(p), null, `accepted ${JSON.stringify(p)}`);
+  });
+
+  test("a path that only leaves once its dot segments are removed is refused", () => {
+    // Each of these is on the origin as written, and each came back from the
+    // first version of this function as "//evil.example": resolving the dots
+    // left an empty first segment, and a browser reads that as a host.
+    for (const p of DOT_ESCAPES)
       assert.equal(safeNextPath(p), null, `accepted ${JSON.stringify(p)}`);
   });
 
@@ -83,14 +111,86 @@ describe("safeNextPath keeps people on this site", () => {
   });
 });
 
+/**
+ * What every answer must be, whatever the question.
+ *
+ * The lists above are the tricks someone thought of. These are the properties
+ * that make the tricks irrelevant, checked over those lists and over a few
+ * thousand paths made from the characters URL parsers treat specially. The
+ * dot-segment escape got past the lists; either property below catches it.
+ */
+describe("whatever it is given, what comes out", () => {
+  /** A small seeded PRNG (mulberry32), so a failure reproduces exactly. */
+  function random(seed) {
+    return () => {
+      seed = (seed + 0x6d2b79f5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  const PARTS = [
+    "/", "/", "/", "//", "\\", ".", "..", "%2e", "%2E", "%2f", "%5c", "%09",
+    "\t", "\n", "\r", " ", "@", ":", "?", "#", "evil.example", "a", "en",
+    "login", "auth", "map", "é", "　",
+  ];
+  function corpus() {
+    const next = random(20260928);
+    const out = [...LEAVES, ...DOT_ESCAPES];
+    for (let i = 0; i < 20000; i++) {
+      let s = "/";
+      const n = 1 + Math.floor(next() * 8);
+      for (let j = 0; j < n; j++) s += PARTS[Math.floor(next() * PARTS.length)];
+      out.push(s);
+    }
+    return out;
+  }
+  const accepted = corpus()
+    .map((raw) => [raw, safeNextPath(raw)])
+    .filter(([, out]) => out !== null);
+
+  test("the corpus is not all refused, so the properties are tested", () => {
+    assert.ok(accepted.length > 1000, `only ${accepted.length} paths accepted`);
+  });
+
+  test("stays on whichever origin it is resolved against", () => {
+    for (const base of ["https://preservation-web-one.vercel.app", "http://127.0.0.1:3000"])
+      for (const [raw, out] of accepted)
+        assert.equal(
+          new URL(out, base).origin,
+          new URL(base).origin,
+          `${JSON.stringify(raw)} became ${JSON.stringify(out)}`,
+        );
+  });
+
+  test("is a path: one leading slash, and nothing a browser would read as a slash", () => {
+    for (const [raw, out] of accepted) {
+      const why = `${JSON.stringify(raw)} became ${JSON.stringify(out)}`;
+      assert.ok(out.startsWith("/") && !out.startsWith("//"), why);
+      // Only the path: a backslash after ? or # is data, and the serialiser
+      // rightly leaves it there.
+      assert.doesNotMatch(out.split(/[?#]/)[0], /\\/, why);
+      // Anywhere: the callback puts this in a Location header.
+      assert.doesNotMatch(out, /[\t\n\r]/, why);
+    }
+  });
+
+  test("is its own answer: checking it again changes nothing", () => {
+    // The callback checks the cookie's copy a second time. An answer that the
+    // same rule would refuse is one the first check should never have given.
+    for (const [raw, out] of accepted)
+      assert.equal(safeNextPath(out), out, `${JSON.stringify(raw)} became ${JSON.stringify(out)}`);
+  });
+});
+
 describe("the cookie that carries it through the email", () => {
   test("round-trips an encoded path", () => {
     assert.equal(nextFromCookie(encodeURIComponent("/en/map?x=1")), "/en/map?x=1");
   });
 
   test("is held to the same rule as the query string", () => {
-    assert.equal(nextFromCookie(encodeURIComponent("/\\evil.example")), null);
-    assert.equal(nextFromCookie(encodeURIComponent("//evil.example")), null);
+    for (const p of [...LEAVES, ...DOT_ESCAPES])
+      assert.equal(nextFromCookie(encodeURIComponent(p)), null, JSON.stringify(p));
   });
 
   test("tolerates a missing or mangled value", () => {

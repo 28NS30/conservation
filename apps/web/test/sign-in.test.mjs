@@ -5,6 +5,55 @@ import { join } from "node:path";
 import { BASE_URL } from "./helpers.mjs";
 
 /**
+ * Return paths that must never take anyone off the site. The last six are on
+ * this origin as written and leave it only once their dot segments are
+ * resolved — the first version of safeNextPath passed every one of them on as
+ * "//evil.example".
+ */
+const OFF_SITE = [
+  "/\\evil.example",
+  "//evil.example",
+  "//evil.example/x",
+  "https://evil.example",
+  "/.//evil.example",
+  "/%2e//evil.example",
+  "/..//evil.example",
+  "/a/..//evil.example",
+  "/./\\evil.example",
+  "/\t.//evil.example",
+];
+
+const SITE = new URL(BASE_URL).origin;
+
+/** Where a Location header sends a browser that asked BASE_URL. */
+const resolved = (res) => new URL(res.headers.get("location") ?? "", BASE_URL);
+
+/**
+ * The props the page handed a client component, read from the RSC payload.
+ *
+ * A client component's props never appear as HTML attributes; they travel in
+ * the flight data Next streams into the page, and that is what the component
+ * acts on. So a test that looked for the return path in attributes (as this
+ * file's first did) could not have seen it go wrong.
+ */
+function flight(html) {
+  let out = "";
+  for (const m of html.matchAll(/self\.__next_f\.push\(\[1,("(?:[^"\\]|\\.)*")\]\)/g))
+    out += JSON.parse(m[1]);
+  return out;
+}
+
+/** The `next` the sign-in form was given: where it sends someone after the code. */
+function formNext(html) {
+  // Anchored on the props that follow it: the message catalogue, serialised
+  // into the same payload, has a "next" key of its own ("Next").
+  const m = /\{"next":("(?:[^"\\]|\\.)*"),"google":(?:true|false),"callbackError":(?:true|false)\}/.exec(
+    flight(html),
+  );
+  return m ? JSON.parse(m[1]) : undefined;
+}
+
+/**
  * The magic-link callback has to be reachable.
  *
  * It lives at app/auth/callback, outside [locale], and Supabase sends people to
@@ -72,7 +121,10 @@ describe("the return path through the callback", () => {
   });
 
   test("an off-site path is dropped, from either source", async () => {
-    for (const evil of ["/\\evil.example", "//evil.example", "https://evil.example"]) {
+    // Without a code the callback sends the reader back to the form, and the
+    // return path it chose rides along in that URL. With a code it goes to the
+    // return path itself — the same value — so this is where it can be seen.
+    for (const evil of OFF_SITE) {
       const viaQuery = await fetch(
         `${BASE_URL}/auth/callback?next=${encodeURIComponent(evil)}`,
         opts,
@@ -82,8 +134,12 @@ describe("the return path through the callback", () => {
         headers: { cookie: `sign_in_next=${encodeURIComponent(evil)}` },
       });
       for (const res of [viaQuery, viaCookie]) {
-        assert.doesNotMatch(location(res), /evil/, `${evil} survived into ${location(res)}`);
-        assert.match(location(res), /\/login\?error=missing_code$/);
+        const why = `${JSON.stringify(evil)} became ${location(res)}`;
+        assert.equal(res.status, 307, why);
+        assert.ok(!location(res).startsWith("//"), why);
+        assert.equal(resolved(res).origin, SITE, why);
+        assert.doesNotMatch(location(res), /evil/, why);
+        assert.match(location(res), /\/login\?error=missing_code$/, why);
       }
     }
   });
@@ -138,13 +194,27 @@ describe("the sign-in page", () => {
     }
   });
 
-  test("never turns an off-site return path into a link or a form target", async () => {
-    // The raw query string does appear in the page — Next serialises the URL
-    // for its router — but only as data; no attribute may carry it.
-    const html = await fetch(
-      `${BASE_URL}/en/login?next=${encodeURIComponent("//evil.example/x")}`,
-    ).then((r) => r.text());
-    assert.doesNotMatch(html, /="[^"]*evil\.example/);
+  test("hands the form the page to return to, in the reader's language", async () => {
+    // The control for the test below: if the props could not be found, every
+    // off-site case would pass by finding nothing.
+    const page = (path) => fetch(`${BASE_URL}${path}`).then((r) => r.text());
+    assert.equal(formNext(await page(`/en/login?next=${encodeURIComponent("/en/map?x=1")}`)), "/en/map?x=1");
+    assert.equal(formNext(await page("/en/login")), "/en");
+    assert.equal(formNext(await page("/login")), "/");
+  });
+
+  test("never hands the form a return path off the site", async () => {
+    // The form sends the reader there with location.replace() once the code is
+    // right, so this prop is the sink, not anything in the HTML.
+    for (const evil of OFF_SITE) {
+      const html = await fetch(`${BASE_URL}/en/login?next=${encodeURIComponent(evil)}`).then((r) =>
+        r.text(),
+      );
+      assert.equal(formNext(html), "/en", JSON.stringify(evil));
+      // The raw query string does appear in the page — Next serialises the
+      // URL for its router — but only as data; no attribute may carry it.
+      assert.doesNotMatch(html, /="[^"]*evil\.example/, JSON.stringify(evil));
+    }
   });
 });
 

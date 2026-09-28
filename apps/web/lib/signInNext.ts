@@ -50,6 +50,21 @@ const PROBE = "http://return-path.invalid";
  * resolved the way a browser would resolve it and kept only if it is still on
  * the origin it started from.
  *
+ * Staying on the origin is not enough on its own, because what is returned is
+ * the path as re-serialised, not the path as given, and resolving can change
+ * its shape. `/.//evil.example` is on the probe origin — a path whose first
+ * segment is `.` and second is empty — but removing the dot leaves
+ * `//evil.example`, which a browser reads as a different host. The first
+ * version of this function returned exactly that, and all three places that use
+ * the answer (the login page's redirect for someone already signed in, the code
+ * form's `location.replace`, the callback's Location header) sent the reader to
+ * it. So the answer is also refused if it begins with two slashes. After
+ * parsing, that is the only way left for a path to leave: the parser has turned
+ * every backslash into a slash and dropped every tab and newline.
+ *
+ * Which also makes the answer a fixed point — `safeNextPath(out) === out` — so
+ * checking it again, as the callback does with the cookie, never changes it.
+ *
  * Paths that are part of signing in are refused too: returning someone to the
  * login form after they have signed in reads as a failure, and returning them
  * to the callback would try to spend a code twice.
@@ -64,6 +79,7 @@ export function safeNextPath(raw: unknown): string | null {
     return null;
   }
   if (url.origin !== PROBE) return null;
+  if (url.pathname.startsWith("//")) return null;
   if (isSignInPath(url.pathname)) return null;
   return `${url.pathname}${url.search}${url.hash}`;
 }
