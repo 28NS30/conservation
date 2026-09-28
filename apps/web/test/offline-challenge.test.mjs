@@ -95,6 +95,14 @@ describe("offline queue challenge", () => {
     assert.match(flush, /inFlightHasToken = Boolean\(getToken\);/);
   });
 
+  test("the banner sends a report saved on a page that already sent one", () => {
+    // Its automatic flush ran once per page. The report pages save on an
+    // online page ("weak signal? save on this phone"), and a report saved
+    // after that first flush waited for the tab to be hidden and shown again.
+    assert.doesNotMatch(banner, /autoFlushedRef\.current = true/);
+    assert.match(banner, /items\.filter\(\(i\) => !autoFlushedRef\.current\.has\(i\.id\)\)/);
+  });
+
   test("no network is not called a fault at our end, and costs no attempt", () => {
     // `navigator.onLine` says true on one bar of signal, so the flush does run
     // with no way through, and `fetch` rejects with a TypeError. That was

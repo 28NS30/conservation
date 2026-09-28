@@ -63,7 +63,8 @@ export default function QueueBanner() {
   const tokenRef = useRef<string | null>(null);
   const waitersRef = useRef<((token: string | undefined) => void)[]>([]);
   const resetRef = useRef<(() => void) | null>(null);
-  const autoFlushedRef = useRef(false);
+  /** Reports this page has already tried to send by itself. */
+  const autoFlushedRef = useRef(new Set<string>());
 
   const refresh = useCallback(async () => {
     // Receipts are kept for a day so a reporter who closes the app on a
@@ -128,11 +129,21 @@ export default function QueueBanner() {
 
   // The queue's first flush fires on mount, before the widget can possibly have
   // solved, so it holds everything back. This is the retry that actually sends.
+  //
+  // Once per report, not once per page. It was once per mount, so a report
+  // saved on a page that had already sent one — the report pages' "weak
+  // signal? save on this phone" button saves on a page that is online — sat
+  // waiting until the tab was hidden and shown again, with a solved challenge
+  // and a connection right there. Remembering which reports it has tried keeps
+  // the reason for "once": a report the server keeps refusing is not retried
+  // on every render that lists it.
   useEffect(() => {
-    if (!ready || autoFlushedRef.current || items.length === 0) return;
-    autoFlushedRef.current = true;
+    if (!ready) return;
+    const fresh = items.filter((i) => !autoFlushedRef.current.has(i.id));
+    if (fresh.length === 0) return;
+    for (const i of fresh) autoFlushedRef.current.add(i.id);
     void runFlush();
-  }, [ready, items.length, runFlush]);
+  }, [ready, items, runFlush]);
 
   useEffect(() => {
     void (async () => {

@@ -268,8 +268,23 @@ const tapUseMyLocation = async (locale = ZH) => {
   // drop Playwright's geolocation override for the page, and the fix then
   // never answers. A phone's GPS does not care whether it has signal.
   await ctx.setGeolocation({ latitude: 23.75, longitude: 120.95, accuracy: 30 });
-  await page.getByRole("button", { name: locale.report.useMyLocation }).click();
-  await page.getByText(locale.report.tapToAdjust).waitFor({ timeout: 10000 });
+  // Pages are opened at `domcontentloaded`, and a tap that lands before the
+  // page has hydrated does nothing — as it would for a person, who would tap
+  // again. So does this.
+  for (let i = 0; i < 4; i++) {
+    // Short, because once a tap has taken the button reads "locating…".
+    await page
+      .getByRole("button", { name: locale.report.useMyLocation })
+      .click({ timeout: 2000 })
+      .catch(() => {});
+    const set = await page
+      .getByText(locale.report.tapToAdjust)
+      .waitFor({ timeout: 4000 })
+      .then(() => true)
+      .catch(() => false);
+    if (set) return;
+  }
+  throw new Error("the location never set");
 };
 
 try {
