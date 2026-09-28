@@ -50,10 +50,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
    * provenance is credited, which is the one page a data publisher is expected
    * to have indexed.
    *
-   * `/report` stays. Whether the web form survives the pivot is an open team
-   * decision (see `docs/app-and-site.md`), and it is live and ungated today, so
-   * dropping it from the sitemap would be this file quietly taking that
-   * decision. Remove it when the answer is no, not before.
+   * `/report` stays, with the three report pages it leads to. The team
+   * settled that the web form stays (see `docs/app-and-site.md`), and asked
+   * for it as three pages, so each is a page a search can land someone on.
    *
    * Not here on purpose: `/team`, which 404s by design while the roster is
    * empty, `/me` and `/admin`, which need an account, and `/lab`, which is
@@ -66,6 +65,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "/stats",
     "/reports",
     "/report",
+    "/report/roadkill",
+    "/report/invasive",
+    "/report/wildlife",
     "/about",
     "/attribution",
     "/privacy",

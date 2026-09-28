@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { withBase } from "@/lib/basePath";
-import type { ReportGroup } from "@conservation/shared";
+import { Link } from "@/i18n/navigation";
+import type { ReportPage } from "@conservation/shared";
 
 export type SpeciesHit = {
   id: number;
@@ -16,29 +17,36 @@ export type SpeciesHit = {
 /**
  * What the reporter saw, named by the reporter.
  *
- * The team asked for a search over a large database of animals at the top of
- * the form, scoped by report type: the invasive register for an invasive
- * report, Taiwan's wildlife for the other two.
+ * The team asked for a search over a large database of animals, scoped by the
+ * kind of report: the invasive register on the invasive page, Taiwan's animals
+ * on the other two. Each page's list is defined once, in packages/shared
+ * (REPORT_PAGES), and the picker asks the search by page rather than by
+ * filter, so it cannot offer a species the server would then refuse.
  *
- * Scoped, but never walled. An invasive report searches the 274-taxon register
- * by default and can be widened in one click, because a reporter who cannot
- * find the animal in front of them learns that the site is wrong about reality,
- * which is a worse outcome than a report filed in the wrong bucket. The other
- * two groups search everything and merely rank natives first — a roadkill
- * victim is very often not native.
+ * The invasive page no longer has a "not what you saw? search all species"
+ * button. It used to, on the reasoning that a reporter who cannot find the
+ * animal learns the site is wrong about reality — but what it actually did
+ * was file native animals as invasive ones, which is the one thing request 6
+ * asked this page never to do. Its place is taken by a way out that files the
+ * animal honestly: "not on this list? report it as a wildlife sighting", and
+ * "I'm not sure what it was" for an animal the reporter thinks is invasive but
+ * cannot name.
+ *
+ * The other two pages search every animal and merely rank natives first — a
+ * roadkill victim is very often not native.
  *
  * Naming a species is consequential: it is what sets the published location
  * precision, because the trigger derives the blur from the taxon's TaiCOL
  * sensitivity. A protected species named honestly still blurs automatically.
  */
 export default function SpeciesPicker({
-  group,
+  page,
   value,
   onChange,
   unsure,
   onUnsure,
 }: {
-  group: ReportGroup;
+  page: ReportPage;
   value: SpeciesHit | null;
   onChange: (hit: SpeciesHit | null) => void;
   unsure: boolean;
@@ -49,26 +57,16 @@ export default function SpeciesPicker({
   const [hits, setHits] = useState<SpeciesHit[]>([]);
   const [open, setOpen] = useState(false);
   const [searching, setSearching] = useState(false);
-  const [wide, setWide] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
+  const invasivePage = page === "invasive";
 
-  // The invasive register is the only scope narrow enough to need widening.
-  const scoped = group === "invasive" && !wide;
-
-  // Widening or switching group re-runs the search rather than silently leaving
-  // results from the previous scope on screen.
   useEffect(() => {
     const q = query.trim();
     // Nothing to clear: `visible` below derives the empty list from the empty
     // query. Setting state here instead would cascade a render on every
     // keystroke that empties the box.
     if (!q) return;
-    const params = new URLSearchParams({ q });
-    if (scoped) params.set("filter", "invasive");
-    else {
-      params.set("filter", "all");
-      params.set("prefer", "native");
-    }
+    const params = new URLSearchParams({ q, page });
 
     let cancelled = false;
     const id = setTimeout(async () => {
@@ -86,7 +84,7 @@ export default function SpeciesPicker({
       cancelled = true;
       clearTimeout(id);
     };
-  }, [query, scoped]);
+  }, [query, page]);
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
@@ -102,14 +100,16 @@ export default function SpeciesPicker({
   if (value) {
     return (
       <section>
-        <h2 className="mb-2 text-sm font-medium text-ink-700">{t("species")}</h2>
+        <h2 className="mb-2 text-base font-semibold text-forest-900">
+          {t("species")}
+        </h2>
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-ink-900/12 bg-paper-100 px-3.5 py-3">
           <span className="min-w-0">
             <span className="text-[15px] font-medium text-ink-900">
               {value.commonNameZh ?? value.scientificName}
             </span>
             {value.commonNameZh && (
-              <span className="ml-2 text-[13px] italic text-ink-500">
+              <span className="ml-2 text-sm italic text-ink-600">
                 {value.scientificName}
               </span>
             )}
@@ -120,20 +120,34 @@ export default function SpeciesPicker({
               onChange(null);
               setQuery("");
             }}
-            className="ml-auto rounded-full border border-ink-900/15 px-3 py-1 text-xs text-ink-600 transition hover:bg-paper-200"
+            className="ml-auto inline-flex min-h-11 items-center rounded-full border border-ink-900/15 px-4 text-sm text-ink-700 transition hover:bg-paper-200"
           >
             {t("speciesChange")}
           </button>
         </div>
+        {/*
+          Request 7: an invasive animal seen alive is a wildlife sighting AND an
+          invasive record. The reporter does not have to know that, or tick
+          anything — the species says it, from TaiCOL's own flag — but they are
+          told, so the record turning up in both places is not a surprise.
+        */}
+        {page === "wildlife" && value.isInvasive && (
+          <p
+            role="note"
+            className="mt-2 border-l-4 border-leaf-600 pl-3 text-sm leading-relaxed text-ink-800"
+          >
+            {t("alsoInvasive")}
+          </p>
+        )}
       </section>
     );
   }
 
   return (
     <section>
-      <h2 className="mb-2 text-sm font-medium text-ink-700">
+      <h2 className="mb-2 text-base font-semibold text-forest-900">
         {t("species")}{" "}
-        <span className="font-normal text-ink-500">{t("optional")}</span>
+        <span className="text-sm font-normal text-ink-600">{t("optional")}</span>
       </h2>
 
       <div ref={boxRef} className="relative">
@@ -146,9 +160,11 @@ export default function SpeciesPicker({
             setOpen(true);
           }}
           onFocus={() => setOpen(true)}
-          placeholder={scoped ? t("speciesSearchInvasive") : t("speciesSearch")}
+          placeholder={
+            invasivePage ? t("speciesSearchInvasive") : t("speciesSearch")
+          }
           aria-label={t("species")}
-          className="w-full rounded-lg border border-ink-900/12 bg-paper-100 px-3.5 py-3 text-[15px] text-ink-900 placeholder:text-ink-500 disabled:opacity-50"
+          className="min-h-12 w-full rounded-lg border border-ink-900/20 bg-paper-100 px-3.5 py-3 text-base text-ink-900 placeholder:text-ink-600 disabled:opacity-50"
         />
 
         {/*
@@ -175,20 +191,22 @@ export default function SpeciesPicker({
                     onUnsure(false);
                     setOpen(false);
                   }}
-                  className="flex w-full items-center justify-between gap-2 px-3.5 py-2 text-left hover:bg-paper-200"
+                  className="flex min-h-11 w-full items-center justify-between gap-2 px-3.5 py-2 text-left hover:bg-paper-200"
                 >
                   <span className="min-w-0">
                     <span className="text-[15px] text-ink-900">
                       {h.commonNameZh ?? h.scientificName}
                     </span>
                     {h.commonNameZh && (
-                      <span className="ml-2 text-[13px] italic text-ink-500">
+                      <span className="ml-2 text-sm italic text-ink-600">
                         {h.scientificName}
                       </span>
                     )}
                   </span>
-                  {h.isInvasive && (
-                    <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] text-amber-700">
+                  {/* Every hit on the invasive page is invasive; a chip on
+                      each would say nothing. */}
+                  {h.isInvasive && !invasivePage && (
+                    <span className="shrink-0 rounded-full bg-ember-500/15 px-2 py-0.5 text-sm text-ember-700">
                       {t("speciesInvasive")}
                     </span>
                   )}
@@ -197,20 +215,8 @@ export default function SpeciesPicker({
             ))}
 
             {visible.length === 0 && !searching && (
-              <li className="px-3.5 py-2 text-[13px] text-ink-500">
-                {t("speciesNoHits")}
-              </li>
-            )}
-
-            {scoped && (
-              <li className="border-t border-ink-900/8 mt-1 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setWide(true)}
-                  className="w-full px-3.5 py-2 text-left text-[13px] text-ink-600 hover:bg-paper-200"
-                >
-                  {t("speciesWiden")}
-                </button>
+              <li className="px-3.5 py-2 text-sm text-ink-600">
+                {invasivePage ? t("speciesNoHitsInvasive") : t("speciesNoHits")}
               </li>
             )}
           </ul>
@@ -223,7 +229,7 @@ export default function SpeciesPicker({
         field, so a reviewer can tell "nobody could name this" from "nobody has
         looked yet".
       */}
-      <label className="mt-2.5 flex items-start gap-2.5 text-[13px] text-ink-600">
+      <label className="mt-2 flex min-h-11 cursor-pointer items-start gap-3 py-2 text-sm text-ink-700">
         <input
           type="checkbox"
           checked={unsure}
@@ -235,13 +241,36 @@ export default function SpeciesPicker({
               setOpen(false);
             }
           }}
-          className="mt-0.5 size-4 shrink-0 accent-ink-900"
+          className="mt-0.5 size-5 shrink-0 accent-forest-900"
         />
         <span>
           {t("speciesUnsure")}
-          <span className="block text-ink-500">{t("speciesUnsureHint")}</span>
+          <span className="mt-0.5 block text-ink-600">
+            {invasivePage
+              ? t("speciesUnsureHintInvasive")
+              : t("speciesUnsureHint")}
+          </span>
         </span>
       </label>
+
+      {/*
+        The honest way out of a closed list. Someone whose animal is not here
+        has either seen a native animal — a wildlife sighting — or an invasive
+        one TaiCOL does not list, which the wildlife page takes too. Either way
+        the record is filed as what it is, rather than squeezed into the
+        nearest invasive name.
+      */}
+      {invasivePage && (
+        <p className="mt-1 text-sm text-ink-700">
+          {t("notOnListLead")}{" "}
+          <Link
+            href="/report/wildlife"
+            className="inline-flex min-h-11 items-center font-medium text-leaf-700 underline underline-offset-2 hover:text-forest-900"
+          >
+            {t("notOnListLink")}
+          </Link>
+        </p>
+      )}
     </section>
   );
 }

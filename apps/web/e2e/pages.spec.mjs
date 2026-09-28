@@ -39,7 +39,11 @@ const PAGES = [
   },
   { path: "/reports", name: "reports list", widths: true },
   { path: "/login", name: "sign in", widths: true },
-  { path: "/report", name: "submission form" },
+  { path: "/report", name: "report chooser", widths: true },
+  { path: "/en/report", name: "report chooser (en)", widths: true },
+  { path: "/report/roadkill", name: "roadkill report", settle: 4000, widths: true },
+  { path: "/en/report/invasive", name: "invasive report (en)", settle: 4000, widths: true },
+  { path: "/report/wildlife", name: "wildlife report", settle: 4000 },
   { path: "/about", name: "about" },
   { path: "/me", name: "my reports (signed out)" },
   { path: "/attribution", name: "attribution" },
@@ -135,10 +139,14 @@ async function checkHome(page, pg, plate) {
       const header = document.querySelector("header");
       const report = header?.querySelector("details > summary");
       const rr = report?.getBoundingClientRect();
-      const choices = [...(header?.querySelectorAll('details a[href*="/report?category="]') ?? [])]
-        .map((a) => new URL(a.href).searchParams.get("category"));
-      const rows = [...document.querySelectorAll('main a[href*="/report?category="]')]
-        .map((a) => new URL(a.href).searchParams.get("category"));
+      // Each to its own report page (/report/roadkill, /invasive, /wildlife).
+      const kind = (a) => /\/report\/(roadkill|invasive|wildlife)$/.exec(new URL(a.href).pathname)?.[1];
+      const choices = [...(header?.querySelectorAll('details a[href*="/report/"]') ?? [])]
+        .map(kind)
+        .filter(Boolean);
+      const rows = [...document.querySelectorAll('main a[href*="/report/"]')]
+        .map(kind)
+        .filter(Boolean);
       const phrases = [...(document.querySelector("main h1")?.querySelectorAll(".inline-block") ?? [])];
       return {
         overflow: document.documentElement.scrollWidth > innerWidth,

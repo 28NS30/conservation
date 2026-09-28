@@ -60,7 +60,7 @@ const MARKER = "receipt e2e fixture";
  * the dev server and they run.
  */
 async function servingCurrentCatalogue() {
-  const html = await (await fetch(`${BASE}/report`)).text();
+  const html = await (await fetch(`${BASE}/report/wildlife`)).text();
   return !html.includes("一兩分鐘") && html.includes("點地圖標出位置");
 }
 
@@ -149,8 +149,8 @@ try {
   ];
 
   for (const [locale, path] of [
-    ["zh-TW", "/report"],
-    ["en", "/en/report"],
+    ["zh-TW", "/report/wildlife"],
+    ["en", "/en/report/wildlife"],
   ]) {
     const receipt = CATALOGUE[locale].report.receipt;
 

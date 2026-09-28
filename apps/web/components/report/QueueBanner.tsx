@@ -16,13 +16,18 @@ import Turnstile from "@/components/report/Turnstile";
 import { turnstileEnabled } from "@/lib/turnstile";
 import { receiptLinkFor } from "@/lib/report/outcome";
 import { errorKey } from "@/lib/report/errors";
+import { awaitingVerification } from "@/lib/report/verification";
+import { useOnline } from "@/lib/offline/online";
 
 /**
  * Shows what is still waiting to be sent.
  *
  * Deliberately prominent: on iOS there is no Background Sync, so a queued report
- * only leaves the device when the user opens the app. Hiding that would let
- * someone believe a report was transmitted when it was not.
+ * only leaves the device while a report page is open — this banner is on the
+ * chooser and on all three pages, and nowhere else, because it owns the
+ * challenge and the flush. Hiding that would let someone believe a report was
+ * transmitted when it was not, which is why the words say "open the report
+ * page" and not "open this site".
  *
  * It also owns the queue's Turnstile challenge, which is why a widget appears in
  * what is otherwise a status banner. `/api/reports` requires a token, the form
@@ -41,6 +46,7 @@ export default function QueueBanner() {
   const tReport = useTranslations("report");
   const tCategory = useTranslations("categories");
   const locale = useLocale();
+  const online = useOnline();
   const [items, setItems] = useState<QueuedReport[]>([]);
   /** Reports that have landed, kept as receipts. See markUploaded. */
   const [sent, setSent] = useState<QueuedReport[]>([]);
@@ -151,11 +157,16 @@ export default function QueueBanner() {
   // vanished. Someone who queues a report where there is no signal and watches
   // it go deserves to see that it went, and to be able to open it.
   const receipts = sent.length > 0 && (
-    <div className="mb-4 rounded-lg border border-ember-500/30 bg-ember-500/10 px-3 py-2 text-xs text-ember-700">
+    <div
+      role="status"
+      className="mb-6 rounded-lg border border-ember-500/30 bg-ember-500/10 px-4 py-3 text-sm text-ink-800"
+    >
       {/* The count is the list's length, not the last flush's. With one report
           just sent and two receipts still on screen, "1 sent" above three links
           was a banner arguing with itself. */}
-      <p>{t("sentCount", { count: sent.length })}</p>
+      <p className="font-semibold text-ember-700">
+        {t("sentCount", { count: sent.length })}
+      </p>
       {/*
         One row each, and each one says which report it is.
 
@@ -166,25 +177,41 @@ export default function QueueBanner() {
         category come from the payload the queue already holds; the link is
         offered only for a status that has a page behind it, and a row queued by
         an older build has no stored status and so is plain text.
+
+        A report from the invasive page says it has not been checked, as the
+        form's own receipt does: that is what is true of it, and it is why its
+        place is blurred.
       */}
-      <ul className="mt-1.5 space-y-1 text-[11px]">
+      <ul className="mt-1.5 space-y-1">
         {sent.map((r) => {
           const link = r.reportId ? receiptLinkFor(r.serverStatus) : null;
           const label = `${new Date(r.payload.observedAt).toLocaleDateString(
             locale,
             { timeZone: "Asia/Taipei" },
           )} · ${tCategory(r.payload.category)}`;
+          const unverified = awaitingVerification({
+            category: r.payload.category,
+            taxonSource: null,
+          });
           return (
-            <li key={r.id} className="flex min-h-6 items-center gap-2">
+            <li
+              key={r.id}
+              className="flex min-h-11 flex-wrap items-center gap-x-2"
+            >
               {link ? (
                 <Link
                   href={`/reports/${r.reportId}`}
-                  className="inline-flex min-h-6 items-center underline decoration-ember-700/30 underline-offset-2"
+                  className="inline-flex min-h-11 items-center underline decoration-ember-700/40 underline-offset-2"
                 >
                   {label} — {tReport(`receipt.${link}`)}
                 </Link>
               ) : (
                 <span>{label}</span>
+              )}
+              {unverified && (
+                <span className="rounded-full border border-ink-900/20 bg-paper-50 px-2.5 py-0.5 text-sm text-ink-800">
+                  {tReport("receipt.notVerified")}
+                </span>
               )}
             </li>
           );
@@ -198,34 +225,42 @@ export default function QueueBanner() {
   return (
     <>
       {receipts}
-      <section className="mb-4 rounded-lg border border-amber-500/30 bg-amber-600/10 px-3 py-2.5">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-medium text-amber-800">
+      <section
+        aria-labelledby="queue-waiting"
+        className="mb-6 rounded-lg border-2 border-forest-900/25 bg-paper-100 px-4 py-3"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2
+            id="queue-waiting"
+            className="text-base font-semibold text-forest-900"
+          >
             {t("waiting", { count: items.length })}
-          </p>
+          </h2>
           <button
             type="button"
-            disabled={busy}
+            disabled={busy || !online}
             onClick={() => void runFlush()}
-            className="shrink-0 rounded bg-amber-600/15 px-2.5 py-1 text-[11px] font-medium text-amber-900 disabled:opacity-50"
+            className="inline-flex min-h-11 shrink-0 items-center rounded-lg bg-forest-900 px-4 text-sm font-semibold text-paper-50 transition hover:bg-forest-800 disabled:cursor-not-allowed disabled:bg-paper-200 disabled:text-ink-700"
           >
             {busy ? t("sending") : t("sendNow")}
           </button>
         </div>
 
-        <p className="mt-1 text-[11px] leading-relaxed text-amber-800/70">
-          {t("explain")}
+        <p className="mt-1 text-sm leading-relaxed text-ink-800">
+          {online ? t("explain") : t("explainOffline")}
         </p>
         {stale && (
-          <p className="mt-1 text-[11px] text-amber-700">{t("staleWarning")}</p>
+          <p className="mt-1 text-sm font-medium text-ember-700">
+            {t("staleWarning")}
+          </p>
         )}
 
-        {turnstileEnabled && (
+        {/* Only with a connection, for the reason the form's widget is: its
+            script is Cloudflare's, and it can only load with the signal. */}
+        {turnstileEnabled && online && (
           <div className="mt-2">
             {!ready && (
-              <p className="mb-1 text-[11px] text-amber-800/70">
-                {t("verifying")}
-              </p>
+              <p className="mb-1 text-sm text-ink-700">{t("verifying")}</p>
             )}
             <Turnstile
               onToken={onToken}
@@ -242,18 +277,20 @@ export default function QueueBanner() {
           {items.map((i) => (
             <li
               key={i.id}
-              className="flex items-center justify-between gap-3 text-[11px] text-amber-800/80"
+              className="flex min-h-11 items-center justify-between gap-3 text-sm text-ink-800"
             >
-              <span className="truncate">
+              <span className="min-w-0">
                 {new Date(i.createdAt).toLocaleString(locale, {
                   timeZone: "Asia/Taipei",
                 })}
+                {" · "}
+                {tCategory(i.payload.category)}
                 {/* `lastError` holds a code now, and a code gets translated.
                     It used to hold whatever English sentence flush.ts had
                     assembled — "upload signing failed (500)" — printed
                     verbatim under a Chinese banner. */}
                 {i.lastError && (
-                  <span className="ml-2 text-ember-700">
+                  <span className="mt-0.5 block text-ember-700">
                     {tReport(`errors.${errorKey(i.lastError)}`)}
                   </span>
                 )}
@@ -264,7 +301,7 @@ export default function QueueBanner() {
                   await removeQueued(i.id);
                   await refresh();
                 }}
-                className="shrink-0 text-amber-700/70 hover:text-rose-700"
+                className="inline-flex min-h-11 shrink-0 items-center px-2 text-ink-700 underline underline-offset-2 hover:text-ink-950"
               >
                 {t("discard")}
               </button>

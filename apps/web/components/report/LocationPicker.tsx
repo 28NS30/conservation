@@ -161,7 +161,7 @@ export default function LocationPicker({
           // so it cannot swallow the tap it is asking for — including the tap
           // that lands underneath it.
           <div className="pointer-events-none absolute inset-0 grid place-items-center">
-            <span className="rounded-full bg-bark-950 px-3 py-1.5 text-xs font-medium text-parchment-50">
+            <span className="rounded-full bg-bark-950 px-3 py-1.5 text-sm font-medium text-parchment-50">
               {t("tapToMark")}
             </span>
           </div>
@@ -170,10 +170,10 @@ export default function LocationPicker({
       {value && (
         // ink, not parchment: parchment is the map's palette, and this line
         // sits on cream under the picker, where it measured 2.90:1.
-        <p className="mt-1.5 text-[11px] tabular-nums text-ink-500">
+        <p className="mt-1.5 text-sm tabular-nums text-ink-600">
           {value.lat.toFixed(5)}, {value.lng.toFixed(5)}
           {outside && (
-            <span className="ml-2 text-amber-700">⚠ {t("outsideTaiwan")}</span>
+            <span className="ml-2 text-ember-700">⚠ {t("outsideTaiwan")}</span>
           )}
         </p>
       )}

@@ -97,9 +97,6 @@
     "about": "About"
   },
   "report": {
-    "heading": "New report",
-    "subheading": "Roadkill or an injured animal, an invasive species, or a wildlife sighting",
-    "type": "Type",
     "photos": "Photos",
     "photoHelp": "Photos are downscaled and stripped of EXIF (including device data) before upload.",
     "photoProcessing": "Processing…",
@@ -146,7 +143,13 @@
       "withheldSpecies": "TaiCOL rates this species' coordinates as not for publication. The record is kept, but it does not appear on the map, in the report list or in any statistic.",
       "viewRecord": "View this record",
       "checkStatus": "Check its status",
-      "another": "Report another"
+      "another": "Report another",
+      "notVerified": "Not yet verified",
+      "invasiveNextTitle": "What happens next",
+      "invasiveNextBody": "We keep the record, and a moderator will check the species. Until then it is marked “not yet verified”, and its place is shown blurred to at least 10 km. Nobody is sent out, and there is nothing more you need to do.",
+      "taironTitle": "Also report it to 路殺社 (TaiRON)",
+      "taironBody": "路殺社 (TaiRON) keeps its own record of roadkill in Taiwan. To add this animal there as well, report it on their website; you need your own TaiRON account to do that. We don't send it for you.",
+      "taironLink": "Open roadkill.tw"
     },
     "needChallenge": "Complete the check above first",
     "preparingPhotos": "Processing photos…",
@@ -163,15 +166,37 @@
     "noDispatch": "This only records what you saw. Nobody will be sent.",
     "species": "Species",
     "speciesSearch": "Search by Chinese or scientific name — 石虎, Prionailurus",
-    "speciesSearchInvasive": "Search the invasive species register",
+    "speciesSearchInvasive": "Search invasive animals — 綠鬣蜥, Iguana",
     "speciesResults": "{count, plural, =0 {No species found} one {# species} other {# species}}",
     "speciesNoHits": "Nothing by that name.",
-    "speciesWiden": "Not what you saw? Search all species",
     "speciesInvasive": "Invasive",
     "speciesChange": "Change",
     "speciesUnsure": "I'm not sure what it was",
     "speciesUnsureHint": "Better than a guess. We record it as unidentified. If there is a photo, our identification model tries to name the animal from it; if it can't, the record is published unidentified, at a blurred location.",
-    "accuracy": "accurate to about {m} m"
+    "accuracy": "accurate to about {m} m",
+    "pages": {
+      "roadkill": "Report roadkill or an injured animal",
+      "invasive": "Report an invasive species",
+      "wildlife": "Report a wildlife sighting"
+    },
+    "allKinds": "All kinds of report",
+    "otherKinds": "Not the right page?",
+    "chooserSpecies": "You're reporting this animal. Which kind of report is it?",
+    "required": "required",
+    "needCondition": "Say whether the animal was dead, or alive but hurt",
+    "addPhoto": "Add a photo",
+    "alsoInvasive": "This species is invasive, so the record also counts in the invasive species collection. There's nothing extra to do.",
+    "speciesNoHitsInvasive": "That name isn't on the invasive species list.",
+    "speciesUnsureHintInvasive": "Better than a guess. We record it as unidentified, and its place stays blurred until the species is confirmed.",
+    "notOnListLead": "Not on this list?",
+    "notOnListLink": "Report it as a wildlife sighting",
+    "saveOnPhone": "Save on this phone",
+    "saving": "Saving…",
+    "offlineHint": "You're offline. Save the report on this phone now; it is sent when you open the report page again with a signal.",
+    "backupNoToken": "Can't get verified? Save on this phone",
+    "backupSlow": "Weak signal? Save on this phone",
+    "backupHint": "It is kept on this phone and sent the next time you open the report page with a signal.",
+    "newTab": "(opens in a new tab)"
   },
   "detail": {
     "species": "Species",
@@ -328,17 +353,18 @@
     "seeAllRecords": "See every record of it"
   },
   "offline": {
-    "queuedTitle": "Saved on this device",
-    "queuedBody": "You're offline. This report is stored safely on your phone and will be sent automatically once you're back online and open this site.",
+    "queuedTitle": "Saved on this phone. Not sent yet.",
+    "queuedBody": "It is sent the next time you open the report page with a signal. iPhones can't send in the background, so do come back and open it.",
     "waiting": "{count, plural, one {# report waiting to send} other {# reports waiting to send}}",
-    "explain": "These send automatically when you're back online and open this site. iPhones can't send in the background, so do come back and open it.",
+    "explain": "These send while the report page is open with a signal. iPhones can't send in the background, so do come back and open it.",
     "staleWarning": "A report has been waiting more than three days. Browsers can clear unused data — send it soon.",
     "sendNow": "Send now",
     "sending": "Sending…",
     "discard": "Discard",
     "sentCount": "{count, plural, one {Sent # report.} other {Sent # reports.}}",
     "queueFailed": "This report could not be saved on your device, and was not sent. Check that your browser is not blocking storage, or that it is not full.",
-    "verifying": "Checking your browser before sending — this takes a moment."
+    "verifying": "Checking your browser before sending — this takes a moment.",
+    "explainOffline": "No signal right now. They stay on this phone and are sent when you open the report page again with a signal."
   },
   "errors": {
     "title": "Something went wrong",
