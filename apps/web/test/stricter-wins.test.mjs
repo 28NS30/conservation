@@ -25,7 +25,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { sql, inRollback, insertReport } from "./helpers.mjs";
-import { readOverrides, parseOverrides } from "../../../scripts/taxa-overrides.ts";
+import {
+  readOverrides,
+  parseOverrides,
+  RETIRED_TWINS_SQL,
+} from "../../../scripts/taxa-overrides.ts";
 
 after(() => sql.end());
 
@@ -258,10 +262,12 @@ describe("the committed floors", () => {
     }
   });
 
-  for (const [taicol, what] of [
-    ["t0028707", "臺灣蛇蜥 under TaiCOL's current name"],
-    ["t0124331", "臺灣蛇蜥's deleted duplicate row"],
-    ["t0125438", "the unprotected row of a class I cockatoo"],
+  for (const [taicol, what, expected] of [
+    ["t0028707", "臺灣蛇蜥 under TaiCOL's current name", "coarse_10km"],
+    ["t0124331", "臺灣蛇蜥's deleted duplicate row", "coarse_10km"],
+    ["t0125438", "the unprotected row of a class I cockatoo", "coarse_10km"],
+    ["t0072234", "黃頸蝠 by the name in use (TaiCOL rates only its retired twin)", "coarse_50km"],
+    ["t0102470", "Dorcus hopei (its only Taiwan form is protected)", "coarse_10km"],
   ]) {
     test(`a report of ${what} is blurred`, async () => {
       const [t] = await sql`select id from taxa where taicol_id = ${taicol}`;
@@ -270,10 +276,53 @@ describe("the committed floors", () => {
       assert.ok(t, `${taicol} should be in taxa (local copy or the CI fixture)`);
       await inRollback(async (tx) => {
         const r = await insertReport(tx, { taxonId: t.id });
-        assert.equal(r.location_precision, "coarse_10km");
+        assert.equal(r.location_precision, expected);
       });
     });
   }
+});
+
+describe("a rating TaiCOL left on a retired name", () => {
+  // The picker, the directory and the report form offer accepted names only.
+  // A rating that stays on the deleted twin therefore protects nobody: every
+  // person who names 黃頸蝠 picks t0072234, which TaiCOL leaves unrated, while
+  // t0102479, rated 縣市, is never offered. 36 orchids and other plants were
+  // the same. Each needs a floor on the name in use, and a TaiCOL refresh can
+  // add more, so the rule is a query and not only a list.
+  const pairs = () => sql.unsafe(`select * from (${RETIRED_TWINS_SQL}) x`);
+
+  test("the query sees a real pair, so the next assertion is not vacuous", async () => {
+    // supabase/seed-test.sql carries 黃頸蝠's two rows for exactly this.
+    const found = (await pairs()).filter(
+      (p) => p.taicol_id === "t0072234" && p.retired_taicol_id === "t0102479",
+    );
+    assert.equal(found.length, 1, "黃頸蝠's retired twin was not found");
+    assert.equal(found[0].retired_precision, "coarse_50km", "fixture precondition");
+  });
+
+  test("no name in use is blurred less than its retired twin", async () => {
+    const looser = (await pairs())
+      .filter((p) => p.looser)
+      .map((p) => `${p.taicol_id} ${p.scientific_name} (${p.precision}) < ` +
+                  `${p.retired_taicol_id} (${p.retired_precision})`);
+    assert.deepEqual(looser, [],
+      "add a floor for each to scripts/taxa-overrides.csv and apply it");
+  });
+
+  test("and the query would catch one", async () => {
+    // Put the defect back, on rows of our own: an unrated accepted name beside
+    // a rated retired one.
+    await inRollback(async (tx) => {
+      const name = binomial();
+      const used = await taxon(tx, { name });
+      await taxon(tx, { name, status: "deleted", sensitivity: "重度" });
+      const [row] = await tx.unsafe(
+        `select * from (${RETIRED_TWINS_SQL}) x where taicol_id = $1`,
+        [used.taicol_id],
+      );
+      assert.ok(row?.looser, "an unfloored twin went unnoticed");
+    });
+  });
 });
 
 describe("the migration only tightens", () => {

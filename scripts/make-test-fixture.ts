@@ -48,10 +48,14 @@ async function main() {
       -- Migration 0014's cases: 臺灣蛇蜥 under its accepted and its deleted row,
       -- the non-Taiwan row TaiCOL moved its protection to, both cockatoo rows,
       -- and a deleted name still flagged invasive. See the floors in
-      -- scripts/taxa-overrides.csv.
+      -- scripts/taxa-overrides.csv. Then 黃頸蝠's accepted row and the
+      -- retired twin that carries its rating, and Dorcus hopei with its one
+      -- protected Taiwan subspecies.
       union (select id from taxa
               where taicol_id in ('t0028707', 't0124331', 't0124472',
-                                  't0125438', 't0076951', 't0123866'))
+                                  't0125438', 't0076951', 't0123866',
+                                  't0072234', 't0102479',
+                                  't0102470', 't0028710'))
       union (select id from taxa where sensitivity = '座標不開放' limit 2)
       union (select id from taxa where sensitivity = '重度' limit 2)
       union (select id from taxa where sensitivity = '輕度' limit 3)

@@ -93,3 +93,45 @@ export function parseOverrides(text: string): Floor[] {
 export function readOverrides(path: string = OVERRIDES_CSV): Floor[] {
   return parseOverrides(readFileSync(path, "utf8"));
 }
+
+/**
+ * Every name in use that has a retired twin, with the rule each one gives.
+ *
+ * TaiCOL retires a name by keeping its row and marking it `deleted`, and its
+ * sensitivity rating sometimes stays on that row while the accepted row for the
+ * same plant or animal carries none: 黃頸蝠 is t0072234, accepted and unrated,
+ * beside t0102479, deleted and rated 縣市. The picker, the report form and the
+ * directory offer accepted names only, so a rating left on the retired row
+ * reaches nobody — every person who names the animal publishes it to the
+ * metre. Each such pair needs a floor on the accepted row; `looser` marks the
+ * ones still without one.
+ *
+ * A twin is a deleted row with the same scientific name, or the same Chinese
+ * name, which is what catches a genus TaiCOL has moved (紅鶴頂蘭 was retired as
+ * Phaius tankervilleae and is now Calanthe tankervilleae). Matching on the
+ * Chinese name can also pair two different taxa that share one; the answer is
+ * then a floor that over-blurs, which is the side to be wrong on. Kingdoms must
+ * agree where both are known, as in binomial_precision (migration 0014).
+ *
+ * Deleted rows only. An accepted row outside Taiwan that shares a Chinese name
+ * is, by TaiCOL's own account, a different animal (巢鼠 is also Australia's
+ * stick-nest rat); the one case where the law disagrees, 臺灣蛇蜥, has a floor
+ * of its own.
+ *
+ * Run by test/stricter-wins.test.mjs and by scripts/preflight.ts, so a TaiCOL
+ * refresh that adds a pair is caught before a report is filed under it.
+ */
+export const RETIRED_TWINS_SQL = `
+  select n.taicol_id, n.scientific_name,
+         d.taicol_id as retired_taicol_id, d.scientific_name as retired_scientific_name,
+         taxon_precision(n.id) as precision,
+         taxon_precision(d.id) as retired_precision,
+         precision_rank(taxon_precision(d.id)) > precision_rank(taxon_precision(n.id)) as looser
+    from taxa d
+    join taxa n on (lower(n.scientific_name) = lower(d.scientific_name)
+                    or n.common_name_zh = d.common_name_zh)
+               and (d.kingdom is null or n.kingdom is null or d.kingdom = n.kingdom)
+   where d.taxon_status = 'deleted'
+     and n.taxon_status = 'accepted'
+     and n.is_in_taiwan
+     and (n.rank = 'Species' or is_infraspecific(n.rank))`;

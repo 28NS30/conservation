@@ -12,6 +12,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { sql } from "./db.ts";
+import { RETIRED_TWINS_SQL } from "./taxa-overrides.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -122,6 +123,32 @@ async function main(): Promise<void> {
     }
   } catch (e) {
     check("a sensitive species is actually obscured on insert", false, `could not test: ${(e as Error).message}`);
+  }
+
+  // A TaiCOL refresh can retire a name and leave its rating on the retired row.
+  // The picker offers only the name in use, so without a floor that rating
+  // blurs nothing. Fatal: the fix is a line in scripts/taxa-overrides.csv.
+  try {
+    const looser = await sql.unsafe<{ taicol_id: string; retired_taicol_id: string }[]>(
+      `select taicol_id, retired_taicol_id from (${RETIRED_TWINS_SQL}) x where looser`,
+    );
+    check(
+      "no name in use is blurred less than its retired twin",
+      looser.length === 0,
+      looser.length === 0
+        ? "every rated retired twin has a floor on the name in use"
+        : `${looser.length} need a floor in scripts/taxa-overrides.csv: ` +
+            looser
+              .slice(0, 10)
+              .map((r) => `${r.taicol_id} (rated on ${r.retired_taicol_id})`)
+              .join(", "),
+    );
+  } catch (e) {
+    check(
+      "no name in use is blurred less than its retired twin",
+      false,
+      `could not check (is migration 0014 applied?): ${(e as Error).message}`,
+    );
   }
 
   /* ---------------- classifier / database alignment ---------------- */
