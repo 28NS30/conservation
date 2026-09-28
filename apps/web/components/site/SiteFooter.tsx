@@ -62,7 +62,7 @@ export default async function SiteFooter({
 
   if (variant === "app") {
     return (
-      <footer className="z-20 flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-ink-900/10 bg-paper-100/95 px-4 py-1.5 text-[10px] text-ink-500">
+      <footer className="z-20 flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-ink-900/10 bg-paper-100/95 px-4 py-1.5 text-xs text-ink-600">
         <span>{sources}</span>
         <span className="flex items-center gap-3">
           {legal.map((l) => (
@@ -78,21 +78,26 @@ export default async function SiteFooter({
     );
   }
 
+  // The header's forest green again, so the page is bracketed by the team's
+  // colour rather than ending in grey small print. Every pairing measured:
+  // paper-50 on forest-950 13.9:1, parchment-200 9.3:1, parchment-300 6.6:1.
+  // Links sit in a 32px row so a thumb can hit them.
+  const link = "inline-flex min-h-8 items-center text-paper-50 underline-offset-4 transition hover:underline";
   return (
-    <footer className="border-t border-ink-900/10 bg-paper-100">
+    <footer className="bg-forest-950 text-paper-50">
       <div className="mx-auto grid w-full max-w-5xl gap-10 px-6 py-12 sm:grid-cols-[1.4fr_1fr_1fr]">
         <div>
           <Wordmark size="md" />
-          <p className="mt-4 max-w-xs text-xs leading-relaxed text-ink-500">
+          <p className="mt-4 max-w-xs text-sm leading-relaxed text-parchment-200">
             {t("site.description")}
           </p>
         </div>
 
         <nav aria-label={t("footer.explore")}>
-          <h2 className="text-[11px] font-medium uppercase tracking-widest text-ink-600">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-parchment-300">
             {t("footer.explore")}
           </h2>
-          <ul className="mt-3 space-y-2 text-xs text-ink-500">
+          <ul className="mt-3 space-y-1 text-sm">
             {[
               { href: "/map", label: t("nav.map") },
               { href: "/species", label: t("nav.species") },
@@ -102,7 +107,7 @@ export default async function SiteFooter({
               { href: "/reports", label: t("list.title") },
             ].map((l) => (
               <li key={l.href}>
-                <Link href={l.href} className="transition hover:text-ink-900">
+                <Link href={l.href} className={link}>
                   {l.label}
                 </Link>
               </li>
@@ -111,34 +116,31 @@ export default async function SiteFooter({
         </nav>
 
         <nav aria-label={t("footer.about")}>
-          <h2 className="text-[11px] font-medium uppercase tracking-widest text-ink-600">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-parchment-300">
             {t("footer.about")}
           </h2>
-          <ul className="mt-3 space-y-2 text-xs text-ink-500">
+          <ul className="mt-3 space-y-1 text-sm">
             {legal.map((l) => (
               <li key={l.href}>
-                <Link href={l.href} className="transition hover:text-ink-900">
+                <Link href={l.href} className={link}>
                   {l.label}
                 </Link>
               </li>
             ))}
             <li>
-              <a
-                href={`mailto:${contact}`}
-                className="transition hover:text-ink-900"
-              >
+              <a href={`mailto:${contact}`} className={link}>
                 {t("nav.contact")}
               </a>
             </li>
           </ul>
           <div className="mt-4">
-            <LanguageSwitcher />
+            <LanguageSwitcher size="md" className="text-parchment-100" />
           </div>
         </nav>
       </div>
 
-      <div className="border-t border-ink-900/10">
-        <p className="mx-auto max-w-5xl px-6 py-4 text-[11px] leading-relaxed text-ink-500">
+      <div className="border-t border-paper-50/15">
+        <p className="mx-auto max-w-5xl px-6 py-5 text-xs leading-relaxed text-parchment-200">
           {sources}
         </p>
       </div>
@@ -154,8 +156,10 @@ function ExternalLink({
   children: React.ReactNode;
 }) {
   return (
+    // Its footer's colour, not its own: the same links sit on ivory under the
+    // map and on forest green at the foot of every other page.
     <a
-      className="text-ink-600 underline underline-offset-2 hover:text-ink-900"
+      className="underline underline-offset-2 hover:opacity-80"
       href={href}
       target="_blank"
       rel="noreferrer"
