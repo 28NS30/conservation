@@ -429,7 +429,6 @@ describe("one species count", () => {
   const KNOWN = new Map([
     // Outside the change that unified the others, each with its one-line fix:
     // use recordedSpeciesCount() from lib/stats.ts. Remove the entry with it.
-    ["app/[locale]/page.tsx", "the home page's '{count} species on record' row"],
     ["app/api/health/route.ts", "the count the parent site reads from /api/health"],
   ]);
 
