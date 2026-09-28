@@ -364,7 +364,7 @@
     "checklist": "Species checklist",
     "taicolBody": "Scientific names, Chinese names, taxonomy, protection levels, sensitivity ratings and Taiwan Red List categories all come from the <taicol>Catalogue of Life in Taiwan (TaiCOL)</taicol>. Our location-blurring rules follow its sensitivity ratings, the protection levels and the Red List's threatened categories directly.",
     "englishNames": "English names",
-    "englishNamesBody": "TaiCOL gives no English names, so they come from elsewhere: birds from <avilist>AviList</avilist> (version 2025b, the Clements names, CC BY 4.0), mammals from the <mdd>Mammal Diversity Database</mdd> (version 2.5, CC BY 4.0), other animals from <inat>iNaturalist</inat>'s taxonomy, and a few from the <col>Catalogue of Life</col> (CC BY 4.0). Where none of them gives a name we can trust, we show none rather than guess, and the team corrects the rest by hand.",
+    "englishNamesBody": "TaiCOL gives no English names, so they come from elsewhere: birds from <avilist>AviList</avilist> (version 2025b, the Clements names, CC BY 4.0), mammals from the <mdd>Mammal Diversity Database</mdd> (version 2.5, CC BY 4.0), other animals from <inat>iNaturalist</inat>'s taxonomy, and a few from the <col>Catalogue of Life</col> (CC BY 4.0). Where none of them gives a name we can trust, we show none rather than guess, and the team fixes any name it finds wrong.",
     "basemap": "Basemap",
     "basemapBody": "The basemap is served by OpenFreeMap, using OpenMapTiles vector tiles built from OpenStreetMap contributors' data (ODbL).",
     "models": "AI models",

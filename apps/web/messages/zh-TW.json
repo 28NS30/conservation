@@ -364,7 +364,7 @@
     "checklist": "物種名錄",
     "taicolBody": "學名、中文名、分類階層、保育等級、敏感度分級與臺灣紅皮書等級皆來自 <taicol>臺灣物種名錄（TaiCOL）</taicol>。位置模糊化的規則直接採用其敏感度分級、保育等級，以及紅皮書的受威脅等級。",
     "englishNames": "英文名",
-    "englishNamesBody": "臺灣物種名錄（TaiCOL）沒有英文名，所以英文名取自其他來源：鳥類取自 <avilist>AviList</avilist>（2025b 版的 Clements 名稱，CC BY 4.0），哺乳類取自<mdd>哺乳動物多樣性資料庫（MDD）</mdd>（2.5 版，CC BY 4.0），其他動物取自 <inat>iNaturalist</inat> 的分類資料，少數取自<col>生命目錄（Catalogue of Life）</col>（CC BY 4.0）。沒有可信來源的物種就不顯示英文名，不會自行猜測翻譯；其餘由團隊人工校正。",
+    "englishNamesBody": "臺灣物種名錄（TaiCOL）沒有英文名，所以英文名取自其他來源：鳥類取自 <avilist>AviList</avilist>（2025b 版的 Clements 名稱，CC BY 4.0），哺乳類取自<mdd>哺乳動物多樣性資料庫（MDD）</mdd>（2.5 版，CC BY 4.0），其他動物取自 <inat>iNaturalist</inat> 的分類資料，少數取自<col>生命目錄（Catalogue of Life）</col>（CC BY 4.0）。沒有可信來源的物種就不顯示英文名，不會自行猜測翻譯；發現錯誤的名稱，由團隊修正。",
     "basemap": "底圖",
     "basemapBody": "底圖由 OpenFreeMap 提供，採用以 OpenStreetMap 貢獻者資料（ODbL）建置的 OpenMapTiles 向量圖磚。",
     "models": "AI 模型",
