@@ -292,12 +292,15 @@ describe("the picker's search", () => {
   const search = async (params) =>
     fetch(`${BASE_URL}/api/species/search?${new URLSearchParams(params)}`);
 
-  test("the species actually called that comes first", async () => {
-    // 石虎 is the common name of a subspecies with no records and an alternate
-    // name of the species holding every leopard cat record we have. Ranking the
-    // exact common name first sent a reporter to an empty page.
+  test("the taxon actually called that, holding the records, comes first", async () => {
+    // 石虎 is the common name of the subspecies P. b. euptilurus and an
+    // alternate name of the species 豹貓. Every leopard cat record sat on the
+    // species row until migration 0022 moved them to the subspecies, which is
+    // what they are; the search ranks by records after exactness, so it now
+    // leads with the row that is both called 石虎 and holds them.
     const { results } = await (await search({ q: "石虎", filter: "all" })).json();
-    assert.equal(results[0].scientificName, "Prionailurus bengalensis");
+    assert.equal(results[0].scientificName, "Prionailurus bengalensis euptilurus");
+    assert.ok(results[0].reportCount > 0, "the first result has records");
   });
 
   test("part of an alternate name is enough to find a species", async () => {

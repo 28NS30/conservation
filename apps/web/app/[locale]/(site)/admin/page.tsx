@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import PageHeader from "@/components/site/PageHeader";
 import { Link } from "@/i18n/navigation";
@@ -9,6 +10,18 @@ import ModerationRow from "@/components/admin/ModerationRow";
 import { signInHref } from "@/components/auth/signInHref";
 
 export const dynamic = "force-dynamic";
+
+// Its own title, and never indexed: it shared the home page's title, and a
+// role-gated queue is nothing a search engine should list.
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "admin" });
+  return { title: t("heading"), robots: { index: false, follow: false } };
+}
 
 type Pending = {
   id: string;

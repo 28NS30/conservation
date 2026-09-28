@@ -27,9 +27,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         select t.id, t.scientific_name, greatest(t.updated_at, s.last_seen) as updated
           from taxa t
           left join species_report_stats s on s.taxon_id = t.id
-         where s.taxon_id is not null
-            or t.protected_status is not null
-            or t.is_invasive
+         -- Species and subspecies only: a family or genus row can be protected
+         -- or invasive as a group (99 of them), and its page is nearly empty.
+         where t.rank in ('Species', 'Subspecies')
+           and (s.taxon_id is not null
+                or t.protected_status is not null
+                or t.is_invasive)
          limit 5000`,
     );
   } catch (e) {
@@ -85,7 +88,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const prefix = locale === routing.defaultLocale ? "" : `/${locale}`;
     for (const p of staticPaths) {
       entries.push({
-        url: `${BASE}${prefix}${p || "/"}`,
+        // "/en", not "/en/": the trailing slash answers with a redirect, and a
+        // sitemap should list the address that answers.
+        url: p ? `${BASE}${prefix}${p}` : `${BASE}${prefix || "/"}`,
         changeFrequency: "daily",
         priority: p ? 0.7 : 1,
       });

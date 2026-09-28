@@ -1,4 +1,5 @@
 import { useTranslations } from "next-intl";
+import { speciesNotes } from "@/lib/speciesNotes";
 
 type Props = {
   protectedStatus?: string | null;
@@ -10,6 +11,10 @@ type Props = {
   alienType?: string | null;
   sensitivity?: string | null;
   kingdom?: string | null;
+  /** TaiCOL's rank, which decides what "endemic" means; see below. */
+  rank?: string | null;
+  /** For the notes TaiCOL's data does not carry (lib/speciesNotes.ts). */
+  taicolId?: string | null;
 };
 
 /**
@@ -76,12 +81,26 @@ export default function StatusBadges(p: Props) {
     });
   }
 
+  /*
+   * TaiCOL's endemic flag is per row, and on a subspecies row it means an
+   * endemic SUBSPECIES. 白頭翁 (499 records), 赤腹松鼠 (395) and 57 other
+   * subspecies wore "Endemic" although the birds and squirrels themselves live
+   * across Asia; only their Taiwan forms are Taiwan's own. The rank says which.
+   */
   if (p.isEndemic)
-    chips.push({ key: "endemic", label: t("endemic"), tone: tone.good });
+    chips.push({
+      key: "endemic",
+      label: p.rank && p.rank !== "Species" && p.rank !== "Genus" ? t("endemicSubspecies") : t("endemic"),
+      tone: tone.good,
+    });
   if (p.isInvasive)
     chips.push({ key: "invasive", label: t("invasive"), tone: tone.warn });
   else if (p.alienType && p.alienType !== "native") {
     chips.push({ key: "alien", label: t("alien"), tone: tone.muted });
+  } else if (speciesNotes(p.taicolId).includes("introducedMainIsland")) {
+    // TaiCOL says "native" for Taiwan, Kinmen and Matsu together; these birds
+    // are native only to the islands. See lib/speciesNotes.ts.
+    chips.push({ key: "introduced", label: t("introducedMainIsland"), tone: tone.muted });
   }
 
   /*
@@ -138,7 +157,7 @@ export default function StatusBadges(p: Props) {
         <li
           key={c.key}
           title={c.title}
-          className={`rounded px-1.5 py-0.5 text-[10px] font-medium ring-1 ring-inset ${c.tone}`}
+          className={`rounded px-1.5 py-0.5 text-xs font-medium ring-1 ring-inset ${c.tone}`}
         >
           {c.label}
         </li>
