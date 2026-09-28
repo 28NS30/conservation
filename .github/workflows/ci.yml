@@ -55,6 +55,13 @@ jobs:
         # TaiCOL/GBIF APIs: one takes ~4 minutes, the other is intermittently slow.
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f supabase/seed-test.sql
 
+      - name: Load English names
+        # What production has held since migration 0015: the committed names
+        # file and the team's overrides, applied to the fixture's taxa. Reads
+        # the database only; no network. Without it every English name on the
+        # pages and in search is untested here.
+        run: npm run import:names-en
+
       - run: npx tsc --noEmit -p apps/web/tsconfig.json
         name: Typecheck (web)
 

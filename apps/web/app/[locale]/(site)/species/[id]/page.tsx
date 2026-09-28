@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
-import { asPublic } from "@/lib/db";
+import { asPublic, sql } from "@/lib/db";
+import { speciesNotes } from "@/lib/speciesNotes";
 import {
   getSpecies,
   monthlyCounts,
@@ -15,6 +16,8 @@ import StatusBadges from "@/components/species/StatusBadges";
 import HabitatChips from "@/components/species/HabitatChips";
 import MonthlyChart from "@/components/species/MonthlyChart";
 import SpeciesMap from "@/components/species/SpeciesMap";
+import SpeciesName from "@/components/species/SpeciesName";
+import { speciesLabel } from "@/lib/speciesNames";
 
 /** A heatmap built from a handful of points is noise; below this we plot them. */
 const HEATMAP_MIN_RECORDS = 6;
@@ -67,10 +70,9 @@ export async function generateMetadata({
   const s = await getSpecies(taxonId);
   if (!s) return {};
   const t = await getTranslations({ locale, namespace: "species" });
-  const name =
-    locale.startsWith("zh") && s.commonNameZh
-      ? s.commonNameZh
-      : s.scientificName;
+  // Both names in the title, the page's language first: a search result for
+  // "Leopard Cat" should say 石虎 too, and the other way round.
+  const name = speciesLabel(s, locale);
   return {
     title: name,
     description: t("metaDescription", { name, count: s.reportCount }),
@@ -113,12 +115,6 @@ export default async function SpeciesPage({
   const t = await getTranslations("species");
   const nav = await getTranslations("nav");
 
-  const zhFirst = locale.startsWith("zh");
-  const headline =
-    zhFirst && s.commonNameZh ? s.commonNameZh : s.scientificName;
-  const secondary =
-    zhFirst && s.commonNameZh ? s.scientificName : s.commonNameZh;
-
   const lineage = [s.kingdom, s.phylum, s.class, s.order, s.family].filter(
     Boolean,
   ) as string[];
@@ -127,6 +123,18 @@ export default async function SpeciesPage({
   // misleading "no reports yet" — it reveals nothing a poacher can use, since
   // TaiCOL already publishes which species occur in Taiwan.
   const withheld = s.sensitivity === "座標不開放";
+  // The blur the database gives this species' records, by every rule it has:
+  // TaiCOL's rating, protection, the Red List, the species above a subspecies,
+  // and our floors (0014, 0021). The notice used to appear only when TaiCOL's
+  // sensitivity field was set, so a protected-but-unrated animal, a Red List
+  // frog, or a subspecies under a rated species was blurred with no word of
+  // it. Asked on the server's own connection because taxon_precision() reads
+  // the floors table, which the public role may not; it answers one word.
+  const [{ p: precision }] = await sql<{ p: string | null }[]>`
+    select taxon_precision(${s.id}) as p`;
+  const blurKm =
+    precision === "coarse_50km" ? 50 : precision === "coarse_10km" ? 10 : null;
+  const underReview = speciesNotes(s.taicolId).includes("nameUnderReview");
   const counts =
     s.reportCount >= HEATMAP_MIN_RECORDS ? await monthlyCounts(s.id) : null;
   const records =
@@ -144,24 +152,24 @@ export default async function SpeciesPage({
           of the site moved to a 3xl h1 and this was left at 20px. */}
       <header className="mt-5">
         <h1 className="text-3xl font-semibold leading-tight text-ink-900">
-          {headline}
+          <SpeciesName
+            species={s}
+            locale={locale}
+            author={s.nameAuthor}
+            secondaryClassName="mt-2 text-base font-normal text-ink-600"
+          />
         </h1>
-        {secondary && (
-          <p className="mt-2 text-base text-ink-600">
-            <span className="italic">{secondary}</span>
-            {s.nameAuthor && (
-              <span className="ml-1.5 not-italic text-ink-500">
-                {s.nameAuthor}
-              </span>
-            )}
-          </p>
-        )}
         {s.altNamesZh && s.altNamesZh.length > 0 && (
           <p className="mt-1 text-xs text-ink-500">
             {t("alsoKnownAs")}: {s.altNamesZh.join("、")}
           </p>
         )}
         <StatusBadges {...s} />
+        {underReview && (
+          <p className="mt-3 rounded-lg border border-ink-900/15 bg-paper-100 px-3 py-2.5 text-sm leading-relaxed text-ink-700">
+            {t("nameUnderReview")}
+          </p>
+        )}
         {/* Where it lives, as the same chips the card uses. It was a trailing
             clause on the lineage line — "· Terrestrial" — which is the one fact
             on this page a child would read first. */}
@@ -219,9 +227,12 @@ export default async function SpeciesPage({
               />
             </div>
 
-            {s.sensitivity && (
-              <p className="mt-2 text-[11px] leading-relaxed text-amber-700/80">
-                {t("blurredNotice")}
+            {blurKm && (
+              <p className="mt-2 text-sm leading-relaxed text-ink-700">
+                {t("blurredNotice", { km: blurKm })}{" "}
+                <Link href="/about#blurred" className="text-leaf-700 underline underline-offset-2 hover:text-forest-900">
+                  {t("blurredWhy")}
+                </Link>
               </p>
             )}
 

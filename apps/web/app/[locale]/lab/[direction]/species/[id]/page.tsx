@@ -280,7 +280,11 @@ export default async function LabSpeciesPage({
                   items={speciesLegendItems()}
                 />
                 {s.sensitivity ? (
-                  <Notice className="mt-6">{t("blurredNotice")}</Notice>
+                  // The site's message now takes the blur's size; the lab keeps
+                  // its sensitivity-only test and passes TaiCOL's own levels.
+                  <Notice className="mt-6">
+                    {t("blurredNotice", { km: s.sensitivity === "重度" || s.sensitivity === "縣市" ? 50 : 10 })}
+                  </Notice>
                 ) : null}
                 <div className="mt-6 flex flex-col items-start">
                   <LinkAction href={mapHref} standalone arrow>

@@ -138,6 +138,39 @@ export default async function AttributionPage({
         </p>
       </section>
 
+      {/* TaiCOL has no English names; migration 0015 and
+          scripts/english-names.json brought them in from these, and CC BY asks
+          for the credit here. */}
+      <section className="mt-10">
+        <h2 className="text-lg font-semibold text-ink-900">
+          {t("englishNames")}
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-ink-600">
+          {t.rich("englishNamesBody", {
+            avilist: (c) => (
+              <a href="https://www.avilist.org" target="_blank" rel="noreferrer" className="text-ember-700 underline underline-offset-2 hover:text-ink-900">
+                {c}
+              </a>
+            ),
+            mdd: (c) => (
+              <a href="https://www.mammaldiversity.org" target="_blank" rel="noreferrer" className="text-ember-700 underline underline-offset-2 hover:text-ink-900">
+                {c}
+              </a>
+            ),
+            inat: (c) => (
+              <a href="https://www.inaturalist.org" target="_blank" rel="noreferrer" className="text-ember-700 underline underline-offset-2 hover:text-ink-900">
+                {c}
+              </a>
+            ),
+            col: (c) => (
+              <a href="https://www.catalogueoflife.org" target="_blank" rel="noreferrer" className="text-ember-700 underline underline-offset-2 hover:text-ink-900">
+                {c}
+              </a>
+            ),
+          })}
+        </p>
+      </section>
+
       <section className="mt-10">
         <h2 className="text-lg font-semibold text-ink-900">
           {t("basemap")}
