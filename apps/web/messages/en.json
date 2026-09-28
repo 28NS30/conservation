@@ -138,7 +138,7 @@
       "onMap": "It's on the map",
       "held": "Received. Not public yet.",
       "withheld": "Received, and deliberately not shown",
-      "heldForIdentification": "Someone has to identify the animal first. That is done by hand, with no timetable.",
+      "heldForIdentification": "Our identification model will try to name the animal from your photo first. If it can't, the record is published unidentified, at a blurred location. This is not immediate.",
       "heldNoPhoto": "A person looks at reports without a photo first.",
       "heldForReview": "A person will look at this report first.",
       "withheldSpecies": "TaiCOL rates this species' coordinates as not for publication. The record is kept, but it does not appear on the map, in the report list or in any statistic.",
@@ -168,7 +168,7 @@
     "speciesInvasive": "Invasive",
     "speciesChange": "Change",
     "speciesUnsure": "I'm not sure what it was",
-    "speciesUnsureHint": "Better than a guess. We record it as unidentified, and a person identifies it before it appears.",
+    "speciesUnsureHint": "Better than a guess. We record it as unidentified. If there is a photo, our identification model tries to name the animal from it; if it can't, the record is published unidentified, at a blurred location.",
     "accuracy": "accurate to about {m} m"
   },
   "detail": {
@@ -188,7 +188,7 @@
     "unavailableTitle": "This record isn't available",
     "receipt": {
       "title": "Received. Not public right now.",
-      "body": "A person looks at reports without a photo or species name first. Some species' locations are never shown."
+      "body": "Some reports wait before they appear. One with a photo but no species name waits for our identification model to try to name the animal; one without a photo waits for a person to look at it. Some species' locations are never shown."
     }
   },
   "admin": {
@@ -356,13 +356,13 @@
     "how1": "Photograph it and send a report",
     "how1Body": "Take a photo, mark the place on the map and send it. It takes about a minute and needs no account. Before anything is uploaded, your browser shrinks the photo and removes the location and camera details hidden inside it.",
     "how2": "Name it, or leave it to us",
-    "how2Body": "If you know the animal, name it. If you're not sure, say so, and we work it out from your photo. Until an animal is identified, its location is only ever shown blurred, because it might be a protected species. Reports without a photo are checked by a person before they appear.",
+    "how2Body": "If you know the animal, name it. If you're not sure, say so, and our identification model tries to work it out from your photo. Until an animal is identified, its location is only ever shown blurred, because it might be a protected species. Reports without a photo are checked by a person before they appear.",
     "how3": "It goes on the public map",
     "how3Body": "Every public record is on the open map, in the list of records and in the statistics. Protected and sensitive species are shown only as a blurred area, never an exact spot.",
     "privacyTitle": "Why some locations are blurred",
     "privacyBody": "Publishing the exact location of a protected or sensitive species would be drawing a map for poachers. So for those species the public map shows a deliberately blurred location, a square about 10 km or 50 km across, never the real spot, and the most sensitive are not shown on the map at all. Which species are blurred, and by how much, follows the sensitivity rating in the Taiwan species checklist (TaiCOL). GBIF, eBird and iNaturalist protect such records in the same way.",
     "unknownTitle": "Reports that aren't identified yet",
-    "unknownBody": "Until we know what an animal is, we cannot tell whether it is a protected species: it might be a leopard cat. So a report with no species name is never shown at its exact location. It is either held back until someone identifies it, or shown at a blurred location.",
+    "unknownBody": "Until we know what an animal is, we cannot tell whether it is a protected species: it might be a leopard cat. So a report with no species name is never shown at its exact location. It is either held back until it has been identified, or shown at a blurred location.",
     "openTitle": "The data is open",
     "openBody": "Every public record here can be browsed on the map, in the list and in the statistics. The imported records are 路殺社 (TaiRON)'s open roadkill records for 2011–2017, shared under CC BY 4.0, and species names come from the Taiwan species checklist (TaiCOL). We plan to share the reports made here as open data too.",
     "openLink": "Sources and licensing",

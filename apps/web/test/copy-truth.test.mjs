@@ -2,7 +2,11 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { REPORT_GROUP_KEYS, categoriesIn } from "@conservation/shared";
+import {
+  CATEGORIES,
+  REPORT_GROUP_KEYS,
+  categoriesIn,
+} from "@conservation/shared";
 
 /**
  * Claims the site is not entitled to make.
@@ -38,6 +42,12 @@ import { REPORT_GROUP_KEYS, categoriesIn } from "@conservation/shared";
  *    explanation was labelled "About the project". Each is pinned below against
  *    the code or the file that makes it true, so it is the code changing, not a
  *    reader, that tells us the words have to.
+ *
+ *    Removing "not switched on" was not the end of the first one. /attribution
+ *    and /about then said the model identifies unnamed reports while the form,
+ *    the receipt and the record page still said a person did it "by hand" —
+ *    and the classifier publishes those reports with no person involved. A
+ *    contradiction is two sentences, so the test pins both.
  *
  * This guards facts, not phrasing. A rewrite that stays true passes; changing
  * one of these assertions to accommodate new copy means the new copy is false.
@@ -92,6 +102,20 @@ describe("the catalogues claim nothing that is not true", () => {
 });
 
 const read = (p) => readFileSync(join(WEB, p), "utf8");
+/** Every source file under a directory, recursively. */
+function* sources(dir) {
+  for (const name of readdirSync(dir)) {
+    const p = join(dir, name);
+    if (statSync(p).isDirectory()) yield* sources(p);
+    else if (/\.(tsx?|mjs)$/.test(name)) yield p;
+  }
+}
+/**
+ * A source file with its comments removed. Several of the files checked here
+ * explain in a comment the very call the test looks for, so matching the raw
+ * text passes with the call deleted.
+ */
+const code = (p) => read(p).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
 /** Every string in a locale that matches, as "locale: key — value". */
 const matching = (pattern) =>
   locales.flatMap((l) =>
@@ -115,17 +139,71 @@ describe("the copy does not contradict itself", () => {
       assert.match(catalogues[l].privacy.thirdPartyBody, /Modal/);
   });
 
+  test("nothing says a person identifies the reports the classifier publishes", () => {
+    // A report with a photo and no species name is held `pending` and queued
+    // for the classifier, and the classifier is what publishes it: under the
+    // species it names when it is confident, and otherwise unidentified at the
+    // blurred precision. No person is involved in either. The form's "I'm not
+    // sure" hint, the receipt after sending and the record page's receipt all
+    // said a person identified it "by hand" while /attribution and /about said
+    // the model did — so the site contradicted itself on exactly the point the
+    // previous test was written for, and that test, which only looked for
+    // "not switched on", passed.
+    const classify = code("app/api/jobs/classify/route.ts");
+    assert.match(
+      classify,
+      /precision_override = \$\{UNIDENTIFIED_PRECISION\},\s*status = case when status = 'pending' then 'published'/,
+      "the classifier no longer publishes the reports it cannot name — the form and the receipt say it does; say otherwise there too, then change this test",
+    );
+    const PERSON =
+      /by hand|a person identifies|someone has to identify|until someone identifies|人工處理|由人確認物種|等到有人辨識/i;
+    assert.deepEqual(matching(PERSON), []);
+    // The lab puts its own copy of the receipt in front of the team.
+    assert.doesNotMatch(read("lib/lab/copy.ts"), PERSON);
+
+    // And the sentences a reporter reads at the moment it matters say what
+    // does happen: the model tries, and failing that the record is public but
+    // blurred.
+    for (const key of ["speciesUnsureHint", "receipt.heldForIdentification"]) {
+      const en = key.split(".").reduce((o, k) => o[k], catalogues.en.report);
+      const zh = key.split(".").reduce((o, k) => o[k], catalogues["zh-TW"].report);
+      assert.match(en, /identification model/, `en report.${key}`);
+      assert.match(en, /blurred/, `en report.${key}`);
+      assert.match(zh, /辨識模型/, `zh-TW report.${key}`);
+      assert.match(zh, /模糊/, `zh-TW report.${key}`);
+    }
+  });
+
   test("a report without a photo is described as held, because it is", () => {
     // The home page's "how it works" said a named report is "published as you
-    // gave it"; screenSubmission() holds one with no photo for a person.
+    // gave it"; screenSubmission() holds one with no photo for a person — but
+    // only in a category whose `classifiable` flag is set, which is the whole
+    // of the condition. A category added without it would publish photo-less
+    // reports unseen while /about says every one is checked.
     assert.match(
-      read("lib/abuse.ts"),
-      /no photo on a category that expects one/,
+      code("lib/abuse.ts"),
+      /CATEGORIES\[input\.category\]\.classifiable && input\.photoCount === 0/,
       "reports without a photo are no longer held — about.how2Body says they are",
+    );
+    const unheld = Object.entries(CATEGORIES)
+      .filter(([, c]) => !c.classifiable)
+      .map(([k]) => k);
+    assert.deepEqual(
+      unheld,
+      [],
+      "these categories publish a report with no photo unseen — about.how2Body says a person checks every one",
     );
     assert.deepEqual(matching(/published as you gave it|照你寫的公開/), []);
     assert.match(catalogues.en.about.how2Body, /without a photo/);
     assert.match(catalogues["zh-TW"].about.how2Body, /沒有照片/);
+  });
+
+  test("/about names the 'not sure' choice by the label the form gives it", () => {
+    // It told Chinese readers to choose 「不確定」; the control says
+    // 「我不確定那是什麼」, and a reader looking for the first finds nothing.
+    const zh = catalogues["zh-TW"];
+    for (const [, quoted] of zh.about.how2Body.matchAll(/「([^」]+)」/g))
+      assert.equal(quoted, zh.report.speciesUnsure, "how2Body quotes a label the form does not use");
   });
 
   test("nothing calls the records recent", () => {
@@ -235,14 +313,6 @@ describe("one species count", () => {
     ["app/[locale]/page.tsx", "the home page's '{count} species on record' row"],
     ["app/api/health/route.ts", "the count the parent site reads from /api/health"],
   ]);
-
-  function* sources(dir) {
-    for (const name of readdirSync(dir)) {
-      const p = join(dir, name);
-      if (statSync(p).isDirectory()) yield* sources(p);
-      else if (/\.(tsx?|mjs)$/.test(name)) yield p;
-    }
-  }
 
   test("no page counts species with a query of its own", () => {
     const offenders = [];
