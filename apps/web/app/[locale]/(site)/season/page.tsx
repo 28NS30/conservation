@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
-import { coverage, SEASON_TARGET, COVERAGE_CELL_M } from "@/lib/coverage";
+import { coverage, seasonOpen, SEASON_TARGET, COVERAGE_CELL_M } from "@/lib/coverage";
 import { checklistAnimalTaxaCount, recordedSpeciesCount } from "@/lib/stats";
 import PageHeader from "@/components/site/PageHeader";
 
@@ -19,6 +19,8 @@ export async function generateMetadata({
   return {
     title: t("title"),
     description: t("lede", { km: COVERAGE_CELL_M / 1000 }),
+    // Unlisted until somebody has filed a report; see seasonOpen().
+    ...((await seasonOpen()) ? {} : { robots: { index: false, follow: true } }),
   };
 }
 

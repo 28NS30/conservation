@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { asPublic } from "@/lib/db";
 import { speciesSlug } from "@/lib/species";
 import { routing } from "@/i18n/routing";
+import { seasonOpen } from "@/lib/coverage";
 
 import { SITE_URL as BASE } from "@/lib/siteUrl";
 
@@ -64,12 +65,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "/map",
     "/stats",
     "/reports",
-    "/season",
     "/report",
     "/about",
     "/attribution",
     "/privacy",
   ];
+  // The season goal only once somebody has filed a report; see seasonOpen().
+  if (await seasonOpen()) staticPaths.push("/season");
   const entries: MetadataRoute.Sitemap = [];
 
   for (const locale of routing.locales) {
