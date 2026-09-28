@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { asPublic } from "@/lib/db";
 
 /**
@@ -23,6 +24,38 @@ import { asPublic } from "@/lib/db";
  * still count in every other statistic on the site, and the season page says so
  * rather than quietly dropping them.
  */
+
+/**
+ * Whether the season goal has anything to count yet: one public record that a
+ * person filed here, rather than one imported from TaiRON.
+ *
+ * Until then /season can only say "0 of 40" beside a deadline, and a goal
+ * nobody is moving reads as abandoned. The roadmap's question 20 settled it:
+ * hide the goal until reports come in. So the footer and the sitemap leave it
+ * out, and the page itself asks not to be indexed. The page stays reachable,
+ * because a link to it shared earlier should not break.
+ *
+ * Cached, because the footer is on every page and this is a scan of the public
+ * records when the answer is no. The first public report opens it within the
+ * cache window. A database error answers "closed": a missing footer link costs
+ * nothing, and a footer that throws takes the page down with it.
+ */
+export const seasonOpen = unstable_cache(
+  async (): Promise<boolean> => {
+    try {
+      const [row] = await asPublic(
+        (tx) => tx<{ open: boolean }[]>`
+          select exists (select 1 from reports_public where source = 'user') as open`,
+      );
+      return Boolean(row?.open);
+    } catch (e) {
+      console.error("[season] could not tell whether the goal is open:", (e as Error).message);
+      return false;
+    }
+  },
+  ["season-open"],
+  { revalidate: 900 },
+);
 
 /** Matches the hotspot grid on /stats, so the two describe the same squares. */
 export const COVERAGE_CELL_M = 5000;

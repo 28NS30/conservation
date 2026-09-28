@@ -3,6 +3,7 @@ import { teamPublished } from "@/lib/team";
 import { Link } from "@/i18n/navigation";
 import Wordmark from "@/components/brand/Wordmark";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { seasonOpen } from "@/lib/coverage";
 
 /**
  * One footer for the whole site.
@@ -26,7 +27,7 @@ export default async function SiteFooter({
    */
   obscured?: number | string;
 }) {
-  const t = await getTranslations();
+  const [t, seasonIsOpen] = await Promise.all([getTranslations(), seasonOpen()]);
   const blurred = Number(obscured);
 
   // One message rather than words glued around links. The glue was English —
@@ -96,7 +97,8 @@ export default async function SiteFooter({
               { href: "/map", label: t("nav.map") },
               { href: "/species", label: t("nav.species") },
               { href: "/stats", label: t("nav.stats") },
-              { href: "/season", label: t("nav.season") },
+              // Only once somebody has filed a report: see seasonOpen().
+              ...(seasonIsOpen ? [{ href: "/season", label: t("nav.season") }] : []),
               { href: "/reports", label: t("list.title") },
             ].map((l) => (
               <li key={l.href}>
