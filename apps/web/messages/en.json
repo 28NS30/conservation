@@ -130,7 +130,6 @@
       "photo": "The photos couldn't be uploaded. Try again, or take them off and send.",
       "photoUnreadable": "This photo can't be read. Use a different one, or take it again.",
       "taxon_not_found": "That species can't be found. Please choose it again.",
-      "taxon_not_accepted": "That name is no longer in use, or isn't a species found in Taiwan. Please choose the species again.",
       "validation_failed": "Something in the form isn't right. Check it and send again.",
       "server": "Something went wrong at our end and the report was not sent. What you entered is still here."
     },

@@ -12,7 +12,9 @@
  *
  * Records already filed under a retired or out-of-Taiwan name must keep
  * displaying. 138 of TaiRON's records sit on names TaiCOL says do not apply in
- * Taiwan, and the fix for those is moving them, not hiding them.
+ * Taiwan, and the fix for those is moving them, not hiding them. And a report
+ * that arrives naming one must not be lost: it was refused with a 400, which
+ * the offline queue treats as final, with no way to choose the species again.
  *
  * Reports are POSTed for real and deleted by client nonce afterwards, as in
  * report-species.test.mjs.
@@ -21,7 +23,6 @@ import { test, describe, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { BASE_URL, sql } from "./helpers.mjs";
-import { describeFailure } from "../lib/report/errors.ts";
 
 const nonces = [];
 
@@ -51,7 +52,11 @@ async function submit(taxonId) {
       taxonId,
     }),
   });
-  return { status: res.status, body: await res.json() };
+  const body = await res.json();
+  const [row] = await sql`
+    select taxon_id, taxon_source, location_precision
+      from reports where client_nonce = ${clientNonce}`;
+  return { status: res.status, body, row };
 }
 
 /** A row by TaiCOL id, which the CI fixture carries for exactly these tests. */
@@ -87,43 +92,77 @@ describe("the picker, the directory and the map's species search", () => {
   });
 
   test("the directory page leaves it out too", async () => {
-    const html = await (
-      await fetch(`${BASE_URL}/species?${new URLSearchParams({ q: "Mabuya", filter: "all" })}`)
-    ).text();
+    // Asserting only an absence passes for an error page as well as for the
+    // directory, so the same search has to find the accepted lizard.
+    const res = await fetch(
+      `${BASE_URL}/species?${new URLSearchParams({ q: "多線", filter: "invasive" })}`,
+    );
+    assert.equal(res.status, 200);
+    const html = await res.text();
+    assert.ok(html.includes("Eutropis multifasciata"), "the directory did not render the search");
     assert.ok(!html.includes("Mabuya multifasciata"));
   });
 });
 
 describe("a report naming a species the picker would not offer", () => {
-  test("a deleted name is refused, with its own code", async () => {
+  test("a deleted name is not recorded as the species, and the report is kept", async () => {
     const deleted = await taxon("t0123866");
-    const { status, body } = await submit(deleted.id);
-    assert.equal(status, 400);
-    assert.equal(body.error, "taxon_not_accepted");
+    const { status, body, row } = await submit(deleted.id);
+    assert.equal(status, 201, JSON.stringify(body));
+    assert.equal(row.taxon_id, null, "a retired name was stored as the species");
+    assert.equal(row.taxon_source, null, "nobody named it with a name we use");
+    assert.equal(row.location_precision, "coarse_10km", "blurred as unidentified");
   });
 
   test("so is a name TaiCOL says is not found in Taiwan", async () => {
     // Dopasia harti: accepted, but for the Fujian animal.
     const abroad = await taxon("t0124472");
     assert.equal(abroad.is_in_taiwan, false, "fixture precondition");
-    const { status, body } = await submit(abroad.id);
-    assert.equal(status, 400);
-    assert.equal(body.error, "taxon_not_accepted");
+    const { status, row } = await submit(abroad.id);
+    assert.equal(status, 201);
+    assert.equal(row.taxon_id, null);
   });
 
-  test("an accepted Taiwan species still goes through", async () => {
+  test("blurred at least as hard as the name it gave", async () => {
+    // 黃頸蝠's retired row is rated 縣市. Filed as merely unidentified, a report
+    // naming it would have come out at 10 km instead of 50.
+    const retired = await taxon("t0102479");
+    assert.equal(retired.taxon_status, "deleted", "fixture precondition");
+    const { status, row } = await submit(retired.id);
+    assert.equal(status, 201);
+    assert.equal(row.taxon_id, null);
+    assert.equal(row.location_precision, "coarse_50km");
+  });
+
+  test("an accepted Taiwan species still goes through as named", async () => {
     const ok = await taxon("t0028707");
-    const { status, body } = await submit(ok.id);
+    const { status, body, row } = await submit(ok.id);
     assert.equal(status, 201, JSON.stringify(body));
+    assert.equal(row.taxon_id, ok.id);
+    assert.equal(row.taxon_source, "user");
+  });
+});
+
+describe("nothing leads a reporter to such a name", () => {
+  test("the report form does not prefill one", async () => {
+    const deleted = await taxon("t0123866");
+    const accepted = await taxon("t0028707");
+    const form = async (t) =>
+      (await fetch(`${BASE_URL}/report?taxonId=${t.id}`)).text();
+    assert.ok(
+      (await form(accepted)).includes(accepted.scientific_name),
+      "an accepted name is prefilled, so the next assertion means something",
+    );
+    assert.ok(!(await form(deleted)).includes(deleted.scientific_name));
   });
 
-  test("the reporter is told beside the species picker, in words", () => {
-    // report-errors.test.mjs checks that every code the route can send has a
-    // sentence in both catalogues; this is where it goes.
-    assert.deepEqual(describeFailure("taxon_not_accepted"), {
-      key: "taxon_not_accepted",
-      slot: "species",
-    });
+  test("a species page for one does not offer to report it", async () => {
+    const deleted = await taxon("t0123866");
+    const accepted = await taxon("t0028707");
+    const page = async (t) => (await fetch(`${BASE_URL}/species/${t.id}`)).text();
+    // `&` may be escaped in the href, so match on the query value alone.
+    assert.match(await page(accepted), new RegExp(`taxonId=${accepted.id}\\b`));
+    assert.doesNotMatch(await page(deleted), new RegExp(`taxonId=${deleted.id}\\b`));
   });
 });
 

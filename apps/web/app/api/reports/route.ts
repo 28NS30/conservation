@@ -3,6 +3,7 @@ import { serverSupabase } from "@/lib/supabase/server";
 import { statUploadedPhoto } from "@/lib/supabase/service";
 import { verifyTurnstile, withinRateLimit, screenSubmission, SUBMIT_LIMITS } from "@/lib/abuse";
 import { clientIp } from "@/lib/request";
+import { OFFERED } from "@/lib/species";
 import {
   reportSubmissionSchema,
   requiresClassification,
@@ -92,27 +93,40 @@ export async function POST(req: Request) {
   // A named species must exist. The foreign key would catch it, but as a 500
   // rather than as an answer, and the client can do nothing with a 500.
   //
-  // And it must be one the picker could have offered: a name TaiCOL still
-  // accepts, for an animal recorded in Taiwan. The picker only offers those
-  // (speciesWhere in lib/species.ts), but the id arrives from the client, and
-  // a report saved offline before the picker changed, or a hand-built request,
-  // can still carry a retired name. Retired names are where TaiCOL's duplicates
-  // live, and a duplicate need not carry its twin's rating — the deleted
-  // 'Dopasia formosensis' row was unrated beside the one the law protects —
-  // so this is a privacy check as well as a tidy one.
+  // And it should be one the picker could have offered: a name TaiCOL still
+  // accepts, for an animal recorded in Taiwan (OFFERED, lib/species.ts). The id
+  // arrives from the client, and a report saved offline before a name was
+  // retired, an old link, or a hand-built request can still carry another.
+  // Retired names are where TaiCOL's duplicates live, and a duplicate need not
+  // carry its twin's rating — the deleted 'Dopasia formosensis' row was
+  // unrated beside the one the law protects — so such a name is never
+  // recorded as the species.
+  //
+  // Nor is it a reason to lose the report. Refusing it did: the offline queue
+  // treats any 4xx as final and has no way to choose the species again. The
+  // report is filed unidentified instead — classified, if it has a photo, and
+  // open to a moderator — and blurred at least as hard as the name it gave
+  // would have been, so a retired name rated 縣市 does not come out at the
+  // unidentified 10 km.
+  let taxonId = input.taxonId ?? null;
+  let heldAt: string | null = null;
   if (input.taxonId) {
-    const [taxon] = await sql<{ offered: boolean }[]>`
-      select (taxon_status is not distinct from 'accepted' and is_in_taiwan) as offered
-        from taxa where id = ${input.taxonId}`;
+    const [taxon] = await sql<{ offered: boolean; unidentified: string }[]>`
+      select ${sql.unsafe(OFFERED)} as offered,
+             stricter_precision(${UNIDENTIFIED_PRECISION}::text,
+                                report_precision(t.id, null)) as unidentified
+        from taxa t where t.id = ${input.taxonId}`;
     if (!taxon) return Response.json({ error: "taxon_not_found" }, { status: 400 });
-    if (!taxon.offered)
-      return Response.json({ error: "taxon_not_accepted" }, { status: 400 });
+    if (!taxon.offered) {
+      taxonId = null;
+      heldAt = taxon.unidentified;
+    }
   }
 
   // Who says so. 'user' is the reporter's own word, which is the same claim as
   // confirming the classifier's guess later; 'unknown' is the reporter saying
   // they looked and could not name it. See 0009_reporter_identification.sql.
-  const taxonSource = input.taxonId ? "user" : input.taxonUnknown ? "unknown" : null;
+  const taxonSource = taxonId ? "user" : input.taxonUnknown ? "unknown" : null;
 
   // The core privacy decision.
   //
@@ -127,7 +141,7 @@ export async function POST(req: Request) {
   // species is blurred before the row is visible to anything — there is nothing
   // left to wait for, and holding it back would only mean that naming the animal
   // made the report slower to appear.
-  const identified = Boolean(input.taxonId);
+  const identified = Boolean(taxonId);
   const classifiable = requiresClassification(input.category, photos.length);
   const awaitingId = classifiable && !identified;
   const status = awaitingId || flaggedReason ? "pending" : "published";
@@ -142,7 +156,7 @@ export async function POST(req: Request) {
   // category that expects one" flag holding it as `pending`, and, since 0011,
   // the trigger's own else-branch. Two backstops for a guard that was not
   // guarding, and neither of them is this comment's promise.
-  const precisionOverride = identified ? null : UNIDENTIFIED_PRECISION;
+  const precisionOverride = identified ? null : (heldAt ?? UNIDENTIFIED_PRECISION);
 
   try {
     const result = await sql.begin(async (tx) => {
@@ -159,7 +173,7 @@ export async function POST(req: Request) {
           ${input.observedAt}, ${input.notes ?? null},
           ${status}, 'user', ${reporterId}, ${input.contactEmail ?? null}, ${flaggedReason},
           ${input.clientNonce}, ${precisionOverride},
-          ${input.taxonId ?? null}, ${taxonSource},
+          ${taxonId}, ${taxonSource},
           ${input.accuracyM ?? null}
         )
         on conflict (client_nonce) where client_nonce is not null do nothing

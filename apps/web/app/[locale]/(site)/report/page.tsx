@@ -47,10 +47,17 @@ export default async function ReportPage({
    *
    * A malformed or unknown id is ignored on the same grounds as a bad
    * ?category=: it is a mistyped link, and the form simply opens unfilled.
+   *
+   * So is a name the picker would not offer — retired by TaiCOL, or not
+   * recorded in Taiwan. Species pages still render for those, for the records
+   * already filed under them, and an old link can still carry one. Prefilled,
+   * it would be sent as the report's species and the server would not file it
+   * under that name (lib/species.ts, OFFERED); unfilled, the reporter picks
+   * from names that work.
    */
   const id = taxonId ? parseSpeciesId(taxonId) : null;
   const found = id ? await getSpecies(id) : null;
-  const initialSpecies = found
+  const initialSpecies = found?.offered
     ? {
         id: found.id,
         scientificName: found.scientificName,

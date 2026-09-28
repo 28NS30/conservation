@@ -231,7 +231,12 @@ describe("a reporter names the species", () => {
     // "is stamped conservatively even with no photograph" above asserts the
     // behaviour instead of the text. A source pin is a last resort and this
     // one has stopped being necessary.
-    assert.match(route, /const precisionOverride = identified \? null : UNIDENTIFIED_PRECISION;/);
+    // `heldAt` is the stricter blur of a name the reporter gave that we no
+    // longer offer (test/accepted-names.test.mjs asserts it at runtime).
+    assert.match(
+      route,
+      /const precisionOverride = identified \? null : \(heldAt \?\? UNIDENTIFIED_PRECISION\);/,
+    );
   });
 
   test("the classifier does not overwrite a person's identification", () => {
