@@ -1,5 +1,6 @@
 import "server-only";
 import { sql } from "@/lib/db";
+import { UNIDENTIFIED_PRECISION } from "@conservation/shared";
 
 /**
  * What naming a report is allowed to do to its blur.
@@ -53,3 +54,37 @@ export const keepDeliberateOverride = () =>
  */
 export const photoIdentificationOverride = (taxonId: number) =>
   sql`stricter_precision(${keepDeliberateOverride()}, binomial_precision_floor(${taxonId}))`;
+
+/**
+ * The blur for a record the model only made suggestions for.
+ *
+ * Such a record stays unidentified, at the unidentified blur — and, when its
+ * suggestions are shown, at least at the strictest rule among them. The page
+ * for the record lists them publicly (`report_ai_suggestions`, 0006) beside its
+ * location, so a medium-band photograph of a 重度 animal was published as
+ * "probably X" at 10 km, looser than the 50 km its own record would get, and a
+ * 座標不開放 one as "probably X" within 10 km of where it was seen. Measured
+ * top-5 accuracy in that band is 91.6%: the list is usually right, which is
+ * what makes it worth blurring for. Each candidate counts at its binomial's
+ * strictest, as a named one would (`photoIdentificationOverride`). A record
+ * that comes out suppressed leaves the public view, and its suggestions with it.
+ *
+ * In the low band the suggestions are withheld, so there is nothing to blur
+ * for, and a list that is wrong a third of the time should not take a record
+ * off the map.
+ *
+ * Never looser than the override already there. The record may be held
+ * coarser on purpose — by a moderator, or at submission because the name the
+ * reporter gave is one we no longer offer (app/api/reports/route.ts) — and a
+ * classification is not a decision to publish it more exactly.
+ */
+export const suggestionOverride = (reportId: string, suggestionsShown: boolean) =>
+  suggestionsShown
+    ? sql`stricter_precision(precision_override, stricter_precision(${UNIDENTIFIED_PRECISION}::text,
+            (select c.p
+               from (select binomial_precision(c.taxon_id) as p
+                       from classifications c
+                      where c.report_id = ${reportId}::uuid) c
+              order by precision_rank(c.p) desc
+              limit 1)))`
+    : sql`stricter_precision(precision_override, ${UNIDENTIFIED_PRECISION}::text)`;

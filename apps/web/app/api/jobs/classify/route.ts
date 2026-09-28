@@ -1,7 +1,10 @@
 import { sql } from "@/lib/db";
 import { downloadPhoto } from "@/lib/supabase/service";
 import { UNIDENTIFIED_PRECISION } from "@conservation/shared";
-import { photoIdentificationOverride } from "@/lib/report/precision";
+import {
+  photoIdentificationOverride,
+  suggestionOverride,
+} from "@/lib/report/precision";
 import { AUTO_ASSIGN_BANDS, classifierAction } from "@/lib/report/classifyPolicy";
 
 /**
@@ -300,9 +303,16 @@ async function run(req: Request) {
           // is 91.6%. In the low band it is 68%, and report_ai_suggestions withholds
           // it, because a confidently-presented wrong species anchors the reporter
           // and a bad identification is worse for the dataset than none.
+          //
+          // Where the list is shown, the record is blurred at least as hard as the
+          // strictest species on it; see suggestionOverride. The rows it reads are
+          // the ones inserted above, in this transaction.
           await tx`
             update reports
-               set precision_override = ${UNIDENTIFIED_PRECISION},
+               set precision_override = ${suggestionOverride(
+                 job.report_id,
+                 result.band !== "low",
+               )},
                    status = case when status = 'pending' then 'published' else status end,
                    ai_band = ${result.band},
                    flagged_reason = ${
@@ -343,9 +353,13 @@ async function run(req: Request) {
           // worse, would falsify the invariant lib/receipt.ts relies on to
           // decide whose id it may confirm. A row that is pending must have
           // been pending since it was written.
+          //
+          // At least the unidentified blur, never less than the record already
+          // has: see suggestionOverride for who else may have held it coarser.
           await tx`
             update reports
-               set precision_override = ${UNIDENTIFIED_PRECISION},
+               set precision_override = stricter_precision(precision_override,
+                                                           ${UNIDENTIFIED_PRECISION}::text),
                    flagged_reason = 'classification unavailable'
              where id = ${job.report_id}::uuid
                and status = 'pending'`;

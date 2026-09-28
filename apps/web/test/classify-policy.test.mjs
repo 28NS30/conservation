@@ -286,3 +286,79 @@ describe("a species named from a photograph is never blurred less than a row sha
     });
   });
 });
+
+describe("a record the model only made suggestions for", () => {
+  // Its page lists the suggestions publicly beside its location. Published at
+  // the unidentified 10 km whatever they were, a medium-band photograph of a
+  // 重度 animal read "probably X" at a fifth of the blur X's own record gets.
+  let seq = 0;
+  const genus = () => `Testudofixtura g${process.pid}x${Date.now()}x${seq++}`;
+  async function row(tx, { sensitivity = null } = {}) {
+    const [t] = await tx`
+      insert into taxa (taicol_id, scientific_name, rank, is_in_taiwan, taxon_status, sensitivity)
+      values (${`test-sg-${process.pid}-${Date.now()}-${seq++}`}, ${genus()}, 'Species',
+              true, 'accepted', ${sensitivity})
+      returning id`;
+    return t.id;
+  }
+  async function candidates(tx, reportId, ids) {
+    for (const [i, id] of ids.entries())
+      await tx`insert into classifications (report_id, taxon_id, score, rank, model_version)
+               values (${reportId}::uuid, ${id}, 0.2, ${i + 1}, 'test')`;
+  }
+  /** The suggest branch's statement, reduced to the column under test. */
+  const suggest = (tx, reportId, shown) => tx`
+    update reports
+       set precision_override = ${
+         shown
+           ? tx`stricter_precision(precision_override, stricter_precision('coarse_10km'::text,
+                  (select c.p
+                     from (select binomial_precision(c.taxon_id) as p
+                             from classifications c
+                            where c.report_id = ${reportId}::uuid) c
+                    order by precision_rank(c.p) desc
+                    limit 1)))`
+           : tx`stricter_precision(precision_override, 'coarse_10km'::text)`
+       }
+     where id = ${reportId}::uuid
+    returning location_precision`;
+
+  test("the route blurs through suggestionOverride, keyed on whether the list is shown", () => {
+    assert.match(
+      code(ROUTE),
+      /precision_override = \$\{suggestionOverride\(\s*job\.report_id,\s*result\.band !== "low",?\s*\)\}/,
+    );
+    const helper = code(PRECISION).slice(code(PRECISION).indexOf("suggestionOverride ="));
+    assert.match(helper, /stricter_precision\(precision_override, stricter_precision\(/);
+    assert.match(helper, /binomial_precision\(c\.taxon_id\)[\s\S]*?where c\.report_id = \$\{reportId\}::uuid/);
+  });
+
+  test("is blurred as hard as the strictest species it shows", async () => {
+    await inRollback(async (tx) => {
+      const r = await insertReport(tx, { taxonId: null, override: "coarse_10km" });
+      await candidates(tx, r.id, [await row(tx), await row(tx, { sensitivity: "重度" })]);
+      const [after_] = await suggest(tx, r.id, true);
+      assert.equal(after_.location_precision, "coarse_50km");
+    });
+  });
+
+  test("but not for a list nobody is shown", async () => {
+    await inRollback(async (tx) => {
+      const r = await insertReport(tx, { taxonId: null, override: "coarse_10km" });
+      await candidates(tx, r.id, [await row(tx, { sensitivity: "重度" })]);
+      const [after_] = await suggest(tx, r.id, false);
+      assert.equal(after_.location_precision, "coarse_10km");
+    });
+  });
+
+  test("and never looser than it was already held", async () => {
+    await inRollback(async (tx) => {
+      const r = await insertReport(tx, { taxonId: null, override: "coarse_50km" });
+      await candidates(tx, r.id, [await row(tx)]);
+      for (const shown of [true, false]) {
+        const [after_] = await suggest(tx, r.id, shown);
+        assert.equal(after_.location_precision, "coarse_50km");
+      }
+    });
+  });
+});
