@@ -14,10 +14,11 @@
  *
  * WHY THESE SOURCES, IN THIS ORDER. TaiCOL has no English names (every /v2/taxon
  * record has the same 34 fields, none English). GBIF, COL's extended release
- * and Wikidata were measured on all 509 recorded taxa and rejected: most taxa
+ * and Wikidata were measured on every recorded taxon and rejected: most taxa
  * get several conflicting names, some tagged English are not ("Mocassim
- * chinês", "铅色水蛇"), and GBIF's own pick called a dog a "gray wolf". What is
- * left, first answer wins:
+ * chinês", "铅色水蛇"), and GBIF's own pick called a dog a "gray wolf". (That
+ * count included hidden records, so it is not written here: see WHICH TAXA.)
+ * What is left, first answer wins:
  *
  *   1. birds    AviList v2025b, column English_name_Clements_v2025. Taiwan's own
  *               TWBF 2026 checklist follows Clements v2025 and agrees on 697 of
