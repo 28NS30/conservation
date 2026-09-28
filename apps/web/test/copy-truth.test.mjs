@@ -149,12 +149,26 @@ describe("the copy does not contradict itself", () => {
     // the model did — so the site contradicted itself on exactly the point the
     // previous test was written for, and that test, which only looked for
     // "not switched on", passed.
+    //
+    // Since PR #77 the blur for such a record is built by suggestionOverride()
+    // in lib/report/precision.ts, which can raise it further for the species
+    // it suggests. The claim the copy makes is only that the record is
+    // published, and blurred at least as hard as an unidentified one: the
+    // first assertion pins the publishing, the second the floor, in both of
+    // the helper's branches.
     const classify = code("app/api/jobs/classify/route.ts");
     assert.match(
       classify,
-      /precision_override = \$\{UNIDENTIFIED_PRECISION\},\s*status = case when status = 'pending' then 'published'/,
+      /precision_override = \$\{suggestionOverride\([^}]*\)\},\s*status = case when status = 'pending' then 'published'/,
       "the classifier no longer publishes the reports it cannot name — the form and the receipt say it does; say otherwise there too, then change this test",
     );
+    const helper = code("lib/report/precision.ts");
+    const body = helper.slice(helper.indexOf("export const suggestionOverride"));
+    const [shown, withheld] = body.split(/\n\s*:\s*sql`/);
+    assert.match(shown, /stricter_precision\(\$\{UNIDENTIFIED_PRECISION\}::text/,
+      "with suggestions shown, the record is no longer held at least at the unidentified blur");
+    assert.match(withheld ?? "", /^stricter_precision\(precision_override, \$\{UNIDENTIFIED_PRECISION\}::text\)/,
+      "with suggestions withheld, the record is no longer held at least at the unidentified blur");
     const PERSON =
       /by hand|a person identifies|someone has to identify|until someone identifies|人工處理|由人確認物種|等到有人辨識/i;
     assert.deepEqual(matching(PERSON), []);
@@ -261,6 +275,23 @@ describe("the copy does not contradict itself", () => {
       const get = (l) => key.split(".").reduce((o, k) => o[k], catalogues[l]);
       assert.match(get("en"), /protected by law/, `en ${key}`);
       assert.match(get("zh-TW"), /法定保育類/, `zh-TW ${key}`);
+    }
+  });
+
+  test("why a record is blurred names the Red List, once the database does", () => {
+    // 0021 blurs the Red List's threatened categories. The pages that list why
+    // a record is blurred must say so, or a reader who checks a Vulnerable
+    // frog's rating and protection finds neither and concludes the map is
+    // hiding things at random.
+    const MIGRATIONS = join(WEB, "..", "..", "supabase", "migrations");
+    const live = readdirSync(MIGRATIONS)
+      .filter((f) => f.endsWith(".sql"))
+      .some((f) => /precision_from_redlist\(cur\.redlist\)/.test(readFileSync(join(MIGRATIONS, f), "utf8")));
+    if (!live) return;
+    for (const key of ["statsPage.coverageBody", "season.obscuredNote", "about.privacyBody", "list.obscuredLegend"]) {
+      const get = (l) => key.split(".").reduce((o, k) => o[k], catalogues[l]);
+      assert.match(get("en"), /threatened/, `en ${key}`);
+      assert.match(get("zh-TW"), /受威脅/, `zh-TW ${key}`);
     }
   });
 

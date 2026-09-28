@@ -101,6 +101,16 @@ export const REQUIRED_SCHEMA: SchemaCheck[] = [
                and t.tgname = 'taxon_precision_floors_reblur'
                and not t.tgisinternal) as ok`,
   },
+  {
+    // A rule check again: 0021 replaces 0014's taxon_precision(), so re-running
+    // 0014 alone would quietly drop the Red List term while every object still
+    // exists. The function body is what says which rule is live.
+    name: "0021 a threatened species on Taiwan's Red List is blurred",
+    sql: `select exists (
+            select 1 from pg_proc
+             where proname = 'taxon_precision'
+               and prosrc like '%precision_from_redlist(%') as ok`,
+  },
 ];
 
 /**
