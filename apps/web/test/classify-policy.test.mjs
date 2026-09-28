@@ -157,12 +157,16 @@ describe("a species named from a photograph is never blurred less than a row sha
   let seq = 0;
   const genus = () => `Testudofixtura s${process.pid}x${Date.now()}x${seq++}`;
 
-  async function row(tx, name, { rank = "Species", status = "accepted", protectedStatus = null, sensitivity = null } = {}) {
+  async function row(
+    tx,
+    name,
+    { rank = "Species", status = "accepted", protectedStatus = null, sensitivity = null, kingdom = null } = {},
+  ) {
     const [t] = await tx`
       insert into taxa (taicol_id, scientific_name, rank, is_in_taiwan,
-                        taxon_status, protected_status, sensitivity)
+                        taxon_status, protected_status, sensitivity, kingdom)
       values (${`test-cp-${process.pid}-${Date.now()}-${seq++}`}, ${name}, ${rank},
-              true, ${status}, ${protectedStatus}, ${sensitivity})
+              true, ${status}, ${protectedStatus}, ${sensitivity}, ${kingdom})
       returning id`;
     return t.id;
   }
@@ -215,6 +219,32 @@ describe("a species named from a photograph is never blurred less than a row sha
       const r = await insertReport(tx, { taxonId: null, override: "coarse_10km" });
       const [after_] = await assign(tx, r.id, strict);
       assert.equal(after_.precision_override, null);
+      assert.equal(after_.location_precision, "coarse_10km");
+    });
+  });
+
+  test("a namesake in another kingdom is not a sibling", async () => {
+    // 'Ormosia formosana' is a tree rated 輕度 and a crane fly nobody rates. A
+    // photograph the model calls the fly is a photograph of an insect.
+    await inRollback(async (tx) => {
+      const name = genus();
+      const fly = await row(tx, name, { kingdom: "Animalia" });
+      await row(tx, name, { kingdom: "Plantae", sensitivity: "輕度" });
+      const r = await insertReport(tx, { taxonId: null, override: "coarse_10km" });
+      const [after_] = await assign(tx, r.id, fly);
+      assert.equal(after_.precision_override, null);
+      assert.equal(after_.location_precision, "exact");
+    });
+  });
+
+  test("but a row whose kingdom is unknown still counts", async () => {
+    // A gap in the data must keep a sibling in, never leave one out.
+    await inRollback(async (tx) => {
+      const name = genus();
+      const named = await row(tx, name, { kingdom: "Animalia" });
+      await row(tx, name, { status: "deleted", protectedStatus: "II" });
+      const r = await insertReport(tx, { taxonId: null, override: "coarse_10km" });
+      const [after_] = await assign(tx, r.id, named);
       assert.equal(after_.location_precision, "coarse_10km");
     });
   });

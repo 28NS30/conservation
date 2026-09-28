@@ -357,6 +357,14 @@ $$;
  * formosensis' (t0124331), still a label and unrated beside the row the law
  * protects. It has a floor of its own below; the other 198 are why this is a
  * rule and not a list.
+ *
+ * Within one kingdom. A binomial is unique only inside a nomenclatural code,
+ * and TaiCOL has names that zoology and botany both use: 'Ormosia formosana'
+ * is 臺灣紅豆樹, a tree rated 輕度, and 臺灣索大蚊, a crane fly, and a photograph
+ * of the fly was blurred because of the tree. A row with no kingdom (8,378 of
+ * them, nearly all outside Taiwan) is compared with every kingdom, so a gap in
+ * the data can only keep a sibling in, never leave one out. Measured on the
+ * local copy, the crane fly is the only label whose answer this changes.
  */
 create or replace function binomial_precision(p_taxon_id bigint) returns text
 language sql stable set search_path = public as $$
@@ -364,6 +372,8 @@ language sql stable set search_path = public as $$
     from (select taxon_precision(s.id) as p
             from taxa t
             join taxa s on binomial_of(s.scientific_name) = binomial_of(t.scientific_name)
+                       and (s.kingdom is null or t.kingdom is null
+                            or s.kingdom = t.kingdom)
            where t.id = p_taxon_id) x
    order by precision_rank(p) desc
    limit 1
