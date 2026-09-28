@@ -183,6 +183,9 @@
     "pickCorrect": "Pick the correct species to fix this record.",
     "confirmedBy": "Confirmed by the reporter or a moderator.",
     "source": "Source",
+    "sourceGbif": "open data from {holder}, shared through GBIF, the international open database of species records",
+    "sourceGbifNoHolder": "open data shared through GBIF, the international open database of species records",
+    "unavailableTitle": "This record isn't available",
     "receipt": {
       "title": "Received. Not public right now.",
       "body": "A person looks at reports without a photo or species name first. Some species' locations are never shown."

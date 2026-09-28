@@ -183,6 +183,9 @@
     "pickCorrect": "選擇正確的物種以修正這筆紀錄。",
     "confirmedBy": "由通報者或審核人員確認。",
     "source": "資料來源",
+    "sourceGbif": "{holder}的公開資料，經 GBIF（國際公開的物種紀錄資料庫）取得",
+    "sourceGbifNoHolder": "經 GBIF（國際公開的物種紀錄資料庫）取得的公開資料",
+    "unavailableTitle": "無法顯示這筆紀錄",
     "receipt": {
       "title": "收到了，目前沒有公開",
       "body": "沒有照片或沒有物種名稱的通報，會先由人看過。部分物種的位置不會公開。"

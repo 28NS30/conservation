@@ -7,7 +7,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "找不到這個頁面 · 福爾摩沙守望計畫",
+  title: "找不到這個頁面 · Page not found · 福爾摩沙守望計畫",
   robots: { index: false, follow: false },
 };
 
@@ -25,33 +25,60 @@ export const metadata: Metadata = {
  * entirely, so the stylesheet and the html/body shell are declared here — and
  * for the same reason it cannot use next-intl, which is why both languages are
  * written out rather than translated.
+ *
+ * BOTH LANGUAGES, AT THE SAME WEIGHT. This page cannot know which one the
+ * reader wanted: it gets no props and no locale, and `/en/anything-mistyped`
+ * lands here as surely as `/anything-mistyped` does. It used to answer every
+ * one of them in Chinese, with "Page not found" as a grey subtitle and both
+ * buttons in Chinese — so an English reader who mistyped one letter was sent
+ * to a page they could not use, with a way home they could not read. Now each
+ * language has its own heading, sentence and buttons, and each language's
+ * buttons go to that language's site. test/not-found.test.mjs holds it there.
  */
 export default function GlobalNotFound() {
+  const button =
+    "inline-flex min-h-12 items-center rounded-full px-5 text-sm font-semibold transition";
+  const primary = `${button} bg-ember-500 text-bark-950 hover:bg-ember-400`;
+  const secondary = `${button} border border-ink-900/15 text-ink-700 hover:bg-paper-200`;
+
   return (
-    <html lang="zh-Hant" className="h-full">
-      <body className="min-h-full antialiased">
-        <main className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col items-center justify-center px-6 text-center">
+    <html lang="zh-Hant-TW" className="h-full">
+      <body className="min-h-full bg-paper-50 antialiased">
+        <main className="mx-auto flex min-h-[100dvh] w-full max-w-2xl flex-col justify-center px-6 py-12">
           <p className="text-4xl font-semibold tabular-nums text-ink-500">404</p>
-          <h1 className="mt-3 text-lg font-semibold text-ink-900">
-            找不到這個頁面
-          </h1>
-          <p className="mt-1 text-sm text-ink-500">Page not found</p>
-          <p className="mt-4 text-sm leading-relaxed text-ink-600">
-            這個網址可能已經失效，或是打錯了。
-          </p>
-          <div className="mt-7 flex flex-wrap justify-center gap-2">
-            <a
-              href="/"
-              className="rounded-full bg-ember-500 px-5 py-2 text-xs font-semibold text-bark-950 transition hover:bg-ember-400"
-            >
-              回首頁
-            </a>
-            <a
-              href="/map"
-              className="rounded-full border border-ink-900/15 px-5 py-2 text-xs text-ink-600 transition hover:bg-paper-200"
-            >
-              查看地圖
-            </a>
+          <div className="mt-6 grid gap-10 sm:grid-cols-2">
+            <section aria-labelledby="nf-zh">
+              <h1 id="nf-zh" className="text-xl font-semibold text-ink-900">
+                找不到這個頁面
+              </h1>
+              <p className="mt-2 text-sm leading-relaxed text-ink-600">
+                這個網址可能已經失效，或是打錯了。
+              </p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <a href="/" className={primary}>
+                  回首頁
+                </a>
+                <a href="/map" className={secondary}>
+                  查看地圖
+                </a>
+              </div>
+            </section>
+            <section lang="en" aria-labelledby="nf-en">
+              <h2 id="nf-en" className="text-xl font-semibold text-ink-900">
+                Page not found
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-ink-600">
+                The link may be out of date, or mistyped.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <a href="/en" className={primary}>
+                  Home
+                </a>
+                <a href="/en/map" className={secondary}>
+                  Open the map
+                </a>
+              </div>
+            </section>
           </div>
         </main>
       </body>
