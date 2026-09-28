@@ -105,9 +105,9 @@ import {
   MDD_CSV,
   NAMES_PATH,
   chineseNamesAgree,
-  capitalise,
   cleanAlts,
   csvRecords,
+  displayName,
   epithetStem,
   inheritsSpeciesName,
   loadOverrides,
@@ -383,7 +383,7 @@ function fromAviList(n: string, ctx: Ctx): Hit | null {
   if (!hit) return null;
   // Clements v2025 is what Taiwan's own checklist uses. The 37 AviList species
   // Clements does not recognise have only AviList's name.
-  const display = hit.row.clements || hit.row.avilist;
+  const display = displayName(hit.row.clements || hit.row.avilist);
   if (!acceptable(ctx, "avilist", display)) return null;
   return {
     name: display,
@@ -396,7 +396,7 @@ function fromAviList(n: string, ctx: Ctx): Hit | null {
 
 function fromMdd(n: string, ctx: Ctx): Hit | null {
   const hit = MDD(n);
-  const display = hit ? hit.row.main : null;
+  const display = hit ? displayName(hit.row.main) : null;
   if (!hit || !acceptable(ctx, "mdd", display)) return null;
   return {
     name: display,
@@ -433,7 +433,7 @@ async function fromInat(n: string, ctx: Ctx): Promise<Hit | null> {
     ) ??
     results.find((x) => !x.is_active && same(x));
   if (!pick) return null;
-  const display = pick.preferred_common_name ? capitalise(pick.preferred_common_name) : null;
+  const display = pick.preferred_common_name ? displayName(pick.preferred_common_name) : null;
   if (!acceptable(ctx, "inat", display)) return null;
   const others = (pick.names ?? []).filter((x) => x.locale === "en" && x.is_valid !== false).map((x) => x.name);
   return {
@@ -488,7 +488,7 @@ async function fromCol(n: string, ctx: Ctx): Promise<Hit | null> {
     ctx.why.push(`col's Chinese name ${zho.join("/")} is not TaiCOL's, so its English one may be another species'`);
     return null;
   }
-  const display = capitalise(eng[0]);
+  const display = displayName(eng[0]);
   if (!acceptable(ctx, "col", display)) return null;
   return { name: display, alts: cleanAlts([], display, ctx.sci), source: COL_SOURCE, matched, authority: null };
 }

@@ -294,14 +294,48 @@ const normalise = (s: string) =>
     .trim();
 
 /**
+ * Names a source lists as English that are not, found by reading the file.
+ *
+ * nameProblem() can tell Chinese script from English, but not a name in
+ * another language written in the Latin alphabet: iNaturalist and MDD file
+ * local names under English, and nothing in the letters says otherwise. A
+ * rule that tried (every word a pinyin syllable, say) would also refuse the
+ * Cui-ui, which is that fish's English name. So these are listed, and the
+ * list grows the same way it started: someone reads the file and finds one.
+ * Compared after normalise(), so a spelling variant cannot slip past.
+ */
+const NOT_ENGLISH = new Set(
+  [
+    "Da Xiong Mao", // pinyin of 大熊貓, on the giant panda
+    "Tofu sa", // Taiwanese Hokkien 豆腐鯊, on the whale shark
+    "Chanchito Blanca De La Piña", // Spanish, on the pineapple mealybug
+    "Kura-kura Pipi-putih", // Malay, on the black marsh turtle
+    "Tu Mama E Maraka", // not English, on the king cobra
+    "Amboa Laolo", // Malagasy, on the falanouc
+  ].map(normalise),
+);
+
+/** Words left lower-case inside a title-cased name. */
+const MINOR_WORDS = new Set([
+  "a", "an", "and", "as", "at", "by", "for", "from", "in", "of", "on", "or", "the", "to", "with",
+  // Particles of place and person names ("Torre de Guatel"), which keep the
+  // case their own language gives them.
+  "de", "del", "la", "le", "du", "des", "da", "van", "von", "der", "den",
+]);
+
+/**
  * Why `name` is not fit to show as the English name of `scientificName`, or
  * null when it is.
  *
  * These are the defects the research found in the sources it rejected — GBIF's
- * 'Mocassim chinês' and '铅色水蛇' tagged as English, 'Asian Grass Frog/Common
- * Pond Frog/…' as one name, Wikidata labels that are just the binomial — so a
- * source that starts producing them is caught here rather than on a species
- * page. The chosen sources are the first line of defence; this is the second.
+ * '铅色水蛇' tagged as English, 'Asian Grass Frog/Common Pond Frog/…' as one
+ * name, Wikidata labels that are just the binomial — so a source that starts
+ * producing them is caught here rather than on a species page. The chosen
+ * sources are the first line of defence; this is the second.
+ *
+ * What it cannot catch is a name in another language written in the Latin
+ * alphabet: GBIF's 'Mocassim chinês' passes every rule below. Those are
+ * refused only once someone has listed them in NOT_ENGLISH.
  */
 export function nameProblem(name: string, scientificName: string): string | null {
   const n = name.trim();
@@ -309,12 +343,19 @@ export function nameProblem(name: string, scientificName: string): string | null
   if (PLACEHOLDER.test(n)) return "placeholder";
   if (/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u.test(n))
     return "chinese-or-other-cjk";
+  // Not a defect of the name, but of the file: displayName() folds ’ to ',
+  // because a reader types ' and an ilike search for "Wettstein's" does not
+  // match "Wettstein’s".
+  if (/[‘’]/.test(n)) return "curly-apostrophe";
   // Letters of the Latin script, spaces, apostrophes, hyphens and a full stop
   // ("St. Helena"). A slash or comma is several names in one field; a colon or
   // bracket is an annotation; a digit is a placeholder like "Species 1".
-  if (/[^\p{Script=Latin}\p{M} '’.\-]/u.test(n)) return "not-a-single-english-name";
-  // Not a defect of the name, but of the file: the build runs capitalise()
-  // first, so a lower-case name here means a step was skipped.
+  if (/[^\p{Script=Latin}\p{M} '.\-]/u.test(n)) return "not-a-single-english-name";
+  if (NOT_ENGLISH.has(normalise(n))) return "not-english";
+  // Also a defect of the file rather than of the name: displayName()
+  // title-cases every name, so a lower-case one here means a step was skipped.
+  // (A lower-case word in a capitalised name is the same slip; it is checked
+  // last, so that a name with a real defect is reported for that.)
   if (!/\p{Lu}/u.test(n)) return "all-lowercase";
   // A bird-banding code ("DECR" for Demoiselle Crane) or an acronym is a label,
   // not a name.
@@ -333,27 +374,47 @@ export function nameProblem(name: string, scientificName: string): string | null
         : words.includes(genus) && words.includes(epithet);
     if (hits) return "contains-the-scientific-name";
   }
+  if (n.split(" ").some((w, i) => i > 0 && /^\p{Ll}/u.test(w) && !MINOR_WORDS.has(w) && !/^\p{Ll}'/u.test(w)))
+    return "not-title-case";
   return null;
 }
 
-const MINOR_WORDS = new Set(["a", "an", "and", "as", "at", "by", "for", "from", "in", "of", "on", "or", "the", "to", "with"]);
-
 /**
- * A name with no capital letter at all, in title case: "common water hyacinth"
- * becomes "Common Water Hyacinth", "tree of heaven" becomes "Tree of Heaven".
+ * A name in title case: "common water hyacinth" becomes "Common Water
+ * Hyacinth", "Brown spotted pitviper" becomes "Brown Spotted Pitviper", "tree
+ * of heaven" becomes "Tree of Heaven".
  *
  * iNaturalist writes plant and insect names in lower case, as botanists do,
- * and its bird and reptile names in title case; shown side by side on one page
- * the lower-case ones read as broken. Only a name with no capital is touched —
- * "Brown spotted pitviper" is the source's own choice and stays — and only the
- * first letter after a space changes, so "mile-a-minute" is "Mile-a-minute".
+ * some reptile and fish names in sentence case, and its bird names in title
+ * case; AviList and MDD use title case throughout. Shown side by side, 龜殼花's
+ * "Brown spotted pitviper" read as a typo among the title-cased names around
+ * it, and it is one of the most-recorded snakes on the site.
+ *
+ * Letters are only ever raised, never lowered, and only the first letter of a
+ * word, so a source's own capitals stay ("McCord's") and so does the
+ * lower-case half of a hyphenated compound ("Black-crowned Night-Heron",
+ * "Mile-a-minute"). A particle before an apostrophe ("d'Orbigny's") and the
+ * minor words after the first are left as they are.
  */
 export function capitalise(name: string): string {
-  if (/\p{Lu}/u.test(name)) return name;
   return name
     .split(" ")
-    .map((w, i) => (i > 0 && MINOR_WORDS.has(w) ? w : w.charAt(0).toUpperCase() + w.slice(1)))
+    .map((w, i) =>
+      i > 0 && (MINOR_WORDS.has(w) || /^\p{Ll}'/u.test(w)) ? w : w.charAt(0).toUpperCase() + w.slice(1),
+    )
     .join(" ");
+}
+
+/**
+ * A source's name as this project shows it: one space between words, the
+ * typewriter apostrophe, title case.
+ *
+ * The apostrophe matters to search, not to looks. Fourteen names in the first
+ * build came with ’ (COL's "Wettstein’s Mud Snake"), and an ilike search for
+ * what a reader types, "Wettstein's", does not match it.
+ */
+export function displayName(raw: string): string {
+  return capitalise(raw.trim().replace(/\s+/g, " ").replace(/[‘’]/g, "'"));
 }
 
 /**
@@ -392,7 +453,7 @@ export function cleanAlts(
   if (display) seen.add(display.trim().toLowerCase());
   const out: string[] = [];
   const push = (s: string) => {
-    const t = capitalise(s.trim().replace(/\s+/g, " "));
+    const t = displayName(s);
     const k = t.toLowerCase();
     if (!t || seen.has(k) || nameProblem(t, scientificName)) return;
     seen.add(k);

@@ -8,9 +8,16 @@
  * and the team's overrides on top. The research that chose those sources found
  * the ways the rejected ones go wrong: a dog called a "gray wolf", Taiwan's
  * ferret-badger named after the Chinese one because a synonym was followed
- * across a species boundary, Portuguese and Chinese tagged as English, several
- * names in one field, a crab called by a pinyin transliteration. Each is pinned
- * here, against the rules and against the committed file itself.
+ * across a species boundary, Chinese tagged as English, several names in one
+ * field, a crab called by a pinyin transliteration. Each is pinned here,
+ * against the rules and against the committed file itself.
+ *
+ * One kind is pinned only case by case. A name in another language written in
+ * the Latin alphabet (GBIF's Portuguese "Mocassim chinês", the pinyin "Da
+ * Xiong Mao" that MDD lists among the giant panda's English names) has
+ * nothing in its letters to give it away, so no rule refuses it: nameProblem()
+ * refuses the ones a reader has found and listed, and this file checks that
+ * none of those is in english-names.json.
  *
  * The rules are pure and need nothing. The file checks need only the file. The
  * import checks run inside a rolled-back transaction, against whatever `taxa`
@@ -27,6 +34,7 @@ import {
   capitalise,
   chineseNamesAgree,
   cleanAlts,
+  displayName,
   epithetStem,
   inheritsSpeciesName,
   loadNamesFile,
@@ -226,18 +234,53 @@ describe("what counts as an English name", () => {
     assert.equal(nameProblem("Braziliensis", "Geophagus brasiliensis"), "latin-word");
   });
 
+  test("names in other languages that a reader has found are refused, spelt any way", () => {
+    // Each came from iNaturalist or MDD as an English alternate.
+    for (const [name, sci] of [
+      ["Da Xiong Mao", "Ailuropoda melanoleuca"],
+      ["Tofu sa", "Rhincodon typus"],
+      ["Chanchito Blanca De La Piña", "Dysmicoccus brevipes"],
+      ["Kura-kura Pipi-putih", "Siebenrockiella crassicollis"],
+      ["Kura kura Pipi putih", "Siebenrockiella crassicollis"],
+      ["Tu Mama E Maraka", "Ophiophagus hannah"],
+      ["Amboa Laolo", "Eupleres goudotii"],
+    ]) {
+      assert.equal(nameProblem(name, sci), "not-english", name);
+    }
+    // The rule is a list, not a guess: the Cui-ui's English name is also every
+    // word a pinyin syllable.
+    assert.equal(nameProblem("Cui-ui", "Chasmistes cujus"), null);
+  });
+
   test("real names pass, including one that shares a word with its genus", () => {
     assert.equal(nameProblem("Green Iguana", "Iguana iguana"), null);
     assert.equal(nameProblem("Swinhoe's White-eye", "Zosterops simplex"), null);
     assert.equal(nameProblem("Père David's Deer", "Elaphurus davidianus"), null);
+    assert.equal(nameProblem("Black-crowned Night-Heron", "Nycticorax nycticorax"), null);
+    assert.equal(nameProblem("Torre de Guatel Arboreal Alligator Lizard", "Abronia meledona"), null);
   });
 
-  test("a name with no capital is title-cased, and a name with one is left alone", () => {
-    // iNaturalist writes plant and insect names in lower case.
+  test("every name is title-cased, raising letters and never lowering one", () => {
+    // iNaturalist writes plant and insect names in lower case, and some reptile
+    // names in sentence case: 龜殼花 was "Brown spotted pitviper".
     assert.equal(capitalise("common water hyacinth"), "Common Water Hyacinth");
     assert.equal(capitalise("tree of heaven"), "Tree of Heaven");
+    assert.equal(capitalise("Brown spotted pitviper"), "Brown Spotted Pitviper");
+    // The lower-case half of a compound, particles, and a source's own capitals stay.
     assert.equal(capitalise("mile-a-minute"), "Mile-a-minute");
-    assert.equal(capitalise("Brown spotted pitviper"), "Brown spotted pitviper");
+    assert.equal(capitalise("Black-crowned Night-Heron"), "Black-crowned Night-Heron");
+    assert.equal(capitalise("Torre de Guatel Arboreal Alligator Lizard"), "Torre de Guatel Arboreal Alligator Lizard");
+    assert.equal(capitalise("McCord's Box Turtle"), "McCord's Box Turtle");
+    assert.equal(nameProblem("Brown spotted pitviper", "Protobothrops mucrosquamatus"), "not-title-case");
+  });
+
+  test("the apostrophe is the one a reader types", () => {
+    // An ilike search for "Wettstein's" does not find "Wettstein’s".
+    assert.equal(displayName("Wettstein’s  Mud Snake"), "Wettstein's Mud Snake");
+    assert.equal(nameProblem("Wettstein’s Mud Snake", "Hypsiscopus wettsteini"), "curly-apostrophe");
+    assert.deepEqual(cleanAlts(["Stejneger’s Bamboo pitviper"], "Chinese Green Tree Viper", "Trimeresurus stejnegeri"), [
+      "Stejneger's Bamboo Pitviper",
+    ]);
   });
 
   test("alternates are spellings a reader might type, never a new name", () => {
