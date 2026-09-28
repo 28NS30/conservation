@@ -223,6 +223,8 @@
     "resendIn": "Send a new email in {seconds}s",
     "changeEmail": "Use a different address",
     "failed": "The email could not be sent. Please try again shortly.",
+    "refused": "A sign-in email cannot be sent to this address. Check it for a typo, or use a different address.",
+    "notOpen": "Signing in by email is not open to this address yet. You do not need an account to file a report.",
     "tooMany": "Too many attempts. Wait a few minutes and try again.",
     "wrongCode": "That code did not work. A code expires, and stops working once a newer email is sent or its link is opened. Check the newest email, or send a new one.",
     "verifyFailed": "The code could not be checked. Check your connection and try again.",

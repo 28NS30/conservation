@@ -87,7 +87,7 @@ export default function SignInForm({
     });
     setBusy(null);
     if (error) {
-      setError(sendFailure(error.status));
+      setError(sendFailure(error.status, error.code));
       return;
     }
     setCode("");

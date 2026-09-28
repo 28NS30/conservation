@@ -12,6 +12,8 @@
  */
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   safeNextPath,
   loginPathFor,
@@ -233,7 +235,41 @@ describe("what each failure tells the reader", () => {
       assert.equal(verifyFailure(s), "verifyFailed", String(s));
   });
 
-  test("sending fails generically otherwise", () => {
-    for (const s of [0, undefined, 400, 500]) assert.equal(sendFailure(s), "failed");
+  test("an address Supabase declines is not told that trying again will help", () => {
+    // 400 and 422 are what a malformed address gets. Asking again is declined
+    // again.
+    for (const s of [400, 403, 422]) assert.equal(sendFailure(s), "refused", String(s));
+    assert.equal(sendFailure(400, "email_address_invalid"), "refused");
+  });
+
+  test("an address outside the project team is told sign-in is not open to it yet", () => {
+    // What every member of the public gets until the project has a mail
+    // server of its own: not their mistake, and not fixed by another address.
+    assert.equal(sendFailure(400, "email_address_not_authorized"), "notOpen");
+    // The code only counts alongside a refusal; an outage is still an outage.
+    assert.equal(sendFailure(500, "email_address_not_authorized"), "failed");
+  });
+
+  test("no answer, a server fault or a timeout is worth trying again", () => {
+    for (const s of [0, undefined, 408, 500, 502, 503])
+      assert.equal(sendFailure(s), "failed", String(s));
+  });
+
+  test("only the retryable send failure says to try again", () => {
+    // Pinned in the words, not just the key: "failed" promises that retrying
+    // can work, and the refusals must not, in either language.
+    const read = (f) =>
+      JSON.parse(readFileSync(join(import.meta.dirname, "..", "messages", f), "utf8")).login;
+    const en = read("en.json");
+    const zh = read("zh-TW.json");
+    assert.match(en.failed, /try again/i);
+    assert.match(zh.failed, /再試/);
+    for (const key of ["refused", "notOpen"]) {
+      assert.doesNotMatch(en[key], /try again|shortly|later/i, key);
+      assert.doesNotMatch(zh[key], /再試|稍後/, key);
+    }
+    // Reporting needs no account; someone turned away from signing in is told so.
+    assert.match(en.notOpen, /report/i);
+    assert.match(zh.notOpen, /通報/);
   });
 });
