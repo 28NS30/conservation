@@ -1,4 +1,10 @@
-"""Category -> candidate label set.
+"""Category -> candidate label set. THE LEGACY CONTRACT ONLY.
+
+Under the evidence contract ("contract": 2, contract.py) nothing here runs: the
+model scores every accepted Taiwan taxon and the website applies each report
+type's rules to live `taxa` rows (apps/web/lib/report/classifyPolicy.ts). This
+file stays, unchanged, for every website that still sends a category, until
+none does (docs/ai-rollout.md).
 
 Narrowing the candidate set is the single largest accuracy win available, and it
 costs nothing but a boolean mask over the precomputed embedding matrix.

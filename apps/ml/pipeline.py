@@ -41,7 +41,15 @@ from dataclasses import dataclass, asdict
 import numpy as np
 from PIL import Image
 
-from bioclip import encode_image, logit_scale, MODEL_VERSION, EMBED_VERSION
+from bioclip import (
+    EMBED_VERSION,
+    LEGACY_EMBED_VERSION,
+    LEGACY_MODEL_VERSION,
+    MODEL_VERSION,
+    encode_image,
+    logit_scale,
+)
+from contract import CONTRACT_EVIDENCE, TOP_N, EmbeddingsMissing, SpeciesIndex, evidence, load_keys
 from labelsets import LabelSets, CLASSIFIABLE
 
 # Repo-relative locally; overridden in the Modal container, where the code lives
@@ -53,7 +61,13 @@ DATA_DIR = pathlib.Path(
     or pathlib.Path(__file__).resolve().parents[2] / "data" / "embeddings"
 )
 
-# Bands for turning a softmax score into an action.
+# Bands for turning a softmax score into an action — CONTRACT 1 ONLY.
+#
+# These belong to the legacy contract, which bands its own answer here and is
+# kept unchanged for every website that still asks for it. The evidence
+# contract (contract.py) returns no band: the website bands each report type
+# against its own thresholds, fitted per profile by evaluate.py and committed
+# with their measurements in apps/web/lib/report/classifier-thresholds.json.
 #
 # BAND_HIGH is MEASURED, not guessed: evaluate.py fitted it against 306 labelled
 # Taiwan images (2026-08-04, bioclip2-vitl14-v1, 70,805 candidate taxa).
@@ -147,21 +161,117 @@ def _load_detector():
         return None
 
 
-class Classifier:
-    def __init__(self) -> None:
-        emb_path = DATA_DIR / f"taxa_embeddings_{EMBED_VERSION}.npy"
-        ids_path = DATA_DIR / f"taxa_ids_{EMBED_VERSION}.npy"
-        meta_path = DATA_DIR / f"taxa_meta_{EMBED_VERSION}.json"
-        if not emb_path.exists():
-            raise SystemExit(f"{emb_path} missing — run build_embeddings.py first")
+class _LegacySet:
+    """v1: every prompted Taiwan row, keyed by taxa.id, masked per category."""
 
+    def __init__(self, data_dir: pathlib.Path) -> None:
+        v = LEGACY_EMBED_VERSION
+        emb_path = data_dir / f"taxa_embeddings_{v}.npy"
+        if not emb_path.exists():
+            raise EmbeddingsMissing(f"{emb_path} missing — the legacy contract needs the {v} files")
         # float16 on disk, float32 in memory: the matmul is trivial either way and
         # float32 avoids precision surprises in the softmax.
         self.emb = np.load(emb_path).astype(np.float32)
-        self.ids = np.load(ids_path)
-        self.labels = LabelSets(meta_path, self.emb.shape[0])
+        self.ids = np.load(data_dir / f"taxa_ids_{v}.npy")
+        self.labels = LabelSets(data_dir / f"taxa_meta_{v}.json", self.emb.shape[0])
+
+
+class _EvidenceSet:
+    """v2: accepted Taiwan taxa, keyed by TaiCOL id, subspecies adding into species."""
+
+    def __init__(self, data_dir: pathlib.Path) -> None:
+        v = EMBED_VERSION
+        emb_path = data_dir / f"taxa_embeddings_{v}.npy"
+        keys_path = data_dir / f"taxa_keys_{v}.json"
+        if not emb_path.exists() or not keys_path.exists():
+            raise EmbeddingsMissing(
+                f"{emb_path.name} / {keys_path.name} missing — the evidence contract needs "
+                f"the {v} files on the volume (build_embeddings.py, then `modal volume put`)"
+            )
+        self.emb = np.load(emb_path).astype(np.float32)
+        self.index: SpeciesIndex = load_keys(keys_path)
+        if self.emb.shape[0] != self.index.n_rows:
+            raise EmbeddingsMissing(
+                f"{emb_path.name} has {self.emb.shape[0]} rows but {keys_path.name} keys "
+                f"{self.index.n_rows}: the two files are from different builds"
+            )
+
+
+class Classifier:
+    """One model, two embedding sets, one per response contract.
+
+    Both sets are loaded on first use, not at start-up, and each is loaded at
+    most once per container. A request for a set that is not on the volume
+    fails with EmbeddingsMissing and leaves the other contract working.
+    """
+
+    def __init__(self, data_dir: pathlib.Path | None = None) -> None:
+        self.data_dir = data_dir or DATA_DIR
         self.scale = logit_scale()
         self.detector = _load_detector()
+        self._legacy: _LegacySet | None = None
+        self._evidence: _EvidenceSet | None = None
+
+    def legacy_set(self) -> _LegacySet:
+        if self._legacy is None:
+            self._legacy = _LegacySet(self.data_dir)
+        return self._legacy
+
+    def evidence_set(self) -> _EvidenceSet:
+        if self._evidence is None:
+            self._evidence = _EvidenceSet(self.data_dir)
+        return self._evidence
+
+    def preload(self) -> None:
+        """Load whatever sets are present, so the first request is not the slow one."""
+        for load in (self.legacy_set, self.evidence_set):
+            try:
+                load()
+            except EmbeddingsMissing as e:
+                print(f"[pipeline] {e}", flush=True)
+
+    # evaluate.py and older scripts read these straight off the classifier.
+    @property
+    def emb(self) -> np.ndarray:
+        return self.legacy_set().emb
+
+    @property
+    def ids(self) -> np.ndarray:
+        return self.legacy_set().ids
+
+    @property
+    def labels(self) -> LabelSets:
+        return self.legacy_set().labels
+
+    def image_features(self, image_bytes: bytes) -> tuple[np.ndarray, bool]:
+        """Decode, optionally crop, and embed a photograph."""
+        img = Image.open(io.BytesIO(image_bytes))
+        img.load()
+        crop, detector_hit = self._crop(img)
+        return encode_image(crop), detector_hit
+
+    def evidence_from_features(self, feat: np.ndarray, top_n: int = TOP_N) -> list[dict]:
+        """The contract-2 candidate list for an image embedding.
+
+        Logits over EVERY accepted Taiwan row, softmax over all of them, then
+        collapsed to species (contract.evidence). No category reaches this
+        function, deliberately: a mask applied before the softmax is exactly
+        what made the invasive page call native animals invasive.
+        """
+        s = self.evidence_set()
+        return evidence(self.scale * (s.emb @ feat), s.index, top_n)
+
+    def evidence(self, image_bytes: bytes, top_n: int = TOP_N) -> dict:
+        """The contract-2 response body."""
+        s = self.evidence_set()  # fail before the GPU work if the files are missing
+        feat, detector_hit = self.image_features(image_bytes)
+        return {
+            "contract": CONTRACT_EVIDENCE,
+            "candidates": self.evidence_from_features(feat, top_n),
+            "detectorHit": detector_hit,
+            "modelVersion": MODEL_VERSION,
+            "speciesCount": s.index.n_species,
+        }
 
     def _crop(self, img: Image.Image) -> tuple[Image.Image, bool]:
         if self.detector is None:
@@ -203,18 +313,16 @@ class Classifier:
             return img, False
 
     def classify(self, image_bytes: bytes, category: str, top_k: int = 5) -> Result:
+        """The contract-1 response, exactly as before the evidence contract existed."""
         if category not in CLASSIFIABLE:
             raise ValueError(f"category {category!r} is not classifiable")
 
-        img = Image.open(io.BytesIO(image_bytes))
-        img.load()
-        crop, detector_hit = self._crop(img)
+        legacy = self.legacy_set()
+        feat, detector_hit = self.image_features(image_bytes)
 
-        feat = encode_image(crop)
-
-        mask = self.labels.for_category(category)
-        emb = self.emb if mask is None else self.emb[mask]
-        ids = self.ids if mask is None else self.ids[mask]
+        mask = legacy.labels.for_category(category)
+        emb = legacy.emb if mask is None else legacy.emb[mask]
+        ids = legacy.ids if mask is None else legacy.ids[mask]
 
         logits = self.scale * (emb @ feat)
         # Numerically stable softmax over the *restricted* set.
@@ -237,5 +345,5 @@ class Classifier:
             predictions=preds,
             detector_hit=detector_hit,
             band=band,
-            model_version=MODEL_VERSION,
+            model_version=LEGACY_MODEL_VERSION,
         )

@@ -74,39 +74,43 @@ class Service:
         from pipeline import Classifier
 
         self.clf = Classifier()
+        # Both embedding sets, whichever are on the volume. A missing set is
+        # logged, not fatal: the contract it serves answers 503 and the other
+        # keeps working, which is what lets v2 be uploaded before any website
+        # asks for it (docs/ai-rollout.md).
+        self.clf.preload()
 
     @modal.fastapi_endpoint(method="POST", docs=False)
     def classify(self, payload: dict):
-        """Authenticated classify endpoint.
+        """Authenticated classify endpoint, two contracts side by side.
 
-        Expects {"token", "imageUrl" | "imageBase64", "category"}. The shared
-        token keeps this from being an open image-classification service that
-        anyone can run up a GPU bill on.
+        {"token", "imageUrl" | "imageBase64", "category"}
+            The legacy contract: the category's label list, a band, the top 5
+            as v1 `taxa.id`s. What every website before ML_CONTRACT=2 sends.
+
+        {"token", "imageUrl" | "imageBase64", "contract": 2}
+            The evidence contract: the top 50 species over every accepted
+            Taiwan taxon as {taicol_id, score}; the website applies the rules.
+
+        The shared token keeps this from being an open image-classification
+        service that anyone can run up a GPU bill on. The decisions live in
+        endpoint.py, where they are tested without Modal.
         """
-        import base64
-
         import requests
         from fastapi import HTTPException
 
-        expected = os.environ.get("ML_ENDPOINT_TOKEN")
-        if not expected or payload.get("token") != expected:
-            raise HTTPException(status_code=401, detail="unauthorized")
+        from endpoint import handle
 
-        category = payload.get("category")
-        if not category:
-            raise HTTPException(status_code=400, detail="category required")
+        def fetch(url: str) -> tuple[int, bytes]:
+            r = requests.get(url, timeout=30)
+            return r.status_code, r.content
 
-        if payload.get("imageBase64"):
-            blob = base64.b64decode(payload["imageBase64"])
-        elif payload.get("imageUrl"):
-            r = requests.get(payload["imageUrl"], timeout=30)
-            if r.status_code != 200:
-                raise HTTPException(status_code=400, detail=f"image fetch failed ({r.status_code})")
-            blob = r.content
-        else:
-            raise HTTPException(status_code=400, detail="imageUrl or imageBase64 required")
-
-        try:
-            return self.clf.classify(blob, category).to_dict()
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+        status, body = handle(
+            payload,
+            clf=self.clf,
+            expected_token=os.environ.get("ML_ENDPOINT_TOKEN"),
+            fetch_image=fetch,
+        )
+        if status != 200:
+            raise HTTPException(status_code=status, detail=body.get("detail"))
+        return body
