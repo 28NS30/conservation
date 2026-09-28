@@ -110,7 +110,11 @@ export default async function ReportsListPage({
          and (${taxonId}::bigint is null or rp.taxon_id = ${taxonId})
          and (${from}::date is null or rp.observed_at >= ${from}::date)
          and (${to}::date   is null or rp.observed_at <  (${to}::date + 1))
-       order by rp.observed_at desc
+       -- rp.id makes the order total. The import ends on 2017-12-31 and many
+       -- records share a date, and rows that tie come back in whatever order
+       -- the plan produces: page 1 showed different records on each load, and
+       -- a record could fall between two pages and never be shown at all.
+       order by rp.observed_at desc, rp.id
        limit ${PAGE_SIZE + 1} offset ${offset}`,
   );
 
