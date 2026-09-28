@@ -132,6 +132,9 @@ describe("every path that names a species applies one override rule", () => {
       join(import.meta.dirname, "..", "app", "api", "jobs", "classify", "route.ts"),
       "utf8",
     );
+    // The classifier uses photoIdentificationOverride, which is this rule plus
+    // the blur a photograph needs (test/classify-policy.test.mjs pins that it
+    // is built on keepDeliberateOverride and not beside it).
     for (const [name, source] of [
       ["confirmSpecies", src],
       ["setReportTaxon", ADMIN],
@@ -139,7 +142,7 @@ describe("every path that names a species applies one override rule", () => {
     ]) {
       assert.match(
         source,
-        /precision_override = \$\{keepDeliberateOverride\(\)\}/,
+        /precision_override = \$\{(keepDeliberateOverride\(\)|photoIdentificationOverride\([^)]*\))\}/,
         `${name} does not use the shared rule`,
       );
       assert.doesNotMatch(

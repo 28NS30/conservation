@@ -236,10 +236,13 @@ describe("a reporter names the species", () => {
 
   test("the classifier does not overwrite a person's identification", () => {
     // Without this the reporter's answer survived until the next cron run and
-    // was then replaced, taking the published precision with it.
+    // was then replaced, taking the published precision with it. The decision
+    // itself now lives in lib/report/classifyPolicy.ts, where
+    // test/classify-policy.test.mjs asserts that a person's identification is
+    // only ever recorded beside; this pins that the route still tells it so.
     const job = source("app/api/jobs/classify/route.ts");
     assert.match(job, /job\.taxon_source !== "ai"/);
-    assert.match(job, /&& !humanIdentified/);
+    assert.match(job, /classifierAction\(\{[\s\S]*?humanIdentified,[\s\S]*?\}\)/);
   });
 
   test("a sensitive species still blurs, named or not", async () => {

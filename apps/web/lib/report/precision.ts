@@ -35,3 +35,21 @@ import { sql } from "@/lib/db";
  */
 export const keepDeliberateOverride = () =>
   sql`case when taxon_id is null then null else precision_override end`;
+
+/**
+ * The same rule, for a species named from a photograph, plus the one thing a
+ * photograph cannot settle.
+ *
+ * A model cannot tell 環頸雉's protected endemic subspecies from its
+ * introduced ones, and its label list holds deleted rows and duplicates beside
+ * the accepted ones, which need not carry the same rating. Which of several
+ * rows sharing a binomial it lands on is noise, so the record is blurred at
+ * least as hard as the strictest of them (`binomial_precision_floor`,
+ * migration 0014). When the taxon's own rule is already that strict this adds
+ * nothing, and nothing is stamped.
+ *
+ * Built on keepDeliberateOverride rather than beside it, so the three paths
+ * that name a species still share one rule about what an override means.
+ */
+export const photoIdentificationOverride = (taxonId: number) =>
+  sql`stricter_precision(${keepDeliberateOverride()}, binomial_precision_floor(${taxonId}))`;

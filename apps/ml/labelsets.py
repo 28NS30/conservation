@@ -7,6 +7,12 @@ An `invasive` report is scored against the ~274 taxa TaiCOL marks as invasive
 rather than all 66k Taiwan species — a 240x reduction in the decision space for
 exactly the reports where a confident answer matters most (green iguana, apple
 snail, fire ant, brown anole, mile-a-minute weed).
+
+That reduction is also why an invasive answer is never taken as an
+identification. A closed list has no "none of these": 100 of 276 native
+animals in the evaluation set came back as an invasive species in the high
+band. The website stores the answer as a suggestion only
+(apps/web/lib/report/classifyPolicy.ts); nothing here changes that.
 """
 
 from __future__ import annotations
@@ -41,10 +47,17 @@ class LabelSets:
             # Only fall back to everything if the checklist has no invasives loaded.
             return self._invasive if self._invasive.any() else None
 
-        if category == "roadkill":
+        if category in ("roadkill", "injured"):
             # Roadkill is by definition terrestrial. Excluding marine-only taxa
             # removes ~20k fish that a road casualty can never be. Taxa with no
             # habitat flags are kept — absent data must not silently drop a species.
+            #
+            # `injured` is filed from the same "roadkill or injured" choice and
+            # is found in the same places; it used to fall through to the whole
+            # checklist, reef fish included. The website already sends
+            # `roadkill` for it (labelSetFor in apps/web/lib/report/
+            # classifyPolicy.ts), so this matters to anything calling the model
+            # directly — evaluate.py, or an older deploy of the site.
             keep = ~(self._marine & ~self._terrestrial)
             return keep if keep.any() else None
 
