@@ -18,7 +18,11 @@ export async function serverSupabase() {
           for (const { name, value, options } of list) store.set(name, value, options);
         } catch {
           // Called from a Server Component, where cookies are read-only.
-          // Session refresh happens in middleware; ignoring here is correct.
+          // Ignoring is correct only because proxy.ts renews an expiring
+          // session before the render starts (lib/supabase/proxy.ts), so a
+          // Server Component normally finds nothing to write. From the first
+          // commit until this one the comment claimed a middleware did that,
+          // and none did.
         }
       },
     },
