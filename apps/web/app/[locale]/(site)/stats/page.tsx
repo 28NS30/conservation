@@ -14,6 +14,7 @@ import { speciesSlug } from "@/lib/species";
 import { collectionTotals } from "@/lib/collections";
 import PageHeader from "@/components/site/PageHeader";
 import Columns from "@/components/stats/Columns";
+import { speciesNames } from "@/lib/speciesNames";
 
 export const revalidate = 900;
 
@@ -85,7 +86,6 @@ export default async function StatsPage({
     ]);
 
   const n = (v: number) => v.toLocaleString(locale);
-  const zhFirst = locale.startsWith("zh");
   /*
    * Numerals on the axis, month names in the table.
    *
@@ -250,10 +250,9 @@ export default async function StatsPage({
         <Section title={t("topSpecies")} hint={t("topSpeciesHint")}>
           <ol className="space-y-1">
             {species.map((s, i) => {
-              const headline =
-                zhFirst && s.commonNameZh ? s.commonNameZh : s.scientificName;
-              const secondary =
-                zhFirst && s.commonNameZh ? s.scientificName : s.commonNameZh;
+              // Both names, the page's language first (lib/speciesNames.ts).
+              const nm = speciesNames(s, locale);
+              const rest = [nm.other, nm.scientific].filter((p) => p !== null);
               const share = ov.reports ? (s.reportCount / ov.reports) * 100 : 0;
               return (
                 <li key={s.id}>
@@ -266,21 +265,28 @@ export default async function StatsPage({
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm text-ink-800">
-                        {headline}
+                        <span lang={nm.primary.lang} className={nm.primary.italic ? "italic" : ""}>
+                          {nm.primary.text}
+                        </span>
                         {s.protectedStatus && (
-                          <span className="ml-1.5 rounded bg-amber-400/15 px-1 py-px text-[9px] text-amber-700">
+                          <span className="ml-1.5 rounded bg-amber-400/15 px-1 py-px text-xs text-amber-800">
                             {t("protected")}
                           </span>
                         )}
                         {s.isInvasive && (
-                          <span className="ml-1.5 rounded bg-rose-400/15 px-1 py-px text-[9px] text-rose-700">
+                          <span className="ml-1.5 rounded bg-rose-400/15 px-1 py-px text-xs text-rose-800">
                             {t("invasive")}
                           </span>
                         )}
                       </span>
-                      {secondary && (
-                        <span className="block truncate text-[11px] italic text-ink-500">
-                          {secondary}
+                      {rest.length > 0 && (
+                        <span className="block truncate text-xs text-ink-600">
+                          {rest.map((p, j) => (
+                            <span key={p.lang}>
+                              {j > 0 && " · "}
+                              <span lang={p.lang} className={p.italic ? "italic" : ""}>{p.text}</span>
+                            </span>
+                          ))}
                         </span>
                       )}
                     </span>
@@ -288,7 +294,7 @@ export default async function StatsPage({
                       <span className="block text-sm tabular-nums text-ink-700">
                         {n(s.reportCount)}
                       </span>
-                      <span className="block text-[10px] tabular-nums text-ink-500">
+                      <span className="block text-xs tabular-nums text-ink-600">
                         {share.toFixed(1)}%
                       </span>
                     </span>
@@ -322,13 +328,18 @@ export default async function StatsPage({
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm text-ink-800">
-                      {h.topSpeciesZh || h.topSpeciesSci
+                      {h.topSpeciesSci
                         ? t("dominatedBy", {
-                            species:
-                              (zhFirst && h.topSpeciesZh) ||
-                              h.topSpeciesSci ||
-                              h.topSpeciesZh ||
-                              "",
+                            // One name, in the page's language where it has one.
+                            species: speciesNames(
+                              {
+                                scientificName: h.topSpeciesSci,
+                                commonNameZh: h.topSpeciesZh,
+                                commonNameEn: h.topSpeciesEn,
+                                taicolId: h.topSpeciesTaicolId,
+                              },
+                              locale,
+                            ).primary.text,
                           })
                         : t("mixedSpecies")}
                     </span>

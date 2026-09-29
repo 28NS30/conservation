@@ -19,6 +19,8 @@ import { publicSpeciesName, speciesSlug } from "@/lib/species";
 import { signedPhotoUrls } from "@/lib/supabase/service";
 import { sql } from "@/lib/db";
 import Pager from "@/components/site/Pager";
+import SpeciesName from "@/components/species/SpeciesName";
+import { speciesLabel } from "@/lib/speciesNames";
 
 export const revalidate = 120;
 
@@ -35,6 +37,8 @@ type Row = {
   taxonId: number | null;
   scientificName: string | null;
   commonNameZh: string | null;
+  commonNameEn: string | null;
+  taicolId: string | null;
   isInvasive: boolean;
 };
 
@@ -117,6 +121,8 @@ export default async function ReportsListPage({
              rp.taxon_id as "taxonId",
              t.scientific_name as "scientificName",
              t.common_name_zh as "commonNameZh",
+             t.common_name_en as "commonNameEn",
+             t.taicol_id as "taicolId",
              rp.is_invasive as "isInvasive"
         from reports_public rp
         left join taxa t on t.id = rp.taxon_id
@@ -198,7 +204,6 @@ export default async function ReportsListPage({
    * of noise by another route.
    */
   const showPhotos = thumb.size > 0;
-  const zhFirst = locale.startsWith("zh");
 
   /** Carry every active filter through paging and the collection chips. */
   const activeFilter = filterToQuery({
@@ -276,9 +281,7 @@ export default async function ReportsListPage({
         : to
           ? t("dateTo", { to: day(to) })
           : null;
-  const speciesName = named
-    ? (zhFirst && named.commonNameZh) || named.scientificName
-    : null;
+  const speciesName = named ? speciesLabel(named, locale) : null;
   const filterParts = [speciesName, dates].filter(Boolean) as string[];
   /** The same sentence the chips row shows, for the table's caption. */
   const filterCaption = filterParts.length
@@ -495,9 +498,13 @@ export default async function ReportsListPage({
                           href={`/species/${speciesSlug({ id: r.taxonId, scientificName: r.scientificName })}`}
                           className="text-ink-700 hover:text-ember-700"
                         >
-                          {zhFirst && r.commonNameZh
-                            ? r.commonNameZh
-                            : r.scientificName}
+                          {/* The page's own language only: a table cell on
+                              a 320px phone has room for one name. */}
+                          <SpeciesName
+                            species={{ ...r, scientificName: r.scientificName }}
+                            locale={locale}
+                            layout="primary"
+                          />
                         </Link>
                       ) : (
                         <span className="text-ink-500">—</span>

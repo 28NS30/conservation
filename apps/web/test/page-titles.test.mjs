@@ -44,15 +44,20 @@ describe("a record page", () => {
     // An imported record: GBIF gives a date and no time, stored as midnight UTC,
     // and the page used to print that as 08:00 Taipei.
     const [r] = await sql`
-      select rp.id, t.common_name_zh as zh, t.scientific_name as sci
+      select rp.id, t.common_name_zh as zh, t.common_name_en as en, t.scientific_name as sci
         from reports_public rp join taxa t on t.id = rp.taxon_id
        where rp.source = 'gbif' and t.common_name_zh is not null
        limit 1`;
     const zh = await page(`/reports/${r.id}`);
     const en = await page(`/en/reports/${r.id}`);
     assert.equal(zh.status, 200);
-    assert.ok(zh.title.startsWith(`${r.zh} · `), `zh title is "${zh.title}"`);
-    assert.ok(en.title.startsWith(`${r.sci} · `), `en title is "${en.title}"`);
+    // Both names, the page's language first (lib/speciesNames.ts speciesLabel):
+    // "花嘴鴨 Eastern Spot-billed Duck" and "Eastern Spot-billed Duck (花嘴鴨)",
+    // or the binomial first where there is no English name.
+    const zhName = r.en ? `${r.zh} ${r.en}` : r.zh;
+    const enName = r.en ? `${r.en} (${r.zh})` : `${r.sci} (${r.zh})`;
+    assert.ok(zh.title.startsWith(`${zhName} · `), `zh title is "${zh.title}"`);
+    assert.ok(en.title.startsWith(`${enName} · `), `en title is "${en.title}"`);
     for (const { html, title } of [zh, en]) {
       assert.doesNotMatch(title, /\d:\d\d/, "a date-only record's title carries a time");
       assert.doesNotMatch(html, /上午8:00|8:00:00\s*AM/, "the invented 08:00 is back");

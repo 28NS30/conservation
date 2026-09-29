@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import SpeciesName from "@/components/species/SpeciesName";
 import {
   CATEGORIES,
   COLLECTION_KEYS,
@@ -15,6 +16,8 @@ export type SpeciesHit = {
   id: number;
   scientificName: string;
   commonNameZh: string | null;
+  commonNameEn?: string | null;
+  taicolId?: string | null;
   reportCount: number;
 };
 
@@ -62,7 +65,7 @@ export default function MapFilters({
   initialSpecies?: SpeciesHit | null;
 }) {
   const t = useTranslations();
-  const zhFirst = useLocale().startsWith("zh");
+  const locale = useLocale();
   const [speciesQuery, setSpeciesQuery] = useState("");
   const [hits, setHits] = useState<SpeciesHit[]>([]);
   const [chosen, setChosen] = useState<SpeciesHit | null>(initialSpecies);
@@ -271,11 +274,7 @@ export default function MapFilters({
                   {/* In the page's language, as the homepage link that opens
                       it is: an English reader arriving from "Duttaphrynus
                       melanostictus" found a chip naming it only in Chinese. */}
-                  {zhFirst && chosen.commonNameZh ? (
-                    <span lang="zh-TW">{chosen.commonNameZh}</span>
-                  ) : (
-                    <span className="italic">{chosen.scientificName}</span>
-                  )}
+                  <SpeciesName species={chosen} locale={locale} layout="primary" />
                   <span aria-hidden>×</span>
                 </button>
               ) : (
@@ -323,14 +322,13 @@ export default function MapFilters({
                         className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs hover:bg-bark-800"
                       >
                         <span className="min-w-0 truncate">
-                          <span className="text-parchment-100">
-                            {h.commonNameZh ?? h.scientificName}
-                          </span>
-                          {h.commonNameZh && (
-                            <span className="ml-1.5 italic text-parchment-500">
-                              {h.scientificName}
-                            </span>
-                          )}
+                          <SpeciesName
+                            species={h}
+                            locale={locale}
+                            layout="inline"
+                            primaryClassName="text-parchment-100"
+                            secondaryClassName="text-parchment-400"
+                          />
                         </span>
                         <span className="shrink-0 tabular-nums text-parchment-500">
                           {h.reportCount}

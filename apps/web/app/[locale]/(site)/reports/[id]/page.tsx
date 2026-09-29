@@ -20,6 +20,7 @@ import SpeciesConfirm, {
   type Suggestion,
 } from "@/components/report/SpeciesConfirm";
 import InvasiveBadge from "@/components/collections/InvasiveBadge";
+import { speciesLabel } from "@/lib/speciesNames";
 
 export const dynamic = "force-dynamic";
 
@@ -85,11 +86,15 @@ export async function generateMetadata({
         category: Category;
         scientificName: string | null;
         commonNameZh: string | null;
+        commonNameEn: string | null;
+        taicolId: string | null;
       }[]
     >`
       select rp.observed_at as "observedAt", rp.source, rp.category,
              t.scientific_name as "scientificName",
-             t.common_name_zh as "commonNameZh"
+             t.common_name_zh as "commonNameZh",
+             t.common_name_en as "commonNameEn",
+             t.taicol_id as "taicolId"
         from reports_public rp
         left join taxa t on t.id = rp.taxon_id
        where rp.id = ${id}::uuid`,
@@ -104,11 +109,11 @@ export async function generateMetadata({
     };
   }
 
-  const zh = locale.startsWith("zh");
-  const name =
-    (zh && pub.commonNameZh) ||
-    pub.scientificName ||
-    t(`categories.${pub.category}`);
+  // Both names, the page's language first (lib/speciesNames.ts); the
+  // category when nobody has named the animal.
+  const name = pub.scientificName
+    ? speciesLabel({ ...pub, scientificName: pub.scientificName }, locale)
+    : t(`categories.${pub.category}`);
   return { title: `${name} · ${seenOn(pub.observedAt, pub.source, locale)}` };
 }
 
@@ -234,11 +239,15 @@ export default async function ReportPage({
   const suggestions = await asPublic(
     (tx) =>
       tx<Suggestion[]>`
-      select taxon_id as "taxonId", rank, score,
-             scientific_name as "scientificName", common_name_zh as "commonNameZh"
-        from report_ai_suggestions
-       where report_id = ${id}::uuid
-       order by rank`,
+      select s.taxon_id as "taxonId", s.rank, s.score,
+             s.scientific_name as "scientificName", s.common_name_zh as "commonNameZh",
+             -- The English name from taxa, which the public role reads, rather
+             -- than a new column on the 0004 view.
+             t.common_name_en as "commonNameEn", t.taicol_id as "taicolId"
+        from report_ai_suggestions s
+        left join taxa t on t.id = s.taxon_id
+       where s.report_id = ${id}::uuid
+       order by s.rank`,
   );
 
   // The species card, when this report has a species. Two small reads rather

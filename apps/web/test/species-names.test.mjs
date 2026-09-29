@@ -79,6 +79,17 @@ describe("the pages that name a species ask speciesNames()", () => {
     "app/[locale]/(site)/species/[id]/page.tsx",
     "app/[locale]/(site)/species/[id]/opengraph-image.tsx",
     "app/[locale]/page.tsx",
+    "app/[locale]/(site)/reports/(list)/page.tsx",
+    "app/[locale]/(site)/reports/[id]/page.tsx",
+    "app/[locale]/(site)/stats/page.tsx",
+    "app/[locale]/(site)/me/page.tsx",
+    "components/map/ReportPanel.tsx",
+    "components/map/MapFilters.tsx",
+    "components/species/SpeciesCard.tsx",
+    "components/report/SpeciesPicker.tsx",
+    "components/report/SpeciesConfirm.tsx",
+    "components/collections/CollectionHub.tsx",
+    "components/collections/InvasiveSpeciesList.tsx",
   ];
   for (const f of FILES)
     test(f, () => {
@@ -86,6 +97,7 @@ describe("the pages that name a species ask speciesNames()", () => {
       assert.match(src, /SpeciesName|speciesNames|speciesLabel/);
       assert.doesNotMatch(src, /zhFirst && s\.commonNameZh/);
       assert.doesNotMatch(src, /zh \? sp\.commonNameZh : sp\.scientificName/);
+      assert.doesNotMatch(src, /zhFirst/, "a per-page language ternary is back");
     });
 });
 
