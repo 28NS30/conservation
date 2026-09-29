@@ -272,6 +272,23 @@
         "pending": "審核中",
         "rejected": "未採用"
       }
+    },
+    "flag": {
+      "outsideTaiwan": "位置在臺灣以外。",
+      "noPhoto": "這類通報通常需要照片，但沒有附上。",
+      "linksInNotes": "備註裡有網址或帳號。",
+      "disagrees": "辨識模型和通報者認為是不同物種。",
+      "notIdentified": "辨識模型完全無法判斷是什麼。",
+      "lowConfidence": "辨識模型對物種沒有把握。",
+      "onlySuggests": "這類通報，辨識模型只提供建議。",
+      "unavailable": "辨識模型多次處理失敗，需要人工辨識。",
+      "suspectsInvasive": "辨識模型懷疑是入侵種「{name}」，需要人工確認。",
+      "mixedForms": "辨識模型認為是「{name}」，這個物種有原生與引進的族群，需要專家判斷。",
+      "looksNative": "辨識模型認為看起來是原生動物（{name}），需要人工確認。",
+      "wrongModel": "辨識模型的版本和測試門檻不符，只提供建議。",
+      "onlySuggestsClass": "{group}的物種，辨識模型只提供建議。",
+      "includesInvasive": "辨識模型認為是「{name}」，其中包含入侵的族群，需要人工確認。",
+      "stricterSibling": "辨識模型很確定是「{name}」，但也列出了位置保護更嚴格的「{other}」，需要人工確認。"
     }
   },
   "login": {
