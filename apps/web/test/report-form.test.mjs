@@ -106,8 +106,10 @@ describe("nothing is chosen for the reporter", () => {
       ...page.matchAll(/<button[^>]*aria-pressed="false"[^>]*>(.*?)<\/button>/gs),
     ].map((m) => m[1]);
     assert.deepEqual(answers, ["已死亡", "還活著，但受傷"]);
-    // And the button says it is waiting for that answer before anything else.
-    assert.match(page, /id="submit-blocker"[^>]*>請先選擇動物已經死亡，還是活著但受傷</);
+    // The button names the first thing missing in the order the page asks,
+    // which since the photo-first form is the place, then this question
+    // (test/send-state.test.mjs pins the order itself).
+    assert.match(page, /id="submit-blocker"[^>]*>請先在地圖上點選發現地點</);
     assert.match(
       FORM,
       /return categories\.length === 1 \? categories\[0\] : null;/,

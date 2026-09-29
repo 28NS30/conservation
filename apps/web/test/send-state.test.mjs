@@ -107,8 +107,9 @@ describe("online", () => {
   test("the first thing missing is named, in the order someone meets them", () => {
     const all = { ...ready, preparing: true, needsCondition: true, hasLocation: false, hasToken: false };
     assert.equal(sendControls(all).blocker, "preparingPhotos");
-    assert.equal(sendControls({ ...all, preparing: false }).blocker, "needCondition");
-    assert.equal(sendControls({ ...all, preparing: false, needsCondition: false }).blocker, "needLocation");
+    // The photo, then the place, then the condition: the photo-first form's order.
+    assert.equal(sendControls({ ...all, preparing: false }).blocker, "needLocation");
+    assert.equal(sendControls({ ...all, preparing: false, hasLocation: true }).blocker, "needCondition");
   });
 });
 
