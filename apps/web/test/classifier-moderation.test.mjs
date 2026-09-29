@@ -21,7 +21,8 @@ import { sql, inRollback, insertReport } from "./helpers.mjs";
 after(() => sql.end());
 
 const ROUTE = readFileSync(
-  join(import.meta.dirname, "..", "app", "api", "jobs", "classify", "route.ts"),
+  // The worker, which the cron route and POST /api/reports both run.
+  join(import.meta.dirname, "..", "lib", "report", "classifyWorker.ts"),
   "utf8",
 );
 const ADMIN = readFileSync(

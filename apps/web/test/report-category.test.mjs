@@ -65,7 +65,7 @@ describe("naming a species does not rewrite the category", () => {
   for (const [name, file] of [
     ["confirmSpecies", ["app", "[locale]", "(site)", "reports", "[id]", "actions.ts"]],
     ["setReportTaxon", ["app", "[locale]", "(site)", "admin", "actions.ts"]],
-    ["the classifier", ["app", "api", "jobs", "classify", "route.ts"]],
+    ["the classifier", ["lib", "report", "classifyWorker.ts"]],
   ])
     test(`${name} sets the species and leaves the category alone`, () => {
       const src = code(...file);
