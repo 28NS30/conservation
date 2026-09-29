@@ -9,81 +9,12 @@
  * All taxa are imported, not just species: the lineage walk in
  * resolve_taxa_lineage() needs the higher ranks to climb through.
  */
+import { readFileSync } from "node:fs";
 import { sql, fetchJson, mapPool, progress } from "./db.ts";
+import { COLUMNS, toRow, type Page, type TaicolTaxon } from "./taicol-rows.ts";
 
 const API = "https://api.taicol.tw/v2/taxon";
 const PAGE = 300;
-
-type TaicolTaxon = {
-  taxon_id: string;
-  parent_taxon_id: string | null;
-  taxon_status: string | null;
-  simple_name: string;
-  name_author: string | null;
-  common_name_c: string | null;
-  alternative_name_c: string | null;
-  rank: string | null;
-  kingdom: string | null;
-  is_in_taiwan: boolean | null;
-  is_endemic: boolean | null;
-  alien_type: string | null;
-  protected: string | null;
-  cites: string | null;
-  iucn: string | null;
-  redlist: string | null;
-  sensitive: string | null;
-  is_terrestrial: boolean | null;
-  is_freshwater: boolean | null;
-  is_brackish: boolean | null;
-  is_marine: boolean | null;
-  updated_at: string | null;
-};
-
-type Page = { info: { total: number }; data: TaicolTaxon[] };
-
-function toRow(t: TaicolTaxon) {
-  const alt = t.alternative_name_c
-    ? t.alternative_name_c.split(",").map((s) => s.trim()).filter(Boolean)
-    : null;
-  return {
-    taicol_id: t.taxon_id,
-    parent_taicol_id: t.parent_taxon_id,
-    taxon_status: t.taxon_status,
-    scientific_name: t.simple_name,
-    name_author: t.name_author,
-    common_name_zh: t.common_name_c,
-    alt_names_zh: alt,
-    rank: t.rank,
-    kingdom: t.kingdom,
-    is_in_taiwan: t.is_in_taiwan ?? false,
-    is_endemic: t.is_endemic ?? false,
-    alien_type: t.alien_type,
-    // TaiCOL encodes invasiveness inside alien_type rather than as a flag.
-    is_invasive: (t.alien_type ?? "").toLowerCase().includes("invasive"),
-    // Overwritten on every run, so a hand edit to either never lasts. Where
-    // TaiCOL's value is too lenient — the law protects an animal under a name
-    // TaiCOL has moved, or TaiCOL relaxes a rating — the fix goes in
-    // scripts/taxa-overrides.csv, which this import never touches and which
-    // the blur takes the stricter of (migration 0014).
-    protected_status: t.protected,
-    cites: t.cites,
-    iucn: t.iucn,
-    redlist: t.redlist,
-    sensitivity: t.sensitive,
-    is_terrestrial: t.is_terrestrial,
-    is_freshwater: t.is_freshwater,
-    is_brackish: t.is_brackish,
-    is_marine: t.is_marine,
-    updated_at: t.updated_at ? new Date(t.updated_at) : null,
-  };
-}
-
-const COLUMNS = [
-  "taicol_id", "parent_taicol_id", "taxon_status", "scientific_name", "name_author",
-  "common_name_zh", "alt_names_zh", "rank", "kingdom", "is_in_taiwan", "is_endemic",
-  "alien_type", "is_invasive", "protected_status", "cites", "iucn", "redlist",
-  "sensitivity", "is_terrestrial", "is_freshwater", "is_brackish", "is_marine", "updated_at",
-] as const;
 
 async function upsert(rows: ReturnType<typeof toRow>[]) {
   if (!rows.length) return;
@@ -101,6 +32,7 @@ async function upsert(rows: ReturnType<typeof toRow>[]) {
       is_in_taiwan     = excluded.is_in_taiwan,
       is_endemic       = excluded.is_endemic,
       alien_type       = excluded.alien_type,
+      alien_status_note = excluded.alien_status_note,
       is_invasive      = excluded.is_invasive,
       protected_status = excluded.protected_status,
       cites            = excluded.cites,
@@ -114,7 +46,32 @@ async function upsert(rows: ReturnType<typeof toRow>[]) {
       updated_at       = excluded.updated_at`;
 }
 
+/**
+ * `--from <file.jsonl>`: import a saved snapshot, one TaiCOL taxon per line,
+ * instead of the live API. A refresh is checked on the local copy before it
+ * reaches production, and production is written from SQL (taicol-sql.ts)
+ * because this machine cannot reach its database; reading the same file on
+ * both sides is what makes the check a check. The live API changes daily.
+ */
+async function importFile(path: string) {
+  const rows = readFileSync(path, "utf8")
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => toRow(JSON.parse(line) as TaicolTaxon));
+  console.log(`${path}: ${rows.length.toLocaleString()} taxa\n`);
+  for (let i = 0; i < rows.length; i += PAGE) {
+    await upsert(rows.slice(i, i + PAGE));
+    progress(Math.min(i + PAGE, rows.length), rows.length, "taxa");
+  }
+}
+
 async function main() {
+  const fromIdx = process.argv.indexOf("--from");
+  if (fromIdx >= 0) {
+    await importFile(process.argv[fromIdx + 1]);
+    await finish();
+    return;
+  }
   const first = await fetchJson<Page>(`${API}?limit=${PAGE}&offset=0`);
   const total = first.info.total;
   console.log(`TaiCOL: ${total.toLocaleString()} taxa\n`);
@@ -134,7 +91,11 @@ async function main() {
     progress(done, total, "taxa");
   });
   progress(total, total, "taxa");
+  await finish();
+}
 
+/** Lineage, prompts and a summary, after either kind of import. */
+async function finish() {
   console.log("\nResolving taxonomic lineage (walking parent_taxon_id)...");
   const t0 = Date.now();
   const [{ resolve_taxa_lineage: updated }] =

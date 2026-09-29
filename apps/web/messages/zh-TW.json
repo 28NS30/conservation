@@ -217,7 +217,7 @@
     "notYetIdentified": "尚未辨識",
     "notes": "備註",
     "location": "位置",
-    "aiSuggested": "AI 建議",
+    "aiIdentified": "由 AI 辨識",
     "blurredNotice": "此物種屬敏感或保育類，座標已{precision}後才公開，以避免成為盜獵線索。",
     "blurredUnknownNotice": "{precision}——這筆紀錄還沒辨識出物種；在還不知道是什麼動物之前，我們無法判斷牠是否敏感。",
     "suggestions": "AI 建議",
@@ -230,7 +230,8 @@
     "receipt": {
       "title": "收到了，目前沒有公開",
       "body": "有些通報要等一下才會公開：有照片但沒有物種名稱的，要等辨識模型試著判斷物種；沒有照片的，要等人看過。部分物種的位置不會公開。"
-    }
+    },
+    "aiSuggested": "AI 建議"
   },
   "admin": {
     "heading": "審核佇列",
@@ -410,7 +411,7 @@
     "basemap": "底圖",
     "basemapBody": "底圖由 OpenFreeMap 提供，採用以 OpenStreetMap 貢獻者資料（ODbL）建置的 OpenMapTiles 向量圖磚。",
     "models": "AI 模型",
-    "modelsBody": "通報附有照片時，AI 模型可以建議照片裡是什麼物種：MegaDetector（MIT 授權）先在照片中找出動物，再由 BioCLIP 2（MIT 授權）判斷物種，候選名單只限臺灣物種名錄中的物種。由 AI 判斷的物種，會在紀錄上標示為「AI 建議」，審核人員可以修正。",
+    "modelsBody": "通報附有照片時，AI 模型 BioCLIP 2（MIT 授權）會試著判斷照片裡的物種，候選名單只限臺灣物種名錄中的物種。把握夠高時，它會直接判定物種，紀錄上標示為「由 AI 辨識」；否則紀錄會以尚未辨識的狀態公開，頁面上可能列出模型建議的物種。審核人員可以修正任何辨識結果。MegaDetector（MIT 授權）可以把照片裁切到動物所在的位置，目前沒有啟用。",
     "ourData": "本站產生的資料",
     "ourDataBody": "在本站提交的通報，目前沒有在其他地方發布。我們計畫透過 GBIF 把它們作為公開資料發布出去，讓這些紀錄在本站之外也能被使用。",
     "photos": "照片",
@@ -454,14 +455,14 @@
     "retentionBody": "通報紀錄會長期保存，因為其科學價值來自長期累積。若你希望移除自己的通報或聯絡信箱，請與我們聯繫。",
     "thirdPartyTitle": "第三方服務",
     "thirdPartyBody": "本站使用 Supabase（資料庫與檔案儲存）、Vercel（網站主機）、OpenFreeMap 與 OpenStreetMap（底圖）、Cloudflare Turnstile（上面說明的確認），以及 Modal：它執行我們的物種辨識模型，通報附上的照片可能會傳送到那裡，讓模型建議物種。地圖圖磚經由 Cloudflare 自 OpenFreeMap 載入；OpenFreeMap 在調查濫用行為時，可能保留 IP 位址最多 30 天。",
-    "sharingTitle": "分享給研究夥伴",
-    "sharingBody": "只有在你於路殺通報頁面勾選分享的那筆紀錄，我們才會把精確位置分享給研究夥伴。目前唯一列出的夥伴是農業部生物多樣性研究所經營的臺灣動物路死觀察網（路殺社，TaiRON），而且還沒有送出任何資料：要等路殺社同意接收本站紀錄才會開始。你的電子信箱絕不會分享出去。",
     "analyticsTitle": "使用統計",
     "analyticsBody": "我們透過 Vercel Analytics 計算各頁面的瀏覽次數，用來了解有多少人找到通報頁面。它不使用 cookie、不建立跨網站識別碼，也不記錄可辨識個人的資料——我們看到的是「首頁被看了幾次」，而不是誰看的。",
     "cookiesTitle": "Cookie",
     "cookiesBody": "只有在你選擇登入時，才會使用必要的 cookie：一個讓你保持登入；另外兩個只在登入過程中使用，分別用於登入連結的安全檢查，以及記下登入後要帶你回到的頁面。本站不使用廣告或追蹤 cookie。",
     "contactTitle": "聯絡我們",
-    "contactBody": "若你想查詢、更正或移除自己的通報與聯絡信箱，或對本站的個人資料處理有任何疑問，請寄信給本站負責人 Neo Su。我們會在合理時間內回覆。"
+    "contactBody": "若你想查詢、更正或移除自己的通報與聯絡信箱，或對本站的個人資料處理有任何疑問，請寄信給本站負責人 Neo Su。我們會在合理時間內回覆。",
+    "sharingTitle": "分享給研究夥伴",
+    "sharingBody": "只有在你於路殺通報頁面勾選分享的那筆紀錄，我們才會把精確位置分享給研究夥伴。目前唯一列出的夥伴是農業部生物多樣性研究所經營的臺灣動物路死觀察網（路殺社，TaiRON），而且還沒有送出任何資料：要等路殺社同意接收本站紀錄才會開始。你的電子信箱絕不會分享出去。"
   },
   "list": {
     "title": "所有紀錄",
@@ -631,6 +632,100 @@
       "flamawatch": "哥倫比亞 大西洋省"
     },
     "email": "電子郵件"
+  },
+  "collections": {
+    "name": {
+      "roadkill": "路殺",
+      "invasive": "入侵種",
+      "wildlife": "野生動物目擊"
+    },
+    "filterLabel": "資料集",
+    "conditionLabel": "活體或死亡",
+    "condition": {
+      "any": "不限",
+      "alive": "活體目擊",
+      "dead": "死亡或受傷"
+    },
+    "aboutCollection": "關於「{name}」資料集",
+    "mapType": {
+      "roadkill": "死亡或受傷",
+      "invasive": "入侵種（活體）",
+      "wildlife": "其他動物（活體）"
+    },
+    "badge": {
+      "invasive": "入侵種",
+      "reported": "通報為入侵種",
+      "invasiveWhy": "臺灣物種名錄（TaiCOL）將這種動物列為入侵種。",
+      "reportedWhy": "以入侵種通報但沒有填物種，尚未確認。"
+    },
+    "hub": {
+      "kicker": "資料集",
+      "records": "紀錄",
+      "species": "物種數",
+      "years": "年份",
+      "viewOnMap": "在地圖上查看",
+      "file": {
+        "roadkill": "通報路殺",
+        "invasive": "通報入侵種",
+        "wildlife": "通報野生動物目擊"
+      },
+      "holdsTitle": "收錄內容",
+      "holdsHeading": "收錄什麼",
+      "overlapHeading": "也會出現在哪裡",
+      "blurHeading": "位置",
+      "blur": "法定保育類或被列為敏感的物種，位置在公開前都會先模糊化，這裡和網站其他地方都一樣。還沒辨識出物種的紀錄也會模糊化。",
+      "newestTitle": "最新紀錄",
+      "newestHint": "依發現日期由新到舊排列。最新的一筆是 {date}，這裡的紀錄發現於 {years} 年間。",
+      "recordCount": "{count, plural, other {# 筆紀錄}}",
+      "seeAll": "以列表查看全部 {count, plural, other {# 筆紀錄}}",
+      "sources": "來自經 GBIF 分享的公開資料：{imported, number} 筆；在本站通報：{filed, number} 筆。"
+    },
+    "roadkill": {
+      "lede": "發現時已死亡或受傷的動物，大多在道路上。每一筆紀錄都標出道路與野生動物交會的地點，累積起來就能看出哪些路段對動物最危險。",
+      "holds": "所有以死亡或受傷通報的紀錄，不論是什麼動物：本土種或入侵種、已辨識或尚未辨識。",
+      "overlap": "死亡或受傷的入侵種同時在這個資料集和「入侵種」資料集。活體動物則收在「野生動物目擊」。",
+      "empty": "目前還沒有路殺紀錄。"
+    },
+    "invasive": {
+      "lede": "被人帶進臺灣、現在危害本土生態的動物，例如綠鬣蜥和斑腿樹蛙。這些紀錄能顯示牠們在哪裡生活、往哪裡擴散。",
+      "holds": "物種被臺灣物種名錄（TaiCOL）列為入侵動物的所有紀錄，不論活體或死亡、從哪個頁面通報，都收在這裡。不需要勾選，是不是入侵種由物種決定。以入侵種通報但沒有填物種的紀錄也會收進來，並標示「通報為入侵種」，直到有人確認是什麼動物。",
+      "overlap": "活體的入侵種也在「野生動物目擊」；死亡或受傷的也在「路殺」。可以在下方選「活體目擊」或「死亡或受傷」分開查看。",
+      "empty": "目前還沒有入侵種紀錄。",
+      "listTitle": "臺灣的入侵動物",
+      "listHint": "臺灣物種名錄（TaiCOL）列為入侵種的所有動物，共 {count} 個物種與亞種，只列 TaiCOL 採用的學名。數字是這個資料集裡的紀錄筆數。",
+      "catsDogs": "臺灣物種名錄（TaiCOL）也把家貓和家犬列為入侵種，依據是 Ho 等人（2024、2025）的研究與全球入侵種資料庫（GISD）。我們依照 TaiCOL，所以貓狗的紀錄也在這個資料集。",
+      "searchLabel": "搜尋動物",
+      "searchPlaceholder": "中文名或學名",
+      "matches": "{count, plural, other {符合的有 # 種}}",
+      "noMatch": "沒有符合「{q}」的入侵動物。",
+      "total": "{count, plural, other {共 # 種}}，依類群排列如下。",
+      "groupCount": "{count, plural, other {# 種}}",
+      "taicolNote": "TaiCOL 備註：{note}",
+      "protected": "保育類",
+      "records": "{count, plural, =0 {尚無紀錄} other {# 筆紀錄}}"
+    },
+    "wildlife": {
+      "lede": "在這裡通報的所有活體野生動物，不論是不是本土種。入侵種也包含在內並加上標示，所以這個資料集呈現大家看到的活體動物全貌。",
+      "holds": "所有活體動物的通報：以野生動物目擊通報的，以及在入侵種頁面通報的。物種被 TaiCOL 列為入侵種的紀錄會加上標示，不論從哪個頁面通報。",
+      "overlap": "活體的入侵種同時在這個資料集和「入侵種」資料集。死亡或受傷的動物則收在「路殺」。",
+      "empty": "目前還沒有人通報野生動物目擊。看到活的野生動物了嗎？你可以成為第一個通報的人。"
+    },
+    "group": {
+      "birds": "鳥類",
+      "reptiles": "爬行類",
+      "amphibians": "兩棲類",
+      "mammals": "哺乳類",
+      "fish": "魚類",
+      "insects": "昆蟲",
+      "molluscs": "螺貝類",
+      "crustaceans": "甲殼類",
+      "arachnids": "蜘蛛與蟎",
+      "other": "其他動物"
+    },
+    "stats": {
+      "title": "各資料集",
+      "hint": "資料集之間會重疊（例如被路殺的入侵種同時屬於「路殺」和「入侵種」），所以比例加起來會超過 100%。"
+    }
   },
   "terms": {
     "title": "通報者條款",

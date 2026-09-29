@@ -152,39 +152,82 @@ async function main(): Promise<void> {
   }
 
   /* ---------------- classifier / database alignment ---------------- */
-  // The landmine. taxa.id is a bigserial, and the embedding matrix baked into the
-  // Modal volume stores those ids. If this database was built by re-running the
-  // TaiCOL import rather than restoring a dump, the ids can differ — and the
-  // classifier will then confidently return the WRONG SPECIES, with no error
-  // anywhere. Restore a dump; do not re-import.
+  // The landmine. A v1 embedding row is a taxa.id, a bigserial, baked into the
+  // Modal volume. If this database was built by re-running the TaiCOL import
+  // rather than restoring a dump, the ids can differ — and the legacy contract
+  // will then confidently return the WRONG SPECIES, with no error anywhere.
+  // Every id is checked, not a sample: a sample of 400 from 70,805 passes a
+  // database where one species in two hundred has moved.
   const idsPath = join(ROOT, "data", "embeddings", "taxa_ids_v1.npy");
   if (!existsSync(idsPath)) {
-    check("classifier ids match this database", false,
-      `${idsPath} not found — run build_embeddings.py, or run this from a machine that has it`, false);
+    check("v1 classifier ids match this database", false,
+      `${idsPath} not found — run this from a machine that has the embeddings`, false);
   } else {
     // .npy: 128-byte header for v1, then little-endian int64 values.
     const buf = readFileSync(idsPath);
     const headerLen = 10 + buf.readUInt16LE(8);
     const count = (buf.length - headerLen) / 8;
-    const sample: number[] = [];
-    for (let i = 0; i < Math.min(400, count); i++) {
-      sample.push(Number(buf.readBigInt64LE(headerLen + i * 8)));
-    }
+    const ids: number[] = [];
+    for (let i = 0; i < count; i++) ids.push(Number(buf.readBigInt64LE(headerLen + i * 8)));
     const [m] = await sql<{ found: number; withPrompt: number }[]>`
       select count(*)::int as found,
              count(*) filter (where bioclip_prompt is not null)::int as "withPrompt"
-        from taxa where id = any(${sample}::bigint[])`;
-    check("classifier ids match this database", m.found === sample.length && m.withPrompt === sample.length,
-      m.found === sample.length
-        ? `${sample.length}/${sample.length} sampled embedding ids resolve to prompted taxa`
-        : `only ${m.found}/${sample.length} resolve — the embeddings were built against a DIFFERENT database. ` +
+        from taxa where id = any(${ids}::bigint[])`;
+    check("v1 classifier ids match this database", m.found === ids.length && m.withPrompt === ids.length,
+      m.found === ids.length
+        ? `${ids.length.toLocaleString()}/${ids.length.toLocaleString()} embedding ids resolve to prompted taxa`
+        : `only ${m.found.toLocaleString()}/${ids.length.toLocaleString()} resolve — the embeddings were built against a DIFFERENT database. ` +
           `Restore a dump instead of re-importing TaiCOL, or rebuild the embeddings against this one.`);
+  }
 
-    const [total] = await sql<{ n: number }[]>`
-      select count(*)::int as n from taxa where bioclip_prompt is not null`;
-    check("embedding count matches prompted taxa", total.n === count,
-      total.n === count ? `${count.toLocaleString()} both sides`
-        : `embeddings hold ${count.toLocaleString()} rows, database has ${total.n.toLocaleString()} prompted taxa`);
+  // v2 is keyed by TaiCOL id, which a re-import keeps, so the question is no
+  // longer "is this the same database" but "does every answer the model can
+  // give still name an accepted taxon here". A row TaiCOL has since deleted
+  // drops out of the website's candidate list silently (RESOLVE_CANDIDATES_SQL
+  // takes accepted rows only), and a species key that is gone is an animal the
+  // model can recognise and the website can never be told about. Warn-level
+  // for a stray row, which only loses one embedding; fatal for a species key.
+  const keysPath = join(ROOT, "data", "embeddings", "taxa_keys_v2.json");
+  if (!existsSync(keysPath)) {
+    check("v2 classifier keys resolve to accepted taxa", false,
+      `${keysPath} not found — run apps/ml/build_embeddings.py, or run this from a machine that has it`, false);
+  } else {
+    const keys = JSON.parse(readFileSync(keysPath, "utf8")) as {
+      taicol_ids: string[];
+      species_taicol_ids: string[];
+    };
+    const rowIds = keys.taicol_ids;
+    const speciesIds = [...new Set(keys.species_taicol_ids)];
+    const status = await sql<{ taicol_id: string; taxon_status: string | null }[]>`
+      select taicol_id, taxon_status from taxa where taicol_id = any(${rowIds}::text[])`;
+    const accepted = new Set(status.filter((r) => r.taxon_status === "accepted").map((r) => r.taicol_id));
+    const known = new Set(status.map((r) => r.taicol_id));
+    const lostSpecies = speciesIds.filter((t) => !accepted.has(t));
+    const lostRows = rowIds.filter((t) => !accepted.has(t));
+    const example = (xs: string[]) =>
+      xs.slice(0, 8).map((t) => `${t} (${known.has(t) ? "no longer accepted" : "not in this database"})`).join(", ");
+    check("v2 classifier species keys resolve to accepted taxa", lostSpecies.length === 0,
+      lostSpecies.length === 0
+        ? `${speciesIds.length.toLocaleString()}/${speciesIds.length.toLocaleString()} species keys accepted here`
+        : `${lostSpecies.length} species the model can name are not accepted here: ${example(lostSpecies)}. ` +
+          `Rebuild the v2 embeddings against this database (apps/ml/build_embeddings.py).`);
+    check("v2 classifier rows resolve to accepted taxa", lostRows.length === 0,
+      lostRows.length === 0
+        ? `${rowIds.length.toLocaleString()}/${rowIds.length.toLocaleString()} embedding rows accepted here`
+        : `${lostRows.length} embedding rows no longer accepted here: ${example(lostRows)}`,
+      false);
+
+    // The other direction: a species TaiCOL added after the build is one the
+    // model cannot name at all. Not wrong, only incomplete, so a warning.
+    const [{ unseen }] = await sql<{ unseen: number }[]>`
+      select count(*)::int as unseen from taxa
+       where bioclip_prompt is not null and is_in_taiwan and taxon_status = 'accepted'
+         and not (taicol_id = any(${rowIds}::text[]))`;
+    check("v2 classifier covers every accepted Taiwan taxon", unseen === 0,
+      unseen === 0
+        ? "no accepted, prompted taxon is missing from the embeddings"
+        : `${unseen} accepted taxa were added after the embeddings were built; rebuild them to let the model name these`,
+      false);
   }
 
   /* ---------------- data ---------------- */
@@ -205,6 +248,12 @@ async function main(): Promise<void> {
     env("TURNSTILE_SECRET_KEY") ? "set" : "submissions have NO bot protection — do not launch publicly without this");
   check("ML_ENDPOINT_URL / TOKEN set", !!env("ML_ENDPOINT_URL") && !!env("ML_ENDPOINT_TOKEN"),
     env("ML_ENDPOINT_URL") ? "set" : "no species identification");
+  // Informational: which contract the worker will ask for. "2" before the
+  // model service answers it holds every new report as "classification
+  // unavailable" (docs/ai-rollout.md).
+  check("ML_CONTRACT", true,
+    env("ML_CONTRACT") === "2" ? "2 — the website applies the rules (evidence contract)"
+      : "unset — the legacy contract; see docs/ai-rollout.md before setting it to 2", false);
 
   /* ---------------- the classifier itself ---------------- */
   if (env("ML_ENDPOINT_URL") && env("ML_ENDPOINT_TOKEN")) {

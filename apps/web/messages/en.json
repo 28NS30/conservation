@@ -217,7 +217,7 @@
     "notYetIdentified": "Not yet identified",
     "notes": "Notes",
     "location": "Location",
-    "aiSuggested": "AI suggestion",
+    "aiIdentified": "Identified by AI",
     "blurredNotice": "This is a sensitive or protected species. {precision} before publication, so this record cannot be used to find it.",
     "blurredUnknownNotice": "{precision} — this record has not been identified, and until we know what the animal is we cannot tell whether it is sensitive.",
     "suggestions": "Suggestions",
@@ -230,7 +230,8 @@
     "receipt": {
       "title": "Received. Not public right now.",
       "body": "Some reports wait before they appear. One with a photo but no species name waits for our identification model to try to name the animal; one without a photo waits for a person to look at it. Some species' locations are never shown."
-    }
+    },
+    "aiSuggested": "AI suggestion"
   },
   "admin": {
     "heading": "Moderation queue",
@@ -410,7 +411,7 @@
     "basemap": "Basemap",
     "basemapBody": "The basemap is served by OpenFreeMap, using OpenMapTiles vector tiles built from OpenStreetMap contributors' data (ODbL).",
     "models": "AI models",
-    "modelsBody": "When a report comes with a photo, an AI model can suggest which species it shows. MegaDetector (MIT licence) finds the animal in the photo, and BioCLIP 2 (MIT licence) names it, choosing only among species on the Taiwan checklist. A species named by the AI is labelled as an AI suggestion on the record, and a moderator can correct it.",
+    "modelsBody": "When a report comes with a photo, an AI model, BioCLIP 2 (MIT licence), tries to name the species it shows, choosing only among species on the Taiwan checklist. When it is sure enough, it names the species itself and the record is labelled “Identified by AI”; otherwise the record is published as not yet identified, and its page may list the species the model suggests. A moderator can correct any identification. MegaDetector (MIT licence), which can crop a photo to the animal, is switched off.",
     "ourData": "Data produced here",
     "ourDataBody": "Reports filed on this site are not published anywhere else yet. We plan to share them as open data through GBIF, so the records can be used beyond this site.",
     "photos": "Photographs",
@@ -454,14 +455,14 @@
     "retentionBody": "Reports are kept indefinitely, because their scientific value comes from accumulating over time. If you want your report or contact email removed, get in touch.",
     "thirdPartyTitle": "Third-party services",
     "thirdPartyBody": "The site uses Supabase (database and file storage), Vercel (hosting), OpenFreeMap and OpenStreetMap (the base map), Cloudflare Turnstile (the check described above), and Modal, which runs our species-identification model: photos attached to a report may be sent there so the model can suggest a species. Map tiles load from OpenFreeMap through Cloudflare, and OpenFreeMap may log IP addresses for up to 30 days when investigating abuse.",
-    "sharingTitle": "Sharing with research partners",
-    "sharingBody": "We share a record's exact location with a research partner only if you ticked the box for that record on the roadkill page. The only partner named there is the Taiwan Roadkill Observation Network (TaiRON, 路殺社), run by the Taiwan Biodiversity Research Institute, and nothing has been sent to it: that waits until TaiRON agrees to take records from this site. Your email address is never shared.",
     "analyticsTitle": "Usage statistics",
     "analyticsBody": "We count page views through Vercel Analytics, to see how many people find the reporting page. It sets no cookies, creates no cross-site identifier, and records nothing that identifies a person — what we see is “the home page was viewed N times”, not who viewed it.",
     "cookiesTitle": "Cookies",
     "cookiesBody": "Only essential cookies, and only if you choose to sign in. One keeps you signed in. Two more are used only while you sign in: a security check for the sign-in link, and the page to return you to afterwards. No advertising or tracking cookies are used.",
     "contactTitle": "Contact us",
-    "contactBody": "To ask about, correct, or remove your own reports and contact address — or with any question about how this site handles personal data — write to Neo Su, who is responsible for this site. We will reply within a reasonable time."
+    "contactBody": "To ask about, correct, or remove your own reports and contact address — or with any question about how this site handles personal data — write to Neo Su, who is responsible for this site. We will reply within a reasonable time.",
+    "sharingTitle": "Sharing with research partners",
+    "sharingBody": "We share a record's exact location with a research partner only if you ticked the box for that record on the roadkill page. The only partner named there is the Taiwan Roadkill Observation Network (TaiRON, 路殺社), run by the Taiwan Biodiversity Research Institute, and nothing has been sent to it: that waits until TaiRON agrees to take records from this site. Your email address is never shared."
   },
   "list": {
     "title": "All records",
@@ -631,6 +632,100 @@
       "flamawatch": "Atlántico, Colombia"
     },
     "email": "Email"
+  },
+  "collections": {
+    "name": {
+      "roadkill": "Roadkill",
+      "invasive": "Invasive species",
+      "wildlife": "Wildlife sightings"
+    },
+    "filterLabel": "Collection",
+    "conditionLabel": "Alive or dead",
+    "condition": {
+      "any": "Either",
+      "alive": "Seen alive",
+      "dead": "Dead or injured"
+    },
+    "aboutCollection": "About the “{name}” collection",
+    "mapType": {
+      "roadkill": "Dead or injured",
+      "invasive": "Invasive, alive",
+      "wildlife": "Other animals, alive"
+    },
+    "badge": {
+      "invasive": "Invasive",
+      "reported": "Reported as invasive",
+      "invasiveWhy": "TaiCOL, Taiwan's species checklist, lists this animal as invasive.",
+      "reportedWhy": "Filed as an invasive animal without a species name; not confirmed yet."
+    },
+    "hub": {
+      "kicker": "Collection",
+      "records": "Records",
+      "species": "Species named",
+      "years": "Years",
+      "viewOnMap": "View on the map",
+      "file": {
+        "roadkill": "Report roadkill",
+        "invasive": "Report an invasive animal",
+        "wildlife": "Report a sighting"
+      },
+      "holdsTitle": "What it holds",
+      "holdsHeading": "What counts",
+      "overlapHeading": "Where else it appears",
+      "blurHeading": "Locations",
+      "blur": "The location of a species protected by law or rated sensitive is blurred before it is published, here as everywhere on the site. So is the location of a record nobody has identified yet.",
+      "newestTitle": "Newest records",
+      "newestHint": "Newest first, by the date each animal was seen. The newest is from {date}; the records here were seen in {years}.",
+      "recordCount": "{count, plural, one {# record} other {# records}}",
+      "seeAll": "See all {count, plural, one {# record} other {# records}} as a list",
+      "sources": "Imported from open data shared through GBIF: {imported, number}. Filed on this site: {filed, number}."
+    },
+    "roadkill": {
+      "lede": "Animals found dead or injured, most of them on roads. Each record marks a place where a road and wildlife meet, and together they show which stretches are most dangerous.",
+      "holds": "Every report filed as dead or injured, whatever the animal: native or invasive, identified or not.",
+      "overlap": "A dead or injured invasive animal is in this collection and in the invasive one. Animals seen alive are in wildlife sightings instead.",
+      "empty": "No roadkill has been recorded yet."
+    },
+    "invasive": {
+      "lede": "Animals that people brought to Taiwan and that now harm its native wildlife, such as the green iguana and the spot-legged tree frog. Their records show where they live and where they are spreading.",
+      "holds": "Every record whose species TaiCOL, Taiwan's species checklist, tags as an invasive animal, alive or dead and whichever page it was filed on. Nobody ticks a box: it follows the species. A report filed as invasive without a species name is here too, marked “reported as invasive” until someone confirms what it is.",
+      "overlap": "An invasive animal seen alive is also a wildlife sighting; one found dead or injured is also roadkill. Choose “Seen alive” or “Dead or injured” below to see either.",
+      "empty": "No invasive animal has been recorded yet.",
+      "listTitle": "Invasive animals in Taiwan",
+      "listHint": "Every animal TaiCOL tags as invasive: {count} species and subspecies, under the names TaiCOL accepts. The counts are records in this collection.",
+      "catsDogs": "TaiCOL includes the domestic cat and the dog, citing Ho et al. (2024, 2025) and the Global Invasive Species Database. We follow TaiCOL, so records of cats and dogs are in this collection.",
+      "searchLabel": "Find an animal",
+      "searchPlaceholder": "Chinese or scientific name",
+      "matches": "{count, plural, one {# animal matches} other {# animals match}}",
+      "noMatch": "No invasive animal matches “{q}”.",
+      "total": "{count, plural, one {# animal} other {# animals}}, grouped below.",
+      "groupCount": "{count, plural, one {# species} other {# species}}",
+      "taicolNote": "TaiCOL's note: {note}",
+      "protected": "Protected",
+      "records": "{count, plural, =0 {No records} one {# record} other {# records}}"
+    },
+    "wildlife": {
+      "lede": "Every live wild animal reported here, native or not. Invasive animals are included and marked, so this collection is the whole picture of what people see alive.",
+      "holds": "Every report of an animal seen alive: those filed as wildlife sightings, and those filed on the invasive page. A record whose species TaiCOL tags invasive is marked, whichever page it came from.",
+      "overlap": "A live invasive animal is in this collection and in the invasive one. Animals found dead or injured are in roadkill instead.",
+      "empty": "No wildlife sightings have been filed yet. Seen a wild animal alive? Yours could be the first."
+    },
+    "group": {
+      "birds": "Birds",
+      "reptiles": "Reptiles",
+      "amphibians": "Amphibians",
+      "mammals": "Mammals",
+      "fish": "Fish",
+      "insects": "Insects",
+      "molluscs": "Snails, slugs and shellfish",
+      "crustaceans": "Crustaceans",
+      "arachnids": "Spiders and mites",
+      "other": "Other animals"
+    },
+    "stats": {
+      "title": "By collection",
+      "hint": "The collections overlap — a road-killed invasive animal is in roadkill and in invasive — so their shares add up to more than 100%."
+    }
   },
   "terms": {
     "title": "Terms for contributors",

@@ -25,7 +25,12 @@
  * mapping below.
  */
 import type postgres from "postgres";
-import { UNCERTAINTY, generalisation } from "./dwc-terms.ts";
+import {
+  UNCERTAINTY,
+  establishment,
+  generalisation,
+  vitality,
+} from "./dwc-terms.ts";
 
 /**
  * Column order here defines the archive. `meta.xml` is generated from this same
@@ -57,6 +62,9 @@ export const TERMS = [
   "identificationVerificationStatus",
   "occurrenceRemarks",
   "occurrenceStatus",
+  "vitality",
+  "establishmentMeans",
+  "degreeOfEstablishment",
   "dataGeneralizations",
   "informationWithheld",
   "license",
@@ -106,6 +114,10 @@ export type OccurrenceRow = {
   genus: string | null;
   rank: string | null;
   common_name_zh: string | null;
+  /** TaiCOL's alien status for the species: native, invasive, naturalized… */
+  alien_type: string | null;
+  /** In the invasive collection, as reports_public defines it (0016). */
+  is_invasive: boolean;
   license: string | null;
   rights_holder: string | null;
   source: string;
@@ -130,7 +142,7 @@ export function selectOccurrences(
            st_x(r.location_public::geometry) as lng,
            t.scientific_name, t.id as taxon_id, t.kingdom, t.phylum, t.class,
            t."order", t.family, t.genus, t.rank, t.common_name_zh,
-           t.sensitivity, t.protected_status
+           t.sensitivity, t.protected_status, t.alien_type, r.is_invasive
       from reports_public r
       left join taxa t on t.id = r.taxon_id
      where r.source = 'user'
@@ -163,6 +175,7 @@ export function toOccurrence(
   // See scripts/dwc-terms.ts: since 0011 a record can be blurred because
   // nobody has identified it, which is not a statement about any taxon.
   const withheld = generalisation(r);
+  const established = establishment(r);
 
   return {
     // Stable and opaque. A UUID means republishing after an edit updates the
@@ -193,6 +206,9 @@ export function toOccurrence(
     // how the animal was encountered. Never the reporter's notes; see above.
     occurrenceRemarks: r.category,
     occurrenceStatus: "present",
+    vitality: vitality(r.category),
+    establishmentMeans: established.establishmentMeans,
+    degreeOfEstablishment: established.degreeOfEstablishment,
     dataGeneralizations: withheld.dataGeneralizations,
     informationWithheld: withheld.informationWithheld,
     license,

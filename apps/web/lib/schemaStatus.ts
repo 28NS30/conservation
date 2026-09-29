@@ -118,6 +118,16 @@ export const REQUIRED_SCHEMA: SchemaCheck[] = [
              where proname = 'taxon_precision'
                and prosrc like '%precision_from_redlist(%') as ok`,
   },
+  {
+    // Read, not written, but read by every public surface at once: the map's
+    // tiles, the record list, the record page, /stats and the three
+    // collection pages all select it. Without it they 500 together.
+    name: "0016 reports_public.is_invasive",
+    sql: `select exists (
+            select 1 from information_schema.columns
+             where table_name = 'reports_public'
+               and column_name = 'is_invasive') as ok`,
+  },
 ];
 
 /**

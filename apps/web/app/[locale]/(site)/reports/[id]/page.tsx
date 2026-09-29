@@ -19,6 +19,7 @@ import { getSpecies, monthlyCounts, speciesSlug } from "@/lib/species";
 import SpeciesConfirm, {
   type Suggestion,
 } from "@/components/report/SpeciesConfirm";
+import InvasiveBadge from "@/components/collections/InvasiveBadge";
 
 export const dynamic = "force-dynamic";
 
@@ -176,6 +177,7 @@ type Row = {
   scientific_name: string | null;
   common_name_zh: string | null;
   protected_status: string | null;
+  is_invasive: boolean;
 };
 
 export default async function ReportPage({
@@ -200,7 +202,8 @@ export default async function ReportPage({
              rp.source, rp.license, rp.rights_holder,
              st_x(rp.location_public::geometry) as lng,
              st_y(rp.location_public::geometry) as lat,
-             t.scientific_name, t.common_name_zh, t.protected_status
+             t.scientific_name, t.common_name_zh, t.protected_status,
+             rp.is_invasive
         from reports_public rp
         left join taxa t on t.id = rp.taxon_id
        where rp.id = ${id}::uuid`,
@@ -266,7 +269,7 @@ export default async function ReportPage({
         {t("nav.backToMap")}
       </Link>
 
-      <header className="mt-3 flex items-center gap-2">
+      <header className="mt-3 flex flex-wrap items-center gap-2">
         <span
           className="h-2.5 w-2.5 rounded-full"
           style={{ background: CATEGORIES[row.category].color }}
@@ -274,6 +277,16 @@ export default async function ReportPage({
         <h1 className="text-lg font-semibold text-ink-900">
           {t(`categories.${row.category}`)}
         </h1>
+        {/* From the species, not from the form: a live invasive animal filed
+            as a sighting carries it, and a native one filed as invasive does
+            not. With no species named, it says what the reporter said and no
+            more. */}
+        {row.is_invasive && (
+          <InvasiveBadge
+            label={t(row.taxon_id ? "collections.badge.invasive" : "collections.badge.reported")}
+            title={t(row.taxon_id ? "collections.badge.invasiveWhy" : "collections.badge.reportedWhy")}
+          />
+        )}
       </header>
 
       <p className="mt-1 text-xs text-ink-500">
@@ -319,9 +332,12 @@ export default async function ReportPage({
                 >
                   {t("species.seeAllRecords")}
                 </Link>
+                {/* The model named this species by itself, not a person. It
+                    is not a suggestion — the species is the record's — and the
+                    team's rule is that such a record says who named it. */}
                 {row.taxon_source === "ai" && (
                   <span>
-                    {t("detail.aiSuggested")}
+                    {t("detail.aiIdentified")}
                     {row.ai_confidence != null &&
                       ` · ${Math.round(row.ai_confidence * 100)}%`}
                   </span>

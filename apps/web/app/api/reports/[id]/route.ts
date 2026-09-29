@@ -31,6 +31,7 @@ type Row = {
   is_freshwater: boolean | null;
   is_brackish: boolean | null;
   is_marine: boolean | null;
+  is_invasive: boolean;
 };
 
 export async function GET(
@@ -46,6 +47,10 @@ export async function GET(
       select rp.id, rp.category, rp.observed_at, rp.notes,
              rp.location_precision, rp.is_obscured,
              rp.taxon_id, rp.taxon_source, rp.source,
+             -- Whether the animal is invasive, read from its species by the
+             -- view (0016), so the panel marks it as the list and the record
+             -- page do.
+             rp.is_invasive,
              t.scientific_name, t.common_name_zh,
              -- The species card's habitat type, so the panel says what the
              -- animal is and not only when it was seen. Public columns only.
@@ -79,6 +84,7 @@ export async function GET(
       scientificName: row.scientific_name,
       commonNameZh: row.common_name_zh,
       source: row.source,
+      isInvasive: row.is_invasive,
       habitat: {
         isTerrestrial: row.is_terrestrial,
         isFreshwater: row.is_freshwater,

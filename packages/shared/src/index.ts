@@ -288,32 +288,209 @@ export const LOCATION_PRECISION = {
 export type LocationPrecision = keyof typeof LOCATION_PRECISION;
 
 /* ------------------------------------------------------------------ *
+ * Collections — the three "databases" a visitor browses
+ * ------------------------------------------------------------------ */
+
+/**
+ * Roadkill, wildlife sightings and invasive species: the three databases the
+ * team asked for, as three filters over the one table of records.
+ *
+ * They overlap, and have to. The team's wildlife database holds every animal
+ * "with the invasive ones marked", and its invasive database holds only species
+ * tagged invasive — so a live 綠鬣蜥 belongs to both, and a road-killed myna to
+ * roadkill and invasive at once. Three stores would mean writing such a record
+ * two or three times and keeping a copy of the location-blur rules beside each.
+ *
+ * Each collection is two conditions, both of which must hold:
+ *
+ *  - `categories`: which stored categories it draws from, or `null` for any.
+ *    The category is the page the report was filed on, fixed at submission —
+ *    dead or injured on the roadkill page, alive on the other two.
+ *  - `invasiveOnly`: whether the record must be in the invasive collection as
+ *    `reports_public.is_invasive` defines it (0016): the species is an animal
+ *    TaiCOL tags invasive, or nobody named the species and it was filed as
+ *    invasive. Read from the species at query time, never typed by the
+ *    reporter and never stored on the report.
+ *
+ * So `wildlife` takes `invasive` as well as `sighting`: a report filed on the
+ * invasive page is still a live animal. And `invasive` takes any category: a
+ * dead invasive animal is still an invasive record (the team's default for Q3),
+ * which is why it offers the alive/dead split below.
+ *
+ * The order is the team's, as on the home page and in the header.
+ */
+export type CollectionDef = {
+  categories: readonly Category[] | null;
+  invasiveOnly: boolean;
+};
+
+export const COLLECTIONS = {
+  roadkill: { categories: ["roadkill", "injured"], invasiveOnly: false },
+  invasive: { categories: null, invasiveOnly: true },
+  wildlife: { categories: ["sighting", "invasive"], invasiveOnly: false },
+} as const satisfies Record<string, CollectionDef>;
+
+export type Collection = keyof typeof COLLECTIONS;
+export const COLLECTION_KEYS = Object.keys(COLLECTIONS) as Collection[];
+
+/**
+ * Seen alive, or found dead or injured: the split the invasive collection
+ * offers, because it is the one collection holding both.
+ *
+ * Read off the category, the page a report was filed on. `dead` covers the
+ * roadkill page's two categories, so it means "dead or injured" and is labelled
+ * that way; an injured animal is alive, but it is not a sighting.
+ */
+export const RECORD_CONDITIONS = {
+  alive: { categories: ["sighting", "invasive"] },
+  dead: { categories: ["roadkill", "injured"] },
+} as const satisfies Record<string, { categories: readonly Category[] }>;
+
+export type RecordCondition = keyof typeof RECORD_CONDITIONS;
+export const RECORD_CONDITION_KEYS = Object.keys(
+  RECORD_CONDITIONS,
+) as RecordCondition[];
+
+/** What a query must match for a collection, narrowed by a condition. */
+export type Selection = {
+  /** Stored categories to accept, or null for every one. */
+  categories: Category[] | null;
+  /** Accept only records whose `is_invasive` is true. */
+  invasiveOnly: boolean;
+};
+
+/**
+ * The one reading of a collection filter, for every query that applies one.
+ *
+ * The tiles, the list, the hub pages and /stats all ask this rather than
+ * spelling a collection out in SQL of their own, so the map and the list
+ * cannot disagree about what "wildlife" contains. Each query applies it as
+ *
+ *   (categories is null or category = any(categories))
+ *   and (not invasiveOnly or is_invasive)
+ */
+export function selectionFor(f: {
+  collection?: Collection;
+  condition?: RecordCondition;
+}): Selection {
+  const def: CollectionDef | null = f.collection
+    ? COLLECTIONS[f.collection]
+    : null;
+  let categories: Category[] | null = def?.categories
+    ? [...def.categories]
+    : null;
+  if (f.condition) {
+    const want: readonly Category[] = RECORD_CONDITIONS[f.condition].categories;
+    categories = categories
+      ? categories.filter((c) => want.includes(c))
+      : [...want];
+  }
+  return { categories, invasiveOnly: def?.invasiveOnly ?? false };
+}
+
+/**
+ * The colour a record takes on the map when it is coloured by type.
+ *
+ * Not the collections, which overlap: a colour needs every record in exactly
+ * one class. Condition first, as it always was — dead or injured is `roadkill`
+ * whatever the species — and then the species decides between the two live
+ * classes, so a live invasive animal is marked as invasive whichever page it
+ * was filed on. Filed as `sighting` it used to be drawn as a native sighting.
+ *
+ * The colours are the categories' own, so a cell and the points it breaks into
+ * agree about what orange means.
+ */
+export const MAP_TYPES = {
+  roadkill: { color: CATEGORIES.roadkill.color },
+  invasive: { color: CATEGORIES.invasive.color },
+  wildlife: { color: CATEGORIES.sighting.color },
+} as const;
+
+export type MapType = keyof typeof MAP_TYPES;
+export const MAP_TYPE_KEYS = Object.keys(MAP_TYPES) as MapType[];
+
+/**
+ * What an old `group=` link meant, as a collection.
+ *
+ * `group` took the report form's three buttons and matched stored categories
+ * only. Links carrying it are out in the world — shared maps, bookmarks — so
+ * the pages still read it; the tile endpoint refuses it (see the tile route
+ * for why). `sighting` is the wildlife collection's old name.
+ */
+export const LEGACY_GROUP_COLLECTION: Record<ReportGroup, Collection> = {
+  roadkill: "roadkill",
+  sighting: "wildlife",
+  invasive: "invasive",
+};
+
+/* ------------------------------------------------------------------ *
  * Map filters — the shape shared by the UI and the tile endpoint
  * ------------------------------------------------------------------ */
 
-export const mapFilterSchema = z.object({
-  /**
-   * The same three buckets the report form offers, not the four stored
-   * categories. A map that can filter for something the form cannot produce is
-   * a map with an option that is always empty; `roadkill` here therefore means
-   * roadkill *or* injured, exactly as the button that files them does.
-   */
-  group: z.enum(REPORT_GROUP_KEYS as [ReportGroup, ...ReportGroup[]]).optional(),
-  taxonId: z.coerce.number().int().positive().optional(),
-  from: z.iso.date().optional(),
-  to: z.iso.date().optional(),
-});
+export const mapFilterSchema = z
+  .object({
+    /** One of the three collections above, or absent for every record. */
+    collection: z
+      .enum(COLLECTION_KEYS as [Collection, ...Collection[]])
+      .optional(),
+    /**
+     * Alive, or dead or injured — offered only within the invasive
+     * collection. The other two are one condition each by definition, so a
+     * condition there is either redundant or always empty, and every
+     * redundant spelling of one filter is another CDN key for the same tiles.
+     */
+    condition: z
+      .enum(RECORD_CONDITION_KEYS as [RecordCondition, ...RecordCondition[]])
+      .optional(),
+    taxonId: z.coerce.number().int().positive().optional(),
+    from: z.iso.date().optional(),
+    to: z.iso.date().optional(),
+  })
+  .refine((f) => !f.condition || f.collection === "invasive", {
+    message: "condition applies only to the invasive collection",
+    path: ["condition"],
+  });
 
 export type MapFilter = z.infer<typeof mapFilterSchema>;
 
 /** Serialise filters into a query string. This doubles as the CDN cache key. */
 export function filterToQuery(f: MapFilter): string {
   const p = new URLSearchParams();
-  if (f.group) p.set("group", f.group);
+  if (f.collection) p.set("collection", f.collection);
+  if (f.condition) p.set("condition", f.condition);
   if (f.taxonId) p.set("taxonId", String(f.taxonId));
   if (f.from) p.set("from", f.from);
   if (f.to) p.set("to", f.to);
   return p.toString();
+}
+
+/**
+ * A page's filter from its query string, reading old `group=` links too.
+ *
+ * For /map and /reports only, never for tiles. A link that says `group=` and
+ * not `collection=` is read as the collection it meant; a link carrying both
+ * is read by `collection`, the newer word. Anything malformed gives no filter,
+ * as it always has: a mistyped link opens the whole map, not an error.
+ */
+export function pageFilter(
+  sp: Record<string, string | string[] | undefined>,
+): MapFilter {
+  const raw: Record<string, unknown> = { ...sp };
+  const group = raw.group;
+  delete raw.group;
+  if (
+    raw.collection === undefined &&
+    typeof group === "string" &&
+    Object.hasOwn(LEGACY_GROUP_COLLECTION, group)
+  ) {
+    raw.collection = LEGACY_GROUP_COLLECTION[group as ReportGroup];
+  }
+  // A condition outside the invasive collection is dropped rather than
+  // taking the whole filter down with it: the collection a link named is
+  // still what the reader asked to see.
+  if (raw.collection !== "invasive") delete raw.condition;
+  const parsed = mapFilterSchema.safeParse(raw);
+  return parsed.success ? parsed.data : {};
 }
 
 /* ------------------------------------------------------------------ *
@@ -670,9 +847,10 @@ export function aggregationCellMeters(zoom: number): number {
  *
  * The truth table is report-flow.md's, transcribed row for row; the test walks
  * it. Pure, and deliberately so: the same function serves the direct
- * submission, the offline queue, and — when a moderator later confirms what
- * the animal was — the re-derivation that turns a `sighting` of a confirmed
- * invasive into an `invasive`.
+ * submission and the offline queue. It decides the category once, at
+ * submission; nothing re-derives it when a species is confirmed later, because
+ * whether the animal is invasive is read from the species at display time
+ * (see COLLECTIONS).
  */
 export type Condition = "dead" | "hurt" | "well";
 
@@ -758,14 +936,13 @@ export function taxonSource(
 }
 
 /**
- * The condition a stored category implies, for re-deriving one.
+ * The condition a stored category implies: the inverse of `deriveCategory`'s
+ * first argument.
  *
- * `deriveCategory` takes a condition and a row carries a category, so a
- * correction needs the inverse. It exists because condition is the half of the
- * derivation that never changes: nobody revises whether the animal was dead
- * after the fact, and a moderator naming the species is not telling us it got
- * up. Only `sighting` and `invasive` can move, which is exactly the pair the
- * species decides between.
+ * Condition is the half of a record that never changes. Nobody revises whether
+ * the animal was dead after the fact, and a moderator naming the species is not
+ * telling us it got up. The Darwin Core export reads a record's vitality from
+ * it (scripts/dwc-occurrences.ts): `dead` is dead, and `hurt` is alive.
  */
 export function conditionOf(category: Category): Condition {
   if (category === "roadkill") return "dead";
@@ -773,26 +950,18 @@ export function conditionOf(category: Category): Condition {
   return "well";
 }
 
-/**
- * The category a record should carry once its species is known.
+/*
+ * There used to be a `recategorise` here: the category a record should carry
+ * once its species was known, which the two confirm actions wrote back into
+ * `category` so that a `sighting` confirmed to be an invasive species would
+ * appear under the map's invasive filter.
  *
- * `category` was written once, at insert, from what the reporter said and
- * never revisited — so a `sighting` later confirmed to be a confirmed invasive
- * stayed a `sighting`, and never appeared under the map's invasive filter. The
- * record was correct about the animal and wrong about what kind of record it
- * was.
- *
- * `taxonIsInvasive` is TaiCOL's flag for the NEW taxon; `null` means the
- * register has no opinion, and then the reporter's own belief stands — which
- * is why it is read back out of the category they were filed under rather than
- * discarded.
+ * It is gone because the copy it made could not stay true. Only two of the
+ * four paths that set a species ran it — the classifier's auto-assign never
+ * did, and a TaiCOL refresh that changes a species' invasive tag re-derives
+ * nothing — so the stored category drifted from the species it described.
+ * Whether a record is invasive is now read from its species every time it is
+ * shown (`reports_public.is_invasive`, 0016, and COLLECTIONS above), and
+ * `category` means one thing only: the page the report was filed on, fixed at
+ * submission. test/report-category.test.mjs keeps it from coming back.
  */
-export function recategorise(
-  current: Category,
-  taxonIsInvasive: boolean | null,
-): Category {
-  return deriveCategory(conditionOf(current), {
-    taxonIsInvasive,
-    saysIntroduced: current === "invasive",
-  });
-}

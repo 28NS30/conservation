@@ -549,15 +549,17 @@ describe("lab display faces", () => {
     }
   });
 
-  test("every catalogue character is in a face", () => {
-    // direction.md §2.2: "A test fails if a catalogue Hanzi is outside home ∪
-    // ui." The symptom otherwise is a heading that mixes typefaces — and only
-    // for the one string nobody happened to look at.
-    const catalogues = ["messages/zh-TW.json", "messages/en.json"].map((p) =>
-      readFileSync(join(WEB, p), "utf8"),
-    );
+  test("every character of the lab's own copy is in a face", () => {
+    // direction.md §2.2 asked this of both site catalogues too, while the lab
+    // was where the site's design was being chosen. That choice is made and
+    // live, and the rule turned every copy change anywhere on the site into
+    // a re-cut of the lab's fonts, whose binary files then conflicted between
+    // every two pull requests. The lab's own strings still have to be drawn
+    // by its faces; a site string the lab happens to reuse may fall back to
+    // the system face, which only the lab, gated and unindexed, can show.
+    // `npm run lab:fonts` still cuts the catalogues in when someone runs it.
     const missing = new Set();
-    for (const text of [...catalogues, JSON.stringify(LAB_COPY)])
+    for (const text of [JSON.stringify(LAB_COPY)])
       for (const character of text)
         if (character.codePointAt(0) > 0x7e && !inLabCharset(character))
           missing.add(character);
@@ -619,9 +621,11 @@ describe("lab display faces", () => {
     // to the system face entirely rather than mixing per glyph.
     for (const name of ["黑眶蟾蜍", "斯文豪氏頸槽蛇", "臺灣穿山甲"])
       assert.equal(labFaceClass(name), "", `${name} should be in the subset`);
-    assert.equal(labFaceClass("貓"), "face-system");
+    // 鼴 (mole): no catalogue string uses it. 貓 used to stand here until the
+    // invasive collection's copy named cats, which put it in the subset.
+    assert.equal(labFaceClass("鼴"), "face-system");
     // One character out of six is enough: it is all or nothing, per title.
-    assert.equal(labFaceClass("黑眶蟾蜍貓"), "face-system");
+    assert.equal(labFaceClass("黑眶蟾蜍鼴"), "face-system");
     // Latin, digits and the space between words never drop a title.
     assert.equal(labFaceClass("FormosaWatch 2011–2017"), "");
   });
