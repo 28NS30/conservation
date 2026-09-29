@@ -29,7 +29,7 @@ export default function ModerationRow(props: {
 
   if (done) {
     return (
-      <li className="rounded-lg border border-ink-900/10 bg-paper-100/60 px-4 py-2 text-xs text-ink-500">
+      <li className="rounded-lg border border-ink-900/10 bg-paper-100/60 px-4 py-3 text-sm text-ink-700">
         {done === "published" ? t("published") : t("rejected")} ·{" "}
         {props.id.slice(0, 8)}
       </li>
@@ -49,13 +49,13 @@ export default function ModerationRow(props: {
 
   return (
     <li className="rounded-xl border border-ink-900/10 bg-paper-100 p-3">
-      <div className="flex flex-wrap items-center gap-2 text-xs">
+      <div className="flex flex-wrap items-center gap-2 text-sm">
         <span
           className="h-2 w-2 rounded-full"
           style={{ background: props.categoryColor }}
         />
-        <span className="font-medium text-ink-800">{props.categoryLabel}</span>
-        <span className="text-ink-500">
+        <span className="font-semibold text-ink-900">{props.categoryLabel}</span>
+        <span className="text-ink-700">
           {new Date(props.observedAt).toLocaleString(locale, {
             timeZone: "Asia/Taipei",
           })}
@@ -65,24 +65,27 @@ export default function ModerationRow(props: {
             {t("testChip")}
           </span>
         )}
-        {props.flaggedReason && (
-          <span className="rounded bg-amber-400/15 px-1.5 py-0.5 text-[10px] text-amber-700">
-            {props.flaggedReason}
-          </span>
-        )}
       </div>
 
-      {props.speciesLabel && (
-        <p className="mt-1 text-xs text-ink-600">{props.speciesLabel}</p>
-      )}
-      {props.notes && (
-        <p className="mt-1 text-xs text-ink-500">{props.notes}</p>
+      {/* Why it was held, as a sentence (lib/report/flagReasons.ts): it was a
+          10px English chip, and it is the first thing a moderator needs. */}
+      {props.flaggedReason && (
+        <p className="mt-2 rounded-md bg-amber-400/15 px-2.5 py-1.5 text-sm leading-snug text-amber-900">
+          {props.flaggedReason}
+        </p>
       )}
 
-      <p className="mt-1 text-[11px] tabular-nums text-ink-500">
-        {props.lat.toFixed(5)}, {props.lng.toFixed(5)}{" "}
+      {props.speciesLabel && (
+        <p className="mt-2 text-sm text-ink-800">{props.speciesLabel}</p>
+      )}
+      {props.notes && (
+        <p className="mt-1 text-sm leading-relaxed text-ink-700">{props.notes}</p>
+      )}
+
+      <p className="mt-1 flex flex-wrap items-center gap-x-3 text-sm tabular-nums text-ink-700">
+        {props.lat.toFixed(5)}, {props.lng.toFixed(5)}
         <a
-          className="underline hover:text-ink-600"
+          className="inline-flex min-h-11 items-center font-medium text-leaf-700 underline underline-offset-2 hover:text-forest-900"
           href={`https://www.google.com/maps?q=${props.lat},${props.lng}`}
           target="_blank"
           rel="noreferrer"
@@ -105,14 +108,14 @@ export default function ModerationRow(props: {
         </div>
       )}
 
-      {error && <p className="mt-2 text-[11px] text-rose-700">{error}</p>}
+      {error && <p role="alert" className="mt-2 text-sm text-rose-800">{error}</p>}
 
       <div className="mt-3 flex gap-2">
         <button
           type="button"
           disabled={pending}
           onClick={() => act(() => publishReport(props.id), "published")}
-          className="rounded-lg bg-ember-500 px-3 py-1.5 text-xs font-semibold text-bark-950 disabled:opacity-50"
+          className="inline-flex min-h-11 items-center rounded-lg bg-ember-500 px-5 text-base font-semibold text-ink-950 hover:bg-ember-400 disabled:opacity-50"
         >
           {t("publish")}
         </button>
@@ -123,7 +126,7 @@ export default function ModerationRow(props: {
             const reason = prompt(t("rejectReason")) ?? "";
             if (reason) act(() => rejectReport(props.id, reason), "rejected");
           }}
-          className="rounded-lg border border-ink-900/12 px-3 py-1.5 text-xs text-ink-600 disabled:opacity-50"
+          className="inline-flex min-h-11 items-center rounded-lg border-2 border-ink-900/20 px-5 text-base font-medium text-ink-800 hover:border-ink-900/40 disabled:opacity-50"
         >
           {t("reject")}
         </button>

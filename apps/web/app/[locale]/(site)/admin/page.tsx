@@ -9,6 +9,7 @@ import { CATEGORIES, REPORT_PAGE_KEYS, type Category } from "@conservation/share
 import ModerationRow from "@/components/admin/ModerationRow";
 import { signInHref } from "@/components/auth/signInHref";
 import { speciesLabel } from "@/lib/speciesNames";
+import { flagReason } from "@/lib/report/flagReasons";
 
 export const dynamic = "force-dynamic";
 
@@ -124,6 +125,15 @@ export default async function AdminPage({
      order by r.created_at desc
      limit 100`;
 
+  // Why each was held, in the page's language (lib/report/flagReasons.ts);
+  // a reason this build does not know is shown as stored rather than hidden.
+  const tf = await getTranslations("admin.flag");
+  const flagText = (stored: string | null) => {
+    if (!stored) return null;
+    const known = flagReason(stored);
+    return known ? tf(known.key, known.values) : stored;
+  };
+
   const withUrls = await Promise.all(
     rows.map(async (r) => ({
       ...r,
@@ -165,7 +175,7 @@ export default async function AdminPage({
               categoryColor={CATEGORIES[r.category]?.color}
               observedAt={r.observed_at}
               notes={r.notes}
-              flaggedReason={r.flagged_reason}
+              flaggedReason={flagText(r.flagged_reason)}
               lat={r.lat}
               lng={r.lng}
               speciesLabel={

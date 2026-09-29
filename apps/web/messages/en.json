@@ -271,6 +271,23 @@
         "pending": "In review",
         "rejected": "Not used"
       }
+    },
+    "flag": {
+      "outsideTaiwan": "The location is outside Taiwan.",
+      "noPhoto": "No photo, on a kind of report that usually needs one.",
+      "linksInNotes": "The notes contain a link or an account name.",
+      "disagrees": "The model and the reporter name different species.",
+      "notIdentified": "The model could not identify it with any confidence.",
+      "lowConfidence": "The model is not confident about the species.",
+      "onlySuggests": "On this kind of report the model only suggests a species.",
+      "unavailable": "The identification model failed on it repeatedly. A person needs to identify it.",
+      "suspectsInvasive": "The model suspects the invasive {name}. A person must confirm.",
+      "mixedForms": "The model suggests {name}, which has native and introduced forms. It needs an expert.",
+      "looksNative": "The model thinks it looks like a native animal ({name}). A person must confirm.",
+      "wrongModel": "The model's version does not match the thresholds it was tested with, so it only suggests.",
+      "onlySuggestsClass": "For {group} the model only suggests a species.",
+      "includesInvasive": "The model suggests {name}, which is or includes an invasive form. A person must confirm.",
+      "stricterSibling": "The model is sure it is {name}, but also lists {other}, whose location is protected more strictly. A person must confirm."
     }
   },
   "login": {
