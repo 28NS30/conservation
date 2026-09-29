@@ -67,12 +67,15 @@ export function sendControls(s: {
   // What the report itself needs, whichever way it leaves: a stored report
   // must still have a place and a category, and a photo still being shrunk is
   // not yet a photo that can be stored.
+  //
+  // In the order the page asks: the photo, then the place, then the condition
+  // (the photo-first form, ReportForm.tsx).
   const missing: Blocker | null = s.preparing
     ? "preparingPhotos"
-    : s.needsCondition
-      ? "needCondition"
-      : !s.hasLocation
-        ? "needLocation"
+    : !s.hasLocation
+      ? "needLocation"
+      : s.needsCondition
+        ? "needCondition"
         : null;
 
   if (!s.online) {

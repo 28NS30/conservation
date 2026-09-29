@@ -163,6 +163,16 @@ body {
 }
 
 /*
+ * The report form's send bar is pinned to the bottom of the screen
+ * (ReportForm.tsx). Tabbing or jumping to a field scrolls it into view, and
+ * without this it could land behind the bar, which is focus hidden by the
+ * page itself. The bar is under 7rem tall with its blocker line.
+ */
+html:has(#report-send-bar) {
+  scroll-padding-bottom: 7rem;
+}
+
+/*
  * Chinese and Latin do not share a comfortable optical size. Tuned for Latin,
  * Hanzi look cramped and their strokes clog; matched to Hanzi, Latin looks
  * oversized. Proportional alternate metrics even out the CJK punctuation, which

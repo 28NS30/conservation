@@ -100,7 +100,7 @@
   },
   "report": {
     "photos": "Photos",
-    "photoHelp": "Photos are downscaled and stripped of EXIF (including device data) before upload.",
+    "photoHelp": "A photo is the surest way to know which animal it was. Before it is sent, it is made smaller and the details hidden in the file (the phone, and where and when it was taken) are removed.",
     "photoProcessing": "Processing…",
     "removePhoto": "Remove photo",
     "noPhotoWarning": "A photo is recommended for this type; without one the report goes to manual review.",
@@ -190,7 +190,6 @@
     "chooserSpecies": "You're reporting this animal. Which kind of report is it?",
     "required": "required",
     "needCondition": "Say whether the animal was dead, or alive but hurt",
-    "addPhoto": "Add a photo",
     "alsoInvasive": "This species is invasive, so the record also counts in the invasive species collection. There's nothing extra to do.",
     "speciesNoHitsInvasive": "That name isn't on the invasive species list.",
     "speciesUnsureHintInvasive": "Better than a guess. We record it as unidentified, and its place stays blurred until the species is confirmed.",
@@ -220,7 +219,9 @@
       "title": "Test report",
       "body": "This report takes every step a real one takes: the photo upload, the identification model and review. It is never shown publicly: not on the map, in the statistics or in the data we share. Only moderators can send one.",
       "realInstead": "Send a real report instead"
-    }
+    },
+    "photoTake": "Take a photo",
+    "photoLibrary": "Choose a photo you already took"
   },
   "detail": {
     "species": "Species",

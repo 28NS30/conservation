@@ -733,6 +733,34 @@ function ReportFormFields({
   const blocker = controls.blocker ? t(controls.blocker) : null;
   const saving = controls.primary === "save";
 
+  // sr-only, not hidden. `hidden` is display:none, and a display:none input is
+  // not focusable at all: the photo picker could not be reached by keyboard,
+  // and the focus-within ring on its label could never fire.
+  const cameraInput = (
+    <input
+      type="file"
+      accept="image/*"
+      capture="environment"
+      className="sr-only"
+      onChange={(e) => {
+        void addFiles(e.target.files);
+        e.target.value = "";
+      }}
+    />
+  );
+  const libraryInput = (
+    <input
+      type="file"
+      accept="image/*"
+      multiple
+      className="sr-only"
+      onChange={(e) => {
+        void addFiles(e.target.files);
+        e.target.value = "";
+      }}
+    />
+  );
+
   const chip = (pressed: boolean) =>
     `inline-flex min-h-12 items-center justify-center rounded-lg border-2 px-4 text-base font-medium transition ${
       pressed
@@ -763,119 +791,94 @@ function ReportFormFields({
         </section>
       )}
       {/*
-        The roadkill page's one question, and it comes first because it is the
-        one thing it asks that the others do not. Required, with no default:
-        the two answers are two stored categories — an injured animal implies
-        someone should respond and a dead one does not — and nothing may be
-        chosen for the reporter. The header used to open a form already set to
-        "roadkill, dead", so a live animal could be filed dead without anyone
-        having said so.
+        The photo first. It is what the reporter is already holding their phone
+        up to do, and what it knows (when it was taken, and where) fills the
+        questions below it before they are asked. The owner chose this shape in
+        the design lab (components/lab/report/PhotoFirstFlow.tsx): the camera at
+        the top, every question visible under it, the condition still asked
+        before the species.
+
+        Two inputs, because one could not do both. The old single input carried
+        `capture="environment"`, and on a phone that opens the camera and
+        nothing else, so a photo taken a minute earlier in the camera app could
+        not be attached at all. The tile takes a photo; the line under it
+        chooses one already taken.
       */}
-      {asksCondition && (
-        <section aria-labelledby="condition-label">
-          <h2
-            id="condition-label"
-            className="mb-2 text-base font-semibold text-forest-900"
-          >
-            {t("conditionLabel")}{" "}
-            <span className="text-sm font-normal text-ink-600">
-              {t("required")}
-            </span>
-          </h2>
-          <div role="group" aria-labelledby="condition-label" className="grid grid-cols-2 gap-2">
-            {conditions.map((k) => (
-              <button
-                key={k}
-                type="button"
-                aria-pressed={category === k}
-                onClick={() => setCategory(k)}
-                className={chip(category === k)}
-              >
-                {t(`condition.${k}`)}
-              </button>
-            ))}
-          </div>
-          {category === "injured" && (
-            <div className="mt-3">{noDispatchNote()}</div>
-          )}
-        </section>
-      )}
-
-      <section>
-        <SpeciesPicker
-          page={page}
-          value={species}
-          onChange={setSpecies}
-          unsure={unsure}
-          onUnsure={setUnsure}
-        />
-        {errorIn("species")}
-      </section>
-
-      {/* Photos */}
-      <section>
-        <h2 className="mb-2 text-base font-semibold text-forest-900">
+      <section aria-labelledby="photos-label">
+        <h2 id="photos-label" className="mb-2 text-base font-semibold text-forest-900">
           {t("photos")}{" "}
           <span className="text-sm font-normal text-ink-600">
             ({photos.length}/{MAX_PHOTOS})
           </span>
         </h2>
 
-        <div className="flex flex-wrap gap-3">
-          {photos.map((p) => (
-            <div key={p.id} className="relative">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={p.previewUrl}
-                alt=""
-                className="h-20 w-20 rounded-lg object-cover"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  URL.revokeObjectURL(p.previewUrl);
-                  setPhotos((prev) => prev.filter((x) => x.id !== p.id));
-                }}
-                // 20px was under any target guideline, and it sits at the
-                // corner of a thumbnail with the "+" tile 8px away. The disc is
-                // 24px and a pseudo-element carries the rest of the 44px hit
-                // area inwards and downwards, over the photograph it belongs
-                // to, so growing it cannot steal a tap from the next tile.
-                className="absolute -right-1.5 -top-1.5 grid h-6 w-6 place-items-center rounded-full bg-paper-200 text-sm text-ink-800 ring-1 ring-ink-900/15 after:absolute after:-bottom-5 after:-left-5 after:right-0 after:top-0 after:content-['']"
-                aria-label={t("removePhoto")}
-              >
-                ×
-              </button>
-            </div>
-          ))}
+        {photos.length === 0 ? (
+          // focus-within is what makes these reachable by keyboard: each input
+          // is sr-only, so focusing it shows nothing, and the label is the only
+          // visible affordance.
+          <label className="flex min-h-44 w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-forest-900/40 bg-paper-100 px-4 py-6 text-forest-900 hover:border-forest-900/70 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ember-400">
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 48 48"
+              className="h-12 w-12"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeLinejoin="round"
+            >
+              <path d="M4 14h9l4-5h14l4 5h9v26H4z" />
+              <circle cx="24" cy="26" r="8" />
+            </svg>
+            <span className="text-lg font-semibold">{t("photoTake")}</span>
+            {cameraInput}
+          </label>
+        ) : (
+          <div className="flex flex-wrap gap-3">
+            {photos.map((p) => (
+              <div key={p.id} className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={p.previewUrl}
+                  alt=""
+                  className="h-24 w-24 rounded-lg object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    URL.revokeObjectURL(p.previewUrl);
+                    setPhotos((prev) => prev.filter((x) => x.id !== p.id));
+                  }}
+                  // 20px was under any target guideline, and it sits at the
+                  // corner of a thumbnail with the "+" tile 8px away. The disc is
+                  // 24px and a pseudo-element carries the rest of the 44px hit
+                  // area inwards and downwards, over the photograph it belongs
+                  // to, so growing it cannot steal a tap from the next tile.
+                  className="absolute -right-1.5 -top-1.5 grid h-6 w-6 place-items-center rounded-full bg-paper-200 text-sm text-ink-800 ring-1 ring-ink-900/15 after:absolute after:-bottom-5 after:-left-5 after:right-0 after:top-0 after:content-['']"
+                  aria-label={t("removePhoto")}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
 
-          {photos.length < MAX_PHOTOS && (
-            // focus-within is what makes this reachable by keyboard: the input
-            // itself is `hidden`, so focusing it shows nothing at all, and the
-            // only visible affordance is this label. Tabbing to the photo picker
-            // used to give no indication whatsoever.
-            <label className="grid h-20 w-20 cursor-pointer place-items-center rounded-lg border-2 border-dashed border-ink-900/25 text-2xl text-ink-600 hover:border-forest-900/50 hover:text-forest-900 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ember-400">
-              <span aria-hidden>+</span>
-              <span className="sr-only">{t("addPhoto")}</span>
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                multiple
-                // sr-only, not hidden. `hidden` is display:none, and a
-                // display:none input is not focusable at all — the photo picker
-                // could not be reached by keyboard, and the focus-within ring on
-                // the label above could never fire because nothing inside it was
-                // ever focused. sr-only keeps it invisible but in the tab order.
-                className="sr-only"
-                onChange={(e) => {
-                  void addFiles(e.target.files);
-                  e.target.value = "";
-                }}
-              />
+            {photos.length < MAX_PHOTOS && (
+              <label className="grid h-24 w-24 cursor-pointer place-items-center rounded-lg border-2 border-dashed border-ink-900/25 text-2xl text-ink-600 hover:border-forest-900/50 hover:text-forest-900 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ember-400">
+                <span aria-hidden>+</span>
+                <span className="sr-only">{t("photoTake")}</span>
+                {cameraInput}
+              </label>
+            )}
+          </div>
+        )}
+
+        {photos.length < MAX_PHOTOS && (
+          <p className="mt-2">
+            <label className="inline-flex min-h-11 cursor-pointer items-center text-base font-medium text-leaf-700 underline underline-offset-2 hover:text-forest-900 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ember-400">
+              {t("photoLibrary")}
+              {libraryInput}
             </label>
-          )}
-        </div>
+          </p>
+        )}
 
         <p className="mt-2 text-sm leading-relaxed text-ink-600">
           {preparing ? t("photoProcessing") : t("photoHelp")}
@@ -972,6 +975,58 @@ function ReportFormFields({
             {t("locationError")}
           </p>
         )}
+      </section>
+
+      {/*
+        The roadkill page's one question, asked before the species so that an
+        injured animal is never filed by inference from what it was, and after
+        the photo and the place, which are what someone standing beside it
+        does first. Required, with no default:
+        the two answers are two stored categories — an injured animal implies
+        someone should respond and a dead one does not — and nothing may be
+        chosen for the reporter. The header used to open a form already set to
+        "roadkill, dead", so a live animal could be filed dead without anyone
+        having said so.
+      */}
+      {asksCondition && (
+        <section aria-labelledby="condition-label">
+          <h2
+            id="condition-label"
+            className="mb-2 text-base font-semibold text-forest-900"
+          >
+            {t("conditionLabel")}{" "}
+            <span className="text-sm font-normal text-ink-600">
+              {t("required")}
+            </span>
+          </h2>
+          <div role="group" aria-labelledby="condition-label" className="grid grid-cols-2 gap-2">
+            {conditions.map((k) => (
+              <button
+                key={k}
+                type="button"
+                aria-pressed={category === k}
+                onClick={() => setCategory(k)}
+                className={chip(category === k)}
+              >
+                {t(`condition.${k}`)}
+              </button>
+            ))}
+          </div>
+          {category === "injured" && (
+            <div className="mt-3">{noDispatchNote()}</div>
+          )}
+        </section>
+      )}
+
+      <section>
+        <SpeciesPicker
+          page={page}
+          value={species}
+          onChange={setSpecies}
+          unsure={unsure}
+          onUnsure={setUnsure}
+        />
+        {errorIn("species")}
       </section>
 
       {/* Details */}
@@ -1150,7 +1205,20 @@ function ReportFormFields({
           group owns the relationship, and `aria-describedby` states it to a
           screen reader, which previously heard a disabled button and no reason.
       */}
-      <div className="space-y-2">
+      {/*
+          Pinned while the form is on screen, as the owner chose in the design
+          lab: on one long page the way out has to be in the same place however
+          far down you are. `sticky`, so it settles into its place at the end of
+          the form rather than covering the page after it, and a direct child of
+          the form's own box, because a sticky element only travels within its
+          parent. globals.css keeps focused fields clear of it
+          (scroll-padding-bottom), and the safe-area inset keeps the button above
+          an iPhone's home bar.
+      */}
+      <div
+        id="report-send-bar"
+        className="sticky bottom-0 z-10 -mx-5 space-y-2 border-t border-ink-900/10 bg-paper-50/95 px-5 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-sm sm:-mx-8 sm:px-8"
+      >
         {blocker && (
           <p id="submit-blocker" className="text-center text-sm text-ink-700">
             {blocker}
@@ -1177,29 +1245,29 @@ function ReportFormFields({
               ? t("saveOnPhone")
               : t("submit")}
         </button>
-
-        {/*
-          The way out of a wait that may not end: a challenge that never
-          solves, or a send on one bar of signal that never answers. Beside the
-          main button rather than instead of it, so someone halfway through a
-          challenge, or whose send is about to land, is not moved onto the
-          other path by a timer.
-        */}
-        {controls.backup && (
-          <div className="pt-2 text-center">
-            <button
-              type="button"
-              onClick={saveOnPhone}
-              className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border-2 border-forest-900 px-4 text-base font-semibold text-forest-900 hover:bg-forest-900/5"
-            >
-              {controls.backup === "slow" ? t("backupSlow") : t("backupNoToken")}
-            </button>
-            <p className="mt-2 text-sm leading-relaxed text-ink-700">
-              {t("backupHint")}
-            </p>
-          </div>
-        )}
       </div>
+
+      {/*
+        The way out of a wait that may not end: a challenge that never
+        solves, or a send on one bar of signal that never answers. Beside the
+        main button rather than instead of it, so someone halfway through a
+        challenge, or whose send is about to land, is not moved onto the
+        other path by a timer.
+      */}
+      {controls.backup && (
+        <div className="pt-2 text-center">
+          <button
+            type="button"
+            onClick={saveOnPhone}
+            className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border-2 border-forest-900 px-4 text-base font-semibold text-forest-900 hover:bg-forest-900/5"
+          >
+            {controls.backup === "slow" ? t("backupSlow") : t("backupNoToken")}
+          </button>
+          <p className="mt-2 text-sm leading-relaxed text-ink-700">
+            {t("backupHint")}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

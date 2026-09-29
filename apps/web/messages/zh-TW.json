@@ -100,7 +100,7 @@
   },
   "report": {
     "photos": "照片",
-    "photoHelp": "照片會在上傳前縮小並移除 EXIF（含裝置資訊）。",
+    "photoHelp": "有照片，最能確認是哪一種動物。送出前，照片會縮小，檔案裡隱藏的資訊（手機型號、拍攝地點和時間）也會移除。",
     "photoProcessing": "處理中…",
     "removePhoto": "移除照片",
     "noPhotoWarning": "此類型建議附照片，否則會先送人工審核。",
@@ -190,7 +190,6 @@
     "chooserSpecies": "你要通報這種動物。是哪一種通報？",
     "required": "必填",
     "needCondition": "請先選擇動物已經死亡，還是活著但受傷",
-    "addPhoto": "加入照片",
     "alsoInvasive": "這是外來入侵種，這筆紀錄也會列入入侵種的資料，不需要另外處理。",
     "speciesNoHitsInvasive": "入侵種名單裡沒有這個名稱。",
     "speciesUnsureHintInvasive": "這比亂猜好。我們會記為未鑑定，在確認物種之前，位置都會模糊化。",
@@ -220,7 +219,9 @@
       "title": "測試通報",
       "body": "這筆通報會走完真實通報的每一步：上傳照片、辨識模型判斷物種、人工審核。它永遠不會公開：不會出現在地圖、統計或我們分享的資料裡。只有審核人員能送出測試通報。",
       "realInstead": "改為送出真實通報"
-    }
+    },
+    "photoTake": "拍照",
+    "photoLibrary": "選擇已經拍好的照片"
   },
   "detail": {
     "species": "物種",
