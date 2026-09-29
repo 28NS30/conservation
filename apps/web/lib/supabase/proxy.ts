@@ -85,6 +85,46 @@ export function settledBy<T>(work: Promise<T>, deadline: AbortSignal): Promise<T
 }
 
 /**
+ * Whether a Supabase access token was issued for a password sign-in.
+ *
+ * The site never asks for a password: sign-in is an emailed code or link. But
+ * Supabase's email provider also answers POST /auth/v1/signup with a password
+ * to anyone holding the public key, and there is no setting that turns that
+ * half off. So someone could register another person's address with a
+ * password of their own; when the owner of the address later signed in with a
+ * code, Supabase confirmed the account and kept that password, and its setter
+ * could sign in as them, as a moderator if the address was one (security
+ * audit, 29 September 2026). A session whose token says it came from a
+ * password is therefore not a session this site recognises.
+ *
+ * Reads the token without verifying it. It decides only to refuse, and the
+ * callers read it after `getUser()` has had Supabase verify the same token.
+ */
+export function passwordSession(accessToken: string | null | undefined): boolean {
+  const payload = accessToken?.split(".")[1];
+  if (!payload) return false;
+  try {
+    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+    const amr = (JSON.parse(json) as { amr?: unknown }).amr;
+    return (
+      Array.isArray(amr) &&
+      amr.some((a) => typeof a === "object" && a !== null && (a as { method?: unknown }).method === "password")
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Where password sessions are refused: production. Local development and CI
+ * sign throwaway accounts in with a password (e2e/account.spec.mjs,
+ * test/stub-gotrue.mjs), and nothing there is anyone's.
+ */
+export function refusesPasswordSessions(): boolean {
+  return process.env.VERCEL_ENV === "production";
+}
+
+/**
  * The auth cookie's name for this project: supabase-js names it
  * `sb-<first label of the API host>-auth-token`, and splits a long session
  * into `.0`, `.1`… chunks under the same name.
@@ -187,7 +227,13 @@ export async function refreshSession(
         },
       },
     });
-    if ((await settledBy(supabase.auth.getSession(), deadline)) === LATE) return null;
+    const got = await settledBy(supabase.auth.getSession(), deadline);
+    if (got === LATE) return null;
+    // A password session is ended here, on the way in, so no page renders
+    // with it and the browser is told to forget it (passwordSession, above).
+    if (refusesPasswordSessions() && passwordSession(got.data.session?.access_token)) {
+      if ((await settledBy(supabase.auth.signOut({ scope: "local" }), deadline)) === LATE) return null;
+    }
   } catch {
     return null;
   }

@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { browserSupabase } from "@/lib/supabase/client";
 import { withBase } from "@/lib/basePath";
 import { NEXT_COOKIE, NEXT_COOKIE_MAX_AGE, NEXT_COOKIE_PATH } from "@/lib/signInNext";
 import { sendFailure, verifyFailure, type SignInFailure as Failure } from "@/lib/signInErrors";
+import Turnstile, { turnstileEnabled } from "@/components/report/Turnstile";
 
 /** Long enough that a slow mail relay is not mistaken for a failure. */
 const RESEND_SECONDS = 60;
@@ -49,6 +50,22 @@ export default function SignInForm({
   callbackError: boolean;
 }) {
   const t = useTranslations("login");
+  const locale = useLocale();
+  /**
+   * A Cloudflare Turnstile token for the email send, when the site has a key.
+   *
+   * Supabase sends sign-in emails for anyone who asks, from the project's
+   * address, against one hourly quota for the whole project: a script could
+   * spend it in a minute, and every real sign-in would fail for the rest of
+   * the hour, while the project's domain mailed strangers (security audit, 29
+   * September 2026). Supabase can require a captcha on the send, but a form
+   * that sent no token would then fail every sign-in, so the form sends one
+   * first; Supabase ignores it until the owner switches the check on
+   * (docs/owner-setup.md). Single-use: reset after every send.
+   */
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const resetCaptcha = useRef<(() => void) | null>(null);
+  const needsCaptcha = turnstileEnabled && !captcha;
   const [email, setEmail] = useState("");
   /** The address the last email actually went to, or null while choosing one. */
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -83,9 +100,15 @@ export default function SignInForm({
     rememberNext(next);
     const { error } = await browserSupabase().auth.signInWithOtp({
       email: address,
-      options: { emailRedirectTo: callbackUrl() },
+      options: {
+        emailRedirectTo: callbackUrl(),
+        ...(captcha ? { captchaToken: captcha } : {}),
+      },
     });
     setBusy(null);
+    // Spent, whatever the answer.
+    setCaptcha(null);
+    resetCaptcha.current?.();
     if (error) {
       setError(sendFailure(error.status, error.code));
       return;
@@ -207,7 +230,7 @@ export default function SignInForm({
             <button
               type="button"
               onClick={() => void send(sentTo)}
-              disabled={busy !== null || wait > 0}
+              disabled={busy !== null || wait > 0 || needsCaptcha}
               className={quiet}
             >
               {wait > 0 ? t("resendIn", { seconds: wait }) : t("resend")}
@@ -275,13 +298,25 @@ export default function SignInForm({
             {alert(error)}
             <button
               type="submit"
-              disabled={busy !== null || !email.includes("@")}
+              disabled={busy !== null || !email.includes("@") || needsCaptcha}
               className={primary}
             >
               {busy === "send" ? t("sending") : t("send")}
             </button>
           </form>
         </>
+      )}
+
+      {/* Outside both steps, so the resend on the code step has one too. */}
+      {turnstileEnabled && (
+        <Turnstile
+          onToken={setCaptcha}
+          locale={locale}
+          theme="light"
+          onReady={(api) => {
+            resetCaptcha.current = api.reset;
+          }}
+        />
       )}
     </div>
   );

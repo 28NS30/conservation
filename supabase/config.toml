@@ -230,8 +230,9 @@ secure_password_change = false
 max_frequency = "1s"
 # Number of characters used in the email OTP.
 otp_length = 6
-# Number of seconds before the email OTP expires (defaults to 1 hour).
-otp_expiry = 3600
+# Number of seconds before the email OTP expires (defaults to 1 hour). Fifteen
+# minutes, as in production: a guessed code has a quarter of the hour it had.
+otp_expiry = 900
 
 # Use a production-ready SMTP server
 # [auth.email.smtp]
@@ -242,6 +243,16 @@ otp_expiry = 3600
 # pass = "env(SENDGRID_API_KEY)"
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
+
+# The sign-in email carries the code and no link; see the file. Production is
+# set from the same file.
+[auth.email.template.magic_link]
+subject = "福爾摩沙守望計畫 登入碼 · Your sign-in code"
+content_path = "./supabase/templates/sign-in-code.html"
+
+[auth.email.template.confirmation]
+subject = "福爾摩沙守望計畫 登入碼 · Your sign-in code"
+content_path = "./supabase/templates/sign-in-code.html"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]

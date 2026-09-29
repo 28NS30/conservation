@@ -2,7 +2,7 @@ import "server-only";
 
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { LATE, fetchUntil, settledBy } from "./proxy";
+import { LATE, fetchUntil, settledBy, passwordSession, refusesPasswordSessions } from "./proxy";
 
 /**
  * How long a page waits to learn who is signed in before rendering as if
@@ -114,8 +114,22 @@ async function userBy(
   supabase: Awaited<ReturnType<typeof serverSupabase>>,
   deadline: AbortSignal,
 ) {
-  const answer = await settledBy(supabase.auth.getUser(), deadline);
-  return answer === LATE ? null : (answer.data?.user ?? null);
+  const answer = await settledBy(sessionUser(supabase), deadline);
+  return answer === LATE ? null : answer;
+}
+
+/**
+ * The user Supabase verifies for this request's session, or null. Null too for
+ * a session opened with a password, in production (passwordSession in
+ * ./proxy): the proxy ends such a session on the way in, and this refuses it
+ * wherever one gets past, a route the proxy does not run on included.
+ */
+export async function sessionUser(supabase: Awaited<ReturnType<typeof serverSupabase>>) {
+  const { data } = await supabase.auth.getUser();
+  const user = data?.user ?? null;
+  if (!user || !refusesPasswordSessions()) return user;
+  const { data: session } = await supabase.auth.getSession();
+  return passwordSession(session.session?.access_token) ? null : user;
 }
 
 /**

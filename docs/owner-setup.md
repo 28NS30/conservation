@@ -37,22 +37,25 @@ mail can be sent from it. Resend's free plan (100 emails a day) is enough.
    - Password: the API key from step 2
 4. **Supabase → Authentication → Rate Limits:** raise *emails sent per hour*
    (30 is plenty to start).
-5. **Supabase → Authentication → Emails → Templates → Magic Link.** Subject:
-   `福爾摩沙守望計畫 登入碼 · Your sign-in code`. Body:
-
-   ```html
-   <p>你的登入碼 · Your sign-in code:</p>
-   <p style="font-size:28px;font-weight:bold;letter-spacing:4px">{{ .Token }}</p>
-   <p>在登入頁輸入這組數字。也可以直接開啟這個連結：<br>
-      Type it on the sign-in page, or open this link:</p>
-   <p><a href="{{ .ConfirmationURL }}">登入 · Sign in</a></p>
-   <p>如果不是你要求的，請忽略這封信。 · If you did not ask for this, ignore this email.</p>
-   ```
-
-   The sign-in page already accepts both the code and the link.
+5. **The email templates are already set** (30 September 2026), for both
+   *Magic Link* and *Confirm signup*, from `supabase/templates/sign-in-code.html`:
+   the 6-digit code and no link. Leave them as they are when you set up SMTP.
+   No link, because a school's mail scanner that opens it spends the code; and
+   both templates, because a first sign-in is a sign-up, and Supabase sends
+   *Confirm signup* for it. The code lasts 15 minutes.
+6. **Turn on the check against automated sign-in emails.** Supabase sends a
+   sign-in email to anyone who asks, from your domain, against one hourly
+   limit for the whole project, so a script could use it all up and block every
+   real sign-in for the rest of the hour. The sign-in form already sends a
+   Cloudflare Turnstile token with each request; Supabase ignores it until this
+   is on. **Supabase → Authentication → Attack Protection → Enable Captcha
+   protection:** provider *Cloudflare Turnstile*, secret key: the same Turnstile
+   secret key the website uses (`TURNSTILE_SECRET_KEY` in Vercel; Cloudflare →
+   Turnstile → your site → Settings). Paste it there yourself, not into chat.
 
 **Check:** sign in on the live site with an address that is not in the Supabase
-project. The email should arrive within a minute with a 6-digit code.
+project. The email should arrive within a minute with a 6-digit code and no
+link. After step 6, the sign-in page shows the Turnstile box and still works.
 
 ---
 
@@ -92,12 +95,22 @@ in **Supabase → SQL Editor**, with their email address:
 
 ```sql
 insert into profiles (id, role)
-select id, 'moderator' from auth.users where email = 'someone@example.com'
+select id, 'moderator' from auth.users
+ where email = 'someone@example.com'
+   and email_confirmed_at is not null
+   and coalesce(encrypted_password, '') = ''
 on conflict (id) do update set role = excluded.role;
 ```
 
 Use `'admin'` instead of `'moderator'` for an admin. At least two admins, one of
 them an adult.
+
+If it says `INSERT 0 0`, the account either has not signed in yet or **has a
+password**, which this site never sets. Supabase accepts a password sign-up from
+anyone, so someone may have registered that address first to get in later as
+its owner. The site refuses sessions opened with a password, but do not give
+that account a role: delete the user in **Authentication → Users**, and have the
+person sign in again with the emailed code.
 
 **Check:** that person opens /admin and sees the queue, not "Moderators only".
 
@@ -106,8 +119,11 @@ them an adult.
 ## 4. The new AI model service
 
 **Unblocks:** the model service measured on 1,144 photos of dead animals, which
-names a species by itself only where it is right at least 95% of the time. The
-current service keeps running until then.
+names a species by itself only where it is right at least 95% of the time; and
+the security fixes to the service (#123): a request without the token no longer
+starts a GPU, and the service fetches no URLs. Both are merged and wait on this
+step. A deploy on 30 September stopped at Modal's payment check and left the
+current service (v2, 5 August) running unchanged.
 
 1. **Modal** (modal.com, account `neolava2`): **Settings → Billing → add a
    payment method.** Modal now requires one to deploy GPU services. At this

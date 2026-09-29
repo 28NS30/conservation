@@ -1,7 +1,7 @@
 import { after } from "next/server";
 import { sql } from "@/lib/db";
 import { classifyQueued } from "@/lib/report/classifyWorker";
-import { serverSupabase } from "@/lib/supabase/server";
+import { serverSupabase, sessionUser } from "@/lib/supabase/server";
 import { statUploadedPhoto } from "@/lib/supabase/service";
 import {
   verifyTurnstile,
@@ -89,8 +89,7 @@ export async function POST(req: Request) {
   // Who, if anyone, is signed in. Reporting stays open to anonymous users —
   // friction is what kills citizen-science participation.
   const supabase = await serverSupabase();
-  const { data: auth } = await supabase.auth.getUser();
-  const signedIn = auth?.user?.id ?? null;
+  const signedIn = (await sessionUser(supabase))?.id ?? null;
 
   // A report saved on a phone says who made it. The queue is per device, not
   // per account, so without this a report saved by one person was filed under
