@@ -106,6 +106,8 @@ export type CollectionRecord = {
   taxonId: number | null;
   scientificName: string | null;
   commonNameZh: string | null;
+  commonNameEn: string | null;
+  taicolId: string | null;
 };
 
 /**
@@ -126,7 +128,9 @@ export async function newestRecords(
              rp.is_invasive as "isInvasive",
              rp.taxon_id as "taxonId",
              t.scientific_name as "scientificName",
-             t.common_name_zh as "commonNameZh"
+             t.common_name_zh as "commonNameZh",
+             t.common_name_en as "commonNameEn",
+             t.taicol_id as "taicolId"
         from reports_public rp
         left join taxa t on t.id = rp.taxon_id
        where ${where(tx, c)}
@@ -140,6 +144,9 @@ export type InvasiveSpecies = {
   scientificName: string;
   commonNameZh: string | null;
   altNamesZh: string[] | null;
+  commonNameEn: string | null;
+  altNamesEn: string[] | null;
+  taicolId: string;
   rank: string | null;
   class: string | null;
   protectedStatus: string | null;
@@ -174,6 +181,9 @@ export async function invasiveSpeciesList(): Promise<InvasiveSpecies[]> {
       select t.id, t.scientific_name as "scientificName",
              t.common_name_zh as "commonNameZh",
              t.alt_names_zh as "altNamesZh",
+             t.common_name_en as "commonNameEn",
+             t.alt_names_en as "altNamesEn",
+             t.taicol_id as "taicolId",
              t.rank, t.class, t.protected_status as "protectedStatus",
              coalesce(s.report_count, 0)::int as "reportCount",
              nullif(trim(to_jsonb(t) ->> 'alien_status_note'), '') as note

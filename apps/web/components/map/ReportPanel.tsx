@@ -9,6 +9,7 @@ import HabitatChips, {
   type HabitatFlags,
 } from "@/components/species/HabitatChips";
 import InvasiveBadge from "@/components/collections/InvasiveBadge";
+import SpeciesName from "@/components/species/SpeciesName";
 
 type Report = {
   id: string;
@@ -19,6 +20,8 @@ type Report = {
   taxonId: number | null;
   scientificName: string | null;
   commonNameZh: string | null;
+  commonNameEn?: string | null;
+  taicolId?: string | null;
   photo: string | null;
   habitat: HabitatFlags;
   /** Absent from a response built before 0016; read as not invasive. */
@@ -78,12 +81,16 @@ export default function ReportPanel({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const zhFirst = locale.startsWith("zh");
-  const name = report
-    ? zhFirst
-      ? (report.commonNameZh ?? report.scientificName)
-      : (report.scientificName ?? report.commonNameZh)
-    : null;
+  // Both names, the page's language first (lib/speciesNames.ts), on one line.
+  const name =
+    report && (report.scientificName || report.commonNameZh) ? (
+      <SpeciesName
+        species={{ ...report, scientificName: report.scientificName ?? report.commonNameZh ?? "" }}
+        locale={locale}
+        layout="inline"
+        secondaryClassName="text-parchment-300"
+      />
+    ) : null;
 
   return (
     <aside

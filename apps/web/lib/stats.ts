@@ -97,6 +97,8 @@ export type TopSpecies = {
   id: number;
   scientificName: string;
   commonNameZh: string | null;
+  commonNameEn: string | null;
+  taicolId: string;
   reportCount: number;
   protectedStatus: string | null;
   isInvasive: boolean;
@@ -108,6 +110,7 @@ export async function topSpecies(limit = 15): Promise<TopSpecies[]> {
     (tx) => tx<TopSpecies[]>`
       select t.id, t.scientific_name as "scientificName",
              t.common_name_zh as "commonNameZh", s.report_count as "reportCount",
+             t.common_name_en as "commonNameEn", t.taicol_id as "taicolId",
              t.protected_status as "protectedStatus",
              t.is_invasive as "isInvasive", t.is_endemic as "isEndemic"
         from species_report_stats s
@@ -232,6 +235,8 @@ export type Hotspot = {
   taxonId: number | null;
   topSpeciesZh: string | null;
   topSpeciesSci: string | null;
+  topSpeciesEn: string | null;
+  topSpeciesTaicolId: string | null;
 };
 
 /** Grid cell size for hotspots, in Web Mercator metres. */
@@ -279,6 +284,8 @@ export async function hotspots(limit = 8): Promise<Hotspot[]> {
              d.taxon_id as "taxonId",
              tx_.common_name_zh as "topSpeciesZh",
              tx_.scientific_name as "topSpeciesSci",
+             tx_.common_name_en as "topSpeciesEn",
+             tx_.taicol_id as "topSpeciesTaicolId",
              st_x(st_transform(st_setsrid(st_makepoint(
                (t.gx + 0.5) * ${HOTSPOT_CELL_M}, (t.gy + 0.5) * ${HOTSPOT_CELL_M}), 3857), 4326)) as lng,
              st_y(st_transform(st_setsrid(st_makepoint(

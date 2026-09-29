@@ -9,6 +9,7 @@ import PageHeader from "@/components/site/PageHeader";
 import { signInHref } from "@/components/auth/signInHref";
 import { signOut } from "./actions";
 import { awaitingVerification } from "@/lib/report/verification";
+import SpeciesName from "@/components/species/SpeciesName";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,8 @@ type Row = {
   taxonSource: string | null;
   scientificName: string | null;
   commonNameZh: string | null;
+  commonNameEn: string | null;
+  taicolId: string | null;
   aiBand: string | null;
   aiConfidence: number | null;
 };
@@ -100,14 +103,15 @@ export default async function MyReportsPage({
            r.taxon_source as "taxonSource",
            r.ai_band as "aiBand", r.ai_confidence as "aiConfidence",
            t.scientific_name as "scientificName",
-           t.common_name_zh as "commonNameZh"
+           t.common_name_zh as "commonNameZh",
+           t.common_name_en as "commonNameEn",
+           t.taicol_id as "taicolId"
       from reports r
       left join taxa t on t.id = r.taxon_id
      where r.reporter_id = ${user.id}::uuid
      order by r.created_at desc
      limit 200`;
 
-  const zhFirst = locale.startsWith("zh");
   const published = rows.filter((r) => r.status === "published").length;
   const identified = rows.filter((r) => r.taxonId).length;
 
@@ -119,6 +123,8 @@ export default async function MyReportsPage({
       id: number;
       scientificName: string;
       commonNameZh: string | null;
+      commonNameEn: string | null;
+      taicolId: string | null;
       n: number;
     }
   >();
@@ -131,6 +137,8 @@ export default async function MyReportsPage({
         id: r.taxonId,
         scientificName: r.scientificName,
         commonNameZh: r.commonNameZh,
+        commonNameEn: r.commonNameEn,
+        taicolId: r.taicolId,
         n: 1,
       });
   }
@@ -204,14 +212,12 @@ export default async function MyReportsPage({
                       className="flex items-baseline justify-between gap-3 rounded-lg border border-ink-900/10 bg-paper-100/60 px-4 py-2.5 transition hover:border-ink-900/25 hover:bg-paper-100"
                     >
                       <span className="min-w-0">
-                        {s.commonNameZh && (
-                          <span className="mr-2 text-sm text-ink-900">
-                            {s.commonNameZh}
-                          </span>
-                        )}
-                        <span className="text-[12px] italic text-ink-500">
-                          {s.scientificName}
-                        </span>
+                        <SpeciesName
+                          species={s}
+                          locale={locale}
+                          primaryClassName="text-sm text-ink-900"
+                          secondaryClassName="text-xs text-ink-600"
+                        />
                       </span>
                       <span className="shrink-0 text-[11px] tabular-nums text-ink-500">
                         {s.n}
@@ -228,8 +234,13 @@ export default async function MyReportsPage({
           </h2>
           <ul className="mt-4 space-y-1.5">
             {rows.map((r) => {
-              const name =
-                zhFirst && r.commonNameZh ? r.commonNameZh : r.scientificName;
+              const name = r.scientificName ? (
+                <SpeciesName
+                  species={{ ...r, scientificName: r.scientificName }}
+                  locale={locale}
+                  layout="primary"
+                />
+              ) : null;
               return (
                 <li key={r.id}>
                   <Link
