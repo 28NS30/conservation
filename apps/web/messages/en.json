@@ -245,7 +245,16 @@
     "aiSuggested": "AI suggestion",
     "testTitle": "Test report",
     "testNote": "Test report. Only moderators can see this page. It is not on the map, in the statistics or in the data we share.",
-    "confirmFailed": "That did not save. Try again."
+    "confirmFailed": "That did not save. Try again.",
+    "fix": {
+      "title": "Name the species (moderators)",
+      "body": "Search every animal on Taiwan's species list. Saving replaces the record's species and re-applies its location rule, so a protected species is blurred at once.",
+      "search": "Search by Chinese, English or scientific name",
+      "change": "Choose another",
+      "save": "Save species",
+      "saved": "Saved.",
+      "failed": "That did not save. Try again."
+    }
   },
   "admin": {
     "heading": "Moderation queue",

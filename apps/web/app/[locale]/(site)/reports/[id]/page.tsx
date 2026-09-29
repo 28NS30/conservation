@@ -16,6 +16,7 @@ import { licenseLabel } from "@/lib/license";
 import ReportMap from "@/components/report/ReportMap";
 import SpeciesCard from "@/components/species/SpeciesCard";
 import { getSpecies, monthlyCounts, speciesSlug } from "@/lib/species";
+import ModeratorSpeciesFix from "@/components/report/ModeratorSpeciesFix";
 import SpeciesConfirm, {
   type Suggestion,
 } from "@/components/report/SpeciesConfirm";
@@ -503,6 +504,12 @@ export default async function ReportPage({
         canEdit={canEdit}
         currentTaxonId={row.taxon_id}
       />
+
+      {/* Any species, for a moderator: the list above is only the model's
+          five guesses. confirmSpecies checks the role again. */}
+      {(role === "moderator" || role === "admin") && (
+        <ModeratorSpeciesFix reportId={row.id} />
+      )}
 
       <section className="mt-5 space-y-3 text-sm">
         {/* "Source: GBIF · Taiwan Biodiversity Research Institute" named an
