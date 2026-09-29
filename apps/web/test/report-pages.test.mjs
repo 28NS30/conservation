@@ -332,24 +332,31 @@ describe("an invasive-page report stays blurred until someone checks it", () => 
       join(import.meta.dirname, "..", "lib", "report", "precision.ts"),
       "utf8",
     );
-    const fragment = /export const keepDeliberateOverride = \(\) =>\s*sql`([^`]+)`/.exec(src)?.[1];
-    assert.ok(fragment, "keepDeliberateOverride is no longer a plain fragment");
+    // Its one interpolation is the unidentified stamp's value (packages/shared).
+    const raw = /export const keepDeliberateOverride = \(\) =>\s*sql`([^`]+)`/.exec(src)?.[1];
+    assert.ok(raw, "keepDeliberateOverride is no longer a plain fragment");
+    const fragment = raw.replaceAll("${UNIDENTIFIED_PRECISION}", "'coarse_10km'");
+    assert.doesNotMatch(fragment, /\$\{/, "keepDeliberateOverride interpolates something new");
     const skink = await taxon(SKINK);
     await inRollback(async (tx) => {
       const held = await insertReport(tx, { category: "invasive", override: "coarse_10km" });
       const plain = await insertReport(tx, { category: "sighting", override: "coarse_10km" });
-      for (const r of [held, plain])
+      // A hold stricter than the stamp, as the route writes for a retired name
+      // rated stricter: a decision, kept by every naming path.
+      const retired = await insertReport(tx, { category: "sighting", override: "coarse_50km" });
+      for (const r of [held, plain, retired])
         await tx`update reports
                     set taxon_id = ${skink},
                         precision_override = ${tx.unsafe(fragment)}
                   where id = ${r.id}`;
       const rows = await tx`
         select id, precision_override, location_precision from reports
-         where id in (${held.id}, ${plain.id})`;
+         where id in (${held.id}, ${plain.id}, ${retired.id})`;
       const by = Object.fromEntries(rows.map((r) => [r.id, r]));
       assert.equal(by[held.id].precision_override, "coarse_10km", "the invasive page's hold was lifted");
       assert.equal(by[held.id].location_precision, "coarse_10km");
       assert.equal(by[plain.id].precision_override, null, "an ordinary unidentified stamp still clears");
+      assert.equal(by[retired.id].precision_override, "coarse_50km", "a stricter hold was cleared by naming");
     });
   });
 

@@ -34,6 +34,16 @@ import { UNIDENTIFIED_PRECISION } from "@conservation/shared";
  *     path, and a moderator's confirmation does not lift it either. When it
  *     may be lifted is the owner's decision, not this file's.
  *
+ *   - On a report with no taxon, only the stamp's own value is a stamp. A hold
+ *     STRICTER than the unidentified blur is a decision too: the route writes
+ *     one when the reporter named a species we no longer offer and that name
+ *     was rated stricter (app/api/reports/route.ts, heldAt), and the model's
+ *     suggestions write one when a candidate is (suggestionOverride). Naming
+ *     the animal used to clear both, publishing the record at its new
+ *     species' looser rule beside a name, or a list of names, that asked for
+ *     more. Keeping them errs toward the blur, which is the direction this
+ *     project always errs.
+ *
  * Postgres evaluates every SET expression against the row as it was BEFORE the
  * update, so `taxon_id is null` here asks "did this report have a taxon before
  * this change" — which is the question — even in the same statement that is
@@ -46,7 +56,11 @@ import { UNIDENTIFIED_PRECISION } from "@conservation/shared";
  * lib/schemaStatus.ts.
  */
 export const keepDeliberateOverride = () =>
-  sql`case when taxon_id is null and category is distinct from 'invasive' then null else precision_override end`;
+  sql`case when taxon_id is null and category is distinct from 'invasive'
+           then case when precision_rank(precision_override)
+                          > precision_rank(${UNIDENTIFIED_PRECISION}::text)
+                     then precision_override end
+           else precision_override end`;
 
 /**
  * The same rule, for a species named from a photograph, plus the one thing a

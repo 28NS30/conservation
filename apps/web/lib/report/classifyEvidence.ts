@@ -96,18 +96,22 @@ export async function recordEvidence(
                ai_band = ${band},
                precision_override = ${photoIdentificationOverride(best.taxonId)},
                -- Publishing may lift a hold; it may not reverse a decision.
-               status = case when status = 'pending' then 'published' else status end
-         where id = ${job.report_id}::uuid`;
+               status = case when status = 'pending' and flagged_reason is null then 'published' else status end
+         where id = ${job.report_id}::uuid
+           -- Only if nobody named the species while the model ran (see
+           -- classifyWorker.ts).
+           and taxon_id is not distinct from ${job.taxon_id}::bigint
+           and taxon_source is not distinct from ${job.taxon_source}::text`;
     } else if (decision.action === "record") {
       await tx`
         update reports
            set ai_confidence = ${best?.score ?? null},
                ai_band = ${band},
-               flagged_reason = ${
+               flagged_reason = coalesce(flagged_reason, ${
                  disagreesWithPerson(decision, job.taxon_name)
                    ? "the model and the reporter name different species"
                    : null
-               }
+               })
          where id = ${job.report_id}::uuid`;
     } else {
       // Unidentified, and blurred at least as hard as the strictest species it
@@ -116,10 +120,14 @@ export async function recordEvidence(
       await tx`
         update reports
            set precision_override = ${suggestionOverride(job.report_id, band !== "low")},
-               status = case when status = 'pending' then 'published' else status end,
+               status = case when status = 'pending' and flagged_reason is null then 'published' else status end,
                ai_band = ${band},
-               flagged_reason = ${decision.reason}
-         where id = ${job.report_id}::uuid`;
+               flagged_reason = coalesce(flagged_reason, ${decision.reason})
+         where id = ${job.report_id}::uuid
+           -- Only if nobody named the species while the model ran (see
+           -- classifyWorker.ts).
+           and taxon_id is not distinct from ${job.taxon_id}::bigint
+           and taxon_source is not distinct from ${job.taxon_source}::text`;
     }
 
     // In the same transaction as the writes, as the legacy branch does: a job

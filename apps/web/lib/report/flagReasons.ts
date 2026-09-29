@@ -20,6 +20,8 @@
 
 export type FlagKey =
   | "outsideTaiwan"
+  | "locationInText"
+  | "contactInText"
   | "noPhoto"
   | "linksInNotes"
   | "disagrees"
@@ -40,6 +42,8 @@ export type FlagReason = { key: FlagKey; values: Record<string, string> };
 /** Each stored sentence, and the names its parameters take, in order. */
 const PATTERNS: [RegExp, FlagKey, string[]][] = [
   [/^coordinates outside Taiwan$/, "outsideTaiwan", []],
+  [/^a location in the notes or credit$/, "locationInText", []],
+  [/^contact details in the notes or credit$/, "contactInText", []],
   [/^no photo on a category that expects one$/, "noPhoto", []],
   [/^links or handles in notes$/, "linksInNotes", []],
   [/^the model and the reporter name different species$/, "disagrees", []],

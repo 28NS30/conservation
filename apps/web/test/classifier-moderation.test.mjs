@@ -113,7 +113,9 @@ describe("the route and the console agree", () => {
     const unguarded = code.match(/status = 'published'/g) ?? [];
     assert.deepEqual(unguarded, [], "a status write with no guard on it");
     assert.equal(
-      (code.match(/case when status = 'pending' then 'published'/g) ?? []).length,
+      // Guarded twice since the security audit: only a pending report, and only
+      // one held for identification alone (no reason from the submission screen).
+      (code.match(/case when status = 'pending' and flagged_reason is null then 'published'/g) ?? []).length,
       2,
       "both branches that publish should be guarded",
     );

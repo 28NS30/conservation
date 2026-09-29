@@ -49,12 +49,23 @@ export async function confirmSpecies(reportId: string, taxonId: number) {
     throw new Error("too many identification changes — try again later");
   }
 
-  const [report] = await sql<{ reporter_id: string | null }[]>`
-    select reporter_id from reports where id = ${reportId}::uuid`;
+  const [report] = await sql<
+    { reporter_id: string | null; taxon_source: string | null; has_taxon: boolean }[]
+  >`
+    select reporter_id, taxon_source, taxon_id is not null as has_taxon
+      from reports where id = ${reportId}::uuid`;
   if (!report) throw new Error("report not found");
 
   if (!moderator && report.reporter_id !== userId) {
     throw new Error("only the reporter or a moderator can change this");
+  }
+
+  // A moderator's identification is final for the reporter. The record page
+  // offers the owner the model's suggestions as buttons, so without this one
+  // ordinary tap replaced an expert's species with a guess, and with it the
+  // blur the expert's species had set.
+  if (!moderator && report.taxon_source === "expert") {
+    throw new Error("a moderator has identified this record");
   }
 
   if (!moderator) {
@@ -96,12 +107,21 @@ export async function confirmSpecies(reportId: string, taxonId: number) {
   // is invasive is now read from the species whenever the record is shown
   // (`reports_public.is_invasive`, 0016): naming the species is all it takes
   // for the record to join the invasive collection, and to leave it.
+  //
+  // A reporter changing a species they (or the model) already named never
+  // loosens the blur: the record keeps at least the precision it has now. The
+  // first naming of an unidentified record is what the unidentified stamp was
+  // waiting for, and follows the shared rule alone.
+  const override =
+    !moderator && report.has_taxon
+      ? sql`stricter_precision(${photoIdentificationOverride(taxonId)}, location_precision)`
+      : photoIdentificationOverride(taxonId);
   await sql.begin(async (tx) => {
     await tx`
       update reports
          set taxon_id = ${taxonId},
              taxon_source = ${moderator && report.reporter_id !== userId ? "expert" : "user"},
-             precision_override = ${photoIdentificationOverride(taxonId)}
+             precision_override = ${override}
        where id = ${reportId}::uuid`;
     await tx`
       insert into moderation_actions (report_id, actor_id, action, reason)

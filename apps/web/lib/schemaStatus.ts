@@ -124,6 +124,36 @@ export const REQUIRED_SCHEMA: SchemaCheck[] = [
                  and definition like '%is_test%') as ok`,
   },
   {
+    // A rule check: 0024 revokes EXECUTE on every function this project
+    // defines, so none is a public /rest/v1/rpc endpoint. A migration that
+    // creates a function as another role, or grants one back, reopens it.
+    // CI's plain Postgres has no anon role, which a CASE keeps from erroring.
+    name: "0024 the REST API cannot call the site's functions",
+    sql: `select case when not exists (select 1 from pg_roles where rolname = 'anon') then true
+                 else not exists (
+                   select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                    where n.nspname = 'public'
+                      and has_function_privilege('anon', p.oid, 'execute')
+                      and not exists (select 1 from pg_depend d
+                                       where d.objid = p.oid and d.deptype = 'e'))
+            end as ok`,
+  },
+  {
+    // Rule checks: a re-run of 0018 or 0016 puts notes back on blurred
+    // records, and one of 0006 drops the suggestions' blur check, while every
+    // column still exists. The view definitions say which rule is live.
+    name: "0025 a blurred record publishes no notes",
+    sql: `select exists (select 1 from pg_views
+                          where viewname = 'reports_published'
+                            and definition ~ 'THEN (reports\\.)?notes') as ok`,
+  },
+  {
+    name: "0025 the model's suggestions respect the record's blur",
+    sql: `select exists (select 1 from pg_views
+                          where viewname = 'report_ai_suggestions'
+                            and definition like '%suggestions_within_blur%') as ok`,
+  },
+  {
     // A rule check again: 0021 replaces 0014's taxon_precision(), so re-running
     // 0014 alone would quietly drop the Red List term while every object still
     // exists. The function body is what says which rule is live.

@@ -90,7 +90,7 @@ describe("the mapping", () => {
 
   test("every key has a sentence in both languages, with its names", () => {
     const keys = {
-      outsideTaiwan: [], noPhoto: [], linksInNotes: [], disagrees: [], notIdentified: [],
+      outsideTaiwan: [], locationInText: [], contactInText: [], noPhoto: [], linksInNotes: [], disagrees: [], notIdentified: [],
       lowConfidence: [], onlySuggests: [], unavailable: [], suspectsInvasive: ["name"],
       mixedForms: ["name"], looksNative: ["name"], wrongModel: [], onlySuggestsClass: ["group"],
       includesInvasive: ["name"], stricterSibling: ["name", "other"],

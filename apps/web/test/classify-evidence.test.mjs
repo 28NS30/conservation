@@ -429,7 +429,7 @@ describe("the worker runs these rules, through the same blur as before", () => {
   test("a species it names carries the binomial's strictest blur", () => {
     assert.match(evidence, /precision_override = \$\{photoIdentificationOverride\(best\.taxonId\)\}/);
     assert.match(evidence, /taxon_source = 'ai'/);
-    assert.match(evidence, /status = case when status = 'pending' then 'published' else status end/);
+    assert.match(evidence, /status = case when status = 'pending' and flagged_reason is null then 'published' else status end/);
   });
 
   test("a record it only suggests for is blurred as hard as its strictest suggestion", () => {

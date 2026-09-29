@@ -298,7 +298,9 @@
       "wrongModel": "辨識模型的版本和測試門檻不符，只提供建議。",
       "onlySuggestsClass": "{group}的物種，辨識模型只提供建議。",
       "includesInvasive": "辨識模型認為是「{name}」，其中包含入侵的族群，需要人工確認。",
-      "stricterSibling": "辨識模型很確定是「{name}」，但也列出了位置保護更嚴格的「{other}」，需要人工確認。"
+      "stricterSibling": "辨識模型很確定是「{name}」，但也列出了位置保護更嚴格的「{other}」，需要人工確認。",
+      "locationInText": "備註或署名裡似乎有位置（座標、地圖連結或 Plus Code）。",
+      "contactInText": "備註或署名裡有電子郵件地址或電話號碼。"
     },
     "actionFailed": "沒有儲存成功，請再試一次。",
     "confirmReject": "確定退回",
