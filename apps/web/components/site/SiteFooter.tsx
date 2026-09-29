@@ -52,6 +52,7 @@ export default async function SiteFooter({
       : []),
     { href: "/attribution", label: t("nav.attribution") },
     { href: "/privacy", label: t("nav.privacy") },
+    { href: "/terms", label: t("nav.terms") },
   ] as const;
 
   // Both footers carry it, including the thin strip under the map. 個資法 gives

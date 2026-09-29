@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import SpeciesName from "@/components/species/SpeciesName";
 import { confirmSpecies } from "@/app/[locale]/(site)/reports/[id]/actions";
 
 export type Suggestion = {
@@ -10,6 +11,8 @@ export type Suggestion = {
   score: number;
   scientificName: string;
   commonNameZh: string | null;
+  commonNameEn?: string | null;
+  taicolId?: string | null;
 };
 
 export default function SpeciesConfirm({
@@ -24,6 +27,7 @@ export default function SpeciesConfirm({
   currentTaxonId: number | null;
 }) {
   const t = useTranslations("detail");
+  const locale = useLocale();
   const [pending, startTransition] = useTransition();
   const [chosen, setChosen] = useState<number | null>(currentTaxonId);
   const [error, setError] = useState<string | null>(null);
@@ -62,12 +66,12 @@ export default function SpeciesConfirm({
                 } ${canEdit ? "hover:border-ink-900/25" : "cursor-default"}`}
               >
                 <span className="min-w-0">
-                  {s.commonNameZh && (
-                    <span className="mr-2 text-ink-800">{s.commonNameZh}</span>
-                  )}
-                  <span className="italic text-ink-500">
-                    {s.scientificName}
-                  </span>
+                  <SpeciesName
+                    species={s}
+                    locale={locale}
+                    primaryClassName="text-ink-800"
+                    secondaryClassName="text-xs text-ink-600"
+                  />
                 </span>
                 <span className="shrink-0 tabular-nums text-xs text-ink-500">
                   {Math.round(s.score * 100)}%

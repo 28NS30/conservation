@@ -1,7 +1,7 @@
 /**
  * Write a TaiCOL snapshot as SQL, for a database this machine cannot connect to.
  *
- *   npx tsx scripts/taicol-sql.ts data/cache/taicol-<date>.jsonl data/cache/taicol-sql
+ *   npx tsx scripts/taicol-sql.ts data/cache/taicol-<date>.jsonl data/cache/taicol-sql [--chunk 2000]
  *
  * Production's DATABASE_URL is not obtainable here (docs/production-state.md),
  * so a refresh reaches it through the Supabase Management API's query
@@ -18,8 +18,15 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { COLUMNS, toRow, type TaicolTaxon } from "./taicol-rows.ts";
 
-/** Rows per file: about 2 MB of SQL, well inside what the query endpoint takes. */
-const CHUNK = 5000;
+/**
+ * Rows per file. 2,000 keeps every file near 1 MB: at 5,000 the first refresh
+ * (29 September 2026) had one slice, heavy with long names and notes, that the
+ * query endpoint refused as "request entity too large". `--chunk N` overrides.
+ */
+const CHUNK = (() => {
+  const i = process.argv.indexOf("--chunk");
+  return i >= 0 ? Number(process.argv[i + 1]) : 2000;
+})();
 
 const TYPES: Record<(typeof COLUMNS)[number], string> = {
   taicol_id: "text", parent_taicol_id: "text", taxon_status: "text",
@@ -50,7 +57,7 @@ on conflict (taicol_id) do update set
 }
 
 function main() {
-  const [src, outDir] = process.argv.slice(2);
+  const [src, outDir] = process.argv.slice(2).filter((a, i, all) => a !== "--chunk" && all[i - 1] !== "--chunk");
   if (!src || !outDir) {
     console.error("usage: taicol-sql.ts <snapshot.jsonl> <out-dir>");
     process.exit(2);

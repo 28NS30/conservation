@@ -1,7 +1,8 @@
 "use client";
 
 import { useId, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import SpeciesName from "@/components/species/SpeciesName";
 import { Link } from "@/i18n/navigation";
 import { ANIMAL_GROUPS, animalGroupOf } from "@/lib/animalGroups";
 
@@ -11,6 +12,9 @@ export type InvasiveSpeciesRow = {
   scientificName: string;
   commonNameZh: string | null;
   altNamesZh: string[] | null;
+  commonNameEn: string | null;
+  altNamesEn: string[] | null;
+  taicolId: string;
   class: string | null;
   protectedStatus: string | null;
   reportCount: number;
@@ -37,6 +41,7 @@ export default function InvasiveSpeciesList({
   zh: boolean;
 }) {
   const t = useTranslations("collections");
+  const locale = useLocale();
   const [q, setQ] = useState("");
   const inputId = useId();
 
@@ -48,7 +53,10 @@ export default function InvasiveSpeciesList({
             (s) =>
               s.scientificName.toLowerCase().includes(needle) ||
               (s.commonNameZh ?? "").includes(needle) ||
-              (s.altNamesZh ?? []).some((a) => a.includes(needle)),
+              (s.altNamesZh ?? []).some((a) => a.includes(needle)) ||
+              // English too, whatever the page's language: "iguana", "slider".
+              (s.commonNameEn ?? "").toLowerCase().includes(needle) ||
+              (s.altNamesEn ?? []).some((a) => a.toLowerCase().includes(needle)),
           )
         : species,
     [species, needle],
@@ -106,27 +114,12 @@ export default function InvasiveSpeciesList({
                   className="group flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 py-2.5 transition hover:bg-paper-100"
                 >
                   <span className="min-w-0 flex-1">
-                    {zh && s.commonNameZh ? (
-                      <>
-                        <span className="block text-[16px] font-semibold text-ink-950 group-hover:text-leaf-700">
-                          {s.commonNameZh}
-                        </span>
-                        <span className="block break-words text-[14px] italic text-ink-600">
-                          {s.scientificName}
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="block break-words text-[16px] font-semibold italic text-ink-950 group-hover:text-leaf-700">
-                          {s.scientificName}
-                        </span>
-                        {s.commonNameZh && (
-                          <span lang="zh-TW" className="block text-[14px] text-ink-600">
-                            {s.commonNameZh}
-                          </span>
-                        )}
-                      </>
-                    )}
+                    <SpeciesName
+                      species={s}
+                      locale={locale}
+                      primaryClassName="break-words text-[16px] font-semibold text-ink-950 group-hover:text-leaf-700"
+                      secondaryClassName="break-words text-[14px] text-ink-600"
+                    />
                     {s.note && (
                       <span className="mt-1 block text-[14px] leading-snug text-ink-600">
                         {t("invasive.taicolNote", { note: s.note })}

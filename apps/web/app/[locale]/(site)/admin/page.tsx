@@ -8,6 +8,7 @@ import { signedPhotoUrl } from "@/lib/supabase/service";
 import { CATEGORIES, type Category } from "@conservation/shared";
 import ModerationRow from "@/components/admin/ModerationRow";
 import { signInHref } from "@/components/auth/signInHref";
+import { speciesLabel } from "@/lib/speciesNames";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,7 @@ type Pending = {
   lng: number;
   scientific_name: string | null;
   common_name_zh: string | null;
+  common_name_en: string | null;
   photo_paths: string[] | null;
 };
 
@@ -102,7 +104,7 @@ export default async function AdminPage({
     select r.id, r.category, r.observed_at, r.notes, r.flagged_reason, r.location_precision,
            st_y(r.location::geometry) as lat,
            st_x(r.location::geometry) as lng,
-           t.scientific_name, t.common_name_zh,
+           t.scientific_name, t.common_name_zh, t.common_name_en,
            array(select p.storage_path from report_photos p
                   where p.report_id = r.id order by p.created_at) as photo_paths
       from reports r
@@ -146,8 +148,8 @@ export default async function AdminPage({
               lat={r.lat}
               lng={r.lng}
               speciesLabel={
-                r.common_name_zh || r.scientific_name
-                  ? `${r.common_name_zh ?? ""} ${r.scientific_name ?? ""}`.trim()
+                r.scientific_name
+                  ? `${speciesLabel({ scientificName: r.scientific_name, commonNameZh: r.common_name_zh, commonNameEn: r.common_name_en }, locale)} · ${r.scientific_name}`
                   : null
               }
               photoUrls={r.photoUrls}

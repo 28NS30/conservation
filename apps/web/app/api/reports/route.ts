@@ -14,6 +14,9 @@ import {
   REPORT_PAGES,
   UNIDENTIFIED_PRECISION,
   UNVERIFIED_INVASIVE_PRECISION,
+  CONTRIBUTOR_LICENSES,
+  CONSENT_VERSION,
+  PARTNER_SHARING_PAGES,
   ACCEPTED_IMAGE_TYPES,
   MAX_UPLOAD_BYTES,
 } from "@conservation/shared";
@@ -210,6 +213,20 @@ export async function POST(req: Request) {
     ? pageHold
     : (heldAt ?? UNIDENTIFIED_PRECISION);
 
+  // The contributor terms (/terms, migration 0017). Stored only when the form
+  // answered them: a report queued offline before the terms existed carries no
+  // licence, and nothing exports it under one. The partner box is honoured on
+  // the pages that show it and nowhere else, whatever a request says.
+  const license = input.license ? CONTRIBUTOR_LICENSES[input.license] : null;
+  const rightsHolder = input.license ? input.creditName || null : null;
+  const sharePartners =
+    Boolean(input.sharePartners) && PARTNER_SHARING_PAGES.includes(page);
+  // The version the form showed, which is not always the one live now: a
+  // report saved on a phone offline may be sent after the terms change.
+  const consentVersion = input.license
+    ? (input.consentVersion ?? CONSENT_VERSION)
+    : null;
+
   try {
     const result = await sql.begin(async (tx) => {
       const inserted = await tx<{ id: string; location_precision: string }[]>`
@@ -217,7 +234,8 @@ export async function POST(req: Request) {
           category, location, location_public, observed_at, notes,
           status, source, reporter_id, contact_email, flagged_reason,
           client_nonce, precision_override, taxon_id, taxon_source,
-          location_accuracy_m
+          location_accuracy_m, license, rights_holder, share_partners,
+          consent_version, consent_at
         ) values (
           ${input.category},
           st_setsrid(st_makepoint(${input.lng}, ${input.lat}), 4326)::geography,
@@ -226,7 +244,8 @@ export async function POST(req: Request) {
           ${status}, 'user', ${reporterId}, ${input.contactEmail ?? null}, ${flaggedReason},
           ${input.clientNonce}, ${precisionOverride},
           ${taxonId}, ${taxonSource},
-          ${input.accuracyM ?? null}
+          ${input.accuracyM ?? null}, ${license}, ${rightsHolder}, ${sharePartners},
+          ${consentVersion}, ${consentVersion ? tx`now()` : null}
         )
         on conflict (client_nonce) where client_nonce is not null do nothing
         returning id, location_precision`;

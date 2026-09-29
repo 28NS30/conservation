@@ -1,4 +1,5 @@
 import { useTranslations, useLocale } from "next-intl";
+import SpeciesName from "./SpeciesName";
 import StatusBadges from "./StatusBadges";
 import HabitatChips from "./HabitatChips";
 
@@ -27,6 +28,9 @@ export type CardSpecies = {
   id: number;
   scientificName: string;
   commonNameZh: string | null;
+  commonNameEn?: string | null;
+  taicolId?: string | null;
+  rank?: string | null;
   nameAuthor?: string | null;
   altNamesZh?: string[] | null;
   family: string | null;
@@ -56,7 +60,6 @@ export default function SpeciesCard({
 }) {
   const t = useTranslations("species");
   const locale = useLocale();
-  const zhFirst = locale.startsWith("zh");
 
   const lineage = [s.class, s.order, s.family].filter(Boolean) as string[];
 
@@ -64,16 +67,13 @@ export default function SpeciesCard({
     <article className="overflow-hidden rounded-xl border border-ink-900/12 bg-paper-100">
       <div className="border-b border-ink-900/8 px-4 py-3.5">
         <h2 className="text-lg font-semibold leading-tight text-ink-900">
-          {zhFirst ? (s.commonNameZh ?? s.scientificName) : s.scientificName}
+          <SpeciesName
+            species={s}
+            locale={locale}
+            author={s.nameAuthor}
+            secondaryClassName="mt-0.5 text-sm font-normal text-ink-600"
+          />
         </h2>
-        <p className="mt-0.5 text-[13px] text-ink-500">
-          <span className={zhFirst ? "italic" : ""}>
-            {zhFirst ? s.scientificName : (s.commonNameZh ?? "")}
-          </span>
-          {s.nameAuthor && (
-            <span className="ml-1.5 text-ink-500">{s.nameAuthor}</span>
-          )}
-        </p>
         <StatusBadges {...s} />
       </div>
 
