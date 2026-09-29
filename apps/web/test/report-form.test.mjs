@@ -403,7 +403,11 @@ describe("the blocked submit button", () => {
       !/-mb-1[^"]*">\{blocker\}/.test(FORM),
       "the blocker must not pull itself towards the button",
     );
-    assert.match(FORM, /<div className="space-y-2">\s*\{blocker &&/);
+    // The group is the pinned send bar since the photo-first form.
+    assert.match(
+      FORM,
+      /id="report-send-bar"\s*className="[^"]*\bspace-y-2\b[^"]*"\s*>\s*\{blocker &&/,
+    );
   });
 });
 
