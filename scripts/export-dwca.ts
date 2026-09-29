@@ -60,10 +60,10 @@ const DATASET = {
     "Taiwan (TaiCOL) are generalised, and coordinateUncertaintyInMeters reflects that.",
   /**
    * The licence the DATASET is published under — the EML's intellectualRights
-   * — and nothing more. It is not a licence for any record in it. The report
-   * form does not yet ask contributors for one, so no user record has one to
-   * give, and a record is exported only under the licence it carries itself
-   * (dwc-occurrences.ts). Until contributors are asked, that is none of them.
+   * — and nothing more. It is not a licence for any record in it. A record is
+   * exported only under the licence it carries itself (dwc-occurrences.ts):
+   * the one its reporter chose on the form since the contributor terms
+   * (migration 0017), and none, so not at all, for records filed before them.
    */
   license: "http://creativecommons.org/licenses/by/4.0/legalcode",
   licenseLabel: "CC BY 4.0",

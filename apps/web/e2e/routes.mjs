@@ -221,6 +221,7 @@ export const ROUTES = [
   },
   { name: "attribution", path: "/attribution", settle: 2000 },
   { name: "privacy", path: "/privacy", settle: 2000 },
+  { name: "terms", path: "/terms", settle: 2000 },
   { name: "login", path: "/login", settle: 2500 },
   {
     name: "me",
