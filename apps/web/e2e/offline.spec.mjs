@@ -506,7 +506,7 @@ try {
   await enPage.reload({ waitUntil: "load" });
   for (let i = 0; i < 30; i++) {
     const done = await enPage.evaluate(async () => {
-      const c = await caches.open("shell-v2");
+      const c = await caches.open("shell-v3");
       return Boolean(await c.match(new URL("/en/report/roadkill", location.origin).href, { ignoreVary: true }));
     });
     if (done) break;
@@ -525,6 +525,35 @@ try {
   }
   check("/en/report/roadkill opens offline, having only visited /en/report/invasive", enOpened);
   await en.close();
+
+  // --- what the worker keeps -------------------------------------------------
+  // Only public pages. v2 kept every page it was shown, so a moderator's /admin
+  // (exact coordinates) and a person's /me (their email) were served again
+  // after sign-out to the next person on the device (security audit, 29
+  // September 2026). The policy is by path, so an anonymous visit shows it.
+  const keep = await browser.newContext({ viewport: { width: 500, height: 900 }, locale: "en-US" });
+  const keepPage = await keep.newPage();
+  await keepPage.goto(`${BASE}/en/stats`, { waitUntil: "load" });
+  await keepPage.evaluate(async () => {
+    await navigator.serviceWorker.register("/sw.js");
+    await navigator.serviceWorker.ready;
+  });
+  await keepPage.reload({ waitUntil: "load" });
+  const [anyRecord] = await sql`select id from reports_public limit 1`;
+  const privatePaths = ["/en/me", "/en/login", "/en/admin", `/en/reports/${anyRecord.id}`];
+  for (const path of [...privatePaths, "/en/stats"])
+    await keepPage.goto(`${BASE}${path}`, { waitUntil: "load" }).catch(() => {});
+  await keepPage.waitForTimeout(1500);
+  const kept = await keepPage.evaluate(async (paths) => {
+    const c = await caches.open("shell-v3");
+    const out = {};
+    for (const p of paths)
+      out[p] = Boolean(await c.match(new URL(p, location.origin).href, { ignoreVary: true, ignoreSearch: true }));
+    return out;
+  }, [...privatePaths, "/en/stats"]);
+  check("the worker keeps no personal page", privatePaths.every((p) => !kept[p]), JSON.stringify(kept));
+  check("and still keeps a public one", kept["/en/stats"] === true);
+  await keep.close();
 } finally {
   await sql`delete from reports where client_nonce = any(${nonces})`;
   await sql.end();
