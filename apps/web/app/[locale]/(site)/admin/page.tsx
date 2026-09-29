@@ -155,9 +155,29 @@ export default async function AdminPage({
      order by r.created_at desc
      limit 10`;
 
+  const tg = await getTranslations("moderationGuide");
+
   return (
     <Shell>
-      <p className="mb-4 text-xs text-ink-500">
+      {/*
+        What each button does, for the team's first days of moderating. The
+        facts of the tool only (see admin/actions.ts and the blur trigger), not
+        policy: what counts as a report worth publishing is the team's to write.
+        It starts closed, so to someone who has read it, it costs one line.
+      */}
+      <details className="mb-6 rounded-lg border border-ink-900/15 bg-paper-100 px-4 py-2">
+        <summary className="flex min-h-11 cursor-pointer items-center text-base font-semibold text-forest-900">
+          {tg("title")}
+        </summary>
+        <ul className="mb-2 mt-1 list-disc space-y-2 pl-5 text-sm leading-relaxed text-ink-800">
+          <li>{tg("held")}</li>
+          <li>{tg("publish")}</li>
+          <li>{tg("reject")}</li>
+          <li>{tg("tests")}</li>
+        </ul>
+      </details>
+
+      <p className="mb-4 text-sm text-ink-700">
         {t("pendingCount", { count: withUrls.length })}
       </p>
 
