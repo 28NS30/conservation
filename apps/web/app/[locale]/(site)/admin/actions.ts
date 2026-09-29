@@ -29,9 +29,15 @@ async function requireModerator(): Promise<string> {
 
 export async function publishReport(reportId: string) {
   const actor = await requireModerator();
+  // Only a report still waiting. The queue page stays open, and a row another
+  // moderator has already decided still shows its buttons: without this, the
+  // last click won, and a report one moderator rejected went back on the map
+  // when another published it from a stale screen.
   await sql.begin(async (tx) => {
-    await tx`update reports set status = 'published', flagged_reason = null
-              where id = ${reportId}::uuid`;
+    const done = await tx`update reports set status = 'published', flagged_reason = null
+                           where id = ${reportId}::uuid and status = 'pending'
+                           returning id`;
+    if (done.length === 0) throw new Error("already decided");
     await tx`insert into moderation_actions (report_id, actor_id, action)
              values (${reportId}::uuid, ${actor}::uuid, 'publish')`;
   });
@@ -58,7 +64,11 @@ export async function rejectReport(reportId: string, reason: string) {
   const why = String(reason ?? "").trim().slice(0, 500);
   if (!why) throw new Error("a reason is required");
   await sql.begin(async (tx) => {
-    await tx`update reports set status = 'rejected' where id = ${reportId}::uuid`;
+    // Only a report still waiting; see publishReport.
+    const done = await tx`update reports set status = 'rejected'
+                           where id = ${reportId}::uuid and status = 'pending'
+                           returning id`;
+    if (done.length === 0) throw new Error("already decided");
     await tx`update classification_jobs
                 set status = 'done',
                     last_error = 'report rejected; not classified',

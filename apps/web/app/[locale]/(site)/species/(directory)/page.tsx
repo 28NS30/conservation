@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
-import {
+import { normaliseQuery,
   countSpecies,
   listSpecies,
   speciesSlug,
@@ -54,7 +54,13 @@ export default async function SpeciesDirectory({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const { q: rawQ, filter: rawFilter, page: rawPage } = await searchParams;
+  // A repeated parameter arrives as an array (?q=a&q=b), which crashed the
+  // page on .trim(). The first value counts.
+  const sp = await searchParams;
+  const first = (v: unknown) => (Array.isArray(v) ? v[0] : v) as string | undefined;
+  const rawQ = first(sp.q);
+  const rawFilter = first(sp.filter);
+  const rawPage = first(sp.page);
 
   const t = await getTranslations("species");
   const ts = await getTranslations("stats");
@@ -68,7 +74,7 @@ export default async function SpeciesDirectory({
     ? (rawFilter as Filter)
     : "recorded";
 
-  const q = rawQ?.trim() || undefined;
+  const q = normaliseQuery(rawQ);
 
   /*
    * Counted before it is listed, because the list is now a window onto the

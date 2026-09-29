@@ -27,7 +27,6 @@ import { recordEvidence } from "@/lib/report/classifyEvidence";
  * two can never process the same job twice.
  */
 
-
 const MAX_ATTEMPTS = 5;
 const BATCH = 3;
 
@@ -44,8 +43,6 @@ const BATCH = 3;
  * Longer than any plausible run, short enough that a stuck job recovers quickly.
  */
 const STALE_AFTER = "5 minutes";
-
-
 
 /**
  * Stop starting new jobs after this many milliseconds and return normally.
@@ -82,7 +79,6 @@ type MlResult = {
   band: "high" | "medium" | "low";
   modelVersion: string;
 };
-
 
 /**
  * Send the photo bytes rather than a URL.
@@ -145,6 +141,28 @@ async function callEvidenceModel(imageBase64: string): Promise<EvidenceResponse>
 export type ClassifyRun = { claimed: number; processed: number; failed: number; deferred: number };
 
 export async function classifyQueued({ reportId = null }: { reportId?: string | null } = {}): Promise<ClassifyRun> {
+  // A job killed during its LAST attempt (the function's time limit, a deploy,
+  // a model that hangs) is left 'running' with attempts at the maximum, which
+  // the claim below will never take again, so its give-up branch never ran:
+  // the report sat pending with no reason given (security audit, 29 September
+  // 2026). Retire such jobs here exactly as that branch would.
+  await sql`
+    with stuck as (
+      update classification_jobs
+         set status = 'failed',
+             last_error = coalesce(last_error, 'abandoned during its last attempt'),
+             updated_at = now()
+       where status = 'running'
+         and attempts >= ${MAX_ATTEMPTS}
+         and updated_at < now() - ${STALE_AFTER}::interval
+      returning report_id)
+    update reports r
+       set precision_override = stricter_precision(r.precision_override,
+                                                   ${UNIDENTIFIED_PRECISION}::text),
+           flagged_reason = coalesce(r.flagged_reason, 'classification unavailable')
+      from stuck
+     where r.id = stuck.report_id
+       and r.status = 'pending'`;
 
   // Claim a batch. `skip locked` lets overlapping cron runs make progress instead
   // of blocking on each other.

@@ -260,6 +260,7 @@
     "heading": "Moderation queue",
     "moderatorsOnly": "Moderators only.",
     "pendingCount": "{count, number} pending review",
+    "oldestShown": "{shown, plural, one {Only the oldest is below} other {The oldest # are below}}; each one decided brings in the next.",
     "empty": "Nothing waiting.",
     "view": "View",
     "publish": "Publish",

@@ -110,7 +110,7 @@ describe("the anniversary ledger", () => {
     const { readFileSync } = await import("node:fs");
     const stats = readFileSync(new URL("../lib/stats.ts", import.meta.url), "utf8");
     const ledger = stats.slice(stats.indexOf("export async function anniversaryLedger"));
-    assert.match(ledger, /to_char\(r\.observed_at, 'MM-DD'\) in \(/);
+    assert.match(ledger, /to_char\(r\.observed_at at time zone 'Asia\/Taipei', 'MM-DD'\) in \(/);
     assert.doesNotMatch(ledger, /extract\(doy/, "day-of-year arithmetic must not return");
 
     // The same window, built for New Year's Day, crosses the year cleanly.

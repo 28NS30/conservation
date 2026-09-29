@@ -443,8 +443,10 @@ export const mapFilterSchema = z
       .enum(RECORD_CONDITION_KEYS as [RecordCondition, ...RecordCondition[]])
       .optional(),
     taxonId: z.coerce.number().int().positive().optional(),
-    from: z.iso.date().optional(),
-    to: z.iso.date().optional(),
+    // Years Postgres can read and the data could hold: z.iso.date() accepts
+    // 0000-01-01, which Postgres rejects, so every tile and the list 500'd.
+    from: z.iso.date().refine((d) => d >= "1900-01-01" && d <= "2100-12-31").optional(),
+    to: z.iso.date().refine((d) => d >= "1900-01-01" && d <= "2100-12-31").optional(),
   })
   .refine((f) => !f.condition || f.collection === "invasive", {
     message: "condition applies only to the invasive collection",
@@ -619,7 +621,11 @@ export const reportSubmissionSchema = z
     /** Optional, so we can follow up on an interesting record. Never displayed. */
     contactEmail: z.email().optional(),
     /** Storage paths returned by /api/uploads/sign, already uploaded by the client. */
-    photoPaths: z.array(z.string().min(1)).max(MAX_PHOTOS).default([]),
+    photoPaths: z
+      .array(z.string().min(1))
+      .max(MAX_PHOTOS)
+      .refine((paths) => new Set(paths).size === paths.length, { message: "a photo is named twice" })
+      .default([]),
     /** Client-generated, so a double-tap or offline retry cannot duplicate a report. */
     clientNonce: z.uuid(),
     turnstileToken: z.string().min(1).optional(),

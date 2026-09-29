@@ -118,13 +118,19 @@ export default async function MyReportsPage({
      order by r.created_at desc
      limit 200`;
 
-  const published = rows.filter((r) => r.status === "published").length;
-  const identified = rows.filter((r) => r.taxonId).length;
+  // The figures and the journal cover every report, not the 200 listed below:
+  // counted from those, a long-time reporter's totals stopped at 200 and their
+  // first species dropped out of the journal (security audit, 29 September 2026).
+  const [totals] = await sql<{ total: number; published: number; identified: number }[]>`
+    select count(*)::int as total,
+           count(*) filter (where status = 'published')::int as published,
+           count(taxon_id)::int as identified
+      from reports
+     where reporter_id = ${user.id}::uuid and not is_test`;
 
   // The collection: one entry per species, newest contribution first, which is
   // the order they were added to it.
-  const journal = new Map<
-    number,
+  const species = await sql<
     {
       id: number;
       scientificName: string;
@@ -132,23 +138,16 @@ export default async function MyReportsPage({
       commonNameEn: string | null;
       taicolId: string | null;
       n: number;
-    }
-  >();
-  for (const r of rows) {
-    if (!r.taxonId || !r.scientificName) continue;
-    const seen = journal.get(r.taxonId);
-    if (seen) seen.n += 1;
-    else
-      journal.set(r.taxonId, {
-        id: r.taxonId,
-        scientificName: r.scientificName,
-        commonNameZh: r.commonNameZh,
-        commonNameEn: r.commonNameEn,
-        taicolId: r.taicolId,
-        n: 1,
-      });
-  }
-  const species = [...journal.values()];
+    }[]
+  >`
+    select t.id, t.scientific_name as "scientificName",
+           t.common_name_zh as "commonNameZh", t.common_name_en as "commonNameEn",
+           t.taicol_id as "taicolId", count(*)::int as n
+      from reports r
+      join taxa t on t.id = r.taxon_id
+     where r.reporter_id = ${user.id}::uuid and not r.is_test
+     group by t.id
+     order by max(r.created_at) desc, t.id`;
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 pb-24 pt-12">
@@ -172,7 +171,7 @@ export default async function MyReportsPage({
         </form>
       </PageHeader>
 
-      {rows.length === 0 ? (
+      {totals.total === 0 ? (
         <div className="rounded-xl border border-ink-900/12 bg-paper-100 p-8 text-center">
           <p className="text-sm text-ink-600">{t("empty")}</p>
           <Link
@@ -186,9 +185,9 @@ export default async function MyReportsPage({
         <>
           <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
-              { v: rows.length, k: t("statTotal") },
-              { v: published, k: t("statPublished") },
-              { v: identified, k: t("statIdentified") },
+              { v: totals.total, k: t("statTotal") },
+              { v: totals.published, k: t("statPublished") },
+              { v: totals.identified, k: t("statIdentified") },
               { v: species.length, k: t("statSpecies") },
             ].map((x) => (
               <div

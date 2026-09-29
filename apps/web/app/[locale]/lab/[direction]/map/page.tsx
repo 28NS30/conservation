@@ -36,8 +36,8 @@ export async function generateMetadata({
 async function getYears(): Promise<{ first: number; last: number } | null> {
   const [row] = await asPublic(
     (tx) => tx<{ first: string | null; last: string | null }[]>`
-      select to_char(min(observed_at), 'YYYY') as first,
-             to_char(max(observed_at), 'YYYY') as last
+      select to_char(min(observed_at) at time zone 'Asia/Taipei', 'YYYY') as first,
+             to_char(max(observed_at) at time zone 'Asia/Taipei', 'YYYY') as last
         from reports_public`,
   );
   return row?.first && row?.last

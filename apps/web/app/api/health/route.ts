@@ -8,8 +8,10 @@ import { schemaStatus } from "@/lib/schemaStatus";
  * and the `reports_public` view, so it fails if the privacy grants are broken —
  * not just if Postgres is down.
  */
-export async function GET() {
+export async function GET(req: Request) {
   const started = Date.now();
+  const secret = process.env.CRON_SECRET;
+  const operator = Boolean(secret) && req.headers.get("authorization") === `Bearer ${secret}`;
   try {
     const [row] = await asPublic(
       (tx) => tx<{ reports: number; taxa: number; species: number }[]>`
@@ -26,6 +28,7 @@ export async function GET() {
     // asking as the public role would report every column missing.
     const schema = await schemaStatus();
 
+    if (schema.missing.length) console.error("[health] schema missing:", schema.missing.join("; "));
     return Response.json(
       {
         ok: true,
@@ -41,7 +44,13 @@ export async function GET() {
         // including for one built by the psql loop in the launch checklist,
         // which has no migration history. `schemaMissing` names which.
         schemaCurrent: schema.current,
-        ...(schema.missing.length ? { schemaMissing: schema.missing } : {}),
+        // Which ones, only to whoever holds the cron secret. Named publicly,
+        // a missing rule told any visitor which privacy protection was down
+        // at the moment the site was most exposed (security audit, 29
+        // September 2026). The server log always has them.
+        ...(schema.missing.length && operator
+          ? { schemaMissing: schema.missing }
+          : {}),
         reports: row.reports,
         taxa: row.taxa,
         species: row.species,

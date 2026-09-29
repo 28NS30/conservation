@@ -16,6 +16,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -94,6 +95,18 @@ describe("secrets cannot reach the repository", () => {
       );
     });
   }
+
+  test("a CLI deploy leaves every env file behind too", () => {
+    // `vercel deploy` uploads the working directory and reads .vercelignore,
+    // not .gitignore, and by itself it skips only .env.local and
+    // .env.*.local. The local .env holds the model service's token and the
+    // cron secret (security audit, 29 September 2026).
+    const vercelignore = readFileSync(join(ROOT, ".vercelignore"), "utf8")
+      .split("\n")
+      .map((l) => l.trim());
+    for (const line of [".env*", "**/.env*", "!.env.example"])
+      assert.ok(vercelignore.includes(line), `.vercelignore is missing ${line}`);
+  });
 
   test(".env.example is NOT ignored", () => {
     // The template is the one env file that belongs in git: it is what tells a

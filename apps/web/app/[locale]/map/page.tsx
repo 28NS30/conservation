@@ -70,8 +70,8 @@ async function getStats(): Promise<Stats> {
   const [row] = await sql<Stats[]>`
     select count(*)::text                                            as reports,
            count(*) filter (where is_obscured)::text                 as obscured,
-           to_char(min(observed_at), 'YYYY')                         as earliest,
-           to_char(max(observed_at), 'YYYY')                         as latest
+           to_char(min(observed_at) at time zone 'Asia/Taipei', 'YYYY')                         as earliest,
+           to_char(max(observed_at) at time zone 'Asia/Taipei', 'YYYY')                         as latest
       from reports_public`;
   return row;
 }

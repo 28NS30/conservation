@@ -286,6 +286,22 @@ export async function reportableSpecies(id: number): Promise<{
  * nobody is offered one to choose. The rule is OFFERED, which the report form
  * and `POST /api/reports` share.
  */
+/** The longest search term any caller accepts (as /api/species/search always did). */
+export const MAX_QUERY = 64;
+
+/**
+ * A search term as it may reach a query: the first value when a parameter
+ * repeats, no control characters (Postgres rejects U+0000 outright, which was
+ * a 500), trimmed, and no longer than MAX_QUERY (each extra character is
+ * matched against about 68,000 names, several columns each).
+ */
+export function normaliseQuery(raw: unknown): string | undefined {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (typeof value !== "string") return undefined;
+  const clean = value.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, MAX_QUERY);
+  return clean || undefined;
+}
+
 function speciesWhere(
   tx: postgres.TransactionSql,
   filter: SpeciesFilter,
@@ -343,7 +359,8 @@ export async function countSpecies(opts: {
   kingdom?: string;
   collection?: Collection;
 }): Promise<number> {
-  const { q, filter = "recorded", kingdom = null, collection = null } = opts;
+  const { filter = "recorded", kingdom = null, collection = null } = opts;
+  const q = normaliseQuery(opts.q);
   const like = q ? `%${q}%` : null;
   const { categories, invasiveOnly } = selectionFor(
     collection ? { collection } : {},
@@ -391,13 +408,13 @@ export async function listSpecies(opts: {
   offset?: number;
 }): Promise<SpeciesSummary[]> {
   const {
-    q,
     filter = "recorded",
     preferNative = false,
     scope,
     limit = 60,
     offset = 0,
   } = opts;
+  const q = normaliseQuery(opts.q);
   const inScope = scope ? inPageScope(scope) : "true";
   const term = q ?? null;
   const like = q ? `%${q}%` : null;
@@ -499,7 +516,7 @@ export async function publicSpeciesName(id: number): Promise<{
 export async function monthlyCounts(taxonId: number): Promise<number[]> {
   const rows = await asPublic(
     (tx) => tx<{ month: number; n: number }[]>`
-      select extract(month from observed_at)::int as month, count(*)::int as n
+      select extract(month from observed_at at time zone 'Asia/Taipei')::int as month, count(*)::int as n
         from reports_public where taxon_id = ${taxonId}
        group by 1 order by 1`,
   );

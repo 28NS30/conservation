@@ -182,8 +182,8 @@ export async function GET(
            and (${categories}::text[] is null or r.category = any(${categories}))
            and (not ${invasiveOnly}::boolean or r.is_invasive)
            and (${taxonId}::bigint is null or r.taxon_id = ${taxonId})
-           and (${from}::date is null or r.observed_at >= ${from}::date)
-           and (${to}::date   is null or r.observed_at <  (${to}::date + 1))
+           and (${from}::date is null or r.observed_at >= (${from}::date::timestamp at time zone 'Asia/Taipei'))
+           and (${to}::date   is null or r.observed_at <  ((${to}::date + 1)::timestamp at time zone 'Asia/Taipei'))
          group by 1, 2
       ),
       cells as (
@@ -254,15 +254,15 @@ export async function GET(
                       else 'sighting' end as kind,
                  r.is_obscured         as obscured,
                  r.taxon_id            as taxon_id,
-                 to_char(r.observed_at, 'YYYY-MM-DD') as observed_on,
+                 to_char(r.observed_at at time zone 'Asia/Taipei', 'YYYY-MM-DD') as observed_on,
                  1                     as weight
             from reports_public r, env
            where r.geom_3857 && env.e
              and (${categories}::text[] is null or r.category = any(${categories}))
              and (not ${invasiveOnly}::boolean or r.is_invasive)
              and (${taxonId}::bigint is null or r.taxon_id = ${taxonId})
-             and (${from}::date is null or r.observed_at >= ${from}::date)
-             and (${to}::date   is null or r.observed_at <  (${to}::date + 1))
+             and (${from}::date is null or r.observed_at >= (${from}::date::timestamp at time zone 'Asia/Taipei'))
+             and (${to}::date   is null or r.observed_at <  ((${to}::date + 1)::timestamp at time zone 'Asia/Taipei'))
            limit ${POINT_LIMIT}
         ) t`;
   });

@@ -109,7 +109,9 @@ export default async function ReportsListPage({
   const collection = f.collection ?? null;
   const condition = f.condition ?? null;
   const { categories, invasiveOnly } = selectionFor(f);
-  const page = Math.max(1, Number(rawPage) || 1);
+  // A whole page number within reach: 1.5 and 1e300 reached OFFSET and 500'd.
+  // 2,000 pages of 50 is every record there is, many times over.
+  const page = Math.min(2000, Math.max(1, Math.floor(Number(rawPage)) || 1));
   const offset = (page - 1) * PAGE_SIZE;
 
   const rows = await asPublic(
@@ -130,8 +132,8 @@ export default async function ReportsListPage({
        where (${categories}::text[] is null or rp.category = any(${categories}))
          and (not ${invasiveOnly}::boolean or rp.is_invasive)
          and (${taxonId}::bigint is null or rp.taxon_id = ${taxonId})
-         and (${from}::date is null or rp.observed_at >= ${from}::date)
-         and (${to}::date   is null or rp.observed_at <  (${to}::date + 1))
+         and (${from}::date is null or rp.observed_at >= (${from}::date::timestamp at time zone 'Asia/Taipei'))
+         and (${to}::date   is null or rp.observed_at <  ((${to}::date + 1)::timestamp at time zone 'Asia/Taipei'))
        -- rp.id makes the order total. The import ends on 2017-12-31 and many
        -- records share a date, and rows that tie come back in whatever order
        -- the plan produces: page 1 showed different records on each load, and
@@ -148,8 +150,8 @@ export default async function ReportsListPage({
   const [span] = await asPublic(
     (tx) => tx<{ n: number; from: number | null; to: number | null }[]>`
       select count(*)::int as n,
-             extract(year from min(observed_at))::int as "from",
-             extract(year from max(observed_at))::int as "to"
+             extract(year from min(observed_at) at time zone 'Asia/Taipei')::int as "from",
+             extract(year from max(observed_at) at time zone 'Asia/Taipei')::int as "to"
         from reports_public`,
   );
   const lede =
@@ -553,7 +555,7 @@ export default async function ReportsListPage({
           unexplained symbol, on the page whose entire job is being the readable
           version of the map. Shown only when a row on this page actually is
           obscured, so it never explains a mark that is not there. */}
-      {rows.some((r) => r.isObscured) && (
+      {visible.some((r) => r.isObscured) && (
         <p className="mt-3 text-sm leading-relaxed text-ink-700">
           <span className="text-amber-700">≈</span> {t("obscuredLegend")}
         </p>

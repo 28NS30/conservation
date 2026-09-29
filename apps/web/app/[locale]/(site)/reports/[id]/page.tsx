@@ -27,7 +27,8 @@ import SpeciesName from "@/components/species/SpeciesName";
 
 export const dynamic = "force-dynamic";
 
-const UUID = /^[0-9a-f-]{36}$/i;
+/** A real UUID's shape: 36 dashes passed the old pattern and 500'd on ::uuid. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * The date a record was seen, as the source actually recorded it.
