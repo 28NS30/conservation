@@ -17,24 +17,18 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
   }, [error]);
 
   return (
-    <main className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col items-center justify-center px-4 text-center">
-      <h1 className="text-lg font-semibold text-ink-800">{t("title")}</h1>
-      <p className="mt-2 text-sm text-ink-500">{t("body")}</p>
+    <main className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col justify-center px-6 py-12">
+      <span aria-hidden className="block h-1 w-14 bg-ember-500" />
+      <h1 className="mt-5 text-2xl font-semibold text-ink-900">{t("title")}</h1>
+      <p className="mt-2 text-[17px] leading-relaxed text-ink-800">{t("body")}</p>
       {error.digest && (
-        <p className="mt-2 font-mono text-[11px] text-ink-500">{error.digest}</p>
+        <p className="mt-3 font-mono text-xs text-ink-600">{error.digest}</p>
       )}
-      <div className="mt-5 flex gap-2">
-        <button
-          type="button"
-          onClick={reset}
-          className="rounded-full bg-ember-500 px-4 py-1.5 text-xs font-semibold text-bark-950 hover:bg-ember-400"
-        >
+      <div className="mt-7 flex flex-wrap gap-3">
+        <button type="button" onClick={reset} className="inline-flex min-h-12 items-center bg-ember-500 px-6 font-display text-[17px] font-bold uppercase tracking-[0.06em] text-ink-950 transition hover:bg-ember-400">
           {t("retry")}
         </button>
-        <Link
-          href="/"
-          className="rounded-full border border-ink-900/12 px-4 py-1.5 text-xs text-ink-600 hover:bg-paper-200"
-        >
+        <Link href="/" className="inline-flex min-h-12 items-center border-2 border-forest-900 px-6 font-display text-[17px] font-bold uppercase tracking-[0.06em] text-forest-900 transition hover:bg-forest-900/5">
           {t("backHome")}
         </Link>
       </div>

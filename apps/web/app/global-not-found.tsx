@@ -36,22 +36,24 @@ export const metadata: Metadata = {
  * buttons go to that language's site. test/page-titles.test.mjs holds it there.
  */
 export default function GlobalNotFound() {
-  const button =
-    "inline-flex min-h-12 items-center rounded-full px-5 text-sm font-semibold transition";
-  const primary = `${button} bg-ember-500 text-bark-950 hover:bg-ember-400`;
-  const secondary = `${button} border border-ink-900/15 text-ink-700 hover:bg-paper-200`;
+  // The site's buttons, square as in the team's design. No display face here:
+  // the fonts load in the locale layout, which this page never passes through.
+  const button = "inline-flex min-h-12 items-center px-6 text-base font-bold transition";
+  const primary = `${button} bg-ember-500 text-ink-950 hover:bg-ember-400`;
+  const secondary = `${button} border-2 border-forest-900 text-forest-900 hover:bg-forest-900/5`;
 
   return (
     <html lang="zh-Hant-TW" className="h-full">
       <body className="min-h-full bg-paper-50 antialiased">
         <main className="mx-auto flex min-h-[100dvh] w-full max-w-2xl flex-col justify-center px-6 py-12">
-          <p className="text-4xl font-semibold tabular-nums text-ink-500">404</p>
+          <p className="text-5xl font-bold tabular-nums text-forest-900">404</p>
+          <span aria-hidden className="mt-4 block h-1 w-14 bg-ember-500" />
           <div className="mt-6 grid gap-10 sm:grid-cols-2">
             <section aria-labelledby="nf-zh">
-              <h1 id="nf-zh" className="text-xl font-semibold text-ink-900">
+              <h1 id="nf-zh" className="text-2xl font-semibold text-ink-900">
                 找不到這個頁面
               </h1>
-              <p className="mt-2 text-sm leading-relaxed text-ink-600">
+              <p className="mt-2 text-[17px] leading-relaxed text-ink-800">
                 這個網址可能已經失效，或是打錯了。
               </p>
               <div className="mt-5 flex flex-wrap gap-2">
@@ -64,10 +66,10 @@ export default function GlobalNotFound() {
               </div>
             </section>
             <section lang="en" aria-labelledby="nf-en">
-              <h2 id="nf-en" className="text-xl font-semibold text-ink-900">
+              <h2 id="nf-en" className="text-2xl font-semibold text-ink-900">
                 Page not found
               </h2>
-              <p className="mt-2 text-sm leading-relaxed text-ink-600">
+              <p className="mt-2 text-[17px] leading-relaxed text-ink-800">
                 The link may be out of date, or mistyped.
               </p>
               <div className="mt-5 flex flex-wrap gap-2">
