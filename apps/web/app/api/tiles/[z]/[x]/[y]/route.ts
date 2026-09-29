@@ -2,11 +2,10 @@ import { gzip } from "node:zlib";
 import { promisify } from "node:util";
 import { asPublic } from "@/lib/db";
 import {
-  CATEGORY_KEYS,
-  categoriesIn,
+  COLLECTIONS,
   filterToQuery,
-  groupOf,
   mapFilterSchema,
+  selectionFor,
   TILE_AGGREGATION_MAX_ZOOM,
   aggregationCellMeters,
 } from "@conservation/shared";
@@ -14,7 +13,7 @@ import {
 /**
  * Mapbox Vector Tiles generated in PostGIS.
  *
- *   GET /api/tiles/{z}/{x}/{y}?group=roadkill&from=2024-01-01
+ *   GET /api/tiles/{z}/{x}/{y}?collection=roadkill&from=2024-01-01
  *
  * Two regimes:
  *   z <= 9  aggregated grid cells carrying a `weight` — a country-zoom tile
@@ -77,11 +76,22 @@ export async function GET(
 
   const params = new URL(req.url).searchParams;
   // `category` used to be this filter's name and took one stored category. It
-  // now takes the three groups and is called `group`, so an old link would
-  // otherwise be silently ignored and return every report — a filter that looks
-  // applied and is not.
+  // was renamed `group`, so an old link would otherwise be silently ignored and
+  // return every report — a filter that looks applied and is not.
   if (params.has("category"))
-    return new Response("category was replaced by group", { status: 400 });
+    return new Response("category was replaced by collection", { status: 400 });
+  // And `group` was replaced by `collection`, which does not mean the same
+  // thing: `group=invasive` matched the stored category and held nothing,
+  // `collection=invasive` matches the species and holds every record of an
+  // invasive animal, dead ones included. Tiles are cached by the CDN for an
+  // hour and served stale for a day after that, keyed on the query string, so
+  // redefining `group` in place would have left visitors looking at the old
+  // empty tiles under the new meaning. A new name is a new cache key; the old
+  // one is refused rather than answered, so nothing cached under it can be
+  // mistaken for the new filter. /map and /reports still read `group=` links
+  // (pageFilter in packages/shared) and ask for tiles by the new name.
+  if (params.has("group"))
+    return new Response("group was replaced by collection", { status: 400 });
 
   const parsed = mapFilterSchema.safeParse(Object.fromEntries(params));
   if (!parsed.success) return new Response("bad filter", { status: 400 });
@@ -103,23 +113,35 @@ export async function GET(
 
   // Bound params are interpolated by the driver, never string-concatenated.
   //
-  // A group covers one or more stored categories — `roadkill` means roadkill or
-  // injured — so it is passed as an array and matched with `= any`, rather than
-  // building one branch per category.
-  const categories = f.group ? [...categoriesIn(f.group)] : null;
+  // A collection is a set of stored categories — `roadkill` means roadkill or
+  // injured — and, for `invasive`, the species' own flag. selectionFor() is the
+  // one reading of it the list and the hub pages share, so the map cannot
+  // count a different set from the page a reader checks it against.
+  //
+  // `not invasiveOnly or is_invasive` costs nothing when the flag is false:
+  // the OR stops at its first true operand, so the column is never computed
+  // for the other two collections or for an unfiltered map.
+  const { categories, invasiveOnly } = selectionFor(f);
   const taxonId = f.taxonId ?? null;
   const from = f.from ?? null;
   const to = f.to ?? null;
 
   const aggregated = z <= TILE_AGGREGATION_MAX_ZOOM;
 
-  // Every cell also carries which of the three report types dominates it, so the
-  // map can colour by type as well as by density. Built from REPORT_GROUPS
-  // rather than written out, because a category missing from this CASE would
-  // colour as "mixed" forever and look like data rather than like a bug.
-  const groupOfCategory = `case r.category ${CATEGORY_KEYS.map(
-    (c) => `when '${c}' then '${groupOf(c)}'`,
-  ).join(" ")} else 'roadkill' end`;
+  // Every cell also carries which of the three map types dominates it, so the
+  // map can colour by type as well as by density. See MAP_TYPES: dead or
+  // injured first, whatever the species, then the species decides between a
+  // live invasive animal and any other. Built from COLLECTIONS rather than
+  // written out, because a category missing from this CASE would colour as
+  // the wrong type forever and look like data rather than like a bug.
+  //
+  // The CASE stops at its first match, so `is_invasive` is only computed for
+  // live records. Every record today is roadkill, and the default map pays
+  // nothing for it.
+  const dead = COLLECTIONS.roadkill.categories.map((c) => `'${c}'`).join(",");
+  const mapTypeOf = `case when r.category in (${dead}) then 'roadkill'
+                          when r.is_invasive then 'invasive'
+                          else 'wildlife' end`;
 
   // Runs as `web_anon`, which cannot reach the `reports` base table at all —
   // tiles are structurally incapable of carrying a true sensitive coordinate.
@@ -149,7 +171,7 @@ export async function GET(
       with env as (select st_tileenvelope(${z}, ${x}, ${y}) as e),
       by_group as (
         select st_snaptogrid(r.geom_3857, ${cell}::float8) as pt,
-               ${tx.unsafe(groupOfCategory)}               as grp,
+               ${tx.unsafe(mapTypeOf)}                     as grp,
                count(*)::int                               as n
           from reports_public r
          -- The envelope inline rather than through the env CTE. Joined, the
@@ -158,6 +180,7 @@ export async function GET(
          -- verified byte-identical.
          where r.geom_3857 && st_expand(st_tileenvelope(${z}, ${x}, ${y}), ${cell}::float8)
            and (${categories}::text[] is null or r.category = any(${categories}))
+           and (not ${invasiveOnly}::boolean or r.is_invasive)
            and (${taxonId}::bigint is null or r.taxon_id = ${taxonId})
            and (${from}::date is null or r.observed_at >= ${from}::date)
            and (${to}::date   is null or r.observed_at <  (${to}::date + 1))
@@ -221,6 +244,14 @@ export async function GET(
           select st_asmvtgeom(r.geom_3857, env.e, 4096, 64, true) as geom,
                  r.id::text            as id,
                  r.category            as category,
+                 -- What the point is drawn as: its category, except that the
+                 -- species decides between the two live ones, so a live
+                 -- invasive animal is marked invasive whichever page it was
+                 -- filed on. The same rule as the cells' type, keeping the
+                 -- stored category's own distinction between dead and injured.
+                 case when r.category in (${tx.unsafe(dead)}) then r.category
+                      when r.is_invasive then 'invasive'
+                      else 'sighting' end as kind,
                  r.is_obscured         as obscured,
                  r.taxon_id            as taxon_id,
                  to_char(r.observed_at, 'YYYY-MM-DD') as observed_on,
@@ -228,6 +259,7 @@ export async function GET(
             from reports_public r, env
            where r.geom_3857 && env.e
              and (${categories}::text[] is null or r.category = any(${categories}))
+             and (not ${invasiveOnly}::boolean or r.is_invasive)
              and (${taxonId}::bigint is null or r.taxon_id = ${taxonId})
              and (${from}::date is null or r.observed_at >= ${from}::date)
              and (${to}::date   is null or r.observed_at <  (${to}::date + 1))

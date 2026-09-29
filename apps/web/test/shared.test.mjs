@@ -13,6 +13,12 @@ import {
   TILE_AGGREGATION_MAX_ZOOM,
   CATEGORIES,
   CATEGORY_KEYS,
+  COLLECTIONS,
+  COLLECTION_KEYS,
+  RECORD_CONDITIONS,
+  mapFilterSchema,
+  pageFilter,
+  selectionFor,
 } from "@conservation/shared";
 
 describe("Taiwan bounds", () => {
@@ -42,17 +48,147 @@ describe("filterToQuery", () => {
   });
 
   test("serialises each filter", () => {
-    const q = new URLSearchParams(filterToQuery({ group: "roadkill", from: "2024-01-01" }));
-    assert.equal(q.get("group"), "roadkill");
+    const q = new URLSearchParams(
+      filterToQuery({ collection: "invasive", condition: "alive", from: "2024-01-01" }),
+    );
+    assert.equal(q.get("collection"), "invasive");
+    assert.equal(q.get("condition"), "alive");
     assert.equal(q.get("from"), "2024-01-01");
   });
 
   test("distinct filters produce distinct strings", () => {
     // The query string doubles as the CDN cache key, so collisions would serve
     // one filter's tiles for another.
-    const a = filterToQuery({ group: "roadkill" });
-    const b = filterToQuery({ group: "invasive" });
+    const a = filterToQuery({ collection: "roadkill" });
+    const b = filterToQuery({ collection: "invasive" });
     assert.notEqual(a, b);
+  });
+
+  test("never writes the retired `group` key", () => {
+    // The tile endpoint refuses `group`, so a client that still wrote it would
+    // get a 400 for every tile — an empty map that looks like no data.
+    for (const c of COLLECTION_KEYS)
+      assert.doesNotMatch(filterToQuery({ collection: c }), /\bgroup=/);
+  });
+});
+
+describe("collections", () => {
+  // Three databases over one table. They overlap by design — a live invasive
+  // animal is wildlife and invasive — so these pin what each one selects
+  // rather than that they partition anything.
+
+  test("roadkill is the roadkill page's two categories, any species", () => {
+    assert.deepEqual(selectionFor({ collection: "roadkill" }), {
+      categories: ["roadkill", "injured"],
+      invasiveOnly: false,
+    });
+  });
+
+  test("wildlife is every live animal, including those filed as invasive", () => {
+    // A report filed on the invasive page is still a live animal. Leaving
+    // `invasive` out of wildlife would drop exactly the records the team
+    // asked to see marked inside it.
+    assert.deepEqual(selectionFor({ collection: "wildlife" }), {
+      categories: ["sighting", "invasive"],
+      invasiveOnly: false,
+    });
+  });
+
+  test("invasive is the species' own flag, in any category", () => {
+    // Dead invasive animals count (the team's default for Q3). A category
+    // list here would make the collection a property of the form again.
+    assert.deepEqual(selectionFor({ collection: "invasive" }), {
+      categories: null,
+      invasiveOnly: true,
+    });
+  });
+
+  test("the invasive collection splits into alive and dead", () => {
+    assert.deepEqual(selectionFor({ collection: "invasive", condition: "alive" }), {
+      categories: ["sighting", "invasive"],
+      invasiveOnly: true,
+    });
+    assert.deepEqual(selectionFor({ collection: "invasive", condition: "dead" }), {
+      categories: ["roadkill", "injured"],
+      invasiveOnly: true,
+    });
+  });
+
+  test("alive and dead cover every stored category, once each", () => {
+    const all = [
+      ...RECORD_CONDITIONS.alive.categories,
+      ...RECORD_CONDITIONS.dead.categories,
+    ].sort();
+    assert.deepEqual(all, [...CATEGORY_KEYS].sort());
+  });
+
+  test("every category reaches roadkill or wildlife, so none is invisible", () => {
+    const reached = new Set(
+      ["roadkill", "wildlife"].flatMap((c) => COLLECTIONS[c].categories),
+    );
+    for (const k of CATEGORY_KEYS) assert.ok(reached.has(k), `${k} is in no collection`);
+  });
+
+  test("no filter selects everything", () => {
+    assert.deepEqual(selectionFor({}), { categories: null, invasiveOnly: false });
+  });
+});
+
+describe("the map filter schema", () => {
+  test("a condition outside the invasive collection is refused", () => {
+    // Anywhere else it is redundant or always empty, and a second spelling of
+    // one filter is a second CDN key for the same tiles.
+    for (const f of [
+      { condition: "alive" },
+      { collection: "roadkill", condition: "dead" },
+      { collection: "wildlife", condition: "alive" },
+    ])
+      assert.equal(mapFilterSchema.safeParse(f).success, false, JSON.stringify(f));
+    assert.equal(
+      mapFilterSchema.safeParse({ collection: "invasive", condition: "dead" }).success,
+      true,
+    );
+  });
+
+  test("an unknown collection is refused", () => {
+    assert.equal(mapFilterSchema.safeParse({ collection: "sighting" }).success, false);
+  });
+});
+
+describe("old group= links on the pages", () => {
+  // Shared maps and bookmarks carry `group=`. The pages read it as the
+  // collection it meant; only the tile endpoint refuses it.
+  for (const [group, collection] of [
+    ["roadkill", "roadkill"],
+    ["sighting", "wildlife"],
+    ["invasive", "invasive"],
+  ])
+    test(`group=${group} opens the ${collection} collection`, () => {
+      assert.deepEqual(pageFilter({ group }), { collection });
+    });
+
+  test("the rest of the link survives", () => {
+    assert.deepEqual(pageFilter({ group: "roadkill", taxonId: "28758", from: "2014-01-01" }), {
+      collection: "roadkill",
+      taxonId: 28758,
+      from: "2014-01-01",
+    });
+  });
+
+  test("collection wins when a link carries both", () => {
+    assert.deepEqual(pageFilter({ group: "roadkill", collection: "invasive" }), {
+      collection: "invasive",
+    });
+  });
+
+  test("an unknown group is ignored, not guessed", () => {
+    assert.deepEqual(pageFilter({ group: "pollution" }), {});
+  });
+
+  test("a stray condition is dropped, keeping the collection", () => {
+    assert.deepEqual(pageFilter({ collection: "wildlife", condition: "dead" }), {
+      collection: "wildlife",
+    });
   });
 });
 

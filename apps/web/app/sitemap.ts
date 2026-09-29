@@ -60,6 +60,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
    * Not here on purpose: `/team`, which 404s by design while the roster is
    * empty, `/me` and `/admin`, which need an account, and `/lab`, which is
    * gated. A sitemap that lists a 404 is worse than a short sitemap.
+   *
+   * The three collection pages are here because each is where its database is
+   * explained and counted — and /invasive carries the list of invasive
+   * animals, which is the page a searcher for one is most likely to want.
    */
   const staticPaths = [
     "",
@@ -67,6 +71,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "/map",
     "/stats",
     "/reports",
+    "/roadkill",
+    "/invasive",
+    "/wildlife",
     "/report",
     "/report/roadkill",
     "/report/invasive",

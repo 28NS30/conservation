@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { asPublic, sql } from "@/lib/db";
-import { mapFilterSchema } from "@conservation/shared";
+import { pageFilter } from "@conservation/shared";
 import { recordedSpeciesCount } from "@/lib/stats";
 import HeatmapView from "@/components/map/HeatmapView";
 import SiteHeader from "@/components/site/SiteHeader";
@@ -103,9 +103,9 @@ export default async function MapPage({
   // Filters travel in the URL too, so a shared link carries what the sender was
   // actually looking at rather than just where. Parsed with the same schema the
   // tile endpoint uses, so a malformed filter is dropped rather than handed to
-  // the client.
-  const parsedFilter = mapFilterSchema.safeParse(sp);
-  const initialFilter = parsedFilter.success ? parsedFilter.data : {};
+  // the client — and an old `group=` link is read as the collection it meant,
+  // which the map then asks for tiles by and writes back to the address bar.
+  const initialFilter = pageFilter(sp);
 
   const t = await getTranslations();
   // The species count is the directory's, like every other page that states

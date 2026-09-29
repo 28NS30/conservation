@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
-  REPORT_GROUP_KEYS,
+  COLLECTION_KEYS,
   filterToQuery,
+  type Collection,
   type MapFilter,
-  type ReportGroup,
 } from "@conservation/shared";
 import Field from "@/components/lab/ui/Field";
 import Filter from "@/components/lab/ui/Filter";
@@ -37,8 +37,8 @@ export type SpeciesHit = {
  * rectangle would mean "press here" and none of these are actions.
  *
  * TYPE IS ONE CHOICE, NOT CHECKBOXES. direction.md §4 asks for checkboxes, and
- * they would be a lie: `mapFilterSchema.group` is a single optional enum and the
- * tile endpoint takes one group per request, so two boxes ticked could not
+ * they would be a lie: `mapFilterSchema.collection` is a single optional enum
+ * and the tile endpoint takes one collection per request, so two boxes ticked could not
  * produce a map. Changing that is a live-code change this lab may not make.
  * Asked as one question with an explicit 全部, it says exactly what it does.
  */
@@ -118,7 +118,7 @@ export default function LabMapControls({
 
   const listHref = `/reports${filterToQuery(filter) ? `?${filterToQuery(filter)}` : ""}`;
   const anyFilter = Boolean(
-    filter.group || filter.taxonId || filter.from || filter.to,
+    filter.collection || filter.taxonId || filter.from || filter.to,
   );
 
   return (
@@ -227,18 +227,21 @@ export default function LabMapControls({
 
         <Filter
           legend={copy.map.typeLabel}
-          value={filter.group ?? "all"}
+          value={filter.collection ?? "all"}
           onChange={(next) =>
             onFilter({
               ...filter,
-              group: next === "all" ? undefined : (next as ReportGroup),
+              collection: next === "all" ? undefined : (next as Collection),
+              // The alive/dead split belongs to the invasive collection; the
+              // tile endpoint refuses it anywhere else.
+              condition: next === "invasive" ? filter.condition : undefined,
             })
           }
           options={[
             { value: "all", label: t("map.all") },
-            ...REPORT_GROUP_KEYS.map((g) => ({
-              value: g,
-              label: t(`report.group.${g}`),
+            ...COLLECTION_KEYS.map((c) => ({
+              value: c,
+              label: t(`collections.name.${c}`),
             })),
           ]}
           className="mt-10"
