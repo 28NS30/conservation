@@ -12,6 +12,7 @@ import ReportKindIcon from "@/components/report/ReportKindIcon";
 import { parseSpeciesId, reportableSpecies } from "@/lib/species";
 import { ROW_KEY, reportPageHref } from "@/lib/report/pages";
 import SpeciesName from "@/components/species/SpeciesName";
+import { alternates } from "@/lib/alternates";
 
 export async function generateMetadata({
   params,
@@ -20,7 +21,12 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "nav" });
-  return { title: t("fileReport") };
+  const tr = await getTranslations({ locale, namespace: "report" });
+  return {
+    title: t("fileReport"),
+    description: tr("metaDescription"),
+    alternates: alternates(locale, "/report"),
+  };
 }
 
 /** A query value, whichever shape Next hands it over in. */

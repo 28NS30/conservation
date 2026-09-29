@@ -19,6 +19,7 @@ import { publicSpeciesName, speciesSlug } from "@/lib/species";
 import { signedPhotoUrls } from "@/lib/supabase/service";
 import { sql } from "@/lib/db";
 import Pager from "@/components/site/Pager";
+import { alternates } from "@/lib/alternates";
 
 export const revalidate = 120;
 
@@ -52,7 +53,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "list" });
-  return { title: t("title") };
+  return { title: t("title"), description: t("subtitle"), alternates: alternates(locale, "/reports") };
 }
 
 /**
@@ -439,16 +440,16 @@ export default async function ReportsListPage({
                     <span className="sr-only">{t("photo")}</span>
                   </th>
                 )}
-                <th scope="col" className="py-1.5 font-medium">
+                <th scope="col" className="py-1.5 pr-3 font-medium">
                   {t("date")}
                 </th>
-                <th scope="col" className="py-1.5 font-medium">
+                <th scope="col" className="py-1.5 pr-3 font-medium">
                   {t("category")}
                 </th>
-                <th scope="col" className="py-1.5 font-medium">
+                <th scope="col" className="py-1.5 pr-3 font-medium">
                   {t("species")}
                 </th>
-                <th scope="col" className="py-1.5 font-medium">
+                <th scope="col" className="py-1.5 pr-3 font-medium">
                   {t("location")}
                 </th>
               </tr>
@@ -478,8 +479,12 @@ export default async function ReportsListPage({
                       inked darker than the cells around it, and grown to the
                       height of the row so the whole line is a target. */}
                   <td className="whitespace-nowrap py-0">
+                    {/* No prefetch: a page of fifty rows prefetched some
+                        eighty record and species pages on every view, each
+                        rendered on the server, for rows nobody opened. */}
                     <Link
                       href={`/reports/${r.id}`}
+                      prefetch={false}
                       className="flex min-h-11 items-center pr-3 text-ink-800 underline underline-offset-2 hover:text-ember-700"
                     >
                       {new Date(r.observedAt).toLocaleDateString(locale, {
@@ -487,12 +492,13 @@ export default async function ReportsListPage({
                       })}
                     </Link>
                   </td>
-                  <td className="py-1.5 text-ink-500">{tc(r.category)}</td>
-                  <td className="py-1.5">
+                  <td className="py-1.5 pr-3 text-ink-500">{tc(r.category)}</td>
+                  <td className="py-1.5 pr-3">
                     <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       {r.taxonId && r.scientificName ? (
                         <Link
                           href={`/species/${speciesSlug({ id: r.taxonId, scientificName: r.scientificName })}`}
+                          prefetch={false}
                           className="text-ink-700 hover:text-ember-700"
                         >
                           {zhFirst && r.commonNameZh

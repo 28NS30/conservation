@@ -4,6 +4,7 @@ import { Link } from "@/i18n/navigation";
 import { coverage, seasonOpen, SEASON_TARGET, COVERAGE_CELL_M } from "@/lib/coverage";
 import { checklistAnimalTaxaCount, recordedSpeciesCount } from "@/lib/stats";
 import PageHeader from "@/components/site/PageHeader";
+import { alternates } from "@/lib/alternates";
 
 export const revalidate = 900;
 
@@ -19,6 +20,7 @@ export async function generateMetadata({
   return {
     title: t("title"),
     description: t("lede", { km: COVERAGE_CELL_M / 1000 }),
+    alternates: alternates(locale, "/season"),
     // Unlisted until somebody has filed a report; see seasonOpen().
     ...((await seasonOpen()) ? {} : { robots: { index: false, follow: true } }),
   };

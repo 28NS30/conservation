@@ -88,7 +88,8 @@
     "cellSizeM": "about {m} m per cell",
     "perRecord": "Each dot is one record",
     "colourLockedHeat": "Heat shows density only",
-    "colourLockedPoints": "Single records are always coloured by type"
+    "colourLockedPoints": "Single records are always coloured by type",
+    "metaDescription": "Every public record on a map of Taiwan: roadkill, invasive species and wildlife sightings. Protected and sensitive species are shown only as a blurred area."
   },
   "footer": {
     "blurredCount": "{count, plural, one {# location blurred} other {# locations blurred}}",
@@ -197,7 +198,8 @@
     "backupNoToken": "Can't get verified? Save on this phone",
     "backupSlow": "Weak signal? Save on this phone",
     "backupHint": "It is kept on this phone and sent the next time you open the report page with a signal.",
-    "newTab": "(opens in a new tab)"
+    "newTab": "(opens in a new tab)",
+    "metaDescription": "Report an animal you saw in Taiwan: dead or injured on the road, an invasive species, or wildlife alive and well. No account needed."
   },
   "detail": {
     "species": "Species",

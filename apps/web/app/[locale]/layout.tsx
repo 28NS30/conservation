@@ -7,6 +7,7 @@ import ServiceWorker from "@/components/ServiceWorker";
 import { Analytics } from "@vercel/analytics/next";
 import { Barlow_Condensed } from "next/font/google";
 import "../globals.css";
+import { SITE_URL } from "@/lib/siteUrl";
 
 /**
  * The one web font, for headlines only — the bold condensed voice of the team's
@@ -42,6 +43,9 @@ export async function generateMetadata({
     // Inner pages set a bare page title ("關於本站"); the template is what puts
     // the project's name behind it in the tab and in a shared link. The home
     // page opts out with `title: { absolute }` so it is not named twice.
+    // Absolute URLs for canonical and language links (lib/alternates.ts) and
+    // for share cards, from the one place the site's address is decided.
+    metadataBase: new URL(SITE_URL),
     title: { default: t("title"), template: `%s · ${t("title")}` },
     description: t("description"),
   };

@@ -13,6 +13,7 @@ import WarmReportPages from "@/components/report/WarmReportPages";
 import ReportKindIcon from "@/components/report/ReportKindIcon";
 import { parseSpeciesId, reportableSpecies } from "@/lib/species";
 import { ROW_KEY } from "@/lib/report/pages";
+import { alternates } from "@/lib/alternates";
 
 /**
  * The three report pages: /report/roadkill, /report/invasive, /report/wildlife.
@@ -38,7 +39,14 @@ export async function generateMetadata({
   const { locale, kind } = await params;
   if (!isReportPage(kind)) return {};
   const t = await getTranslations({ locale, namespace: "report" });
-  return { title: t(`pages.${kind}`) };
+  const th = await getTranslations({ locale, namespace: "home" });
+  // The same words as the home page's row for this kind of report.
+  const body = { roadkill: "rowRoadkillBody", invasive: "rowInvasiveBody", wildlife: "rowSightingBody" } as const;
+  return {
+    title: t(`pages.${kind}`),
+    description: th(body[kind]),
+    alternates: alternates(locale, `/report/${kind}`),
+  };
 }
 
 const first = (v: string | string[] | undefined) =>

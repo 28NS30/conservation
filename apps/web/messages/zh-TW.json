@@ -88,7 +88,8 @@
     "cellSizeM": "每格約 {m} 公尺",
     "perRecord": "每一點是一筆紀錄",
     "colourLockedHeat": "熱區只能顯示密度",
-    "colourLockedPoints": "個別紀錄一律依類型上色"
+    "colourLockedPoints": "個別紀錄一律依類型上色",
+    "metaDescription": "臺灣地圖上的所有公開紀錄：路殺、入侵種與野生動物目擊。保育類與敏感物種只會顯示模糊的範圍。"
   },
   "footer": {
     "blurredCount": "{count, plural, other {# 筆位置已模糊化}}",
@@ -197,7 +198,8 @@
     "backupNoToken": "等不到驗證？先存在手機裡",
     "backupSlow": "訊號不好？先存在手機裡",
     "backupHint": "會先存在這支手機裡，下次有訊號時打開通報頁面就會送出。",
-    "newTab": "（在新分頁開啟）"
+    "newTab": "（在新分頁開啟）",
+    "metaDescription": "通報你在臺灣看到的動物：路上死亡或受傷的動物、入侵種，或活生生的野生動物。不需要帳號。"
   },
   "detail": {
     "species": "物種",

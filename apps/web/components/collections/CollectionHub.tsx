@@ -17,6 +17,7 @@ import { PHOTOS, type PhotoKey } from "@/lib/home/photos";
 import { SectionTitle } from "@/components/home/StoryRow";
 import InvasiveBadge from "@/components/collections/InvasiveBadge";
 import InvasiveSpeciesList from "@/components/collections/InvasiveSpeciesList";
+import { alternates } from "@/lib/alternates";
 
 /**
  * One page per collection: /roadkill, /invasive and /wildlife.
@@ -60,6 +61,7 @@ export async function collectionMetadata(
   return {
     title: t(`name.${collection}`),
     description: t(`${collection}.lede`),
+    alternates: alternates(locale, `/${collection}`),
   };
 }
 
