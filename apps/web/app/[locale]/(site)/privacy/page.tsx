@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import PageHeader, { ProseSection } from "@/components/site/PageHeader";
+import { alternates } from "@/lib/alternates";
 
 export async function generateMetadata({
   params,
@@ -9,7 +10,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "privacy" });
-  return { title: t("title") };
+  return { title: t("title"), description: t("intro"), alternates: alternates(locale, "/privacy") };
 }
 
 /**

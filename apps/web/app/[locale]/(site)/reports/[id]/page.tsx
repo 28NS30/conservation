@@ -20,6 +20,7 @@ import SpeciesConfirm, {
   type Suggestion,
 } from "@/components/report/SpeciesConfirm";
 import InvasiveBadge from "@/components/collections/InvasiveBadge";
+import { alternates } from "@/lib/alternates";
 import { speciesLabel } from "@/lib/speciesNames";
 
 export const dynamic = "force-dynamic";
@@ -114,7 +115,10 @@ export async function generateMetadata({
   const name = pub.scientificName
     ? speciesLabel({ ...pub, scientificName: pub.scientificName }, locale)
     : t(`categories.${pub.category}`);
-  return { title: `${name} · ${seenOn(pub.observedAt, pub.source, locale)}` };
+  return {
+    title: `${name} · ${seenOn(pub.observedAt, pub.source, locale)}`,
+    alternates: alternates(locale, `/reports/${id}`),
+  };
 }
 
 /**
@@ -375,8 +379,12 @@ export default async function ReportPage({
           <h2 className="text-base font-semibold text-ink-900">
             {t("detail.location")}
           </h2>
+          {/* Three decimals, about 100 m, as the list prints them, and marked
+              when blurred: four decimals (11 m) on a point that is only true
+              to 10 km read as a precision the record does not have. */}
           <p className="mt-0.5 tabular-nums text-ink-700">
-            {row.lat?.toFixed(4)}, {row.lng?.toFixed(4)}
+            {row.is_obscured && <span aria-hidden>≈ </span>}
+            {row.lat?.toFixed(3)}, {row.lng?.toFixed(3)}
           </p>
           {row.lat != null && row.lng != null && (
             // reports_public coordinates — already generalised for sensitive

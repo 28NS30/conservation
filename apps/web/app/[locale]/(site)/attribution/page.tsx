@@ -4,6 +4,7 @@ import PageHeader from "@/components/site/PageHeader";
 import { licenseLabel } from "@/lib/license";
 import { asPublic } from "@/lib/db";
 import { PHOTOS } from "@/lib/home/photos";
+import { alternates } from "@/lib/alternates";
 
 export const revalidate = 3600;
 
@@ -23,7 +24,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "attribution" });
-  return { title: t("title") };
+  return { title: t("title"), description: t("intro"), alternates: alternates(locale, "/attribution") };
 }
 
 export default async function AttributionPage({

@@ -14,6 +14,7 @@ import { speciesSlug } from "@/lib/species";
 import { collectionTotals } from "@/lib/collections";
 import PageHeader from "@/components/site/PageHeader";
 import Columns from "@/components/stats/Columns";
+import { alternates } from "@/lib/alternates";
 import { speciesNames } from "@/lib/speciesNames";
 
 export const revalidate = 900;
@@ -32,7 +33,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "statsPage" });
-  return { title: t("title"), description: t("intro") };
+  return { title: t("title"), description: t("intro"), alternates: alternates(locale, "/stats") };
 }
 
 /** One panel of the dashboard. `span` makes it take the full grid width. */

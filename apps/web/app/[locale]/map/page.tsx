@@ -6,6 +6,7 @@ import { recordedSpeciesCount } from "@/lib/stats";
 import HeatmapView from "@/components/map/HeatmapView";
 import SiteHeader from "@/components/site/SiteHeader";
 import SiteFooter from "@/components/site/SiteFooter";
+import { alternates } from "@/lib/alternates";
 
 // Stats are cheap but not worth recomputing per request.
 export const revalidate = 300;
@@ -22,7 +23,8 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "nav" });
-  return { title: t("map") };
+  const tm = await getTranslations({ locale, namespace: "map" });
+  return { title: t("map"), description: tm("metaDescription"), alternates: alternates(locale, "/map") };
 }
 
 type Stats = {
@@ -124,6 +126,9 @@ export default async function MapPage({
     // ancestor declaring a height, and it tracks mobile browser chrome collapsing,
     // which matters because reports get filed one-handed at the roadside.
     <main className="flex h-[100dvh] flex-col">
+      {/* The page had no heading: the map is a canvas and the header is a
+          banner, so a screen reader's "next heading" found nothing. */}
+      <h1 className="sr-only">{t("nav.map")}</h1>
       <SiteHeader
         variant="app"
         stats={{

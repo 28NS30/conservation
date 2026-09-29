@@ -13,6 +13,7 @@ import Pager from "@/components/site/Pager";
 import StatusBadges from "@/components/species/StatusBadges";
 import SpeciesName from "@/components/species/SpeciesName";
 import SpeciesSearch from "@/components/species/SpeciesSearch";
+import { alternates } from "@/lib/alternates";
 
 export const revalidate = 300;
 
@@ -35,7 +36,13 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "species" });
-  return { title: t("directory") };
+  // Canonical without the query: /species?filter=protected is a view of this
+  // page, not a page of its own.
+  return {
+    title: t("directory"),
+    description: t("directoryHint"),
+    alternates: alternates(locale, "/species"),
+  };
 }
 
 export default async function SpeciesDirectory({

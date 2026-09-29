@@ -13,6 +13,7 @@ import SiteFooter from "@/components/site/SiteFooter";
 import HeroSlideshow from "@/components/home/HeroSlideshow";
 import StoryRow, { SectionTitle } from "@/components/home/StoryRow";
 import SpeciesName from "@/components/species/SpeciesName";
+import { alternates } from "@/lib/alternates";
 
 export const revalidate = 300;
 
@@ -23,7 +24,11 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "site" });
-  return { title: { absolute: t("title") }, description: t("description") };
+  return {
+    title: { absolute: t("title") },
+    description: t("description"),
+    alternates: alternates(locale, ""),
+  };
 }
 
 type Stats = { species: number; obscured: string };

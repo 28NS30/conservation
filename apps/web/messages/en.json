@@ -89,7 +89,8 @@
     "cellSizeM": "about {m} m per cell",
     "perRecord": "Each dot is one record",
     "colourLockedHeat": "Heat shows density only",
-    "colourLockedPoints": "Single records are always coloured by type"
+    "colourLockedPoints": "Single records are always coloured by type",
+    "metaDescription": "Every public record on a map of Taiwan: roadkill, invasive species and wildlife sightings. Protected and sensitive species are shown only as a blurred area."
   },
   "footer": {
     "blurredCount": "{count, plural, one {# location blurred} other {# locations blurred}}",
@@ -210,7 +211,8 @@
     "creditHint": "A nickname is fine, and it is all we show. Leave it empty to be credited as \"FormosaWatch contributor\". Never an email address.",
     "sharePartners": "Also share this record, with its exact location, with TaiRON (路殺社)",
     "sharePartnersHint": "Taiwan's roadkill research network uses exact locations to find the roads where animals die. Nothing is sent until TaiRON agrees to take records from this site.",
-    "termsLink": "Terms for contributors"
+    "termsLink": "Terms for contributors",
+    "metaDescription": "Report an animal you saw in Taiwan: dead or injured on the road, an invasive species, or wildlife alive and well. No account needed."
   },
   "detail": {
     "species": "Species",

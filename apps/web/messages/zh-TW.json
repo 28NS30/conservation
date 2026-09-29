@@ -89,7 +89,8 @@
     "cellSizeM": "每格約 {m} 公尺",
     "perRecord": "每一點是一筆紀錄",
     "colourLockedHeat": "熱區只能顯示密度",
-    "colourLockedPoints": "個別紀錄一律依類型上色"
+    "colourLockedPoints": "個別紀錄一律依類型上色",
+    "metaDescription": "臺灣地圖上的所有公開紀錄：路殺、入侵種與野生動物目擊。保育類與敏感物種只會顯示模糊的範圍。"
   },
   "footer": {
     "blurredCount": "{count, plural, other {# 筆位置已模糊化}}",
@@ -210,7 +211,8 @@
     "creditHint": "用暱稱就可以，我們也只會顯示這個名字。留空的話，會標示為「福爾摩沙守望計畫通報者」。請不要填電子信箱。",
     "sharePartners": "同時把這筆紀錄（含精確位置）分享給路殺社（TaiRON）",
     "sharePartnersHint": "臺灣的路殺研究網需要精確位置，才能找出動物容易被撞死的路段。在路殺社同意接收本站紀錄之前，不會送出任何資料。",
-    "termsLink": "通報者條款"
+    "termsLink": "通報者條款",
+    "metaDescription": "通報你在臺灣看到的動物：路上死亡或受傷的動物、入侵種，或活生生的野生動物。不需要帳號。"
   },
   "detail": {
     "species": "物種",

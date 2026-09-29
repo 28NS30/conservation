@@ -18,6 +18,7 @@ import MonthlyChart from "@/components/species/MonthlyChart";
 import SpeciesMap from "@/components/species/SpeciesMap";
 import SpeciesName from "@/components/species/SpeciesName";
 import { speciesLabel } from "@/lib/speciesNames";
+import { alternates } from "@/lib/alternates";
 
 /** A heatmap built from a handful of points is noise; below this we plot them. */
 const HEATMAP_MIN_RECORDS = 6;
@@ -76,6 +77,7 @@ export async function generateMetadata({
   return {
     title: name,
     description: t("metaDescription", { name, count: s.reportCount }),
+    alternates: alternates(locale, `/species/${speciesSlug(s)}`),
     /*
      * A page with nothing but a name and a rank is thin, and a crawler that
      * finds a hundred thousand near-identical ones forms a view of the whole
