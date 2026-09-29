@@ -341,9 +341,12 @@ export default async function ReportPage({
                 >
                   {t("species.seeAllRecords")}
                 </Link>
+                {/* The model named this species by itself, not a person. It
+                    is not a suggestion — the species is the record's — and the
+                    team's rule is that such a record says who named it. */}
                 {row.taxon_source === "ai" && (
                   <span>
-                    {t("detail.aiSuggested")}
+                    {t("detail.aiIdentified")}
                     {row.ai_confidence != null &&
                       ` · ${Math.round(row.ai_confidence * 100)}%`}
                   </span>

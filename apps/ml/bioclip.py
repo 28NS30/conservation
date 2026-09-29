@@ -21,8 +21,19 @@ import open_clip
 from PIL import Image
 
 MODEL_HUB = "hf-hub:imageomics/bioclip-2"
-EMBED_VERSION = "v1"
+
+# The embedding set build_embeddings.py writes, and the one the evidence
+# contract (contract.py, "contract": 2) scores against: accepted Taiwan taxa
+# only, keyed by TaiCOL id, subspecies kept as extra rows of their species.
+EMBED_VERSION = "v2"
 MODEL_VERSION = f"bioclip2-vitl14-{EMBED_VERSION}"
+
+# The set the legacy contract still answers from, unchanged, until no deployed
+# website asks for it. Its files are never rebuilt: a v1 row index is a
+# `taxa.id`, and the website that reads v1 answers writes them straight into
+# `classifications.taxon_id`.
+LEGACY_EMBED_VERSION = "v1"
+LEGACY_MODEL_VERSION = f"bioclip2-vitl14-{LEGACY_EMBED_VERSION}"
 
 
 def pick_device() -> str:
