@@ -166,10 +166,12 @@ body {
  * The report form's send bar is pinned to the bottom of the screen
  * (ReportForm.tsx). Tabbing or jumping to a field scrolls it into view, and
  * without this it could land behind the bar, which is focus hidden by the
- * page itself. The bar is under 7rem tall with its blocker line.
+ * page itself. The form measures the bar into --send-bar-height, since its
+ * height depends on what it is saying (offline it has three lines); 7rem
+ * until the script has run.
  */
 html:has(#report-send-bar) {
-  scroll-padding-bottom: 7rem;
+  scroll-padding-bottom: calc(var(--send-bar-height, 7rem) + 0.75rem);
 }
 
 /*

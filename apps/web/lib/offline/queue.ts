@@ -56,6 +56,15 @@ export type QueuedReport = {
     taxonUnknown?: boolean;
     notes?: string;
     contactEmail?: string;
+    /**
+     * The account signed in when the report was saved, or "anonymous". The
+     * queue is per device, not per account, and the server used to file a
+     * report under whoever was signed in when it finally sent: on a shared
+     * phone, one person's report (their email and notes with it) under
+     * another's name. The server holds the report to this now. Absent on rows
+     * saved by an older build, which are sent as before.
+     */
+    filedBy?: string;
   };
   photos: Blob[];
   /** Paths already uploaded, so a partial upload resumes instead of re-uploading. */
@@ -86,6 +95,13 @@ export type QueuedReport = {
    * index would.
    */
   serverStatus?: string;
+  /**
+   * Whether the server said the record reached the public record list. A
+   * record of a species whose coordinates TaiCOL withholds is published but
+   * shown nowhere, and its link was a 404. Absent on older rows: treated as
+   * visible, which is what the banner assumed before.
+   */
+  serverVisible?: boolean;
   sentAt?: number;
 };
 
@@ -130,6 +146,10 @@ export async function listQueued(): Promise<QueuedReport[]> {
   return all.sort((a, b) => a.createdAt - b.createdAt);
 }
 
+export async function getQueued(id: string): Promise<QueuedReport | undefined> {
+  return (await (await db()).get(STORE, id)) as QueuedReport | undefined;
+}
+
 export async function updateQueued(id: string, patch: Partial<QueuedReport>): Promise<void> {
   const conn = await db();
   const existing = (await conn.get(STORE, id)) as QueuedReport | undefined;
@@ -152,6 +172,7 @@ export async function markUploaded(
   id: string,
   reportId: string,
   serverStatus?: string,
+  serverVisible?: boolean,
 ): Promise<void> {
   const conn = await db();
   const existing = (await conn.get(STORE, id)) as QueuedReport | undefined;
@@ -161,6 +182,7 @@ export async function markUploaded(
     status: "uploaded",
     reportId,
     serverStatus,
+    serverVisible,
     sentAt: Date.now(),
     photos: [],
     lastError: undefined,
