@@ -33,9 +33,10 @@ describe("canonical and language links", () => {
       if (!(await server())) return t.skip(`no server at ${BASE_URL}`);
       const zh = await head(path || "/");
       const en = await head(`/en${path}`);
-      assert.ok(zh.canonical?.endsWith(path || "/"), `zh canonical is ${zh.canonical}`);
-      assert.ok(en.canonical?.endsWith(`/en${path}`), `en canonical is ${en.canonical}`);
-      assert.ok(!zh.canonical.includes("/en"), "the Chinese page is not canonicalised to English");
+      // Compared as paths: Next writes the home page's canonical as the bare
+      // origin, which is the same address as "/".
+      assert.equal(new URL(zh.canonical).pathname, path || "/", `zh canonical is ${zh.canonical}`);
+      assert.equal(new URL(en.canonical).pathname, `/en${path}`, `en canonical is ${en.canonical}`);
       for (const h of [zh, en]) {
         assert.ok(h.langs["zh-TW"] && h.langs.en && h.langs["x-default"], `language links on ${path}`);
         assert.equal(h.langs["x-default"], h.langs["zh-TW"]);
