@@ -30,7 +30,7 @@ import { TAIWAN_BOUNDS } from "@conservation/shared";
  *   - Any map link — Google Maps including its short links, Apple Maps,
  *     OpenStreetMap, Waze, Bing, geo: URIs, what3words — whatever it points
  *     at. A short link cannot be opened here to see where it goes, so every
- *     one is held.
+ *     one is held, from any shortener, as a map link.
  *   - Plus Codes (7QQ32GJQ+XV, or the short 2GJQ+XV).
  *
  * A place NAME cannot be caught this way ("the second car park at 陽明山").
@@ -82,7 +82,27 @@ export type ScreenResult = {
  * Normalising
  * ------------------------------------------------------------------ */
 
-const ZERO_WIDTH = /[\u00AD\u180E\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF]/g;
+/**
+ * Characters that draw nothing: every Unicode format character (bidi marks,
+ * joiners, the tag block, U+061C, U+2066…), combining marks, and the blank
+ * letters (U+3164 and its kin). A hand-picked list of zero-width characters
+ * missed most of them, and one inside a number split a coordinate in two
+ * (security audit, 29 September 2026).
+ */
+const INVISIBLE = /[\p{Cf}\p{Mn}\p{Me}\u115F\u1160\u3164\uFFA0\u2800]/gu;
+
+/**
+ * Percent-escapes of punctuation, decoded, so a search link's
+ * "q=25.0330%2C121.5654" reads as the pair it is. Only punctuation and
+ * spaces: decoding letters would let an escape spell a word past the filter
+ * in a way it never could be read.
+ */
+function decodePunctuationEscapes(text: string): string {
+  return text.replace(/%([0-9a-f]{2})/gi, (m, hex: string) => {
+    const c = String.fromCharCode(parseInt(hex, 16));
+    return /[\s,;:/°'"+.\-_~()]/.test(c) ? c : m;
+  });
+}
 
 /**
  * One spelling for everything that can be spelt several ways.
@@ -96,13 +116,19 @@ const ZERO_WIDTH = /[\u00AD\u180E\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF]/
 export function normalise(text: string): string {
   return text
     .normalize("NFKC")
-    .replace(ZERO_WIDTH, "")
+    .replace(INVISIBLE, "")
     .toLowerCase()
     .replace(/[\u2032\u2019\u2018`\u00B4\u02B9\u02BC]/g, "'")
     .replace(/[\u2033\u201C\u201D\u02BA]/g, '"')
     .replace(/''/g, '"')
     .replace(/[\u00BA\u02DA\u2070]/g, "°")
-    .replace(/[、，]/g, ",");
+    .replace(/[、，]/g, ",")
+    // An ideographic full stop after a whole number and before digits is its
+    // decimal point: NFKC keeps "。", so "２５。０３３０" would otherwise be two
+    // numbers. After a number that already has one ("25.0330。121.5654") it
+    // is a separator, and stays one.
+    .replace(/(?<![\d.])(\d+)。(?=\d)/g, "$1.")
+    .replace(/%[0-9a-f]{2}/gi, (m) => decodePunctuationEscapes(m));
 }
 
 /* ------------------------------------------------------------------ *
@@ -141,12 +167,25 @@ const TWD97_N = /(?<![\d.])(2[4-8]\d{5})(?:\.\d+)?(?![\d.])/g;
  * "and" survive), and "25.03n, 121.56e" is.
  */
 const GAP_NOISE =
-  /latitude|longitude|long|lat|lng|lon|twd97|tm2|北緯|東經|南緯|西經|緯度|經度|緯|經|度|分|秒|[nsewxy]|[\s,;:/|()[\]{}°'"=&]/g;
+  /latitude|longitude|long|lat|lng|lon|twd97|tm2|北緯|東經|南緯|西經|緯度|經度|緯|經|度|分|秒|至|與|和|及|到|\bto\b|[nsewxy]|[\s,;:/|()[\]{}°'"=&+_~。\-\u2010-\u2015\u2212]/g;
 const MAX_GAP = 24;
 
 function isPairGap(gap: string): boolean {
-  return gap.length <= MAX_GAP && gap.replace(GAP_NOISE, "") === "";
+  // Whitespace counts once, however much of it there is: 25 spaces or
+  // newlines between the numbers is still a pair.
+  const g = gap.replace(/\s+/g, " ");
+  return g.length <= MAX_GAP && g.replace(GAP_NOISE, "") === "";
 }
+
+/**
+ * Two numbers each given to three or more decimal places (about 100 m or
+ * finer), close together and a place in Taiwan as a pair, are a coordinate
+ * whatever is written between them: "lat 25.0330 and lng 121.5654". Words
+ * between two rougher numbers are left alone, so "measured 23.5 and 120.5"
+ * still goes through.
+ */
+const PRECISE_GAP = 40;
+const precise = (text: string, t: Token) => /\.\d{3,}/.test(text.slice(t.start, t.end));
 
 function findCoordinates(text: string): string[] {
   const hits: string[] = [];
@@ -170,8 +209,11 @@ function findCoordinates(text: string): string[] {
   for (let i = 0; i + 1 < tokens.length; i++) {
     const a = tokens[i];
     const b = tokens[i + 1];
-    if (!isPairGap(text.slice(a.end, b.start))) continue;
-    if (inTaiwan(a.value, b.value)) hits.push(text.slice(a.start, b.end));
+    const gap = text.slice(a.end, b.start);
+    const paired =
+      isPairGap(gap) ||
+      (precise(text, a) && precise(text, b) && gap.replace(/\s+/g, " ").length <= PRECISE_GAP);
+    if (paired && inTaiwan(a.value, b.value)) hits.push(text.slice(a.start, b.end));
   }
 
   // TWD97: an easting and a northing next to each other, either order.
@@ -213,6 +255,11 @@ const MAP_LINKS: RegExp[] = [
   /(?<![a-z])geo:\s*-?\d/,
   // what3words' own notation: ///filled.count.soap, in any script.
   /\/\/\/[\p{L}]+\.[\p{L}]+\.[\p{L}]+/u,
+  // Short links of every kind, whatever the account's age. Any of them can
+  // point at a pinned map, and none can be opened here to see; only the map
+  // services' own shorteners were held, and bit.ly or reurl.cc went through
+  // from any account older than a week (security audit, 29 September 2026).
+  /(?<![a-z0-9-])(?:bit\.ly|reurl\.cc|lihi\d?\.(?:cc|com|me)|tinyurl\.com|tiny\.cc|g\.page|goo\.gl|t\.co|t\.ly|is\.gd|v\.gd|x\.gd|ow\.ly|buff\.ly|pse\.is|ppt\.cc|0rz\.tw|rebrand\.ly|cutt\.ly|shorturl\.at|rb\.gy|s\.id|b23\.tv)\/\S/,
 ];
 
 /** Open Location Code: 4–8 characters of its alphabet, a plus, 2–3 more. */
@@ -390,6 +437,7 @@ export const FIRST_POSTS_REVIEWED = 2;
 export const MODERATORS_FOR_FIRST_POST_REVIEW = 3;
 
 export function firstPostsNeedReview(opts: {
+  /** The member's posts that are out: approved, or never held. */
   priorPosts: number;
   moderatorCount: number;
   override?: string;

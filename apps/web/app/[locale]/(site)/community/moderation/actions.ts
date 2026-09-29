@@ -41,6 +41,19 @@ import { fail, ok, type ActionResult } from "@/lib/forum/result";
  * The small repetition below is that choice, not an oversight.
  */
 
+/**
+ * Who wrote a post, for the rule that nobody reviews their own (canReview).
+ *
+ * forum_posts.author_id goes null when its author leaves the forum (on delete
+ * set null), and canReview lets anyone review a post with no author. So a
+ * moderator could leave, rejoin, and approve their own held post (security
+ * audit, 29 September 2026). The post's metadata row keeps the author, so it
+ * answers when the post no longer does.
+ */
+const POST_AUTHOR = sql`coalesce(p.author_id,
+  (select pm.author_id from forum_post_meta pm where pm.post_id = p.id))`;
+
+
 type Actor = { id: string; role: ForumRole };
 
 /**
@@ -99,8 +112,8 @@ export async function approvePost(_prev: ActionResult, form: FormData): Promise<
 
   const result = await sql.begin(async (tx) => {
     const [post] = await tx<PostForReview[]>`
-      select author_id, status, is_opener, thread_id from forum_posts
-       where id = ${postId}::uuid for update`;
+      select ${POST_AUTHOR} as author_id, p.status, p.is_opener, p.thread_id from forum_posts p
+       where p.id = ${postId}::uuid for update of p`;
     if (!post || post.status === "deleted") return "noPost";
     if (!canReview(actor.id, post.author_id)) return "ownPost";
 
@@ -135,8 +148,8 @@ export async function hidePost(_prev: ActionResult, form: FormData): Promise<Act
 
   const result = await sql.begin(async (tx) => {
     const [post] = await tx<PostForReview[]>`
-      select author_id, status, is_opener, thread_id from forum_posts
-       where id = ${postId}::uuid for update`;
+      select ${POST_AUTHOR} as author_id, p.status, p.is_opener, p.thread_id from forum_posts p
+       where p.id = ${postId}::uuid for update of p`;
     if (!post || post.status === "deleted") return "noPost";
     if (!canReview(actor.id, post.author_id)) return "ownPost";
 
@@ -175,8 +188,8 @@ export async function deletePost(_prev: ActionResult, form: FormData): Promise<A
 
   const result = await sql.begin(async (tx) => {
     const [post] = await tx<PostForReview[]>`
-      select author_id, status, is_opener, thread_id from forum_posts
-       where id = ${postId}::uuid for update`;
+      select ${POST_AUTHOR} as author_id, p.status, p.is_opener, p.thread_id from forum_posts p
+       where p.id = ${postId}::uuid for update of p`;
     if (!post || post.status === "deleted") return "noPost";
     if (!canReview(actor.id, post.author_id)) return "ownPost";
 
@@ -231,7 +244,7 @@ export async function redactPost(_prev: ActionResult, form: FormData): Promise<A
 
   const result = await sql.begin(async (tx) => {
     const [post] = await tx<(PostForReview & { body: string; title: string })[]>`
-      select p.author_id, p.status, p.is_opener, p.thread_id, p.body, t.title
+      select ${POST_AUTHOR} as author_id, p.status, p.is_opener, p.thread_id, p.body, t.title
         from forum_posts p join forum_threads t on t.id = p.thread_id
        where p.id = ${postId}::uuid for update of p`;
     if (!post || post.status === "deleted") return "noPost";
@@ -399,7 +412,10 @@ export async function suspendMember(_prev: ActionResult, form: FormData): Promis
 
 /**
  * End a suspension early. A moderator may lift one that a moderator could
- * have given (7 days or less); a longer one is an admin's to lift.
+ * have given: 7 days or less, on a member (canSanction), and not one an admin
+ * gave. Lifting used to check only the length, so a moderator could end an
+ * admin's suspension of a fellow moderator and hand them the console back at
+ * once (security audit, 29 September 2026).
  */
 export async function liftSuspension(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   requireForum();
@@ -410,12 +426,26 @@ export async function liftSuspension(_prev: ActionResult, form: FormData): Promi
   if (!reason) return fail("reasonRequired");
 
   const result = await sql.begin(async (tx) => {
-    const [s] = await tx<{ user_id: string; days: number; lifted_at: Date | null }[]>`
-      select user_id, lifted_at,
-             ceil(extract(epoch from ends_at - starts_at) / 86400)::int as days
-        from forum_sanctions where id = ${id} for update`;
+    const [s] = await tx<
+      {
+        user_id: string;
+        days: number;
+        lifted_at: Date | null;
+        target_role: ForumRole | null;
+        imposer_role: ForumRole | null;
+      }[]
+    >`
+      select s.user_id, s.lifted_at,
+             ceil(extract(epoch from s.ends_at - s.starts_at) / 86400)::int as days,
+             tp.role as target_role, ap.role as imposer_role
+        from forum_sanctions s
+        left join profiles tp on tp.id = s.user_id
+        left join profiles ap on ap.id = s.actor_id
+       where s.id = ${id} for update of s`;
     if (!s || s.lifted_at) return "noSanction";
     if (s.user_id === actor.id) return "cannotSanction";
+    if (!canSanction(actor, { id: s.user_id, role: s.target_role })) return "cannotSanction";
+    if (s.imposer_role === "admin" && actor.role !== "admin") return "adminOnly";
     if (s.days > maxSuspensionDays("moderator") && actor.role !== "admin") return "adminOnly";
     await tx`
       update forum_sanctions set lifted_at = now(), lifted_by = ${actor.id}::uuid where id = ${id}`;
