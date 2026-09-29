@@ -1,5 +1,19 @@
 # Report flow: recommendation
 
+> **Superseded in part, 28 September 2026.** The team asked for three report
+> pages (requests 3 and 9), so "one 通報動物 action" and "category-first
+> removed everywhere" (decision 1 below) no longer hold. `/report` is a chooser,
+> "File a report", leading to `/report/roadkill`, `/report/invasive` and
+> `/report/wildlife`; the home page keeps three rows and the header menu three
+> choices, all linking to those pages; old `/report?category=` links redirect
+> (307). The page decides the stored category — the roadkill page asks dead or
+> hurt with no default — and the server holds each report to its page's
+> categories and species (`REPORT_PAGES` in `packages/shared`). Nothing is
+> preselected. Offline saving no longer waits for Turnstile, as the "Offline
+> queue and Turnstile" section below asked. The per-question content of the
+> screens below still stands; the photo-first flow is not yet ported onto the
+> three pages.
+
 Planning only. Code read at c73bb8d; paths relative to `apps/web`.
 
 ## Decision

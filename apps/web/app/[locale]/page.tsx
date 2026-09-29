@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { sql } from "@/lib/db";
 import { Link } from "@/i18n/navigation";
-import { REPORT_GROUPS, type ReportGroup } from "@conservation/shared";
+import type { ReportPage } from "@conservation/shared";
 import { mapEntrySpecies, recordedSpeciesCount } from "@/lib/stats";
 import { PHOTOS, HERO, type PhotoKey } from "@/lib/home/photos";
 import SiteHeader from "@/components/site/SiteHeader";
@@ -60,17 +60,17 @@ const MAP_PLACES = [
 
 /**
  * One photograph row per report type. Roadkill first: it is what the project
- * began as and still what most of its records are. Each links to the form with
- * its own category, so nothing is chosen for the reporter.
+ * began as and still what most of its records are. Each links to its own
+ * report page, so nothing is chosen for the reporter.
  */
 const REPORT_ROWS: {
-  group: ReportGroup;
+  page: ReportPage;
   photo: PhotoKey;
   key: "Roadkill" | "Invasive" | "Sighting";
 }[] = [
-  { group: "roadkill", photo: "forestRoad", key: "Roadkill" },
-  { group: "invasive", photo: "iguana", key: "Invasive" },
-  { group: "sighting", photo: "treeFrog", key: "Sighting" },
+  { page: "roadkill", photo: "forestRoad", key: "Roadkill" },
+  { page: "invasive", photo: "iguana", key: "Invasive" },
+  { page: "wildlife", photo: "treeFrog", key: "Sighting" },
 ];
 
 /**
@@ -212,14 +212,14 @@ export default async function HomePage({
         <div className="mx-auto mt-14 grid max-w-[1200px] gap-16 sm:mt-16 sm:gap-24">
           {REPORT_ROWS.map((r, i) => (
             <StoryRow
-              key={r.group}
+              key={r.page}
               photo={PHOTOS[r.photo]}
               zh={zh}
               photoBy={photoBy}
               title={t(`row${r.key}Title`)}
               body={t(`row${r.key}Body`)}
               cta={t(`row${r.key}Cta`)}
-              href={`/report?category=${REPORT_GROUPS[r.group].categories[0]}`}
+              href={`/report/${r.page}`}
               reverse={i % 2 === 1}
             />
           ))}
