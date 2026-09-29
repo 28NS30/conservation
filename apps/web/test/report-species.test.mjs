@@ -195,10 +195,20 @@ describe("sending the same report twice", () => {
   });
 });
 
+/**
+ * A species the wildlife page offers. These reports are filed as sightings,
+ * and the server refuses a species the page would not have listed — a plant,
+ * a genus — so "any taxon in Taiwan" is no longer something a test can name
+ * and expect to be filed. The CI fixture carries a protected plant rated 輕度,
+ * which an unordered `limit 1` could pick.
+ */
+const ON_THE_WILDLIFE_PAGE =
+  "taxon_status = 'accepted' and kingdom = 'Animalia' and rank in ('Species','Subspecies')";
+
 describe("a reporter names the species", () => {
   test("it is stored as the reporter's own word", async () => {
     const taxonId = await taxonWhere(
-      "sensitivity is null and protected_status is null and is_in_taiwan",
+      `sensitivity is null and protected_status is null and is_in_taiwan and ${ON_THE_WILDLIFE_PAGE}`,
     );
     const { res, body, clientNonce } = await submit({ taxonId });
 
@@ -233,9 +243,16 @@ describe("a reporter names the species", () => {
     // one has stopped being necessary.
     // `heldAt` is the stricter blur of a name the reporter gave that we no
     // longer offer (test/accepted-names.test.mjs asserts it at runtime).
+    // A named report carries no override of its own, except on the invasive
+    // page, which holds every report at 10 km until it is checked
+    // (test/report-pages.test.mjs asserts that at runtime).
     assert.match(
       route,
-      /const precisionOverride = identified \? null : \(heldAt \?\? UNIDENTIFIED_PRECISION\);/,
+      /const pageHold = page === "invasive" \? UNVERIFIED_INVASIVE_PRECISION : null;/,
+    );
+    assert.match(
+      route,
+      /const precisionOverride = identified\s*\?\s*pageHold\s*:\s*\(heldAt \?\? UNIDENTIFIED_PRECISION\);/,
     );
   });
 
@@ -253,7 +270,9 @@ describe("a reporter names the species", () => {
   test("a sensitive species still blurs, named or not", async () => {
     // The whole privacy boundary in one assertion. Trusting the reporter means
     // publishing what they say; it does not mean publishing where they say it.
-    const taxonId = await taxonWhere("sensitivity = '輕度' and is_in_taiwan");
+    const taxonId = await taxonWhere(
+      `sensitivity = '輕度' and is_in_taiwan and ${ON_THE_WILDLIFE_PAGE}`,
+    );
     const { clientNonce } = await submit({ taxonId });
 
     const row = await stored(clientNonce);

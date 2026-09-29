@@ -9,6 +9,7 @@ import PageHeader from "@/components/site/PageHeader";
 import ForumAccount from "@/components/forum/ForumAccount";
 import { signInHref } from "@/components/auth/signInHref";
 import { signOut } from "./actions";
+import { awaitingVerification } from "@/lib/report/verification";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,8 @@ type Row = {
   isObscured: boolean;
   locationPrecision: string;
   taxonId: number | null;
+  /** Who named it; a moderator's naming is what verifies an invasive report. */
+  taxonSource: string | null;
   scientificName: string | null;
   commonNameZh: string | null;
   aiBand: string | null;
@@ -73,6 +76,7 @@ export default async function MyReportsPage({
   setRequestLocale(locale);
   const t = await getTranslations("me");
   const tc = await getTranslations("categories");
+  const tr = await getTranslations("report");
 
   const user = await currentUser();
   if (!user) {
@@ -94,6 +98,7 @@ export default async function MyReportsPage({
            r.is_obscured as "isObscured",
            r.location_precision as "locationPrecision",
            r.taxon_id as "taxonId",
+           r.taxon_source as "taxonSource",
            r.ai_band as "aiBand", r.ai_confidence as "aiConfidence",
            t.scientific_name as "scientificName",
            t.common_name_zh as "commonNameZh"
@@ -252,6 +257,16 @@ export default async function MyReportsPage({
                       {r.status === "rejected" && (
                         <Status label={t("status.rejected")} />
                       )}
+                      {/* The same words as the receipt the reporter was shown
+                          when they sent it (lib/report/verification.ts): an
+                          invasive-page report is public, blurred, and not yet
+                          checked by a moderator. */}
+                      {r.status !== "rejected" &&
+                        awaitingVerification(r) && (
+                          <span className="shrink-0 rounded-full border border-ink-900/20 bg-paper-50 px-2.5 py-0.5 text-sm text-ink-800">
+                            {tr("receipt.notVerified")}
+                          </span>
+                        )}
                     </span>
 
                     {r.status !== "rejected" && (

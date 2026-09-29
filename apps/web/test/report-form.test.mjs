@@ -1,11 +1,13 @@
 /**
- * The front page's category doors, and what they arrive at.
+ * The three report pages, and what each one asks.
  *
- * Each door on the home page links to /report?category=<key> so that choosing
- * what you saw and starting the form are one act rather than the same question
- * asked twice. That contract spans three files — the page builds the link, the
- * route validates the parameter, the form takes it as its initial state — and
- * nothing else would notice if any one of them stopped honouring it.
+ * The home page's rows and the header's menu link to /report/roadkill,
+ * /report/invasive and /report/wildlife, so that choosing what you saw and
+ * starting the form are one act rather than the same question asked twice.
+ * The contract spans three files — the page builds the link, the route checks
+ * the kind, the form takes it as what it files — and nothing else would notice
+ * if any one of them stopped honouring it. The chooser and the old
+ * `?category=` links are test/report-pages.test.mjs.
  */
 import { test, describe, after } from "node:test";
 import assert from "node:assert/strict";
@@ -20,10 +22,12 @@ const FORM = readFileSync(
   "utf8",
 );
 
-/** Whether the dead/injured sub-choice was actually rendered, not merely present
+const html = async (path) => (await fetch(`${BASE_URL}${path}`)).text();
+
+/** Whether the dead/injured question was actually rendered, not merely present
  * in the inlined message catalogue that every page ships. */
-function hasCondition(html) {
-  return /<h3[^>]*>牠還活著嗎？<\/h3>/.test(html);
+function hasCondition(page) {
+  return /<h2 id="condition-label"[^>]*>牠還活著嗎？/.test(page);
 }
 
 /**
@@ -32,139 +36,140 @@ function hasCondition(html) {
  * catalogue, so "is this name in the HTML" would pass on a page that merely
  * mentioned it.
  */
-function chosenSpecies(html) {
+/**
+ * The leading name of the species the picker shows as chosen. The picker names
+ * it through <SpeciesName>, which puts each name in a span carrying its
+ * language, so the chosen block's first language-tagged span is the headline.
+ */
+function chosenSpecies(page) {
   return [
-    ...html.matchAll(
-      /class="text-\[15px\] font-medium text-ink-900">([^<]*)</g,
+    ...page.matchAll(
+      /class="block text-\[15px\] font-medium text-ink-900"><span lang="[^"]+" class="[^"]*">([^<]*)</g,
     ),
   ].map((m) => m[1]);
 }
 
-/** The chosen category is the button drawn filled. */
-function selected(html) {
-  const m = [
-    ...html.matchAll(
-      /<button[^>]*class="[^"]*bg-ink-900 text-paper-50[^"]*"[^>]*>(.*?)<\/button>/gs,
-    ),
-  ];
-  return m.map((x) => x[1].replace(/<[^>]+>/g, "").trim());
+/** Every control drawn as pressed. */
+function pressed(page) {
+  return [
+    ...page.matchAll(/<button[^>]*aria-pressed="true"[^>]*>(.*?)<\/button>/gs),
+  ].map((x) => x[1].replace(/<[^>]+>/g, "").trim());
 }
 
-describe("report form", () => {
-  test("a category door opens the form on that category", async () => {
-    // Group labels, since the form now offers three groups rather than four
-    // categories. A deep link to `injured` is covered separately below: it is a
-    // sub-choice of the roadkill group, not a door of its own.
-    for (const [key, label] of [
-      ["invasive", "外來入侵種"],
-      ["roadkill", "路殺或受傷"],
-      ["sighting", "一般目擊"],
-    ]) {
-      const html = await (
-        await fetch(`${BASE_URL}/report?category=${key}`)
-      ).text();
-      assert.deepEqual(
-        selected(html),
-        [label],
-        `?category=${key} should open with exactly that one chosen`,
-      );
+describe("each page files its own kind of report", () => {
+  test("every page renders, and nothing else under /report/ does", async () => {
+    for (const kind of ["roadkill", "invasive", "wildlife"]) {
+      const res = await fetch(`${BASE_URL}/report/${kind}`);
+      assert.equal(res.status, 200, kind);
     }
+    // dynamicParams = false: a kind that does not exist is not a form with
+    // nothing to file, it is a 404.
+    assert.equal((await fetch(`${BASE_URL}/report/dragons`)).status, 404);
+    assert.equal((await fetch(`${BASE_URL}/report/sighting`)).status, 404);
   });
 
-  test("an unknown category falls back rather than erroring", async () => {
-    const res = await fetch(`${BASE_URL}/report?category=dragons`);
-    assert.equal(res.status, 200, "a mistyped link is not an error");
-    assert.deepEqual(
-      selected(await res.text()),
-      ["路殺或受傷"],
-      "falls back to the default group",
-    );
+  test("each has its own title, in both languages", async () => {
+    const title = async (p) => /<title>([^<]*)<\/title>/.exec(await html(p))?.[1] ?? "";
+    assert.match(await title("/report/roadkill"), /^通報路殺或受傷動物 · /);
+    assert.match(await title("/report/invasive"), /^通報外來入侵種 · /);
+    assert.match(await title("/report/wildlife"), /^通報野生動物目擊 · /);
+    assert.match(await title("/en/report/invasive"), /^Report an invasive species · /);
+    assert.match(await title("/report"), /^我要通報 · /);
+    assert.match(await title("/en/report"), /^File a report · /);
   });
 
-  test("the chosen category is exposed to assistive technology", async () => {
-    // It was conveyed by fill colour alone: four identically-named buttons with
-    // no state for a screen reader to announce.
-    assert.match(
-      FORM,
-      /aria-pressed=\{category === k\}/,
-      "category buttons must carry aria-pressed",
-    );
-    const html = await (
-      await fetch(`${BASE_URL}/report?category=invasive`)
-    ).text();
-    assert.match(html, /aria-pressed="true"/);
+  test("the category comes from the page, not from a choice of three", () => {
+    // The group chips are gone: the page IS the kind of report. What each page
+    // files is REPORT_PAGES in packages/shared, read here rather than copied.
+    assert.doesNotMatch(FORM, /REPORT_GROUP_KEYS\.map/);
+    assert.match(FORM, /REPORT_PAGES\[page\]\.categories/);
+    assert.match(FORM, /category: what,\s*page,/, "the page is sent with every report");
   });
 });
 
-describe("report groups", () => {
-  test("the form offers exactly the three the team asked for", async () => {
-    const html = await (await fetch(`${BASE_URL}/report`)).text();
-    for (const label of ["外來入侵種", "一般目擊", "路殺或受傷"]) {
-      assert.ok(html.includes(label), `missing the ${label} choice`);
+describe("nothing is chosen for the reporter", () => {
+  test("no page opens with anything pressed or ticked", async () => {
+    for (const kind of ["roadkill", "invasive", "wildlife"]) {
+      const page = await html(`/report/${kind}`);
+      assert.deepEqual(pressed(page), [], `${kind}: something is pressed`);
+      assert.ok(!/type="checkbox"[^>]*checked=""/.test(page), `${kind}: a box is ticked`);
+      assert.deepEqual(chosenSpecies(page), [], `${kind}: a species is chosen`);
     }
-    // The fourth button is gone: injured is a sub-choice of roadkill now, not a
-    // peer of it competing for the same glance.
-    const groupButtons = [
-      ...html.matchAll(/<button[^>]*aria-pressed="(?:true|false)"[^>]*>/g),
-    ];
-    assert.ok(
-      groupButtons.length >= 3,
-      "expected the three group buttons to be marked",
+  });
+
+  test("the roadkill page asks dead or hurt, and has no default", async () => {
+    // The form used to open on "roadkill, dead". A live animal filed from the
+    // header's report button was stored as a dead one without anybody saying so.
+    const page = await html("/report/roadkill");
+    assert.ok(hasCondition(page), "the question must be shown");
+    const answers = [
+      ...page.matchAll(/<button[^>]*aria-pressed="false"[^>]*>(.*?)<\/button>/gs),
+    ].map((m) => m[1]);
+    assert.deepEqual(answers, ["已死亡", "還活著，但受傷"]);
+    // And the button says it is waiting for that answer before anything else.
+    assert.match(page, /id="submit-blocker"[^>]*>請先選擇動物已經死亡，還是活著但受傷</);
+    assert.match(
+      FORM,
+      /return categories\.length === 1 \? categories\[0\] : null;/,
+      "a page with a question starts unanswered",
     );
   });
 
-  test("the roadkill group asks whether the animal was alive", async () => {
-    const html = await (
-      await fetch(`${BASE_URL}/report?category=roadkill`)
-    ).text();
-    assert.ok(hasCondition(html), "the sub-choice must be shown");
-    assert.ok(html.includes("已死亡") && html.includes("還活著，但受傷"));
-  });
-
-  test("the other two groups ask nothing further", async () => {
-    for (const c of ["invasive", "sighting"]) {
-      const html = await (
-        await fetch(`${BASE_URL}/report?category=${c}`)
-      ).text();
-      assert.ok(
-        !hasCondition(html),
-        `${c} should have no condition sub-choice`,
-      );
+  test("the other two pages ask nothing further", async () => {
+    for (const kind of ["invasive", "wildlife"]) {
+      const page = await html(`/report/${kind}`);
+      assert.ok(!hasCondition(page), `${kind} should have no dead-or-hurt question`);
     }
   });
 
-  test("a link straight to ?category=injured still lands in its group", async () => {
-    // The group is derived from the category, so a deep link to the sub-choice
-    // cannot leave the form showing a group that does not contain it.
-    const html = await (
-      await fetch(`${BASE_URL}/report?category=injured`)
-    ).text();
-    assert.ok(html.includes("牠還活著嗎？"));
-    assert.deepEqual(selected(html), ["路殺或受傷"]);
+  test("the answer is exposed to assistive technology", () => {
+    assert.match(FORM, /aria-pressed=\{category === k\}/);
+    assert.match(FORM, /onClick=\{\(\) => setCategory\(k\)\}/);
+  });
+});
+
+describe("what each page offers", () => {
+  test("the invasive page has a way out, and no way to widen the list", async () => {
+    const page = await html("/report/invasive");
+    assert.match(page, /href="\/report\/wildlife"[^>]*>改用野生動物目擊通報</);
+    assert.ok(!page.includes("不是這些？搜尋全部物種"), "the search-all-species button is back");
+    const picker = readFileSync(
+      join(import.meta.dirname, "..", "components", "report", "SpeciesPicker.tsx"),
+      "utf8",
+    );
+    assert.doesNotMatch(picker, /setWide|speciesWiden|filter", "all"/);
+    // The picker asks by page, so it cannot be pointed at a wider list than
+    // the server will accept.
+    assert.match(picker, /new URLSearchParams\(\{ q, page \}\)/);
+  });
+
+  test("the wildlife page says when an invasive animal also counts as invasive", () => {
+    const picker = readFileSync(
+      join(import.meta.dirname, "..", "components", "report", "SpeciesPicker.tsx"),
+      "utf8",
+    );
+    assert.match(picker, /page === "wildlife" && value\.isInvasive && \(/);
+    assert.match(picker, /t\("alsoInvasive"\)/);
   });
 });
 
 /**
  * The species doors.
  *
- * A species page's "report this species" carries the taxon in the query string
- * for the same reason the home page's doors carry the category: naming what you
- * saw and starting the form should be one act. The contract spans the same
- * three files, and the link is worth least on exactly the pages where it is
- * loudest — the ones that say nobody has reported this species yet.
+ * A species page's "report this species" carries the taxon in the query
+ * string, for the same reason the home page's rows carry the kind: naming
+ * what you saw and starting the form should be one act.
  */
 describe("species prefill", () => {
-  test("a species page's report link opens the form on that species", async () => {
+  test("a report page opens on the species it was sent", async () => {
     // The toad the page spec already leans on. The expected name is read from
     // the database rather than written here: this is testing that the prefill
     // reaches the picker, not that TaiCOL spells anything a particular way.
     const [toad] = await sql`
       select common_name_zh as zh from taxa where id = 28758`;
     assert.ok(toad?.zh, "expected taxon 28758 in the checklist");
-    const html = await (
-      await fetch(`${BASE_URL}/report?taxonId=28758`)
-    ).text();
-    assert.deepEqual(chosenSpecies(html), [toad.zh]);
+    for (const kind of ["roadkill", "wildlife"])
+      assert.deepEqual(chosenSpecies(await html(`/report/${kind}?taxonId=28758`)), [toad.zh], kind);
   });
 
   test("a species with no records prefills too", async () => {
@@ -174,18 +179,29 @@ describe("species prefill", () => {
       select t.id, t.common_name_zh as zh from taxa t
         left join species_report_stats s on s.taxon_id = t.id
        where s.taxon_id is null and t.is_in_taiwan
+         and t.taxon_status = 'accepted' and t.kingdom = 'Animalia'
          and t.rank = 'Species' and t.common_name_zh is not null
        limit 1`;
     assert.ok(none, "expected a species with no records");
-    const html = await (
-      await fetch(`${BASE_URL}/report?taxonId=${none.id}`)
-    ).text();
-    assert.deepEqual(chosenSpecies(html), [none.zh]);
+    assert.deepEqual(chosenSpecies(await html(`/report/wildlife?taxonId=${none.id}`)), [none.zh]);
+  });
+
+  test("the invasive page does not prefill a native animal", async () => {
+    // It would be sent as the species, and the server refuses a native animal
+    // on this page — and the offline queue treats a refusal as final.
+    assert.deepEqual(chosenSpecies(await html("/report/invasive?taxonId=28758")), []);
+    const [lizard] = await sql`
+      select id, common_name_zh as zh from taxa where taicol_id = 't0029144'`;
+    assert.deepEqual(
+      chosenSpecies(await html(`/report/invasive?taxonId=${lizard.id}`)),
+      [lizard.zh],
+      "an invasive animal is prefilled there",
+    );
   });
 
   test("a bad or unknown taxonId is ignored rather than erroring", async () => {
     for (const bad of ["abc", "-1", "99999999", ""]) {
-      const res = await fetch(`${BASE_URL}/report?taxonId=${bad}`);
+      const res = await fetch(`${BASE_URL}/report/wildlife?taxonId=${bad}`);
       assert.equal(res.status, 200, `?taxonId=${bad} is not an error`);
       assert.deepEqual(
         chosenSpecies(await res.text()),
@@ -193,14 +209,6 @@ describe("species prefill", () => {
         `?taxonId=${bad} must leave the picker empty`,
       );
     }
-  });
-
-  test("a species and a category arrive together", async () => {
-    const html = await (
-      await fetch(`${BASE_URL}/report?category=invasive&taxonId=28758`)
-    ).text();
-    assert.deepEqual(selected(html), ["外來入侵種"]);
-    assert.equal(chosenSpecies(html).length, 1);
   });
 });
 
@@ -257,6 +265,77 @@ describe("the receipt on the success card", () => {
       );
     }
   });
+
+  test("both cards say what happens next, for the page the report came from", () => {
+    // The sent card and the saved card share one block, so a report saved
+    // with no signal is told the same things as one that was sent.
+    assert.match(FORM, /const afterwards = \(\) => \(/);
+    assert.equal((FORM.match(/\{afterwards\(\)\}/g) ?? []).length, 2);
+    assert.match(FORM, /page === "invasive" && <div className="mt-3">\{invasiveNext\(\)\}/);
+    assert.match(FORM, /page === "roadkill" && <div className="mt-4">\{taironNote\(\)\}/);
+    // And an invasive report says it has not been checked, on both.
+    assert.equal((FORM.match(/\{unverified && unverifiedTag\(\)\}/g) ?? []).length, 2);
+  });
+});
+
+describe("the roadkill receipt's link to 路殺社", () => {
+  const catalogue = (l) =>
+    JSON.parse(readFileSync(join(import.meta.dirname, "..", "messages", `${l}.json`), "utf8"));
+
+  test("is a link to TaiRON's own site, and nothing is sent or stored", () => {
+    assert.match(FORM, /const TAIRON_URL = "https:\/\/roadkill\.tw";/);
+    const note = FORM.slice(FORM.indexOf("const taironNote"), FORM.indexOf("const unverifiedTag"));
+    assert.match(note, /href=\{TAIRON_URL\}/);
+    assert.match(note, /target="_blank"/);
+    assert.match(note, /rel="noopener noreferrer"/);
+    // A link only: nothing posts to TaiRON and no flag is written.
+    assert.doesNotMatch(FORM, /fetch\([^)]*roadkill\.tw/);
+    assert.doesNotMatch(FORM, /tairon[A-Z]?\w*:\s*true/);
+  });
+
+  test("says the reporter needs their own TaiRON account", () => {
+    assert.match(catalogue("en").report.receipt.taironBody, /your own TaiRON account/);
+    assert.match(catalogue("zh-TW").report.receipt.taironBody, /自己的 TaiRON 帳號/);
+  });
+});
+
+describe("the invasive receipt", () => {
+  const catalogue = (l) =>
+    JSON.parse(readFileSync(join(import.meta.dirname, "..", "messages", `${l}.json`), "utf8"));
+
+  test("says it is recorded, checked, and that nobody is sent", () => {
+    const en = catalogue("en").report.receipt.invasiveNextBody;
+    const zh = catalogue("zh-TW").report.receipt.invasiveNextBody;
+    assert.match(en, /keep the record/);
+    assert.match(en, /moderator will check/);
+    assert.match(en, /Nobody is sent out/);
+    assert.match(en, /not yet verified/);
+    assert.match(zh, /保存這筆紀錄/);
+    assert.match(zh, /查證物種/);
+    assert.match(zh, /不會有人前往現場/);
+    assert.match(zh, /尚未查證/);
+  });
+
+  test("never suggests catching, moving or harming the animal", () => {
+    // A reporter told to catch a "sacred ibis" that is a protected egret has
+    // been told to by us. Checked over every sentence the invasive page shows.
+    const HARM = /\b(catch|captur|trap|kill|remov|mov(e|ing) it|relocat|cull|harm|handle)\w*/i;
+    const HARM_ZH = /捕|抓|撲殺|移除|移走|宰|殺|誘捕|驅離/;
+    for (const l of ["en", "zh-TW"]) {
+      const r = catalogue(l).report;
+      for (const text of [
+        r.receipt.invasiveNextTitle,
+        r.receipt.invasiveNextBody,
+        r.receipt.notVerified,
+        r.speciesUnsureHintInvasive,
+        r.notOnListLead,
+        r.notOnListLink,
+        r.pages.invasive,
+      ]) {
+        assert.doesNotMatch(text, l === "en" ? HARM : HARM_ZH, `${l}: "${text}"`);
+      }
+    }
+  });
 });
 
 describe("reporting a hurt animal", () => {
@@ -309,15 +388,14 @@ describe("the blocked submit button", () => {
     assert.match(FORM, /aria-describedby=\{blocker \? "submit-blocker" : undefined\}/);
     assert.match(FORM, /id="submit-blocker"/);
 
-    const html = await (await fetch(`${BASE_URL}/report`)).text();
-    const id = /id="submit-blocker"/.test(html);
-    assert.ok(id, "the blocker must be rendered before anything is chosen");
-    assert.match(html, /aria-describedby="submit-blocker"/);
+    const page = await html("/report/wildlife");
+    assert.ok(/id="submit-blocker"/.test(page), "the blocker must be rendered before anything is chosen");
+    assert.match(page, /aria-describedby="submit-blocker"/);
   });
 
   test("their spacing comes from a group, not a negative margin", () => {
-    // `-mb-1` cancelled part of the parent's `space-y-6`, so the gap between
-    // the two changed whenever the page's spacing scale did — a relationship
+    // `-mb-1` cancelled part of the parent's spacing, so the gap between the
+    // two changed whenever the page's spacing scale did — a relationship
     // expressed as an override of the thing it depends on.
     assert.ok(
       !/-mb-1[^"]*">\{blocker\}/.test(FORM),

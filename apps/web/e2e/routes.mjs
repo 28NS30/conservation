@@ -133,10 +133,35 @@ export const ROUTES = [
   {
     name: "report",
     path: "/report",
+    settle: 3000,
+    why: "The chooser: three kinds of report and the waiting-reports banner. No map since the form moved to the three pages below.",
+  },
+  // One row per report page, though they are one route: each asks something
+  // the others do not (dead or hurt; the invasive list and its way out), so
+  // each is a different document to measure.
+  {
+    name: "report-roadkill",
+    path: "/report/roadkill",
     settle: MAP_SETTLE,
     map: true,
     full: true,
-    why: "The location picker is a live map inside an ordinary scrolling page.",
+    why: "The location picker is a live map inside an ordinary scrolling page; this one also asks dead or hurt.",
+  },
+  {
+    name: "report-invasive",
+    path: "/report/invasive",
+    settle: MAP_SETTLE,
+    map: true,
+    full: true,
+    why: "The invasive list, with its way out to the wildlife page.",
+  },
+  {
+    name: "report-wildlife",
+    path: "/report/wildlife",
+    settle: MAP_SETTLE,
+    map: true,
+    full: true,
+    why: "Any animal; the note that an invasive one also counts as invasive appears only once one is chosen.",
   },
   { name: "reports", path: "/reports", settle: 3000 },
   {

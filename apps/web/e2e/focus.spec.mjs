@@ -20,6 +20,8 @@ const PAGES = [
   "/stats",
   "/reports",
   "/report",
+  "/report/roadkill",
+  "/report/invasive",
   "/login",
   "/about",
 ];

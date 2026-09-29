@@ -45,7 +45,10 @@ export type ErrorKey =
   | "photo"
   | "photoUnreadable"
   | "taxon_not_found"
+  | "taxon_out_of_scope"
+  | "category_not_on_page"
   | "validation_failed"
+  | "network"
   | "server";
 
 /** Which part of the form the sentence belongs beside. */
@@ -58,6 +61,11 @@ export type ErrorSlot = "photo" | "species" | "form";
 export const PHOTO_UNREADABLE = "photo_unreadable";
 /** The client's own word for an upload that did not land. */
 export const PHOTO_UPLOAD_FAILED = "photo_upload_failed";
+/**
+ * The client's own word for a request that never reached the server at all —
+ * no signal, or a signal that goes nowhere. Stored by the offline queue.
+ */
+export const NETWORK = "network";
 
 /**
  * Which sentence a code gets.
@@ -75,9 +83,17 @@ export const PHOTO_UPLOAD_FAILED = "photo_upload_failed";
  */
 export function errorKey(code: string | null | undefined): ErrorKey {
   if (code === PHOTO_UNREADABLE) return "photoUnreadable";
+  if (code === NETWORK) return "network";
   if (code === "rate_limited") return "rate_limited";
   if (code === "challenge_failed") return "challenge_failed";
   if (code === "taxon_not_found") return "taxon_not_found";
+  // A species this page does not offer — a native animal on the invasive page.
+  // Its own sentence, beside the picker, because the reporter can fix it there:
+  // choose again, or take the link to the page that does take it.
+  if (code === "taxon_out_of_scope") return "taxon_out_of_scope";
+  // A category this page cannot produce. Only a stale or hand-built client can
+  // send one; the form itself never does.
+  if (code === "category_not_on_page") return "category_not_on_page";
   if (code === "validation_failed") return "validation_failed";
   if (
     code === PHOTO_UPLOAD_FAILED ||
@@ -98,7 +114,7 @@ export function errorKey(code: string | null | undefined): ErrorKey {
  */
 export function slotOf(key: ErrorKey): ErrorSlot {
   if (key === "photo" || key === "photoUnreadable") return "photo";
-  if (key === "taxon_not_found") return "species";
+  if (key === "taxon_not_found" || key === "taxon_out_of_scope") return "species";
   return "form";
 }
 
