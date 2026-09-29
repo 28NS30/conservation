@@ -60,10 +60,17 @@ export default async function AboutPage({
     <main className="mx-auto w-full max-w-2xl px-6 pb-24 pt-14 sm:pt-20">
       <header className="border-b border-ink-900/10 pb-10">
         <Badge size={112} priority />
-        <h1 className="mt-6 text-3xl font-semibold leading-tight text-ink-900">
+        {/* The same title as every other inner page (PageHeader), under the
+            mark rather than instead of it. */}
+        <h1
+          className={`mt-6 font-display text-[clamp(2.1rem,6vw,3.2rem)] font-bold leading-[1.05] text-forest-900 [text-wrap:balance] ${
+            locale.startsWith("zh") ? "tracking-[0.04em]" : "uppercase tracking-[0.01em]"
+          }`}
+        >
           {t("title")}
         </h1>
-        <p className="mt-4 text-base leading-relaxed text-ink-700">
+        <span aria-hidden className="mt-4 block h-1 w-14 bg-ember-500" />
+        <p className="mt-4 text-[17px] leading-relaxed text-ink-800">
           {site("description")}
         </p>
       </header>
@@ -165,10 +172,10 @@ function Block({
   // scroll-mt clears the sticky header when a link lands on the section.
   return (
     <section id={id} aria-labelledby={`${id}-title`} className="mt-12 scroll-mt-28">
-      <h2 id={`${id}-title`} className="text-lg font-semibold text-ink-900">
+      <h2 id={`${id}-title`} className="text-xl font-semibold text-forest-900">
         {title}
       </h2>
-      <div className="mt-3 text-sm leading-relaxed text-ink-600">{children}</div>
+      <div className="mt-3 text-base leading-relaxed text-ink-800">{children}</div>
     </section>
   );
 }
