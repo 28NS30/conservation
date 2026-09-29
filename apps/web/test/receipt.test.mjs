@@ -194,7 +194,7 @@ describe("nothing moves a row back into `pending`", () => {
    * runtime test can reach a branch nobody has written.
    */
   const SQL_WRITES = [
-    ["app/api/jobs/classify/route.ts", read("app", "api", "jobs", "classify", "route.ts")],
+    ["lib/report/classifyWorker.ts", read("lib", "report", "classifyWorker.ts")],
     ["app/[locale]/(site)/admin/actions.ts", read("app", "[locale]", "(site)", "admin", "actions.ts")],
     ["app/api/reports/route.ts", read("app", "api", "reports", "route.ts")],
   ];

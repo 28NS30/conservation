@@ -131,7 +131,7 @@ describe("every path that names a species applies one override rule", () => {
     // never touched it, so the same correction had two different consequences
     // for a location depending on which screen it was made from.
     const CLASSIFY = readFileSync(
-      join(import.meta.dirname, "..", "app", "api", "jobs", "classify", "route.ts"),
+      join(import.meta.dirname, "..", "lib", "report", "classifyWorker.ts"),
       "utf8",
     );
     // The classifier uses photoIdentificationOverride, which is this rule plus

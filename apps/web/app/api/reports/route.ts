@@ -1,4 +1,6 @@
+import { after } from "next/server";
 import { sql } from "@/lib/db";
+import { classifyQueued } from "@/lib/report/classifyWorker";
 import { serverSupabase } from "@/lib/supabase/server";
 import { statUploadedPhoto } from "@/lib/supabase/service";
 import { verifyTurnstile, withinRateLimit, screenSubmission, SUBMIT_LIMITS } from "@/lib/abuse";
@@ -38,6 +40,13 @@ class ReportConflictUnresolved extends Error {
     this.name = "ReportConflictUnresolved";
   }
 }
+
+/**
+ * Long enough for the after() below: a cold Modal container takes ~26s before
+ * the model answers. 60 is the Hobby ceiling; the reporter's response does not
+ * wait for any of it.
+ */
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   const ip = clientIp(req);
@@ -297,6 +306,7 @@ export async function POST(req: Request) {
       }
 
       return {
+        queued: classifiable,
         id: reportId,
         status,
         precision: inserted[0].location_precision,
@@ -304,6 +314,27 @@ export async function POST(req: Request) {
         duplicate: false,
       };
     });
+
+    // Identify the photo now, after the reporter has their answer, rather than
+    // at 03:00 tomorrow: the daily cron was the only thing that ran the model,
+    // three reports a night. The job is committed above, so if this is cut
+    // short (the function's own time limit, a deploy) it is still queued and
+    // the cron sweeps it up; claims skip locked rows, so the two never race.
+    // A failure here is the worker's to record on the job, never the reporter's.
+    //
+    // Not in a test build (NEXT_PUBLIC_E2E=1): the suites file reports with
+    // photos by the dozen, and a laptop's .env points ML_ENDPOINT_URL at the
+    // production model service. The cron route still classifies there.
+    if ("queued" in result && result.queued && process.env.NEXT_PUBLIC_E2E !== "1") {
+      const id = result.id;
+      after(async () => {
+        try {
+          await classifyQueued({ reportId: id });
+        } catch (e) {
+          console.error(`[reports] classify after submit ${id}:`, (e as Error).message);
+        }
+      });
+    }
 
     return Response.json(
       {

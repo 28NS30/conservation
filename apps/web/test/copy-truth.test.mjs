@@ -156,7 +156,7 @@ describe("the copy does not contradict itself", () => {
     // published, and blurred at least as hard as an unidentified one: the
     // first assertion pins the publishing, the second the floor, in both of
     // the helper's branches.
-    const classify = code("app/api/jobs/classify/route.ts");
+    const classify = code("lib/report/classifyWorker.ts");
     assert.match(
       classify,
       /precision_override = \$\{suggestionOverride\([^}]*\)\},\s*status = case when status = 'pending' then 'published'/,

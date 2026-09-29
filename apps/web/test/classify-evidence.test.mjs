@@ -53,7 +53,8 @@ const FITTED = JSON.parse(read(WEB, "lib", "report", "classifier-thresholds.json
 const SHARED = JSON.parse(read(ML, "testdata", "profile_cases.json"));
 const CASES = SHARED.cases;
 const GUARD_CASES = SHARED.guardCases;
-const ROUTE = read(WEB, "app", "api", "jobs", "classify", "route.ts");
+// The worker, which the cron route and POST /api/reports both run.
+const ROUTE = read(WEB, "lib", "report", "classifyWorker.ts");
 const EVIDENCE = read(WEB, "lib", "report", "classifyEvidence.ts");
 const POLICY = read(WEB, "lib", "report", "classifyPolicy.ts");
 const EVALUATE = read(ML, "evaluate.py");

@@ -27,7 +27,8 @@ import {
 after(() => sql.end());
 
 const read = (...p) => readFileSync(join(import.meta.dirname, "..", ...p), "utf8");
-const ROUTE = read("app", "api", "jobs", "classify", "route.ts");
+// The worker, which the cron route and POST /api/reports both run.
+const ROUTE = read("lib", "report", "classifyWorker.ts");
 const PRECISION = read("lib", "report", "precision.ts");
 const LABELSETS = readFileSync(
   join(import.meta.dirname, "..", "..", "ml", "labelsets.py"),
