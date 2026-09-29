@@ -52,6 +52,11 @@ export async function publishReport(reportId: string) {
  */
 export async function rejectReport(reportId: string, reason: string) {
   const actor = await requireModerator();
+  // The queue asks for a reason before it sends one, but an action is a
+  // public endpoint: the log records why, so an empty why is refused here
+  // too, and a long one is kept to what the queue's box allows.
+  const why = String(reason ?? "").trim().slice(0, 500);
+  if (!why) throw new Error("a reason is required");
   await sql.begin(async (tx) => {
     await tx`update reports set status = 'rejected' where id = ${reportId}::uuid`;
     await tx`update classification_jobs
@@ -61,7 +66,7 @@ export async function rejectReport(reportId: string, reason: string) {
               where report_id = ${reportId}::uuid
                 and status in ('queued', 'failed')`;
     await tx`insert into moderation_actions (report_id, actor_id, action, reason)
-             values (${reportId}::uuid, ${actor}::uuid, 'reject', ${reason})`;
+             values (${reportId}::uuid, ${actor}::uuid, 'reject', ${why})`;
   });
   revalidatePath("/admin");
 }

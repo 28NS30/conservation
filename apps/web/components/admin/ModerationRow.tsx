@@ -29,6 +29,11 @@ export default function ModerationRow(props: {
   // server action's message with a generic English one, which is what the
   // queue used to show. The real message goes to the console.
   const [failed, setFailed] = useState(false);
+  // Rejecting asks why, on the page. It was window.prompt(): a system box
+  // on a phone, with no room to see the report being rejected, that a
+  // mis-tap dismisses with the reason lost.
+  const [rejecting, setRejecting] = useState(false);
+  const [reason, setReason] = useState("");
 
   if (done) {
     return (
@@ -118,27 +123,61 @@ export default function ModerationRow(props: {
         </p>
       )}
 
-      <div className="mt-3 flex gap-2">
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() => act(() => publishReport(props.id), "published")}
-          className="inline-flex min-h-11 items-center rounded-lg bg-ember-500 px-5 text-base font-semibold text-ink-950 hover:bg-ember-400 disabled:opacity-50"
-        >
-          {t("publish")}
-        </button>
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() => {
-            const reason = prompt(t("rejectReason")) ?? "";
-            if (reason) act(() => rejectReport(props.id, reason), "rejected");
-          }}
-          className="inline-flex min-h-11 items-center rounded-lg border-2 border-ink-900/20 px-5 text-base font-medium text-ink-800 hover:border-ink-900/40 disabled:opacity-50"
-        >
-          {t("reject")}
-        </button>
-      </div>
+      {rejecting ? (
+        <div className="mt-3 space-y-2">
+          <label htmlFor={`reject-${props.id}`} className="block text-sm font-semibold text-ink-900">
+            {t("rejectReason")}
+          </label>
+          <textarea
+            id={`reject-${props.id}`}
+            rows={2}
+            maxLength={500}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            className="block w-full rounded-lg border border-ink-900/20 bg-paper-50 px-3 py-2 text-base text-ink-900"
+          />
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={pending || reason.trim() === ""}
+              onClick={() => act(() => rejectReport(props.id, reason), "rejected")}
+              className="inline-flex min-h-11 items-center rounded-lg border-2 border-rose-800 px-5 text-base font-semibold text-rose-800 hover:bg-rose-800/5 disabled:opacity-50"
+            >
+              {t("confirmReject")}
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => {
+                setRejecting(false);
+                setReason("");
+              }}
+              className="inline-flex min-h-11 items-center rounded-lg px-4 text-base font-medium text-ink-800 underline underline-offset-2"
+            >
+              {t("cancel")}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-3 flex gap-2">
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => act(() => publishReport(props.id), "published")}
+            className="inline-flex min-h-11 items-center rounded-lg bg-ember-500 px-5 text-base font-semibold text-ink-950 hover:bg-ember-400 disabled:opacity-50"
+          >
+            {t("publish")}
+          </button>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => setRejecting(true)}
+            className="inline-flex min-h-11 items-center rounded-lg border-2 border-ink-900/20 px-5 text-base font-medium text-ink-800 hover:border-ink-900/40 disabled:opacity-50"
+          >
+            {t("reject")}
+          </button>
+        </div>
+      )}
     </li>
   );
 }
