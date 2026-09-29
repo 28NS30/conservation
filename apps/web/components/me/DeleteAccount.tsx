@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { useTranslations } from "next-intl";
+import ForgetOfflineCopies from "@/components/offline/ForgetOfflineCopies";
 import {
   deleteMyAccount,
   type DeleteAccountState,
@@ -29,6 +30,7 @@ export default function DeleteAccount() {
       </h2>
       <p className="mt-3 max-w-prose text-base leading-relaxed text-ink-800">{t("body")}</p>
       <form action={action} className="mt-4 space-y-3">
+        <ForgetOfflineCopies />
         <label className="flex min-h-11 cursor-pointer items-center gap-3 text-base text-ink-900">
           {/* Its own name: /me also holds the forum's leave form, whose box is
               "confirm", and two of those on one page is one too many for

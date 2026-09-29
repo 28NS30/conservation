@@ -12,16 +12,21 @@
  * is the report pages, which warm each other (warmReportPages, below).
  */
 
-// v2 empties the old tile cache. Its basemap entries are CARTO tiles, which the
-// site stopped requesting when CARTO began watermarking keyless tiles
-// (September 2026); there is no reason to keep them occupying the cap.
-const VERSION = "v2";
+// v2 emptied the old tile cache of CARTO's watermarked tiles (September 2026).
+// v3 empties the shell cache, because v2 kept every page it was shown: a
+// moderator's /admin with exact coordinates, a person's /me with their email,
+// served again after sign-out to the next person on the device (security audit,
+// 29 September 2026). Only the pages listed in OFFLINE_PAGES are kept now.
+const VERSION = "v3";
 const SHELL = `shell-${VERSION}`;
 const TILES = `tiles-${VERSION}`;
 // Sized down from 400 for vector tiles, which run to 100-220 KB each at low zoom
 // against the few KB of the raster PNGs the old figure was chosen for. Vector
 // tiles overzoom, so fewer entries still cover more ground.
 const MAX_TILE_ENTRIES = 150;
+// The shell holds a few dozen pages and their RSC payloads, plus the hashed
+// scripts they name. It had no cap, and RSC prefetches alone could fill it.
+const MAX_SHELL_ENTRIES = 250;
 
 self.addEventListener("install", () => self.skipWaiting());
 
@@ -43,30 +48,83 @@ async function trim(cacheName, max) {
   await Promise.all(keys.slice(0, keys.length - max).map((k) => cache.delete(k)));
 }
 
-async function networkFirst(request, cacheName, timeoutMs = 3500) {
+/**
+ * The network, unless it is slow or gone and there is a copy.
+ *
+ * It used to abort every request after 3.5 s and fall back to the cache, which
+ * on a slow but working connection failed any page with no copy (ERR_FAILED on
+ * a navigation) instead of waiting for it. Now a slow response only gives way
+ * to a copy that exists; with none, the page waits for the network as the
+ * browser would have without a worker.
+ *
+ * `store` is false for everything outside OFFLINE_PAGES: such a response is
+ * passed through and never written down.
+ */
+async function networkFirst(request, cacheName, { store = true, timeoutMs = 3500 } = {}) {
   const cache = await caches.open(cacheName);
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    const res = await fetch(request, { signal: controller.signal });
-    clearTimeout(timer);
-    if (res.ok) cache.put(request, res.clone());
+  const network = fetch(request).then((res) => {
+    if (store && res.ok) {
+      cache.put(request, res.clone()).then(() => trim(cacheName, MAX_SHELL_ENTRIES), () => {});
+    }
     return res;
+  });
+  // A copy for a navigation ignores Vary: a page warmed by warmReportPages()
+  // was fetched by the worker, not navigated to, so its stored request carries
+  // different headers from the browser's. Next's RSC requests carry their own
+  // `_rsc` query, so for navigations the headers cannot pick the wrong page.
+  const copy = () =>
+    store
+      ? cache.match(request, { ignoreSearch: false, ignoreVary: request.mode === "navigate" })
+      : Promise.resolve(undefined);
+
+  let timer;
+  const slow = new Promise((resolve) => {
+    timer = setTimeout(() => resolve(SLOW), timeoutMs);
+  });
+  try {
+    const first = await Promise.race([network, slow]);
+    if (first !== SLOW) return first;
+    const hit = await copy();
+    if (hit) {
+      network.catch(() => {}); // it may still arrive, and refresh the copy
+      return hit;
+    }
+    return await network;
   } catch {
-    // A page warmed by warmReportPages() was fetched by the worker, not
-    // navigated to, so its stored request carries different headers from the
-    // browser's navigation — and a response that varies on a header would then
-    // never match. A navigation only ever wants the page's HTML, and Next's RSC
-    // requests carry their own `_rsc` query, so for navigations the headers
-    // cannot pick the wrong response and are ignored.
-    const hit = await cache.match(request, {
-      ignoreSearch: false,
-      ignoreVary: request.mode === "navigate",
-    });
+    const hit = await copy();
     if (hit) return hit;
     throw new Error("offline and not cached");
+  } finally {
+    clearTimeout(timer);
   }
 }
+const SLOW = Symbol("slow");
+
+/** Hashed build output never changes under its name: the copy is the file. */
+async function cacheFirst(request, cacheName) {
+  const cache = await caches.open(cacheName);
+  const hit = await cache.match(request);
+  if (hit) return hit;
+  const res = await fetch(request);
+  if (res.ok) cache.put(request, res.clone()).then(() => trim(cacheName, MAX_SHELL_ENTRIES), () => {});
+  return res;
+}
+
+/**
+ * The pages worth having without a signal, and nothing else.
+ *
+ * Public pages only, identical for every visitor apart from the header's
+ * sign-in link: the home page, the map, the report chooser and its three
+ * pages (the reason the worker exists), and the pages a reporter reads about
+ * an animal. Never /admin, /me, /login, /community, a record's own page (a
+ * receipt, a moderator's view of a test report, or a record since withdrawn)
+ * or anything unknown: a copy of those is one person's data kept on a device
+ * that may be shared, or a public page that has since stopped being public.
+ */
+const OFFLINE_PAGES =
+  /^(?:\/en)?(?:\/|\/map|\/report(?:\/(?:roadkill|invasive|wildlife))?|\/species(?:\/[^/]+)?|\/stats|\/about|\/privacy|\/terms|\/attribution|\/roadkill|\/invasive|\/wildlife)?\/?$/;
+/** Files served from public/, and the vendored map bundle. */
+const PUBLIC_FILE = /\.(?:png|jpe?g|webp|avif|svg|ico|woff2?|webmanifest|mjs)$/;
 
 /**
  * Every report page, cached as soon as any one of them is open.
@@ -120,8 +178,9 @@ async function warmReportPages(paths) {
 
 self.addEventListener("message", (event) => {
   if (event.origin && event.origin !== self.location.origin) return;
-  if (event.data?.type !== "warm-report-pages") return;
-  event.waitUntil(warmReportPages(event.data.paths));
+  if (event.data?.type === "warm-report-pages") {
+    event.waitUntil(warmReportPages(event.data.paths));
+  }
 });
 
 async function staleWhileRevalidate(request, cacheName, max) {
@@ -157,10 +216,23 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // App shell, Next chunks, the vendored MapLibre bundle.
-  if (url.origin === self.location.origin) {
-    event.respondWith(networkFirst(request, SHELL));
+  if (url.origin !== self.location.origin) return;
+
+  // Paths below the worker's scope, which carries the site's base path.
+  const scope = new URL(self.registration.scope).pathname.replace(/\/$/, "");
+  const path = url.pathname.startsWith(scope) ? url.pathname.slice(scope.length) || "/" : url.pathname;
+
+  // Next's hashed chunks and fonts.
+  if (path.startsWith("/_next/static/")) {
+    event.respondWith(cacheFirst(request, SHELL));
+    return;
   }
+  // The pages and files the offline report flow needs, kept for next time.
+  if (OFFLINE_PAGES.test(path) || PUBLIC_FILE.test(path)) {
+    event.respondWith(networkFirst(request, SHELL));
+    return;
+  }
+  // Everything else goes to the network and is never written down.
 });
 
 /**

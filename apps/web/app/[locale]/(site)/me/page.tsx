@@ -8,6 +8,7 @@ import { CATEGORIES, type Category } from "@conservation/shared";
 import PageHeader from "@/components/site/PageHeader";
 import ForumAccount from "@/components/forum/ForumAccount";
 import DeleteAccount from "@/components/me/DeleteAccount";
+import ForgetOfflineCopies from "@/components/offline/ForgetOfflineCopies";
 import { signInHref } from "@/components/auth/signInHref";
 import { signOut } from "./actions";
 import { awaitingVerification } from "@/lib/report/verification";
@@ -158,6 +159,7 @@ export default async function MyReportsPage({
           action={signOut}
           className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-ink-700"
         >
+          <ForgetOfflineCopies />
           {user.email && (
             <span className="[overflow-wrap:anywhere]">{t("signedInAs", { email: user.email })}</span>
           )}
