@@ -32,7 +32,8 @@ const read = (...p) => readFileSync(join(WEB, ...p), "utf8");
 const catalogue = (l) => JSON.parse(read("messages", `${l}.json`));
 const up = async () => Boolean(await fetch(BASE_URL).catch(() => null));
 
-const NOW = Date.parse("2026-09-30T04:00:00Z");
+// In the same local time as the field's value, like the form: CI runs in UTC.
+const NOW = new Date("2026-09-30T12:00").getTime();
 const ok = { observedAt: "2026-09-30T11:30", email: "", creditName: "" };
 
 describe("typed fields are checked before a report leaves the form", () => {
