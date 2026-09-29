@@ -3,12 +3,14 @@
  *
  *   node e2e/moderation.spec.mjs         # TEST_BASE_URL, default localhost:3000
  *
- * A throwaway moderator and two held reports:
+ * A throwaway moderator, two held reports and one unnamed record:
  *
  *   the reason each was held reads as a sentence, not the stored code;
  *   publishing one publishes it, and logs who did;
  *   rejecting asks why on the page, will not send without a reason,
- *   and stores the reason in the log.
+ *   and stores the reason in the log;
+ *   on a published record the model could not name, a moderator can
+ *   name any species, stored as an expert's, and the blur does not loosen.
  *
  * Accounts come from the local Supabase or CI's stand-in, as in
  * e2e/account.spec.mjs. Everything made here is deleted after.
@@ -128,6 +130,31 @@ try {
     select reason from moderation_actions
      where report_id = ${ids.reject} and actor_id = ${userId}::uuid and action = 'reject'`;
   check("and the log keeps the reason", rejLog?.reason === "the photo shows a toy, not an animal", rejLog?.reason);
+
+  // -- Naming a species the model never offered (#117) -------------------
+  // An unidentified record, published, as the classifier leaves one it could
+  // not name. The moderator searches, chooses, saves.
+  const [unnamed] = await sql`
+    insert into reports (category, location, location_public, observed_at, status, source)
+    values ('roadkill',
+            st_setsrid(st_makepoint(120.9, 24.3), 4326)::geography,
+            st_setsrid(st_makepoint(120.9, 24.3), 4326)::geography,
+            now(), 'published', 'user')
+    returning id`;
+  ids.unnamed = unnamed.id;
+  await page.goto(`${BASE}/en/reports/${ids.unnamed}`, { waitUntil: "networkidle" });
+  const search = page.getByRole("searchbox", { name: /Search by Chinese/ });
+  check("a moderator can search every species on a record", await search.isVisible());
+  await search.fill("石虎");
+  await page.getByRole("button", { name: /石虎/ }).first().click();
+  await page.getByRole("button", { name: "Save species" }).click();
+  await page.getByText("Saved.").waitFor({ timeout: 10000 }).catch(() => {});
+  const [named] = await sql`
+    select r.taxon_source, r.location_precision, t.common_name_zh
+      from reports r left join taxa t on t.id = r.taxon_id
+     where r.id = ${ids.unnamed}`;
+  check("and naming it stores an expert's identification", named?.common_name_zh === "石虎" && named?.taxon_source === "expert", JSON.stringify(named));
+  check("without loosening the blur", named?.location_precision !== "exact", named?.location_precision);
 } catch (e) {
   check("the spec ran", false, e.message);
 } finally {
