@@ -372,7 +372,19 @@
     "cardRecordCount": "{count, plural, =0 {none here yet} one {# record} other {# records}}",
     "cardPeak": "most often in {month}",
     "seeAllRecords": "See every record of it",
-    "noRecordsYet": "Nobody has reported this species here yet."
+    "noRecordsYet": "Nobody has reported this species here yet.",
+    "status": {
+      "endemic": "It lives only in Taiwan.",
+      "endemicSubspecies": "This subspecies lives only in Taiwan; the species also lives elsewhere.",
+      "invasive": "It is not native to Taiwan, and here it is an invasive species.",
+      "alien": "It is not native to Taiwan.",
+      "introducedMainIsland": "It is native to Kinmen and Matsu; on Taiwan's main island it was introduced.",
+      "protected": "Taiwan's Wildlife Conservation Act protects it as {name}.",
+      "protectedPlant": "It is protected as a rare plant under the Cultural Heritage Preservation Act.",
+      "redlist": "Taiwan's Red List rates it {name}.",
+      "iucn": "Worldwide, the IUCN Red List rates it {name}.",
+      "cites": "International trade in it is controlled under CITES {list}."
+    }
   },
   "offline": {
     "queuedTitle": "Saved on this phone. Not sent yet.",

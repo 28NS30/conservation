@@ -125,8 +125,12 @@ describe("the species page", () => {
        order by t.id limit 1`;
     if (!sp) return t.skip("no endemic subspecies here");
     const html = await (await fetch(`${BASE_URL}/en/species/${sp.id}`, { redirect: "follow" })).text();
-    assert.match(html, />Endemic subspecies</);
-    assert.doesNotMatch(html, />Endemic</);
+    // The species page says it in a sentence (components/species/SpeciesStatus.tsx),
+    // read from the paragraph itself: the catalogue inlined in every page holds
+    // both sentences whatever was rendered.
+    const status = /<p id="species-status"[^>]*>([^<]*)<\/p>/.exec(html)?.[1] ?? "";
+    assert.match(status, /This subspecies lives only in Taiwan/);
+    assert.doesNotMatch(status, /It lives only in Taiwan/);
   });
 
   test("a name under review says so", async (t) => {
