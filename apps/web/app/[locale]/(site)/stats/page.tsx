@@ -16,6 +16,7 @@ import PageHeader from "@/components/site/PageHeader";
 import Columns from "@/components/stats/Columns";
 import { alternates } from "@/lib/alternates";
 import { speciesNames } from "@/lib/speciesNames";
+import { seasonOpen } from "@/lib/coverage";
 
 export const revalidate = 900;
 
@@ -75,7 +76,7 @@ export default async function StatsPage({
   const tcol = await getTranslations("collections");
 
   // Independent aggregates, so issue them together rather than serially.
-  const [ov, speciesCount, byCollection, months, years, species, spots] =
+  const [ov, speciesCount, byCollection, months, years, species, spots, seasonIsOpen] =
     await Promise.all([
       overview(),
       recordedSpeciesCount(),
@@ -84,6 +85,7 @@ export default async function StatsPage({
       yearlyTotals(),
       topSpecies(15),
       hotspots(8),
+      seasonOpen(),
     ]);
 
   const n = (v: number) => v.toLocaleString(locale);
@@ -389,6 +391,8 @@ export default async function StatsPage({
           description. It used to open the page, so the first thing a stranger
           read on the statistics page was a goal nobody had reached yet
           ("0 / 40") rather than the statistics. It follows them now. */}
+      {/* Only once somebody has filed a report; see seasonOpen(). */}
+      {seasonIsOpen && (
       <Link
         href="/season"
         className="mt-6 flex items-center justify-between gap-4 rounded-xl border border-ember-500/30 bg-ember-500/8 px-5 py-4 transition hover:border-ember-500/50 hover:bg-ember-500/12"
@@ -405,6 +409,7 @@ export default async function StatsPage({
           →
         </span>
       </Link>
+      )}
     </main>
   );
 }

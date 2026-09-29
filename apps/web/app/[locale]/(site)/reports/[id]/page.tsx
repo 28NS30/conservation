@@ -22,6 +22,7 @@ import SpeciesConfirm, {
 import InvasiveBadge from "@/components/collections/InvasiveBadge";
 import { alternates } from "@/lib/alternates";
 import { speciesLabel } from "@/lib/speciesNames";
+import SpeciesName from "@/components/species/SpeciesName";
 
 export const dynamic = "force-dynamic";
 
@@ -185,6 +186,8 @@ type Row = {
   lat: number | null;
   scientific_name: string | null;
   common_name_zh: string | null;
+  common_name_en: string | null;
+  taicol_id: string | null;
   protected_status: string | null;
   is_invasive: boolean;
 };
@@ -211,7 +214,8 @@ export default async function ReportPage({
              rp.source, rp.license, rp.rights_holder,
              st_x(rp.location_public::geometry) as lng,
              st_y(rp.location_public::geometry) as lat,
-             t.scientific_name, t.common_name_zh, t.protected_status,
+             t.scientific_name, t.common_name_zh, t.common_name_en, t.taicol_id,
+             t.protected_status,
              rp.is_invasive
         from reports_public rp
         left join taxa t on t.id = rp.taxon_id
@@ -282,14 +286,37 @@ export default async function ReportPage({
         {t("nav.backToMap")}
       </Link>
 
+      {/* The animal is the title when someone has named it: it is what a
+          reader came to see, and the kind of report and the date follow it.
+          A record nobody has named is titled by what was reported. */}
+      {row.scientific_name && (
+        <h1 className="mt-3 text-2xl font-semibold leading-tight text-forest-900">
+          <SpeciesName
+            species={{
+              scientificName: row.scientific_name,
+              commonNameZh: row.common_name_zh,
+              commonNameEn: row.common_name_en,
+              taicolId: row.taicol_id,
+            }}
+            locale={locale}
+            secondaryClassName="mt-1 text-base font-normal text-ink-600"
+          />
+        </h1>
+      )}
       <header className="mt-3 flex flex-wrap items-center gap-2">
         <span
           className="h-2.5 w-2.5 rounded-full"
           style={{ background: CATEGORIES[row.category].color }}
         />
-        <h1 className="text-lg font-semibold text-ink-900">
-          {t(`categories.${row.category}`)}
-        </h1>
+        {row.scientific_name ? (
+          <p className="text-base font-semibold text-ink-800">
+            {t(`categories.${row.category}`)}
+          </p>
+        ) : (
+          <h1 className="text-lg font-semibold text-ink-900">
+            {t(`categories.${row.category}`)}
+          </h1>
+        )}
         {/* From the species, not from the form: a live invasive animal filed
             as a sighting carries it, and a native one filed as invasive does
             not. With no species named, it says what the reporter said and no
@@ -302,7 +329,7 @@ export default async function ReportPage({
         )}
       </header>
 
-      <p className="mt-1 text-xs text-ink-500">
+      <p className="mt-1 text-sm text-ink-600">
         {seenOn(row.observed_at, row.source, locale)}
       </p>
 
