@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
-import { CATEGORIES, type Category } from "@conservation/shared";
+import { CATEGORIES, COLLECTION_KEYS, type Collection } from "@conservation/shared";
 import {
   overview,
-  categoryCounts,
   monthlyTotals,
   yearlyTotals,
   topSpecies,
@@ -12,11 +11,18 @@ import {
   recordedSpeciesCount,
 } from "@/lib/stats";
 import { speciesSlug } from "@/lib/species";
+import { collectionTotals } from "@/lib/collections";
 import PageHeader from "@/components/site/PageHeader";
-import Bars from "@/components/stats/Bars";
 import Columns from "@/components/stats/Columns";
 
 export const revalidate = 900;
+
+/** The swatch beside each collection, as on the map's toggles. */
+const COLLECTION_SWATCH: Record<Collection, string> = {
+  roadkill: CATEGORIES.roadkill.color,
+  invasive: CATEGORIES.invasive.color,
+  wildlife: CATEGORIES.sighting.color,
+};
 
 export async function generateMetadata({
   params,
@@ -64,14 +70,14 @@ export default async function StatsPage({
   setRequestLocale(locale);
 
   const t = await getTranslations("statsPage");
-  const tc = await getTranslations("categories");
+  const tcol = await getTranslations("collections");
 
   // Independent aggregates, so issue them together rather than serially.
-  const [ov, speciesCount, cats, months, years, species, spots] =
+  const [ov, speciesCount, byCollection, months, years, species, spots] =
     await Promise.all([
       overview(),
       recordedSpeciesCount(),
-      categoryCounts(),
+      collectionTotals(),
       monthlyTotals(),
       yearlyTotals(),
       topSpecies(15),
@@ -153,23 +159,61 @@ export default async function StatsPage({
           390px viewport and scrolled sideways. Naming one column makes it
           minmax(0, 1fr), which is what every child here already assumes. */}
       <div className="mt-4 grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
-        {/* One category means one 100% bar, which tells the reader nothing. The
-            seed corpus is entirely roadkill; this appears once people report
-            other things. */}
-        {cats.length > 1 && (
-          <Section title={t("byCategory")} span>
-            <Bars
-              total={ov.reports}
-              locale={locale}
-              rows={cats.map((c) => ({
-                key: c.category,
-                label: c.category in CATEGORIES ? tc(c.category) : c.category,
-                n: c.n,
-                color: CATEGORIES[c.category as Category]?.color ?? "#94a3b8",
-              }))}
-            />
-          </Section>
-        )}
+        {/* The three collections, each a share of every public record. They
+            overlap — a road-killed myna is roadkill and invasive — so the
+            shares add up to more than 100%, and the hint says so. It replaced
+            a split by stored category, which appeared only once a second
+            category existed and then described the report forms rather than
+            the databases the team asked for. Each row opens its collection's
+            own page. */}
+        <Section
+          title={tcol("stats.title")}
+          hint={tcol("stats.hint")}
+          span
+        >
+          <ul className="space-y-1">
+            {COLLECTION_KEYS.map((c) => {
+              const count = byCollection[c];
+              const pct = byCollection.all ? (count / byCollection.all) * 100 : 0;
+              return (
+                <li key={c}>
+                  <Link
+                    href={`/${c}`}
+                    className="block rounded-lg px-2 py-2 transition hover:bg-ink-900/5"
+                  >
+                    <span className="flex items-baseline justify-between gap-3 text-[14px]">
+                      <span className="flex min-w-0 items-center gap-1.5 font-medium text-ink-800 underline decoration-ink-900/20 underline-offset-2">
+                        <span
+                          aria-hidden
+                          className="size-2 shrink-0 rounded-full"
+                          style={{ background: COLLECTION_SWATCH[c] }}
+                        />
+                        {tcol(`name.${c}`)}
+                      </span>
+                      <span className="shrink-0 tabular-nums text-ink-600">
+                        {n(count)}
+                        <span className="ml-1.5">{pct.toFixed(1)}%</span>
+                      </span>
+                    </span>
+                    {/* No sliver for an empty collection: a bar at all would
+                        say it holds something. */}
+                    <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-ink-900/5">
+                      {count > 0 && (
+                        <span
+                          className="block h-full rounded-full"
+                          style={{
+                            width: `${Math.max(0.8, pct)}%`,
+                            background: COLLECTION_SWATCH[c],
+                          }}
+                        />
+                      )}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </Section>
 
         <Section title={t("seasonality")} hint={t("seasonalityHint")}>
           <Columns

@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { sql } from "@/lib/db";
 import { currentRole } from "@/lib/auth";
-import { recategorise, type Category } from "@conservation/shared";
 import {
   keepDeliberateOverride,
   photoIdentificationOverride,
@@ -72,12 +71,16 @@ export async function rejectReport(reportId: string, reason: string) {
  * automatically re-derives the location precision — correcting a record to a
  * protected species blurs it in the same statement.
  *
- * It re-derives the CATEGORY too, for the same reason and by the same rule as
- * `reports/[id]/actions.ts`: a `sighting` corrected to a listed invasive is an
- * `invasive` record, and while it was not, such a record never appeared under
- * the map's invasive filter. `taxonId` may be null here — a moderator removing
- * a wrong name — and then the register has no opinion and the reporter's own
- * belief, carried in the category they were filed under, stands.
+ * It does NOT touch the category, which is the page the report was filed on
+ * and stays that. It used to be rewritten here, as in
+ * `reports/[id]/actions.ts`, so a `sighting` corrected to an invasive species
+ * would show under the invasive filter; the copy drifted, because the
+ * classifier and a TaiCOL refresh never rewrote it. Invasiveness is read from
+ * the species at display time instead (`reports_public.is_invasive`, 0016), so
+ * this correction moves the record into or out of the invasive collection by
+ * naming the species alone. `taxonId` may be null — a moderator removing a
+ * wrong name — and then a record filed on the invasive page stays in that
+ * collection as the reporter left it, and any other leaves it.
  *
  * It now clears `precision_override` on the same rule as the other two paths —
  * `keepDeliberateOverride`. It never cleared it at all before, which is the
@@ -95,21 +98,12 @@ export async function rejectReport(reportId: string, reason: string) {
 export async function setReportTaxon(reportId: string, taxonId: number | null) {
   const actor = await requireModerator();
   await sql.begin(async (tx) => {
-    const [report] = await tx<{ category: string }[]>`
-      select category from reports where id = ${reportId}::uuid`;
+    const [report] = await tx<{ id: string }[]>`
+      select id from reports where id = ${reportId}::uuid`;
     if (!report) throw new Error("report not found");
-    const [taxon] = taxonId
-      ? await tx<{ is_invasive: boolean | null }[]>`
-          select is_invasive from taxa where id = ${taxonId}`
-      : [];
-    const category = recategorise(
-      report.category as Category,
-      taxon?.is_invasive ?? null,
-    );
 
     await tx`update reports
                 set taxon_id = ${taxonId}, taxon_source = 'expert',
-                    category = ${category},
                     precision_override = ${
                       taxonId === null
                         ? keepDeliberateOverride()

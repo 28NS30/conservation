@@ -128,7 +128,13 @@ function densityStep(scheme: LabMapScheme): ExpressionSpecification {
   ) as unknown as ExpressionSpecification;
 }
 
-/** Aggregated cell -> the colour of whichever type dominates it. */
+/**
+ * Aggregated cell -> the colour of whichever type dominates it.
+ *
+ * The tile names the live non-invasive type `wildlife` (MAP_TYPES in
+ * packages/shared); tiles built before that said `sighting`. Both draw as a
+ * sighting here.
+ */
 function groupColour(scheme: LabMapScheme): ExpressionSpecification {
   return [
     "case",
@@ -141,7 +147,7 @@ function groupColour(scheme: LabMapScheme): ExpressionSpecification {
       scheme.marks.roadkill,
       "invasive",
       scheme.marks.invasive,
-      "sighting",
+      ["wildlife", "sighting"],
       scheme.marks.sighting,
       scheme.mixed,
     ],
@@ -160,19 +166,26 @@ function groupColour(scheme: LabMapScheme): ExpressionSpecification {
 const HOLLOW_GROUP: ExpressionSpecification = [
   "all",
   HAS_MAJORITY,
-  ["==", ["get", "top_group"], "sighting"],
+  ["in", ["get", "top_group"], ["literal", ["wildlife", "sighting"]]],
 ] as unknown as ExpressionSpecification;
+
+/**
+ * A point's type is its `kind` — the category, with the species deciding
+ * between the two live ones — falling back to `category` for a tile cached
+ * before `kind` existed. See the tile route.
+ */
+const KIND = ["coalesce", ["get", "kind"], ["get", "category"]];
 
 const HOLLOW_CATEGORY: ExpressionSpecification = [
   "==",
-  ["get", "category"],
+  KIND,
   "sighting",
 ] as unknown as ExpressionSpecification;
 
 function categoryColour(scheme: LabMapScheme): ExpressionSpecification {
   return [
     "match",
-    ["get", "category"],
+    KIND,
     "roadkill",
     scheme.marks.roadkill,
     "injured",
@@ -751,7 +764,14 @@ export default function LabMap({
       if (src && src.serialize().tiles?.[0] !== url) src.setTiles([url]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, filter.group, filter.taxonId, filter.from, filter.to]);
+  }, [
+    ready,
+    filter.collection,
+    filter.condition,
+    filter.taxonId,
+    filter.from,
+    filter.to,
+  ]);
 
   /* ---- the legend, generated from what is actually drawn ---- */
   const points = zoom >= TILE_AGGREGATION_MAX_ZOOM + 1;

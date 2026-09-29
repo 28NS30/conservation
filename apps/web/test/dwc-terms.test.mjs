@@ -12,7 +12,12 @@
  */
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { generalisation, UNCERTAINTY } from "../../../scripts/dwc-terms.ts";
+import {
+  establishment,
+  generalisation,
+  UNCERTAINTY,
+  vitality,
+} from "../../../scripts/dwc-terms.ts";
 
 const base = {
   is_obscured: true,
@@ -93,5 +98,60 @@ describe("why a coordinate was generalised", () => {
 
   test("the declared uncertainties are the ones the archive publishes", () => {
     assert.deepEqual(UNCERTAINTY, { exact: 30, coarse_10km: 10_000, coarse_50km: 50_000 });
+  });
+});
+
+describe("whether the animal was alive (dwc:vitality)", () => {
+  // Read off the page the report was filed on. Only the roadkill page's
+  // "dead" answer is dead: an injured animal is alive, and GBIF users filter
+  // on this term when they want specimens rather than sightings.
+  for (const [category, expected] of [
+    ["roadkill", "dead"],
+    ["injured", "alive"],
+    ["sighting", "alive"],
+    ["invasive", "alive"],
+  ])
+    test(`${category} -> ${expected}`, () => assert.equal(vitality(category), expected));
+});
+
+describe("how the species came to be here (dwc:establishmentMeans)", () => {
+  const named = { taxon_id: 29144, is_invasive: false };
+
+  test("TaiCOL's native is native", () => {
+    assert.equal(establishment({ ...named, alien_type: "native" }).establishmentMeans, "native");
+  });
+
+  test("every alien status TaiCOL uses is introduced", () => {
+    for (const alien of ["invasive", "naturalized", "cultured", "cultivated"])
+      assert.equal(
+        establishment({ ...named, alien_type: alien }).establishmentMeans,
+        "introduced",
+        alien,
+      );
+  });
+
+  test("no status is not a claim of native", () => {
+    // 55,000 taxa carry no alien status in our copy. "Not recorded" is not
+    // "native", and GBIF would read an empty term correctly.
+    assert.equal(establishment({ ...named, alien_type: null }).establishmentMeans, "");
+  });
+
+  test("an invasive record says so, in degreeOfEstablishment", () => {
+    const t = establishment({ taxon_id: 29144, alien_type: "invasive", is_invasive: true });
+    assert.deepEqual(t, { establishmentMeans: "introduced", degreeOfEstablishment: "invasive" });
+  });
+
+  test("a naturalized species is introduced but not called invasive", () => {
+    const t = establishment({ ...named, alien_type: "naturalized" });
+    assert.equal(t.degreeOfEstablishment, "");
+  });
+
+  test("a record with no species claims nothing about one", () => {
+    // Filed on the invasive page and unidentified, it is in the site's
+    // invasive collection; it is still not a statement about any taxon.
+    assert.deepEqual(
+      establishment({ taxon_id: null, alien_type: null, is_invasive: true }),
+      { establishmentMeans: "", degreeOfEstablishment: "" },
+    );
   });
 });
