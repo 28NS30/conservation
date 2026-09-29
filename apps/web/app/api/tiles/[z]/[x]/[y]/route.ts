@@ -55,6 +55,19 @@ const TILE_HEADERS = {
   // Filters live in the query string, so the CDN keys on them automatically.
   "cache-control": "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400",
 };
+
+/**
+ * Point tiles, above TILE_AGGREGATION_MAX_ZOOM, carry each record's id and
+ * published point. Cached like the rest, a record a moderator had just blurred
+ * or rejected kept its old point under its id in the CDN for up to a day, and
+ * the id leads to the record's page and the species now named on it (security
+ * audit, 29 September 2026). Minutes, so a moderator's decision reaches the
+ * map about as fast as the record page. Aggregated tiles carry counts per
+ * cell, and keep the long cache.
+ */
+const POINT_TILE_CACHE = "public, max-age=0, s-maxage=120, stale-while-revalidate=120";
+const tileHeaders = (aggregated: boolean) =>
+  aggregated ? TILE_HEADERS : { ...TILE_HEADERS, "cache-control": POINT_TILE_CACHE };
 /** Safety valve so a pathological viewport can't stream unbounded rows. */
 const POINT_LIMIT = 20_000;
 
@@ -278,7 +291,7 @@ export async function GET(
   // is the whole contract. No Vary either: an empty body is the same in every
   // encoding, so there is nothing for separate cache entries to separate.
   if (!tile || tile.length === 0) {
-    return new Response(new Uint8Array(0), { status: 200, headers: TILE_HEADERS });
+    return new Response(new Uint8Array(0), { status: 200, headers: tileHeaders(aggregated) });
   }
 
   // Compressed here because nothing else will. Vercel compresses the types it
@@ -305,7 +318,7 @@ export async function GET(
     return new Response(new Uint8Array(tile), {
       status: 200,
       headers: {
-        ...TILE_HEADERS,
+        ...tileHeaders(aggregated),
         "cache-control": "private, no-store",
         vary: "accept-encoding",
       },
@@ -315,7 +328,7 @@ export async function GET(
   return new Response(new Uint8Array(await gz(tile, { level: 6 })), {
     status: 200,
     headers: {
-      ...TILE_HEADERS,
+      ...tileHeaders(aggregated),
       "content-encoding": "gzip",
       vary: "accept-encoding",
     },
