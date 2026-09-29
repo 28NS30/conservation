@@ -262,7 +262,7 @@ describe("a reporter names the species", () => {
     // itself now lives in lib/report/classifyPolicy.ts, where
     // test/classify-policy.test.mjs asserts that a person's identification is
     // only ever recorded beside; this pins that the route still tells it so.
-    const job = source("app/api/jobs/classify/route.ts");
+    const job = source("lib/report/classifyWorker.ts");
     assert.match(job, /job\.taxon_source !== "ai"/);
     assert.match(job, /classifierAction\(\{[\s\S]*?humanIdentified,[\s\S]*?\}\)/);
   });
