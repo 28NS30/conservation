@@ -10,7 +10,11 @@ import {
   REPORT_PAGES,
   MAX_PHOTOS,
   MAX_NOTES,
+  MAX_CREDIT_NAME,
+  CONSENT_VERSION,
+  PARTNER_SHARING_PAGES,
   type Category,
+  type ContributorLicense,
   type ReportPage,
 } from "@conservation/shared";
 import { preparePhoto, type PreparedPhoto } from "@/lib/image";
@@ -152,6 +156,13 @@ function ReportFormFields({
   const [timeEdited, setTimeEdited] = useState(false);
   const [notes, setNotes] = useState("");
   const [email, setEmail] = useState("");
+  // The contributor terms (/terms), answered on every report. CC BY 4.0 is the
+  // default the team chose (plan question 10); the partner box starts unticked
+  // because sharing an exact location is a separate decision (PDPA Art. 7).
+  const [license, setLicense] = useState<ContributorLicense>("cc-by-4.0");
+  const [creditName, setCreditName] = useState("");
+  const [sharePartners, setSharePartners] = useState(false);
+  const asksPartners = PARTNER_SHARING_PAGES.includes(page);
   const [phase, setPhase] = useState<Phase>("editing");
   /**
    * What failed, as a sentence to look up and a place to put it.
@@ -318,6 +329,12 @@ function ReportFormFields({
     taxonUnknown: unsure || undefined,
     notes: notes.trim() || undefined,
     contactEmail: email.trim() || undefined,
+    license,
+    // CC0 asks no credit, and its form hides the field; a name typed before
+    // switching is not sent.
+    creditName: license === "cc-by-4.0" ? creditName.trim() || undefined : undefined,
+    sharePartners: asksPartners ? sharePartners : undefined,
+    consentVersion: CONSENT_VERSION,
   });
 
   /**
@@ -987,6 +1004,74 @@ function ReportFormFields({
           <p className="mt-1 text-sm text-ink-600">{t("emailHelp")}</p>
         </div>
       </section>
+
+      {/* How the record may be used: the contributor terms, per report. */}
+      <fieldset className="space-y-4 rounded-lg border border-ink-900/15 bg-paper-100 px-4 py-4">
+        <legend className="px-1 text-base font-semibold text-forest-900">
+          {t("shareTitle")}
+        </legend>
+        <p className="text-sm leading-relaxed text-ink-700">{t("shareIntro")}</p>
+        <div className="space-y-2" role="radiogroup" aria-label={t("licenceLabel")}>
+          {(
+            [
+              ["cc-by-4.0", "licenceBy", "licenceByHint"],
+              ["cc0-1.0", "licenceZero", "licenceZeroHint"],
+            ] as const
+          ).map(([value, label, hint]) => (
+            <label key={value} className="flex min-h-11 cursor-pointer items-start gap-3">
+              <input
+                type="radio"
+                name="license"
+                value={value}
+                checked={license === value}
+                onChange={() => setLicense(value)}
+                className="mt-1 size-5 accent-leaf-600"
+              />
+              <span>
+                <span className="block text-base text-ink-900">{t(label)}</span>
+                <span className="block text-sm text-ink-600">{t(hint)}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        {license === "cc-by-4.0" && (
+          <div>
+            <label htmlFor="creditName" className="mb-1 block text-base font-semibold text-forest-900">
+              {t("creditLabel")}{" "}
+              <span className="text-sm font-normal text-ink-600">({t("optional")})</span>
+            </label>
+            <input
+              id="creditName"
+              type="text"
+              maxLength={MAX_CREDIT_NAME}
+              value={creditName}
+              onChange={(e) => setCreditName(e.target.value)}
+              autoComplete="nickname"
+              className="min-h-12 w-full rounded-lg border border-ink-900/20 bg-paper-50 px-3 py-2 text-base text-ink-900"
+            />
+            <p className="mt-1 text-sm text-ink-600">{t("creditHint")}</p>
+          </div>
+        )}
+        {asksPartners && (
+          <label className="flex min-h-11 cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              checked={sharePartners}
+              onChange={(e) => setSharePartners(e.target.checked)}
+              className="mt-1 size-5 accent-leaf-600"
+            />
+            <span>
+              <span className="block text-base text-ink-900">{t("sharePartners")}</span>
+              <span className="block text-sm text-ink-600">{t("sharePartnersHint")}</span>
+            </span>
+          </label>
+        )}
+        <p className="text-sm">
+          <Link href="/terms" className="text-leaf-700 underline underline-offset-2 hover:text-forest-900">
+            {t("termsLink")}
+          </Link>
+        </p>
+      </fieldset>
 
       {errorIn("form")}
       {queueFailed && (

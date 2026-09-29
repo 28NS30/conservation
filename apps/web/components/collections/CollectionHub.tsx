@@ -18,6 +18,7 @@ import { SectionTitle } from "@/components/home/StoryRow";
 import InvasiveBadge from "@/components/collections/InvasiveBadge";
 import InvasiveSpeciesList from "@/components/collections/InvasiveSpeciesList";
 import { alternates } from "@/lib/alternates";
+import SpeciesName from "@/components/species/SpeciesName";
 
 /**
  * One page per collection: /roadkill, /invasive and /wildlife.
@@ -325,12 +326,7 @@ export default async function CollectionHub({
           />
           <ol className="mx-auto mt-10 max-w-[900px] divide-y divide-ink-900/10 border-y border-ink-900/10">
             {newest.map((r) => {
-              const species =
-                r.taxonId && r.scientificName
-                  ? zh && r.commonNameZh
-                    ? r.commonNameZh
-                    : r.scientificName
-                  : null;
+              const named = r.taxonId && r.scientificName;
               return (
                 <li key={r.id}>
                   <Link
@@ -341,12 +337,16 @@ export default async function CollectionHub({
                       {day(r.observedAt)}
                     </span>
                     <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                      <span
-                        className={`text-[16px] font-semibold text-ink-950 ${
-                          species && !(zh && r.commonNameZh) ? "italic" : ""
-                        }`}
-                      >
-                        {species ?? td("notYetIdentified")}
+                      <span className="text-[16px] font-semibold text-ink-950">
+                        {named ? (
+                          <SpeciesName
+                            species={{ ...r, scientificName: r.scientificName! }}
+                            locale={locale}
+                            layout="primary"
+                          />
+                        ) : (
+                          td("notYetIdentified")
+                        )}
                       </span>
                       {/* On the invasive page every record is invasive, so the
                           mark would repeat down the list and say nothing;
@@ -423,6 +423,9 @@ export default async function CollectionHub({
               scientificName: s.scientificName,
               commonNameZh: s.commonNameZh,
               altNamesZh: s.altNamesZh,
+              commonNameEn: s.commonNameEn,
+              altNamesEn: s.altNamesEn,
+              taicolId: s.taicolId,
               class: s.class,
               protectedStatus: s.protectedStatus,
               reportCount: s.reportCount,

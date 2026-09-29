@@ -26,6 +26,8 @@ type Row = {
   taxon_source: string | null;
   scientific_name: string | null;
   common_name_zh: string | null;
+  common_name_en: string | null;
+  taicol_id: string | null;
   source: string;
   is_terrestrial: boolean | null;
   is_freshwater: boolean | null;
@@ -51,7 +53,7 @@ export async function GET(
              -- view (0016), so the panel marks it as the list and the record
              -- page do.
              rp.is_invasive,
-             t.scientific_name, t.common_name_zh,
+             t.scientific_name, t.common_name_zh, t.common_name_en, t.taicol_id,
              -- The species card's habitat type, so the panel says what the
              -- animal is and not only when it was seen. Public columns only.
              t.is_terrestrial, t.is_freshwater, t.is_brackish, t.is_marine
@@ -83,6 +85,8 @@ export async function GET(
       taxonSource: row.taxon_source,
       scientificName: row.scientific_name,
       commonNameZh: row.common_name_zh,
+      commonNameEn: row.common_name_en,
+      taicolId: row.taicol_id,
       source: row.source,
       isInvasive: row.is_invasive,
       habitat: {

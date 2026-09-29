@@ -81,6 +81,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "/about",
     "/attribution",
     "/privacy",
+    "/terms",
   ];
   // The season goal only once somebody has filed a report; see seasonOpen().
   if (await seasonOpen()) staticPaths.push("/season");

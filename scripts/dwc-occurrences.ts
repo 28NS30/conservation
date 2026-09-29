@@ -10,13 +10,13 @@
  * TWO THINGS THIS REFUSES TO PUBLISH, both because nobody said we could.
  *
  * A licence nobody granted. The archive is a statement to GBIF, and through it
- * to every downstream user, of the terms each record may be reused under. The
- * report form has never asked a contributor for a licence, so a user record
- * carries none; this used to fill the gap with the dataset's own CC BY 4.0,
- * asserting on the reporter's behalf a grant they never made. A record is
- * exported under the licence it carries or not at all. When the form starts
- * asking (the contributor terms in the plan), those records start appearing
- * here with no change to this file.
+ * to every downstream user, of the terms each record may be reused under. Until
+ * the contributor terms (migration 0017, /terms) the report form never asked a
+ * contributor for a licence, and this used to fill the gap with the dataset's
+ * own CC BY 4.0, asserting on the reporter's behalf a grant they never made. A
+ * record is exported under the licence it carries or not at all: those filed
+ * since the terms carry the one their reporter chose, and those from before
+ * carry none and stay out.
  *
  * The reporter's notes. Free text written into a report form, by someone who
  * was told it was a note to us — it can hold a name, a phone number, a house

@@ -38,6 +38,8 @@ type NamedTaxon = {
   id: number;
   scientificName: string;
   commonNameZh: string | null;
+  commonNameEn: string | null;
+  taicolId: string | null;
   reportCount: number;
 };
 
@@ -54,6 +56,8 @@ async function namedTaxon(id: number): Promise<NamedTaxon | null> {
     (tx) => tx<NamedTaxon[]>`
       select t.id, t.scientific_name as "scientificName",
              t.common_name_zh as "commonNameZh",
+             t.common_name_en as "commonNameEn",
+             t.taicol_id as "taicolId",
              s.report_count as "reportCount"
         from taxa t
         join species_report_stats s on s.taxon_id = t.id
