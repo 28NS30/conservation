@@ -12,7 +12,7 @@ import {
   parseSpeciesId,
   isIndexworthy,
 } from "@/lib/species";
-import StatusBadges from "@/components/species/StatusBadges";
+import SpeciesStatus from "@/components/species/SpeciesStatus";
 import HabitatChips from "@/components/species/HabitatChips";
 import MonthlyChart from "@/components/species/MonthlyChart";
 import SpeciesMap from "@/components/species/SpeciesMap";
@@ -166,7 +166,6 @@ export default async function SpeciesPage({
             {t("alsoKnownAs")}: {s.altNamesZh.join("、")}
           </p>
         )}
-        <StatusBadges {...s} />
         {underReview && (
           <p className="mt-3 rounded-lg border border-ink-900/15 bg-paper-100 px-3 py-2.5 text-sm leading-relaxed text-ink-700">
             {t("nameUnderReview")}
@@ -178,6 +177,10 @@ export default async function SpeciesPage({
         <div className="mt-2.5">
           <HabitatChips species={s} />
         </div>
+        {/* What protects it and how threatened it is, said in sentences. The
+            chips that were here asked a reader to know four schemes first;
+            lists and cards keep them. See SpeciesStatus. */}
+        <SpeciesStatus {...s} />
       </header>
 
       {lineage.length > 0 && (

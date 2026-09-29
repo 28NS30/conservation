@@ -290,6 +290,19 @@ describe("detail page", () => {
   });
 });
 
+/**
+ * The species page's status sentences (components/species/SpeciesStatus.tsx),
+ * as text, or null when there are none. Read from the paragraph itself: every
+ * page inlines the whole message catalogue, so a phrase found anywhere in the
+ * HTML proves nothing was rendered.
+ */
+function statusOf(html) {
+  const m = /<p id="species-status"[^>]*>([^<]*)<\/p>/.exec(html);
+  return m
+    ? m[1].replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&")
+    : null;
+}
+
 describe("thin species pages", () => {
   /*
    * 458 taxa have records; 124,980 do not. Those pages carry a name, a rank and
@@ -307,17 +320,14 @@ describe("thin species pages", () => {
     const [plant] = await sql`
       select id from taxa where protected_status = '1' limit 1`;
     assert.ok(plant, "expected a protected plant fixture");
-    const html = await (
-      await fetch(`${BASE_URL}/en/species/${plant.id}`)
-    ).text();
-    assert.match(html, /Cultural Heritage Preservation Act/);
-    assert.ok(
-      !/Protected\s*(·\s*)?1\b/.test(html),
-      "a plant must never render as wildlife protection level 1",
+    const status = statusOf(
+      await (await fetch(`${BASE_URL}/en/species/${plant.id}`)).text(),
     );
+    assert.match(status ?? "", /Cultural Heritage Preservation Act/);
+    assert.doesNotMatch(status ?? "", /Wildlife Conservation Act/);
   });
 
-  test("a split CITES listing renders one chip per appendix, and never NC", async () => {
+  test("a split CITES listing names each appendix, and never NC", async () => {
     // Ten Taiwan species carry values like I/II or II/NC. A slash is a split
     // listing — different populations in different appendices — not a single
     // code, and the badge used to print the raw string. NC is not an appendix
@@ -327,37 +337,30 @@ describe("thin species pages", () => {
        where cites like '%/%' and is_in_taiwan
        order by id limit 1`;
     assert.ok(split, "expected a split-listed CITES fixture");
-    const html = await (
-      await fetch(`${BASE_URL}/en/species/${split.id}`)
-    ).text();
-    assert.ok(
-      !/CITES\s+[IV]+\//.test(html),
-      "the raw slashed code must not be printed",
+    const status = statusOf(
+      await (await fetch(`${BASE_URL}/en/species/${split.id}`)).text(),
     );
-    // Derived from the row, not hardcoded. The first split-listed species is
-    // II/NC in one dataset and I/II in another, and "Appendix I" is a prefix of
-    // "Appendix II" — so a fixed expectation is wrong in two separate ways.
+    assert.ok(status, "a CITES-listed species has a status sentence");
+    assert.doesNotMatch(status, /[IV]+\//, "the raw slashed code must not be printed");
+    // Derived from the row, not hardcoded, and "Appendix I" is a prefix of
+    // "Appendix II", so each is matched only where no further I follows.
     for (const part of split.cites.split("/")) {
-      const chip = `CITES Appendix ${part}<`;
-      if (["I", "II", "III"].includes(part)) {
-        assert.ok(html.includes(chip), `expected a chip for appendix ${part}`);
-      } else {
-        assert.ok(!html.includes(chip), `${part} is not an appendix`);
-      }
+      const named = new RegExp(`Appendix ${part}(?!I)`).test(status);
+      if (["I", "II", "III"].includes(part))
+        assert.ok(named, `expected appendix ${part} in: ${status}`);
+      else assert.ok(!named, `${part} is not an appendix`);
     }
 
     const [nc] = await sql`
       select id from taxa where cites = 'NC' and is_in_taiwan limit 1`;
     if (nc) {
-      const ncHtml = await (
-        await fetch(`${BASE_URL}/en/species/${nc.id}`)
-      ).text();
-      // Not /CITES/ alone: every page inlines the whole message catalogue, so
-      // the word appears whether or not a chip was rendered. "CITES Appendix"
-      // is contiguous only once a chip has been built from the template.
-      assert.ok(
-        !/CITES Appendix/.test(ncHtml),
-        "a taxon in no appendix must carry no CITES chip",
+      const ncStatus = statusOf(
+        await (await fetch(`${BASE_URL}/en/species/${nc.id}`)).text(),
+      );
+      assert.doesNotMatch(
+        ncStatus ?? "",
+        /CITES/,
+        "a taxon in no appendix must not be said to be in one",
       );
     }
   });
@@ -366,11 +369,24 @@ describe("thin species pages", () => {
     const [row] = await sql`
       select id from taxa where iucn = 'VU' and is_in_taiwan limit 1`;
     assert.ok(row, "expected an IUCN VU fixture");
-    const en = await (await fetch(`${BASE_URL}/en/species/${row.id}`)).text();
-    assert.match(en, /IUCN Vulnerable/);
-    const zh = await (await fetch(`${BASE_URL}/species/${row.id}`)).text();
+    const en = statusOf(await (await fetch(`${BASE_URL}/en/species/${row.id}`)).text());
+    assert.match(en ?? "", /IUCN Red List rates it Vulnerable\./);
+    const zh = statusOf(await (await fetch(`${BASE_URL}/species/${row.id}`)).text());
     // Taiwan writes 易危; 近危/無危 are mainland renderings and must not appear.
-    assert.match(zh, /IUCN 易危/);
+    assert.match(zh ?? "", /IUCN 紅皮書將它評為「易危」/);
+  });
+
+  test("a species with no status says nothing about status", async () => {
+    const [plain] = await sql`
+      select id from taxa
+       where is_in_taiwan and protected_status is null and cites is null
+         and (iucn is null or iucn in ('NE', 'NA'))
+         and (redlist is null or redlist in ('NE', 'NA'))
+         and not coalesce(is_endemic, false) and not coalesce(is_invasive, false)
+         and coalesce(alien_type, 'native') = 'native'
+       limit 1`;
+    const html = await (await fetch(`${BASE_URL}/en/species/${plain.id}`)).text();
+    assert.equal(statusOf(html), null);
   });
 
   test("a page with nothing distinguishing is noindex", async () => {

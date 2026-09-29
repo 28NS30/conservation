@@ -396,7 +396,19 @@
     "cardRecordCount": "{count, plural, =0 {尚無紀錄} other {# 筆}}",
     "cardPeak": "最常出現在{month}",
     "seeAllRecords": "查看這個物種的所有紀錄",
-    "noRecordsYet": "這裡還沒有人通報過這個物種。"
+    "noRecordsYet": "這裡還沒有人通報過這個物種。",
+    "status": {
+      "endemic": "它只生活在臺灣，是臺灣特有種。",
+      "endemicSubspecies": "這個亞種只生活在臺灣；同一物種在其他地方也有分布。",
+      "invasive": "它不是臺灣的原生物種，在臺灣是入侵種。",
+      "alien": "它不是臺灣的原生物種。",
+      "introducedMainIsland": "它原生於金門、馬祖；臺灣本島的族群是引進的。",
+      "protected": "受《野生動物保育法》保護，列為「{name}」。",
+      "protectedPlant": "受《文化資產保存法》保護，列為珍貴稀有植物。",
+      "redlist": "臺灣紅皮書名錄將它評為「{name}」。",
+      "iucn": "在全球，IUCN 紅皮書將它評為「{name}」。",
+      "cites": "國際貿易受 CITES 公約{list}管制。"
+    }
   },
   "offline": {
     "queuedTitle": "存在手機裡了，還沒送出",
