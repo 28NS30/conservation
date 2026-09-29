@@ -58,7 +58,7 @@ export default function Turnstile({
   /** Called with a token when solved, and with null when it expires or errors. */
   onToken: (token: string | null) => void;
   locale?: string;
-  /** The form sits on a dark panel; the offline queue banner does not. */
+  /** Both callers now sit on the light page; `dark` is kept for any other. */
   theme?: "light" | "dark" | "auto";
   /**
    * Hands back a `reset`, which discards the solved token and mints another.
@@ -122,8 +122,11 @@ export default function Turnstile({
         render();
       } else if ((waited += 100) > 10_000) {
         window.clearInterval(poll);
-        console.error(
-          "[turnstile] API did not load; submission will be blocked",
+        // Sending waits for a token; saving on the phone does not (see
+        // lib/report/sendState.ts), so this is a warning about one path, not
+        // the end of the report.
+        console.warn(
+          "[turnstile] API did not load; sending waits, saving on this phone still works",
         );
       }
     }, 100);
@@ -133,6 +136,12 @@ export default function Turnstile({
       el.src = SCRIPT;
       el.async = true;
       el.defer = true;
+      // A tag whose load failed — the page was opened with no signal — stays
+      // in the document, and the check above would then never add another:
+      // the widget could not appear again until a reload, however long the
+      // signal had been back. Removing it lets the next mount try again, which
+      // the report form does when the connection returns.
+      el.onerror = () => el.remove();
       document.head.appendChild(el);
     }
 

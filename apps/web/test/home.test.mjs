@@ -30,10 +30,17 @@ describe("the front page", () => {
     // Both phrases of the headline, each bound so it never breaks inside itself.
     assert.match(html, /為臺灣的野生動物/);
     assert.match(html, /留下紀錄/);
-    // Every report type, each carrying its own category: nothing is chosen for
-    // the reporter. (The header menu offers the same three again.)
-    for (const c of ["roadkill", "invasive", "sighting"])
-      assert.match(html, new RegExp(`href="/report\\?category=${c}"`), `no way to report ${c}`);
+    // Every report type, each to its own page: nothing is chosen for the
+    // reporter. (The header menu offers the same three again.) Twice each —
+    // once in the header's menu and once in the page's own row — and never
+    // through the old `?category=` links, which only redirect now.
+    for (const kind of ["roadkill", "invasive", "wildlife"])
+      assert.equal(
+        html.match(new RegExp(`href="/report/${kind}"`, "g"))?.length,
+        2,
+        `the header and the page should each offer /report/${kind}`,
+      );
+    assert.doesNotMatch(html, /href="\/report\?category=/);
     // The first photograph is the largest thing above the fold, so Next marks
     // it for preload rather than letting it wait for layout.
     assert.match(

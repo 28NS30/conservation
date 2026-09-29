@@ -1,6 +1,5 @@
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
-import { REPORT_GROUPS } from "@conservation/shared";
 import Wordmark from "@/components/brand/Wordmark";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import NavLink from "@/components/site/NavLink";
@@ -59,13 +58,13 @@ export default async function SiteHeader({
     ...(signedIn ? ([{ href: "/me", label: t("nav.mine") }] as const) : []),
   ] as const;
 
-  // The three report types, each with its own category, so nothing is chosen
-  // for the reporter. Labels and hints are the form's and the home page's own
+  // The three report types, each to its own page, so nothing is chosen for the
+  // reporter. Labels and hints are the form's and the home page's own
   // strings, so the three places cannot describe the choices differently.
   // In the team's order, which is also the home page's: roadkill, invasive,
-  // wildlife. (REPORT_GROUP_KEYS is the form's order, not this one.)
+  // wildlife. (REPORT_GROUP_KEYS is the map's order, not this one.)
   const choices = (["roadkill", "invasive", "sighting"] as const).map((g) => ({
-    href: `/report?category=${REPORT_GROUPS[g].categories[0]}`,
+    href: `/report/${g === "sighting" ? "wildlife" : g}`,
     label: t(`report.group.${g}`),
     hint: t(`home.door${g[0].toUpperCase()}${g.slice(1)}`),
   }));
