@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { serviceSupabase, PHOTO_BUCKET } from "@/lib/supabase/service";
-import { withinRateLimit } from "@/lib/abuse";
+import { withinRateLimit, SIGN_LIMITS } from "@/lib/abuse";
 import {
   ACCEPTED_IMAGE_TYPES,
   MAX_PHOTOS,
   imageExtension,
   isAcceptedImageType,
 } from "@conservation/shared";
-import { clientIp } from "@/lib/request";
+import { addressKey, clientIp } from "@/lib/request";
 
 /**
  * Mint short-lived signed upload URLs.
@@ -34,7 +34,12 @@ export async function POST(req: Request) {
 
   // Signing is itself an abusable endpoint — an unlimited supply of upload URLs
   // is a way to fill the bucket without ever submitting a report.
-  if (!(await withinRateLimit(`sign:${ip}`, 300, 40))) {
+  const who = addressKey(ip);
+  const [burstOk, dailyOk] = await Promise.all([
+    withinRateLimit(`sign-burst:${who}`, SIGN_LIMITS.burst.windowSeconds, SIGN_LIMITS.burst.budget),
+    withinRateLimit(`sign-daily:${who}`, SIGN_LIMITS.daily.windowSeconds, SIGN_LIMITS.daily.budget),
+  ]);
+  if (!burstOk || !dailyOk) {
     return Response.json({ error: "rate_limited" }, { status: 429 });
   }
 

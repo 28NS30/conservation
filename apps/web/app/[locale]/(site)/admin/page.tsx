@@ -41,6 +41,9 @@ type Pending = {
   is_test: boolean;
 };
 
+/** How many held reports the queue shows at once; the header counts them all. */
+const QUEUE_PAGE = 100;
+
 /** A test's status, in words that do not say "public" of a test. */
 const TEST_STATUSES = ["published", "pending", "rejected"];
 
@@ -112,6 +115,12 @@ export default async function AdminPage({
     );
   }
 
+  // The oldest first, and the whole count in the header. Newest-first with a
+  // cap of 100 meant a burst of new reports hid everything behind it, and the
+  // header counted only what was shown, so the queue looked cleared when it
+  // was not (security audit, 29 September 2026).
+  const [{ pending }] = await sql<{ pending: number }[]>`
+    select count(*)::int as pending from reports where status = 'pending'`;
   const rows = await sql<Pending[]>`
     select r.id, r.category, r.observed_at, r.notes, r.flagged_reason, r.location_precision, r.is_test,
            st_y(r.location::geometry) as lat,
@@ -122,8 +131,8 @@ export default async function AdminPage({
       from reports r
       left join taxa t on t.id = r.taxon_id
      where r.status = 'pending'
-     order by r.created_at desc
-     limit 100`;
+     order by r.created_at, r.id
+     limit ${QUEUE_PAGE}`;
 
   // Why each was held, in the page's language (lib/report/flagReasons.ts);
   // a reason this build does not know is shown as stored rather than hidden.
@@ -178,7 +187,10 @@ export default async function AdminPage({
       </details>
 
       <p className="mb-4 text-sm text-ink-700">
-        {t("pendingCount", { count: withUrls.length })}
+        {t("pendingCount", { count: pending })}
+        {pending > withUrls.length && (
+          <> {t("oldestShown", { shown: withUrls.length })}</>
+        )}
       </p>
 
       {withUrls.length === 0 ? (

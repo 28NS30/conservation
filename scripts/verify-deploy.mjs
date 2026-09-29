@@ -96,7 +96,10 @@ for (const [path, want] of ROUTES) {
  * /api/health is the only thing that proves the credentials work. */
 
 try {
-  const res = await get("/api/health");
+  // The names of any missing rules come back only with the cron secret.
+  const res = await get("/api/health", process.env.CRON_SECRET
+    ? { headers: { authorization: `Bearer ${process.env.CRON_SECRET}` } }
+    : {});
   const body = await res.json();
   check(
     "database reachable (/api/health)",

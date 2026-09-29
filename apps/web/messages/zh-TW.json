@@ -260,6 +260,7 @@
     "heading": "審核佇列",
     "moderatorsOnly": "此頁面僅限審核人員。",
     "pendingCount": "{count, number} 筆待審核",
+    "oldestShown": "以下是最早的 {shown, number} 筆，每審完一筆就會補上下一筆。",
     "empty": "目前沒有待審核的通報。",
     "view": "檢視",
     "publish": "發布",

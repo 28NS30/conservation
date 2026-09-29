@@ -3,8 +3,14 @@ import { sql } from "@/lib/db";
 import { classifyQueued } from "@/lib/report/classifyWorker";
 import { serverSupabase } from "@/lib/supabase/server";
 import { statUploadedPhoto } from "@/lib/supabase/service";
-import { verifyTurnstile, withinRateLimit, screenSubmission, SUBMIT_LIMITS } from "@/lib/abuse";
-import { clientIp } from "@/lib/request";
+import {
+  verifyTurnstile,
+  withinRateLimit,
+  screenSubmission,
+  SIGNED_IN_ADDRESS_FACTOR,
+  SUBMIT_LIMITS,
+} from "@/lib/abuse";
+import { addressKey, clientIp } from "@/lib/request";
 import { OFFERED, inPageScope } from "@/lib/species";
 import {
   reportSubmissionSchema,
@@ -100,11 +106,25 @@ export async function POST(req: Request) {
       return Response.json({ error: "test_not_allowed" }, { status: 403 });
   }
 
-  const subject = reporterId ? `user:${reporterId}` : `ip:${ip}`;
-  const [burstOk, dailyOk] = await Promise.all([
-    withinRateLimit(`submit-burst:${subject}`, SUBMIT_LIMITS.burst.windowSeconds, SUBMIT_LIMITS.burst.budget),
-    withinRateLimit(`submit-daily:${subject}`, SUBMIT_LIMITS.daily.windowSeconds, SUBMIT_LIMITS.daily.budget),
-  ]);
+  // Every sender is counted by address; a signed-in one by their account as
+  // well, and their address is given more room, since a school or a phone
+  // network puts many people behind one. Counted by account alone, as before,
+  // one address with N throwaway accounts had N budgets.
+  const address = `ip:${addressKey(ip)}`;
+  const factor = reporterId ? SIGNED_IN_ADDRESS_FACTOR : 1;
+  const checks = [
+    withinRateLimit(`submit-burst:${address}`, SUBMIT_LIMITS.burst.windowSeconds, SUBMIT_LIMITS.burst.budget * factor),
+    withinRateLimit(`submit-daily:${address}`, SUBMIT_LIMITS.daily.windowSeconds, SUBMIT_LIMITS.daily.budget * factor),
+  ];
+  if (reporterId)
+    checks.push(
+      withinRateLimit(`submit-burst:user:${reporterId}`, SUBMIT_LIMITS.burst.windowSeconds, SUBMIT_LIMITS.burst.budget),
+      withinRateLimit(`submit-daily:user:${reporterId}`, SUBMIT_LIMITS.daily.windowSeconds, SUBMIT_LIMITS.daily.budget),
+    );
+  const [burstOk, dailyOk, ...perAccount] = await Promise.all(checks);
+  if (perAccount.some((ok) => !ok)) {
+    return Response.json({ error: "rate_limited" }, { status: 429 });
+  }
   if (!burstOk || !dailyOk) {
     return Response.json({ error: "rate_limited" }, { status: 429 });
   }
@@ -123,6 +143,20 @@ export async function POST(req: Request) {
       return Response.json({ error: "photo_bad_type", path }, { status: 400 });
     }
     photos.push({ path, ...stat });
+  }
+  // One report per photograph. A path is only a name, and nothing tied one to
+  // the sign call that issued it, so another report's photo could be named
+  // here and attached again (migration 0027 makes it a constraint too). A
+  // retry of the same report is answered further down, by its nonce, before
+  // anything is inserted.
+  if (photos.length) {
+    const [taken] = await sql<{ path: string }[]>`
+      select p.storage_path as path
+        from report_photos p join reports r on r.id = p.report_id
+       where p.storage_path = any(${photos.map((p) => p.path)})
+         and r.client_nonce is distinct from ${input.clientNonce}
+       limit 1`;
+    if (taken) return Response.json({ error: "photo_in_use", path: taken.path }, { status: 400 });
   }
 
   const flaggedReason = screenSubmission({

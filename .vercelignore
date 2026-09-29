@@ -27,3 +27,13 @@ apps/web/e2e/shots/
 
 # The Vercel CLI's own link directory, which can contain pulled env files.
 .vercel/
+
+# Environment files. A CLI deploy uploads the working directory, and the
+# Vercel CLI leaves out only .env.local and .env.*.local by itself: the local
+# .env holds the model service's token and the cron secret, and
+# apps/web/.env links to it. The same list as .gitignore
+# (apps/web/test/secrets.test.mjs holds the two together).
+.env*
+**/.env*
+!.env.example
+!**/.env.example

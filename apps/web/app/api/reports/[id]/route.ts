@@ -41,7 +41,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  if (!/^[0-9a-f-]{36}$/i.test(id))
+  // A real UUID's shape: 36 dashes passed the old pattern and 500'd on ::uuid.
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
     return Response.json({ error: "bad_id" }, { status: 400 });
 
   const [row] = await asPublic(

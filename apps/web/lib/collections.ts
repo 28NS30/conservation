@@ -65,8 +65,8 @@ export async function collectionSummary(
              count(*) filter (where rp.source <> 'gbif')::int       as filed,
              count(*) filter (where rp.category = any(${alive}))::int as alive,
              count(*) filter (where rp.category = any(${dead}))::int  as dead,
-             extract(year from min(rp.observed_at))::int            as "firstYear",
-             extract(year from max(rp.observed_at))::int            as "lastYear",
+             extract(year from min(rp.observed_at) at time zone 'Asia/Taipei')::int            as "firstYear",
+             extract(year from max(rp.observed_at) at time zone 'Asia/Taipei')::int            as "lastYear",
              max(rp.observed_at)                                    as newest
         from reports_public rp
        where ${where(tx, c)}`,

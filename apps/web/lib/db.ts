@@ -67,6 +67,11 @@ export async function asPublic<T>(
 ): Promise<T> {
   return sql.begin(async (tx) => {
     await tx`set local role web_anon`;
+    // No public read may hold a pooled connection for long. Neither role had a
+    // timeout, and a long search term made one directory request cost 2-4 s
+    // of database time (security audit, 29 September 2026). The slowest real
+    // public read, the country-wide map tile, takes tens of milliseconds.
+    await tx`set local statement_timeout = '8s'`;
     return fn(tx);
   }) as Promise<T>;
 }

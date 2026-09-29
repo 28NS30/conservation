@@ -154,6 +154,12 @@ export const REQUIRED_SCHEMA: SchemaCheck[] = [
                             and definition like '%suggestions_within_blur%') as ok`,
   },
   {
+    name: "0027 a photograph belongs to one report",
+    sql: `select exists (select 1 from pg_indexes
+                          where tablename = 'report_photos'
+                            and indexname = 'report_photos_storage_path_key') as ok`,
+  },
+  {
     // A rule check again: 0021 replaces 0014's taxon_precision(), so re-running
     // 0014 alone would quietly drop the Red List term while every object still
     // exists. The function body is what says which rule is live.

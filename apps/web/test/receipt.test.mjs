@@ -241,10 +241,14 @@ describe("nothing moves a row back into `pending`", () => {
     const [, classify] = SQL_WRITES[0];
     // The give-up path specifically, not the three earlier writes that record a
     // successful classification.
-    const stmt = (classify.match(/update\s+reports\b[\s\S]*?classification unavailable[\s\S]*?`/i) ?? [""])[0];
-    assert.ok(stmt, "the give-up update should still exist");
-    assert.match(stmt, /precision_override/, "it must still blur");
-    assert.match(stmt, /flagged_reason/, "it must still flag for a human");
-    assert.match(stmt, /and\s+status\s*=\s*'pending'/i, "and must not touch a published row");
+    // Both of them: the worker's own, and the sweep that retires a job which
+    // died during its last attempt.
+    const stmts = [...classify.matchAll(/update\s+reports\b[\s\S]*?classification unavailable[\s\S]*?`/gi)].map((m) => m[0]);
+    assert.ok(stmts.length >= 2, "the give-up update and the sweep should both still exist");
+    for (const stmt of stmts) {
+      assert.match(stmt, /precision_override/, "it must still blur");
+      assert.match(stmt, /flagged_reason/, "it must still flag for a human");
+      assert.match(stmt, /and\s+(?:\w+\.)?status\s*=\s*'pending'/i, "and must not touch a published row");
+    }
   });
 });

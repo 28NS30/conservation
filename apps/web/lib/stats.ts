@@ -66,8 +66,8 @@ export async function overview(): Promise<Overview> {
       select count(*)::int                                         as reports,
              count(*) filter (where is_obscured)::int              as obscured,
              count(*) filter (where taxon_id is not null)::int     as identified,
-             extract(year from min(observed_at))::int              as "firstYear",
-             extract(year from max(observed_at))::int              as "lastYear"
+             extract(year from min(observed_at) at time zone 'Asia/Taipei')::int              as "firstYear",
+             extract(year from max(observed_at) at time zone 'Asia/Taipei')::int              as "lastYear"
         from reports_public`,
   );
   return row;
@@ -77,7 +77,7 @@ export async function overview(): Promise<Overview> {
 export async function monthlyTotals(): Promise<number[]> {
   const rows = await asPublic(
     (tx) => tx<{ m: number; n: number }[]>`
-      select extract(month from observed_at)::int as m, count(*)::int as n
+      select extract(month from observed_at at time zone 'Asia/Taipei')::int as m, count(*)::int as n
         from reports_public group by 1 order by 1`,
   );
   const out = Array<number>(12).fill(0);
@@ -88,7 +88,7 @@ export async function monthlyTotals(): Promise<number[]> {
 export async function yearlyTotals(): Promise<{ year: number; n: number }[]> {
   return asPublic(
     (tx) => tx<{ year: number; n: number }[]>`
-      select extract(year from observed_at)::int as year, count(*)::int as n
+      select extract(year from observed_at at time zone 'Asia/Taipei')::int as year, count(*)::int as n
         from reports_public group by 1 order by 1`,
   );
 }
@@ -199,7 +199,7 @@ export async function anniversaryLedger(limit = 12): Promise<LedgerRow[]> {
                t.common_name_zh as "commonNameZh",
                t.scientific_name as "scientificName",
                row_number() over (
-                 partition by r.observed_at::date
+                 partition by (r.observed_at at time zone 'Asia/Taipei')::date
                  order by (t.common_name_zh is null), (t.is_in_taiwan is not true), r.id
                ) as rn
           from reports_public r
@@ -212,7 +212,7 @@ export async function anniversaryLedger(limit = 12): Promise<LedgerRow[]> {
            -- shifts every day number after 28 February by one, so the window
            -- was off by a day for ten months of it. Month-and-day strings have
            -- neither problem.
-           and to_char(r.observed_at, 'MM-DD') in (
+           and to_char(r.observed_at at time zone 'Asia/Taipei', 'MM-DD') in (
                  select to_char(d, 'MM-DD')
                    from generate_series(
                           (now() at time zone 'Asia/Taipei')::date - 3,

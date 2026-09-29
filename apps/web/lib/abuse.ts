@@ -72,6 +72,24 @@ export async function withinRateLimit(
   return row.ok;
 }
 
+/**
+ * Photo upload URLs, per address. One report is one signing call for up to four
+ * photos, so these sit just above SUBMIT_LIMITS: a sender cannot sign far more
+ * uploads than they could ever attach. They were 40 calls per 5 minutes, which
+ * let one address fill the bucket with about 460 GB a day that no report used.
+ */
+export const SIGN_LIMITS = {
+  burst: { windowSeconds: 120, budget: 8 },
+  daily: { windowSeconds: 86_400, budget: 150 },
+} as const;
+
+/**
+ * How much more a signed-in sender's address may send than one person: a
+ * school or a phone network puts many people behind one address, and each of
+ * them also has their own per-account budget.
+ */
+export const SIGNED_IN_ADDRESS_FACTOR = 5;
+
 export const SUBMIT_LIMITS = {
   /** Bursts: a handful of reports in a couple of minutes is normal fieldwork. */
   burst: { windowSeconds: 120, budget: 6 },
