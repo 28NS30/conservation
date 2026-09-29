@@ -281,7 +281,7 @@ export default async function ReportPage({
     <main className="mx-auto w-full max-w-xl px-6 pb-24 pt-12">
       <Link
         href="/map"
-        className="text-xs text-ink-500 hover:text-ink-700"
+        className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-leaf-700 underline underline-offset-2 hover:text-forest-900"
       >
         {t("nav.backToMap")}
       </Link>
@@ -365,10 +365,10 @@ export default async function ReportPage({
           {card ? (
             <>
               <SpeciesCard species={card} peakMonth={peakMonth} />
-              <p className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-ink-500">
+              <p className="mt-1.5 flex flex-wrap items-center gap-x-3 text-sm text-ink-700">
                 <Link
                   href={`/species/${speciesSlug(card)}`}
-                  className="underline decoration-ink-900/20 underline-offset-2 hover:text-ink-700"
+                  className="inline-flex min-h-11 items-center font-medium text-leaf-700 underline underline-offset-2 hover:text-forest-900"
                 >
                   {t("species.seeAllRecords")}
                 </Link>
@@ -424,7 +424,7 @@ export default async function ReportPage({
             />
           )}
           {row.is_obscured && (
-            <p className="mt-1 rounded-lg border border-amber-700/30 bg-amber-600/10 px-2.5 py-1.5 text-[11px] leading-relaxed text-amber-800">
+            <p className="mt-2 rounded-lg border border-amber-700/30 bg-amber-600/10 px-3 py-2.5 text-sm leading-relaxed text-amber-900">
               {/* Why it is blurred, not merely that it is. A record with no
                   taxon is blurred because nobody knows what it is, which is a
                   different sentence from "this species is protected" — and
@@ -453,7 +453,7 @@ export default async function ReportPage({
             acronym most readers have never met. The sentence says what GBIF
             is, and whose data this is; /attribution has the rest. */}
         {row.source === "gbif" && (
-          <p className="text-[11px] leading-relaxed text-ink-500">
+          <p className="text-sm leading-relaxed text-ink-700">
             {t("detail.source")}:{" "}
             {row.rights_holder
               ? t("detail.sourceGbif", { holder: row.rights_holder })
