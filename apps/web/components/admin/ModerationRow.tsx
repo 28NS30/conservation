@@ -25,7 +25,10 @@ export default function ModerationRow(props: {
   const locale = useLocale();
   const [pending, startTransition] = useTransition();
   const [done, setDone] = useState<"published" | "rejected" | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // Whether the last action failed, not why: a production build replaces a
+  // server action's message with a generic English one, which is what the
+  // queue used to show. The real message goes to the console.
+  const [failed, setFailed] = useState(false);
 
   if (done) {
     return (
@@ -38,12 +41,13 @@ export default function ModerationRow(props: {
 
   const act = (fn: () => Promise<void>, next: "published" | "rejected") =>
     startTransition(async () => {
-      setError(null);
+      setFailed(false);
       try {
         await fn();
         setDone(next);
       } catch (e) {
-        setError((e as Error).message);
+        console.error("[moderation]", (e as Error).message);
+        setFailed(true);
       }
     });
 
@@ -108,7 +112,11 @@ export default function ModerationRow(props: {
         </div>
       )}
 
-      {error && <p role="alert" className="mt-2 text-sm text-rose-800">{error}</p>}
+      {failed && (
+        <p role="alert" className="mt-2 text-sm text-rose-800">
+          {t("actionFailed")}
+        </p>
+      )}
 
       <div className="mt-3 flex gap-2">
         <button

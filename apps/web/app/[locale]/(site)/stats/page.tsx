@@ -57,7 +57,7 @@ function Section({
     >
       <h2 className="text-sm font-semibold text-ink-800">{title}</h2>
       {hint && (
-        <p className="mt-1 text-[11px] leading-relaxed text-ink-500">{hint}</p>
+        <p className="mt-1 text-sm leading-relaxed text-ink-700">{hint}</p>
       )}
       <div className="mt-4">{children}</div>
     </section>
@@ -143,7 +143,7 @@ export default async function StatsPage({
             key={s.k}
             className="rounded-lg border border-ink-900/10 bg-paper-100 px-4 py-3.5"
           >
-            <dt className="text-[11px] text-ink-500">{t(`metric.${s.k}`)}</dt>
+            <dt className="text-sm text-ink-700">{t(`metric.${s.k}`)}</dt>
             <dd className="mt-0.5 text-xl font-semibold tabular-nums text-ink-800">
               {s.v}
             </dd>
@@ -230,7 +230,7 @@ export default async function StatsPage({
               n: v,
             }))}
           />
-          <p className="mt-2 text-[11px] text-ink-500">
+          <p className="mt-2 text-sm text-ink-700">
             {t("peakMonth", {
               month: new Intl.DateTimeFormat(locale, { month: "long" }).format(
                 new Date(Date.UTC(2021, peak, 1)),
@@ -263,7 +263,7 @@ export default async function StatsPage({
                     href={`/species/${speciesSlug(s)}`}
                     className="flex items-center gap-3 rounded-lg px-2 py-1.5 transition hover:bg-ink-900/5"
                   >
-                    <span className="w-5 shrink-0 text-right text-[11px] tabular-nums text-ink-500">
+                    <span className="w-6 shrink-0 text-right text-sm tabular-nums text-ink-600">
                       {i + 1}
                     </span>
                     <span className="min-w-0 flex-1">
@@ -283,7 +283,7 @@ export default async function StatsPage({
                         )}
                       </span>
                       {rest.length > 0 && (
-                        <span className="block truncate text-xs text-ink-600">
+                        <span className="block truncate text-sm text-ink-700">
                           {rest.map((p, j) => (
                             <span key={p.lang}>
                               {j > 0 && " · "}
@@ -297,7 +297,7 @@ export default async function StatsPage({
                       <span className="block text-sm tabular-nums text-ink-700">
                         {n(s.reportCount)}
                       </span>
-                      <span className="block text-xs tabular-nums text-ink-600">
+                      <span className="block text-sm tabular-nums text-ink-700">
                         {share.toFixed(1)}%
                       </span>
                     </span>
@@ -326,7 +326,7 @@ export default async function StatsPage({
                   }}
                   className="flex items-center gap-3 rounded-lg px-2 py-1.5 transition hover:bg-ink-900/5"
                 >
-                  <span className="w-5 shrink-0 text-right text-[11px] tabular-nums text-ink-500">
+                  <span className="w-6 shrink-0 text-right text-sm tabular-nums text-ink-600">
                     {i + 1}
                   </span>
                   <span className="min-w-0 flex-1">
@@ -346,7 +346,7 @@ export default async function StatsPage({
                           })
                         : t("mixedSpecies")}
                     </span>
-                    <span className="block text-[11px] tabular-nums text-ink-500">
+                    <span className="block text-sm tabular-nums text-ink-600">
                       {h.lat.toFixed(3)}°N, {h.lng.toFixed(3)}°E
                     </span>
                   </span>
@@ -354,7 +354,7 @@ export default async function StatsPage({
                       stray glyph floating under the count. The number sits
                       inside the plural message, so a cell of one reads
                       "1 record" rather than "1 records". */}
-                  <span className="shrink-0 whitespace-nowrap text-[10px] tabular-nums text-ink-500">
+                  <span className="shrink-0 whitespace-nowrap text-sm tabular-nums text-ink-700">
                     {ts.rich("recordTally", {
                       count: h.n,
                       n: (c) => <span className="text-sm text-ink-700">{c}</span>,
@@ -367,7 +367,7 @@ export default async function StatsPage({
         </Section>
 
         <Section title={t("coverage")} span>
-          <p className="text-xs leading-relaxed text-ink-500">
+          <p className="text-sm leading-relaxed text-ink-700">
             {/* Numbers, not n(): both are plurals in English, and a plural
                 of a formatted string is NaN. */}
             {t("coverageBody", {
@@ -380,7 +380,7 @@ export default async function StatsPage({
               a reader expects of that page, not of "why are these blurred". */}
           <Link
             href="/about#blurred"
-            className="mt-2 inline-block text-xs text-ember-700 transition hover:underline"
+            className="mt-1 inline-flex min-h-11 items-center text-sm font-medium text-leaf-700 underline underline-offset-2 hover:text-forest-900"
           >
             {t("howObscuringWorks")} →
           </Link>
