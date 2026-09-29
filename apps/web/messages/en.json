@@ -258,7 +258,7 @@
     "rejected": "Rejected",
     "signInPrompt": "Sign in",
     "published": "Published",
-    "rejectReason": "Reason for rejection?",
+    "rejectReason": "Why is it being rejected?",
     "signInRequired": "Please sign in.",
     "testChip": "Test",
     "test": {
@@ -291,7 +291,9 @@
       "includesInvasive": "The model suggests {name}, which is or includes an invasive form. A person must confirm.",
       "stricterSibling": "The model is sure it is {name}, but also lists {other}, whose location is protected more strictly. A person must confirm."
     },
-    "actionFailed": "That did not save. Try again."
+    "actionFailed": "That did not save. Try again.",
+    "confirmReject": "Reject it",
+    "cancel": "Cancel"
   },
   "login": {
     "title": "Sign in",

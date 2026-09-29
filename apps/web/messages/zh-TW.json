@@ -258,7 +258,7 @@
     "rejected": "已退回",
     "signInPrompt": "登入",
     "published": "已發布",
-    "rejectReason": "退回原因？",
+    "rejectReason": "為什麼退回？",
     "signInRequired": "請先登入。",
     "testChip": "測試",
     "test": {
@@ -291,7 +291,9 @@
       "includesInvasive": "辨識模型認為是「{name}」，其中包含入侵的族群，需要人工確認。",
       "stricterSibling": "辨識模型很確定是「{name}」，但也列出了位置保護更嚴格的「{other}」，需要人工確認。"
     },
-    "actionFailed": "沒有儲存成功，請再試一次。"
+    "actionFailed": "沒有儲存成功，請再試一次。",
+    "confirmReject": "確定退回",
+    "cancel": "取消"
   },
   "login": {
     "title": "登入",

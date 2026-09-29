@@ -220,6 +220,12 @@ jobs:
         # stays. The account is made on the Supabase Auth stand-in above.
         run: node apps/web/e2e/account.spec.mjs
 
+      - name: Moderating from a phone
+        # A throwaway moderator publishes one held report and rejects another
+        # with a reason written on the page; the database and the log are
+        # checked, not only the screen.
+        run: node apps/web/e2e/moderation.spec.mjs
+
       # ---- Discussion forum ------------------------------------------------
       # The forum ships dark: it answers only on a server started with
       # FORUM_ENABLED=1 (apps/web/lib/forum/gate.ts). The server above runs
