@@ -314,8 +314,9 @@ async function checkState(browser) {
     await page.waitForTimeout(2500);
     const chosen = () =>
       page.evaluate(() =>
-        [...document.querySelectorAll("nav a")]
-          .filter((a) => a.className.includes("bg-ink-900"))
+        // The chip marked current, not the one in a particular colour: the
+        // colour is the design's to change.
+        [...document.querySelectorAll('nav a[aria-current="true"]')]
           .map((a) => a.textContent.trim()),
       );
     for (const [what, text] of [

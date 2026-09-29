@@ -132,6 +132,8 @@ export default async function SpeciesDirectory({
               <Link
                 key={f}
                 href={href}
+                // Which filter is on, said to a screen reader as well as drawn.
+                aria-current={on ? "true" : undefined}
                 // 44px, like every other control a thumb has to hit: these were
                 // 30px pills in 12px type, the smallest targets on the page.
                 className={`inline-flex min-h-11 items-center rounded-full border px-4 text-sm transition ${
