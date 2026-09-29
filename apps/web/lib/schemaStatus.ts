@@ -1,5 +1,6 @@
 import "server-only";
 import { sql } from "@/lib/db";
+import { forumEnabled, type ForumEnv } from "@/lib/forum/gate";
 
 /**
  * Whether the database has what the deployed code writes.
@@ -123,6 +124,47 @@ export const REQUIRED_SCHEMA: SchemaCheck[] = [
 ];
 
 /**
+ * What the forum needs, asked only while the forum is switched on.
+ *
+ * The forum ships dark (lib/forum/gate.ts) and, switched off, runs no query
+ * against these tables at all — so a database without 0019 is, for that
+ * deployment, a database this code is fine with, and saying otherwise would
+ * put a false alarm on /api/health until the owner applied a migration for a
+ * feature nobody can reach. Switched on, a missing 0019 makes every forum page
+ * a 500, which is exactly what this list exists to say first.
+ *
+ * Asks for the append-only trigger as well as the tables: the audit log is
+ * only an audit log if it cannot be edited.
+ */
+export const FORUM_SCHEMA: SchemaCheck[] = [
+  {
+    name: "0019 the forum's tables and public views",
+    sql: `select (select count(*) from information_schema.tables
+                   where table_schema = 'public'
+                     and table_name in ('forum_categories', 'forum_profiles', 'forum_threads',
+                                        'forum_posts', 'forum_post_meta', 'forum_post_revisions',
+                                        'forum_flags', 'forum_sanctions', 'forum_watched_words',
+                                        'forum_mod_actions', 'forum_categories_public',
+                                        'forum_threads_public', 'forum_posts_public',
+                                        'forum_profiles_public')) = 14 as ok`,
+  },
+  {
+    name: "0019 the moderation log is append-only",
+    sql: `select exists (
+            select 1 from pg_trigger t
+              join pg_class c on c.oid = t.tgrelid
+             where c.relname = 'forum_mod_actions'
+               and t.tgname = 'forum_mod_actions_no_update'
+               and not t.tgisinternal) as ok`,
+  },
+];
+
+/** The checks this deployment needs: the forum's only while it is on. */
+export function requiredSchema(env: ForumEnv = process.env): SchemaCheck[] {
+  return forumEnabled(env) ? [...REQUIRED_SCHEMA, ...FORUM_SCHEMA] : REQUIRED_SCHEMA;
+}
+
+/**
  * Runs the checks and returns what is missing.
  *
  * The queries are built HERE, per call, and not held in a module-level array of
@@ -133,7 +175,7 @@ export const REQUIRED_SCHEMA: SchemaCheck[] = [
  * them looking for a problem they had already fixed.
  */
 export async function schemaStatus(
-  checks: SchemaCheck[] = REQUIRED_SCHEMA,
+  checks: SchemaCheck[] = requiredSchema(),
 ): Promise<{ current: boolean; missing: string[] }> {
   const missing: string[] = [];
   for (const c of checks) {
