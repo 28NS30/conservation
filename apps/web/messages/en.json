@@ -290,7 +290,8 @@
       "onlySuggestsClass": "For {group} the model only suggests a species.",
       "includesInvasive": "The model suggests {name}, which is or includes an invasive form. A person must confirm.",
       "stricterSibling": "The model is sure it is {name}, but also lists {other}, whose location is protected more strictly. A person must confirm."
-    }
+    },
+    "actionFailed": "That did not save. Try again."
   },
   "login": {
     "title": "Sign in",
