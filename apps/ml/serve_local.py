@@ -39,17 +39,11 @@ def main() -> None:
     if not token:
         raise SystemExit("set ML_ENDPOINT_TOKEN (any local value) — the endpoint refuses callers without it")
 
-    import requests
-
     from endpoint import handle
     from pipeline import Classifier
 
     clf = Classifier()
     clf.preload()
-
-    def fetch(url: str) -> tuple[int, bytes]:
-        r = requests.get(url, timeout=30)
-        return r.status_code, r.content
 
     class Handler(BaseHTTPRequestHandler):
         def do_POST(self):  # noqa: N802 (http.server's naming)
@@ -59,7 +53,7 @@ def main() -> None:
             except json.JSONDecodeError:
                 status, body = 400, {"detail": "not JSON"}
             else:
-                status, body = handle(payload, clf=clf, expected_token=token, fetch_image=fetch)
+                status, body = handle(payload, clf=clf, expected_token=token)
             data = json.dumps(body).encode()
             self.send_response(status)
             self.send_header("content-type", "application/json")

@@ -34,7 +34,7 @@ from contract import (  # noqa: E402
     softmax,
     top_species,
 )
-from endpoint import handle  # noqa: E402
+from endpoint import Request, handle, parse  # noqa: E402
 
 
 def index(rows: list[tuple[str, str]]) -> SpeciesIndex:
@@ -214,8 +214,7 @@ IMAGE = "aGVsbG8="  # base64 of "hello"; the fake classifier never decodes it
 
 def call(payload, clf=None, token="secret"):
     clf = clf or FakeClassifier()
-    status, body = handle(payload, clf=clf, expected_token=token,
-                          fetch_image=lambda url: (404, b""))
+    status, body = handle(payload, clf=clf, expected_token=token)
     return status, body, clf
 
 
@@ -281,6 +280,44 @@ class Endpoint(unittest.TestCase):
         self.assertEqual(status, 400)
         status, _, _ = call({"token": "secret", "contract": 2, "imageUrl": "https://example.invalid/x.jpg"})
         self.assertEqual(status, 400)
+
+    # From the security audit of 29 September 2026: inputs that raised past
+    # the handler and came back 500, which the website retries as an outage.
+
+    def test_a_token_that_cannot_be_encoded_is_a_401_not_a_500(self):
+        status, _, clf = call({"token": "\ud800", "imageBase64": IMAGE, "contract": 2})
+        self.assertEqual(status, 401)
+        self.assertEqual(clf.calls, [])
+
+    def test_a_payload_that_is_not_an_object_is_a_401(self):
+        for payload in ([], "token", None, 3):
+            status, _, _ = call(payload)
+            self.assertEqual(status, 401, payload)
+
+    def test_malformed_fields_are_400s(self):
+        for payload in (
+            {"token": "secret", "imageBase64": 123, "contract": 2},
+            {"token": "secret", "imageBase64": IMAGE, "category": ["roadkill"]},
+            {"token": "secret", "imageBase64": IMAGE, "contract": [2]},
+            {"token": "secret", "imageBase64": "!!!", "contract": 2},
+        ):
+            status, _, clf = call(payload)
+            self.assertEqual(status, 400, payload)
+            self.assertEqual(clf.calls, [], payload)
+
+    def test_an_image_past_the_upload_cap_is_refused_before_decoding(self):
+        status, body, clf = call({"token": "secret", "contract": 2, "imageBase64": "A" * 14_000_004})
+        self.assertEqual(status, 400)
+        self.assertEqual(body["detail"], "image too large")
+        self.assertEqual(clf.calls, [])
+
+    def test_the_token_is_checked_before_the_shape(self):
+        # parse() runs in the CPU container; nothing reaches the GPU without it.
+        self.assertEqual(parse({"contract": 99}, expected_token="secret"), (401, {"detail": "unauthorized"}))
+        self.assertEqual(parse({"token": "secret"}, expected_token=None), (401, {"detail": "unauthorized"}))
+        req = parse({"token": "secret", "imageBase64": IMAGE, "contract": 2}, expected_token="secret")
+        self.assertIsInstance(req, Request)
+        self.assertEqual(req.blob, b"hello")
 
 
 ROW_DEFAULTS = {

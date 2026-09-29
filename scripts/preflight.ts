@@ -259,7 +259,8 @@ async function main(): Promise<void> {
   if (env("ML_ENDPOINT_URL") && env("ML_ENDPOINT_TOKEN")) {
     try {
       // A deliberately bad token: proves the endpoint is up AND that it rejects
-      // unauthorised callers, without paying for a GPU cold start.
+      // unauthorised callers. The token is checked in a small CPU function in
+      // front of the GPU (apps/ml/modal_app.py), so this starts no GPU.
       const res = await fetch(env("ML_ENDPOINT_URL"), {
         method: "POST",
         headers: { "content-type": "application/json" },

@@ -31,8 +31,10 @@ image = (
         "open_clip_torch>=2.24",
         "pillow>=10.3",
         "numpy>=1.26",
-        # Required by @modal.fastapi_endpoint. It used to arrive transitively via
-        # PytorchWildlife; now that the image is lean it must be explicit.
+        # The web endpoint and the image fetch have moved out of this image
+        # (see `classify` below), so these two are no longer used here. They
+        # stay because changing this list rebuilds every layer after it,
+        # BioCLIP's baked weights included.
         "fastapi[standard]",
         "requests>=2.32",
     )
@@ -80,37 +82,69 @@ class Service:
         # asks for it (docs/ai-rollout.md).
         self.clf.preload()
 
-    @modal.fastapi_endpoint(method="POST", docs=False)
-    def classify(self, payload: dict):
-        """Authenticated classify endpoint, two contracts side by side.
+    @modal.method()
+    def run(self, contract: int, category: str | None, blob: bytes) -> tuple[int, dict]:
+        """Classify a request the front function has already let in."""
+        from endpoint import Request, run
 
-        {"token", "imageUrl" | "imageBase64", "category"}
-            The legacy contract: the category's label list, a band, the top 5
-            as v1 `taxa.id`s. What every website before ML_CONTRACT=2 sends.
+        return run(Request(contract=contract, category=category, blob=blob), self.clf)
 
-        {"token", "imageUrl" | "imageBase64", "contract": 2}
-            The evidence contract: the top 50 species over every accepted
-            Taiwan taxon as {taicol_id, score}; the website applies the rules.
 
-        The shared token keeps this from being an open image-classification
-        service that anyone can run up a GPU bill on. The decisions live in
-        endpoint.py, where they are tested without Modal.
-        """
-        import requests
-        from fastapi import HTTPException
+# The front door: a small CPU function, in front of the GPU class.
+#
+# The token used to be checked inside the GPU class's own web endpoint, and
+# Modal can only answer a request by starting the container that serves it. So
+# every request, one with no token or a wrong one included, cold-started a T4
+# and kept it warm for a minute: anyone could run up the GPU bill by posting
+# to the URL (security audit, 29 September 2026). Now the token and the shape
+# of the request are checked here (endpoint.parse), and only a request that
+# passes reaches the GPU.
+#
+# The label keeps the URL the class endpoint had, so ML_ENDPOINT_URL in the
+# website's environment is unchanged.
+web_image = (
+    modal.Image.debian_slim(python_version="3.12")
+    .pip_install("fastapi[standard]", "numpy>=1.26")
+    .add_local_file(os.path.join(os.path.dirname(__file__), "endpoint.py"), "/app/endpoint.py")
+    .add_local_file(os.path.join(os.path.dirname(__file__), "contract.py"), "/app/contract.py")
+)
 
-        from endpoint import handle
 
-        def fetch(url: str) -> tuple[int, bytes]:
-            r = requests.get(url, timeout=30)
-            return r.status_code, r.content
+@app.function(
+    image=web_image,
+    secrets=[modal.Secret.from_name("conservation-ml")],
+    scaledown_window=60,
+    max_containers=2,
+)
+@modal.concurrent(max_inputs=20)
+@modal.fastapi_endpoint(method="POST", docs=False, label="conservation-classifier-service-classify")
+def classify(payload: dict):
+    """Authenticated classify endpoint, two contracts side by side.
 
-        status, body = handle(
-            payload,
-            clf=self.clf,
-            expected_token=os.environ.get("ML_ENDPOINT_TOKEN"),
-            fetch_image=fetch,
-        )
-        if status != 200:
-            raise HTTPException(status_code=status, detail=body.get("detail"))
-        return body
+    {"token", "imageBase64", "category"}
+        The legacy contract: the category's label list, a band, the top 5
+        as v1 `taxa.id`s. What every website before ML_CONTRACT=2 sends.
+
+    {"token", "imageBase64", "contract": 2}
+        The evidence contract: the top 50 species over every accepted
+        Taiwan taxon as {taicol_id, score}; the website applies the rules.
+
+    The shared token keeps this from being an open image-classification
+    service that anyone can run up a GPU bill on. The decisions live in
+    endpoint.py, where they are tested without Modal.
+    """
+    import sys
+
+    sys.path.insert(0, "/app")
+    from fastapi import HTTPException
+
+    from endpoint import parse
+
+    parsed = parse(payload, expected_token=os.environ.get("ML_ENDPOINT_TOKEN"))
+    if isinstance(parsed, tuple):
+        status, body = parsed
+    else:
+        status, body = Service().run.remote(parsed.contract, parsed.category, parsed.blob)
+    if status != 200:
+        raise HTTPException(status_code=status, detail=body.get("detail"))
+    return body

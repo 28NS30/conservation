@@ -90,6 +90,22 @@ type MlResult = {
  * client-side downscale, so inlining them is cheap — and it means a report photo
  * never needs a publicly reachable URL at all.
  */
+/**
+ * The model service refused the photograph itself: a 400, which it gives for
+ * a file it cannot open or one with too many pixels to decode (apps/ml
+ * endpoint.py). Sending it again gets the same answer, so the job gives up at
+ * once, blurred and held for a person, instead of spending four more calls on
+ * the GPU (security audit, 29 September 2026). Every other failure — a 401, a
+ * 503, a timeout — may be temporary and is retried as before.
+ */
+class ModelRefused extends Error {}
+
+async function modelError(res: Response): Promise<Error> {
+  const detail = (await res.text()).slice(0, 200);
+  const message = `model endpoint ${res.status}: ${detail}`;
+  return res.status === 400 ? new ModelRefused(message) : new Error(message);
+}
+
 async function callModel(
   imageBase64: string,
   category: string,
@@ -105,10 +121,7 @@ async function callModel(
     body: JSON.stringify({ token, imageBase64, category }),
     signal: AbortSignal.timeout(120_000), // generous: covers a Modal cold start
   });
-  if (!res.ok)
-    throw new Error(
-      `model endpoint ${res.status}: ${(await res.text()).slice(0, 200)}`,
-    );
+  if (!res.ok) throw await modelError(res);
   return (await res.json()) as MlResult;
 }
 
@@ -131,10 +144,7 @@ async function callEvidenceModel(imageBase64: string): Promise<EvidenceResponse>
     body: JSON.stringify({ token, imageBase64, contract: 2 }),
     signal: AbortSignal.timeout(120_000), // generous: covers a Modal cold start
   });
-  if (!res.ok)
-    throw new Error(
-      `model endpoint ${res.status}: ${(await res.text()).slice(0, 200)}`,
-    );
+  if (!res.ok) throw await modelError(res);
   return parseEvidence(await res.json());
 }
 
@@ -377,7 +387,7 @@ export async function classifyQueued({ reportId = null }: { reportId?: string | 
     } catch (err) {
       failed++;
       const message = (err as Error).message.slice(0, 500);
-      const giveUp = job.attempts >= MAX_ATTEMPTS;
+      const giveUp = job.attempts >= MAX_ATTEMPTS || err instanceof ModelRefused;
 
       await sql.begin(async (tx) => {
         await tx`
