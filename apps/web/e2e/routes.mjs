@@ -62,6 +62,53 @@ export const AXE_WIDTHS = [390, 1440];
 
 const MAP_SETTLE = 9000;
 
+/**
+ * The forum's rows: expected to 404 while it is switched off, swept as pages
+ * while it is on. A thread and a profile need real ids, which only exist once
+ * someone has posted, so they are discovered when the forum is on and probed
+ * at a well-formed id (which must still 404) when it is off.
+ */
+function forumRoutes() {
+  const on = process.env.FORUM_ENABLED === "1" || process.env.FORUM_ENABLED === "true";
+  const dark = on ? {} : { expectStatus: 404, why: "The forum ships dark: FORUM_ENABLED is off, so this page does not exist." };
+  const moderation =
+    "The moderation queue shows held posts in full, coordinates and all. A screenshot of it is a disclosure.";
+  return [
+    { name: "community", path: "/community", settle: 2000, ...dark },
+    { name: "community-category", path: "/community/c/sightings-id", settle: 2000, ...dark },
+    on
+      ? {
+          name: "community-thread",
+          path: "/community/t/__ID__",
+          settle: 2000,
+          dynamic: {
+            from: "/community/c/sightings-id",
+            pattern: /\/community\/t\/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/,
+            env: "QA_FORUM_THREAD_ID",
+          },
+        }
+      : { name: "community-thread", path: "/community/t/00000000-0000-4000-8000-000000000000", settle: 1500, ...dark },
+    on
+      ? {
+          name: "community-profile",
+          path: "/community/u/__ID__",
+          settle: 2000,
+          dynamic: { from: "/community/c/sightings-id", pattern: /\/community\/u\/([a-z]+(?:-[a-z]+)*-\d{4})/, env: "QA_FORUM_HANDLE" },
+        }
+      : { name: "community-profile", path: "/community/u/blue-magpie-4821", settle: 1500, ...dark },
+    { name: "community-join", path: "/community/join", settle: 2000, signedOutOnly: true, ...dark },
+    { name: "community-guidelines", path: "/community/guidelines", settle: 2000, ...dark },
+    {
+      name: "community-moderation",
+      path: "/community/moderation",
+      settle: 2000,
+      signedOutOnly: true,
+      skipShots: moderation,
+      ...dark,
+    },
+  ];
+}
+
 /** Why the lab is measured but not photographed; see the lab rows below. */
 const LAB_SHOTS =
   "The lab is a prototype for one decision, not a page of the site. Two directions across six compositions is 60-odd more screenshots per run of work that is deleted the week a direction is chosen — and the owner judges it by opening it, not by reading a gallery of it. The measuring sweeps still run: what matters here is whether these pages hold up, not what they looked like on a given commit.";
@@ -193,6 +240,13 @@ export const ROUTES = [
     skipShots:
       "The moderation queue shows exact coordinates of unpublished reports. A screenshot of it is a disclosure, and a gallery of them is a disclosure with a URL.",
   },
+  // The discussion forum. It ships dark (lib/forum/gate.ts): with the switch
+  // off — how production runs, and how CI's main server runs — every one of
+  // these answers 404, and that is recorded as the expected status, so each
+  // sweep is also a proof the forum is not there. Set FORUM_ENABLED=1 for the
+  // sweep when it is pointed at a server started with it, and they are swept
+  // as pages. e2e/forum.spec.mjs covers the switch itself, both ways.
+  ...forumRoutes(),
   // The design lab. `lib/lab/gate.ts` serves it everywhere except Vercel
   // production, so CI sees it and a visitor does not.
   //
