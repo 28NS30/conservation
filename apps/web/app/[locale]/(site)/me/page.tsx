@@ -7,6 +7,7 @@ import { speciesSlug } from "@/lib/species";
 import { CATEGORIES, type Category } from "@conservation/shared";
 import PageHeader from "@/components/site/PageHeader";
 import ForumAccount from "@/components/forum/ForumAccount";
+import DeleteAccount from "@/components/me/DeleteAccount";
 import { signInHref } from "@/components/auth/signInHref";
 import { signOut } from "./actions";
 import { awaitingVerification } from "@/lib/report/verification";
@@ -310,6 +311,8 @@ export default async function MyReportsPage({
       )}
       {/* Export and delete for the forum; nothing, and no query, while it is off. */}
       <ForumAccount locale={locale} />
+
+      <DeleteAccount />
     </main>
   );
 }

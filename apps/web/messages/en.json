@@ -492,7 +492,7 @@
     "turnstileTitle": "Checking that a report comes from a person",
     "turnstileBody": "Anyone can send a report without an account, so without a check the form would be flooded by automated programs. Before a report is accepted, Cloudflare Turnstile checks that it was sent by a person rather than a program. To make that check, Cloudflare receives your IP address and technical information about your browser; we send it nothing from your report. We also count how many reports each IP address, or each account if you are signed in, has sent recently, so that no single address or account can flood the form. That count is not stored with your report and is never shown.",
     "retentionTitle": "Retention and deletion",
-    "retentionBody": "Reports are kept indefinitely, because their scientific value comes from accumulating over time. If you want your report or contact email removed, get in touch.",
+    "retentionBody": "Reports are kept indefinitely, because their scientific value comes from accumulating over time. If you have an account, you can delete it yourself at the bottom of My reports: your reports stay, with nothing linking them to you. If you want a report or a contact email removed, get in touch.",
     "thirdPartyTitle": "Third-party services",
     "thirdPartyBody": "The site uses Supabase (database and file storage), Vercel (hosting), OpenFreeMap and OpenStreetMap (the base map), Cloudflare Turnstile (the check described above), and Modal, which runs our species-identification model: photos attached to a report may be sent there so the model can suggest a species. Map tiles load from OpenFreeMap through Cloudflare, and OpenFreeMap may log IP addresses for up to 30 days when investigating abuse.",
     "analyticsTitle": "Usage statistics",
@@ -656,6 +656,18 @@
       "identifiedAt": "Identified ({pct}%)",
       "published": "Published",
       "open": "Open data"
+    },
+    "delete": {
+      "title": "Delete my account",
+      "body": "This deletes your sign-in and your email address. The reports you sent stay on the map, under the licence you chose and with the credit name you gave, but nothing links them to you any more, and any contact address on them is removed. Your forum profile is deleted too. This cannot be undone.",
+      "confirm": "I understand this cannot be undone",
+      "button": "Delete my account",
+      "deleting": "Deleting…",
+      "errors": {
+        "signIn": "Your sign-in has expired. Sign in again to delete your account.",
+        "confirm": "Tick the box first.",
+        "failed": "Your account could not be deleted. Try again, or write to us."
+      }
     }
   },
   "team": {

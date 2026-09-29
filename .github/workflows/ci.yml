@@ -214,6 +214,12 @@ jobs:
         # and do not fail until someone records them against production.
         run: npm run test:perf --workspace @conservation/web
 
+      - name: Deleting your own account
+        # From /me, in a browser, as a person does it: the account, the
+        # profile and every link from a report to its reporter go; the report
+        # stays. The account is made on the Supabase Auth stand-in above.
+        run: node apps/web/e2e/account.spec.mjs
+
       # ---- Discussion forum ------------------------------------------------
       # The forum ships dark: it answers only on a server started with
       # FORUM_ENABLED=1 (apps/web/lib/forum/gate.ts). The server above runs
