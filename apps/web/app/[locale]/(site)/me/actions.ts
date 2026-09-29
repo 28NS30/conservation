@@ -65,7 +65,7 @@ export async function deleteMyAccount(
 ): Promise<DeleteAccountState> {
   const userId = await currentUserId();
   if (!userId) return { error: "signIn" };
-  if (form.get("confirm") !== "on") return { error: "confirm" };
+  if (form.get("confirmDelete") !== "on") return { error: "confirm" };
 
   await sql.begin(async (tx) => {
     await tx`

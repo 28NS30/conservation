@@ -30,7 +30,10 @@ export default function DeleteAccount() {
       <p className="mt-3 max-w-prose text-base leading-relaxed text-ink-800">{t("body")}</p>
       <form action={action} className="mt-4 space-y-3">
         <label className="flex min-h-11 cursor-pointer items-center gap-3 text-base text-ink-900">
-          <input type="checkbox" name="confirm" className="size-5 accent-rose-800" />
+          {/* Its own name: /me also holds the forum's leave form, whose box is
+              "confirm", and two of those on one page is one too many for
+              anything that looks a box up by name. */}
+          <input type="checkbox" name="confirmDelete" className="size-5 accent-rose-800" />
           {t("confirm")}
         </label>
         {state?.error && (
