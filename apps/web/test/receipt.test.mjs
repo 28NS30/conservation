@@ -102,15 +102,27 @@ describe("the query behind the receipt", () => {
 
   test("it is a server module, and the page's public read is untouched", () => {
     assert.match(RECEIPT, /^import "server-only";/m);
+    // The record query is shared with a moderator's view of their own test
+    // reports (0018), so the public path is asserted as the call it is.
     assert.match(
       PAGE,
-      /from reports_public rp/,
-      "the public path must still be the public view, read as web_anon",
+      /await asPublic\(\(tx\) => recordQuery\(tx, id, "public"\)\)/,
+      "the public path must still be read as web_anon",
     );
     assert.match(
       PAGE,
-      /const state = await receiptState\(id, await currentUserId\(\)\)/,
+      /from === "public" \? tx`reports_public`/,
+      "the public path must still be the public view",
+    );
+    assert.match(
+      PAGE,
+      /const state = await receiptState\(id, viewer\?\.userId \?\? null\)/,
       "the receipt must come from its own module, not from a widened query",
+    );
+    assert.match(
+      PAGE,
+      /const viewer = publicRow \? null : await currentRole\(\)/,
+      "the viewer must come from the session",
     );
   });
 });

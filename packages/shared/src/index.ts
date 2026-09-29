@@ -639,6 +639,12 @@ export const reportSubmissionSchema = z
     /** Share with research partners (TaiRON), exact location included. Starts unticked. */
     sharePartners: z.boolean().optional(),
     consentVersion: z.string().max(20).optional(),
+    /**
+     * A moderator trying the whole path (migration 0018). The report takes
+     * every step a real one takes and is never shown publicly. The server
+     * reads the sender's role from the database and refuses anyone else.
+     */
+    test: z.boolean().optional(),
   })
   .refine((r) => !(r.taxonId && r.taxonUnknown), {
     message: "a report cannot both name a species and be unidentifiable",

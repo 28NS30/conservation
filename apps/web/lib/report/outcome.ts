@@ -43,13 +43,14 @@ export type ReceiptLink = "viewRecord" | "checkStatus";
 
 export type ReportOutcome = {
   /** Key under `report.receipt` for the heading. */
-  title: "onMap" | "held" | "withheld";
+  title: "onMap" | "held" | "withheld" | "test";
   /** Key under `report.receipt` for the sentence below it, when there is one. */
   body:
     | "heldForIdentification"
     | "heldNoPhoto"
     | "heldForReview"
     | "withheldSpecies"
+    | "testPublished"
     | null;
   link: ReceiptLink | null;
 };
@@ -96,6 +97,30 @@ export function outcomeOf(
    * client infer it from a status that does not carry the fact.
    */
   visible = true,
+  /**
+   * A moderator's test report (migration 0018). It is never public, whatever
+   * its status, so "on the map" would be false. Everything else is said as
+   * for a real report: the test is of the whole path, and the moderator
+   * trying it needs to see the same answer a reporter would.
+   */
+  test = false,
+): ReportOutcome {
+  const real = realOutcome(status, awaitingIdentification, photoCount, visible);
+  if (!test) return real;
+  // The record page renders a published test for moderators, and only for
+  // them, so the link stays; the sender is one.
+  return {
+    title: "test",
+    body: real.title === "onMap" ? "testPublished" : real.body,
+    link: real.link,
+  };
+}
+
+function realOutcome(
+  status: string | undefined | null,
+  awaitingIdentification: boolean | undefined,
+  photoCount: number,
+  visible: boolean,
 ): ReportOutcome {
   const link = receiptLinkFor(status, visible);
 

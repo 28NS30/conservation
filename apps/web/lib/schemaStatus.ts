@@ -110,6 +110,20 @@ export const REQUIRED_SCHEMA: SchemaCheck[] = [
              and column_name in ('share_partners', 'consent_version', 'consent_at')`,
   },
   {
+    // POST /api/reports writes is_test, so without the column every report
+    // fails to insert. And a rule check with it: the column alone does not
+    // keep a test off the map; the view's definition is what says it does.
+    name: "0018 test reports are never public",
+    sql: `select exists (
+              select 1 from information_schema.columns
+               where table_schema = 'public' and table_name = 'reports'
+                 and column_name = 'is_test')
+         and exists (
+              select 1 from pg_views
+               where schemaname = 'public' and viewname = 'reports_public'
+                 and definition like '%is_test%') as ok`,
+  },
+  {
     // A rule check again: 0021 replaces 0014's taxon_precision(), so re-running
     // 0014 alone would quietly drop the Red List term while every object still
     // exists. The function body is what says which rule is live.

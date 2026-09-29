@@ -5,7 +5,7 @@ import { Link } from "@/i18n/navigation";
 import { sql } from "@/lib/db";
 import { currentRole } from "@/lib/auth";
 import { signedPhotoUrl } from "@/lib/supabase/service";
-import { CATEGORIES, type Category } from "@conservation/shared";
+import { CATEGORIES, REPORT_PAGE_KEYS, type Category } from "@conservation/shared";
 import ModerationRow from "@/components/admin/ModerationRow";
 import { signInHref } from "@/components/auth/signInHref";
 import { speciesLabel } from "@/lib/speciesNames";
@@ -37,6 +37,17 @@ type Pending = {
   common_name_zh: string | null;
   common_name_en: string | null;
   photo_paths: string[] | null;
+  is_test: boolean;
+};
+
+/** A test's status, in words that do not say "public" of a test. */
+const TEST_STATUSES = ["published", "pending", "rejected"];
+
+type TestReport = {
+  id: string;
+  category: Category;
+  status: string;
+  created_at: string;
 };
 
 export default async function AdminPage({
@@ -101,7 +112,7 @@ export default async function AdminPage({
   }
 
   const rows = await sql<Pending[]>`
-    select r.id, r.category, r.observed_at, r.notes, r.flagged_reason, r.location_precision,
+    select r.id, r.category, r.observed_at, r.notes, r.flagged_reason, r.location_precision, r.is_test,
            st_y(r.location::geometry) as lat,
            st_x(r.location::geometry) as lng,
            t.scientific_name, t.common_name_zh, t.common_name_en,
@@ -123,6 +134,16 @@ export default async function AdminPage({
       ).filter((u): u is string => !!u),
     })),
   );
+
+  // The last test reports, whatever became of them. A test the classifier
+  // names is published straight away and leaves the queue above, and it is
+  // on no public page, so this list is the way back to it.
+  const tests = await sql<TestReport[]>`
+    select r.id, r.category, r.status, r.created_at
+      from reports r
+     where r.is_test
+     order by r.created_at desc
+     limit 10`;
 
   return (
     <Shell>
@@ -153,10 +174,56 @@ export default async function AdminPage({
                   : null
               }
               photoUrls={r.photoUrls}
+              test={r.is_test}
             />
           ))}
         </ul>
       )}
+
+      {/*
+        Trying the whole path without it being public (migration 0018). The
+        server accepts `test` from moderators only, so these links do nothing
+        for anyone else but get their report refused.
+      */}
+      <section aria-labelledby="test-heading" className="mt-12 border-t border-ink-900/10 pt-6">
+        <h2 id="test-heading" className="text-base font-semibold text-forest-900">
+          {t("test.heading")}
+        </h2>
+        <p className="mt-1 text-sm leading-relaxed text-ink-700">{t("test.body")}</p>
+        <ul className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+          {REPORT_PAGE_KEYS.map((page) => (
+            <li key={page}>
+              <Link
+                href={{ pathname: `/report/${page}`, query: { test: "1" } }}
+                className="inline-flex min-h-11 items-center font-medium text-leaf-700 underline underline-offset-2 hover:text-forest-900"
+              >
+                {t(`test.${page}`)}
+              </Link>
+            </li>
+          ))}
+        </ul>
+        {tests.length > 0 && (
+          <>
+            <h3 className="mt-5 text-sm font-semibold text-ink-900">{t("test.recent")}</h3>
+            <ul className="mt-2 space-y-1 text-sm">
+              {tests.map((r) => (
+                <li key={r.id} className="flex flex-wrap items-center gap-x-3">
+                  <Link
+                    href={`/reports/${r.id}`}
+                    className="inline-flex min-h-11 items-center text-leaf-700 underline underline-offset-2 hover:text-forest-900"
+                  >
+                    {tc(r.category)} · {r.id.slice(0, 8)}
+                  </Link>
+                  <span className="text-ink-600">
+                    {TEST_STATUSES.includes(r.status) ? t(`test.status.${r.status}`) : r.status} ·{" "}
+                    {new Date(r.created_at).toLocaleString(locale, { timeZone: "Asia/Taipei" })}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </section>
     </Shell>
   );
 }

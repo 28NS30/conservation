@@ -18,6 +18,8 @@ export default function ModerationRow(props: {
   lng: number;
   speciesLabel: string | null;
   photoUrls: string[];
+  /** A moderator's test (0018): publishing it still shows it to nobody. */
+  test?: boolean;
 }) {
   const t = useTranslations("admin");
   const locale = useLocale();
@@ -58,6 +60,11 @@ export default function ModerationRow(props: {
             timeZone: "Asia/Taipei",
           })}
         </span>
+        {props.test && (
+          <span className="rounded border border-dashed border-forest-900/50 px-1.5 py-0.5 text-[11px] font-medium text-forest-900">
+            {t("testChip")}
+          </span>
+        )}
         {props.flaggedReason && (
           <span className="rounded bg-amber-400/15 px-1.5 py-0.5 text-[10px] text-amber-700">
             {props.flaggedReason}

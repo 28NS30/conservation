@@ -133,7 +133,8 @@
       "network": "Couldn't reach us; there may be no signal. It stays on this phone and is sent when you open the report page with a signal.",
       "server": "Something went wrong at our end and the report was not sent. What you entered is still here.",
       "taxon_out_of_scope": "This page doesn't take that species. Choose one from the list, or report it on the page for that kind of report.",
-      "category_not_on_page": "This page can't file that kind of report. Reload the page and try again."
+      "category_not_on_page": "This page can't file that kind of report. Reload the page and try again.",
+      "test_not_allowed": "Only moderators can send test reports. Sign in as a moderator, or send this as a real report with the link at the top of the form."
     },
     "privacyNote": "Locations of sensitive and protected species are automatically blurred before publication, so reports cannot be used to find them.",
     "receipt": {
@@ -152,7 +153,9 @@
       "invasiveNextBody": "We keep the record, and a moderator will check the species. Until then it is marked “not yet verified”, and its place is shown blurred to at least 10 km. Nobody is sent out, and there is nothing more you need to do.",
       "taironTitle": "Also report it to 路殺社 (TaiRON)",
       "taironBody": "路殺社 (TaiRON) keeps its own record of roadkill in Taiwan. To add this animal there as well, report it on their website; you need your own TaiRON account to do that. We don't send it for you.",
-      "taironLink": "Open roadkill.tw"
+      "taironLink": "Open roadkill.tw",
+      "test": "Test report received",
+      "testPublished": "It went through every step a real report takes, and a real one would now be on the map. This one is a test, so only moderators can see it."
     },
     "needChallenge": "Complete the check above first",
     "preparingPhotos": "Processing photos…",
@@ -212,7 +215,12 @@
     "sharePartners": "Also share this record, with its exact location, with TaiRON (路殺社)",
     "sharePartnersHint": "Taiwan's roadkill research network uses exact locations to find the roads where animals die. Nothing is sent until TaiRON agrees to take records from this site.",
     "termsLink": "Terms for contributors",
-    "metaDescription": "Report an animal you saw in Taiwan: dead or injured on the road, an invasive species, or wildlife alive and well. No account needed."
+    "metaDescription": "Report an animal you saw in Taiwan: dead or injured on the road, an invasive species, or wildlife alive and well. No account needed.",
+    "testMode": {
+      "title": "Test report",
+      "body": "This report takes every step a real one takes: the photo upload, the identification model and review. It is never shown publicly: not on the map, in the statistics or in the data we share. Only moderators can send one.",
+      "realInstead": "Send a real report instead"
+    }
   },
   "detail": {
     "species": "Species",
@@ -233,7 +241,9 @@
       "title": "Received. Not public right now.",
       "body": "Some reports wait before they appear. One with a photo but no species name waits for our identification model to try to name the animal; one without a photo waits for a person to look at it. Some species' locations are never shown."
     },
-    "aiSuggested": "AI suggestion"
+    "aiSuggested": "AI suggestion",
+    "testTitle": "Test report",
+    "testNote": "Test report. Only moderators can see this page. It is not on the map, in the statistics or in the data we share."
   },
   "admin": {
     "heading": "Moderation queue",
@@ -247,7 +257,21 @@
     "signInPrompt": "Sign in",
     "published": "Published",
     "rejectReason": "Reason for rejection?",
-    "signInRequired": "Please sign in."
+    "signInRequired": "Please sign in.",
+    "testChip": "Test",
+    "test": {
+      "heading": "Try the whole path",
+      "body": "Send a test report from a phone to check every step: the photo, the location, the identification model, this queue and the receipt. Test reports are never shown publicly, and only moderators can send them.",
+      "roadkill": "Test the roadkill page",
+      "invasive": "Test the invasive species page",
+      "wildlife": "Test the wildlife page",
+      "recent": "Recent test reports",
+      "status": {
+        "published": "Went through, not public",
+        "pending": "In review",
+        "rejected": "Not used"
+      }
+    }
   },
   "login": {
     "title": "Sign in",
