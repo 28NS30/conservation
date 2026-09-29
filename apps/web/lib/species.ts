@@ -1,4 +1,10 @@
 import type postgres from "postgres";
+import {
+  REPORT_PAGES,
+  REPORT_PAGE_KEYS,
+  type ReportPage,
+  type SpeciesScope,
+} from "@conservation/shared";
 import { asPublic } from "@/lib/db";
 import { selectionFor, type Collection } from "@conservation/shared";
 
@@ -89,6 +95,29 @@ const SUMMARY_COLS = `
 export const OFFERED = `(t.taxon_status is not distinct from 'accepted' and t.is_in_taiwan
   and t.rank in ('Species', 'Subspecies'))`;
 
+/**
+ * Whether a taxon is one a report page offers, beyond being OFFERED at all:
+ * the page's kingdom, the ranks the picker lists, and for the invasive page
+ * only the species TaiCOL tags invasive.
+ *
+ * One definition, read by the picker's search and by `POST /api/reports`, for
+ * the reason OFFERED is one definition: the two disagreeing is either a
+ * reporter refused a species they were offered, or a native animal filed as
+ * an invasive one. The scope itself is data in packages/shared (REPORT_PAGES).
+ *
+ * Spliced into SQL, so nothing in it comes from a request: the kingdom is
+ * checked against the one value the type allows before it is written in.
+ *
+ * `t` is `taxa`.
+ */
+export function inPageScope(scope: SpeciesScope): string {
+  if (scope.kingdom !== "Animalia")
+    throw new Error(`no report page offers the kingdom ${scope.kingdom}`);
+  return `(t.kingdom = 'Animalia' and t.rank in ('Species','Subspecies')${
+    scope.invasiveOnly ? " and t.is_invasive" : ""
+  })`;
+}
+
 /** URL slug: `32116-prionailurus-bengalensis`. Ids stay stable; humans get a hint. */
 export function speciesSlug(s: { id: number; scientificName: string }): string {
   const name = s.scientificName
@@ -167,6 +196,73 @@ export async function getSpecies(id: number): Promise<SpeciesDetail | null> {
        where t.id = ${id}`,
   );
   return rows[0] ?? null;
+}
+
+/**
+ * A species a "report this species" link may carry, and the report pages that
+ * would accept it.
+ *
+ * Null for a name no page files under: a retired name, one not found in
+ * Taiwan, or one outside every page's scope (a plant, a genus). Prefilled, any
+ * of those would be sent as the report's species and the server would not file
+ * it as named — or, for one outside the page's scope, would refuse the report,
+ * and the offline queue treats a refusal as final. Unfilled, the reporter picks
+ * from names that work.
+ *
+ * Read through asPublic like getSpecies, so a taxon whose coordinates are
+ * withheld still reports zero records.
+ */
+export async function reportableSpecies(id: number): Promise<{
+  id: number;
+  taicolId: string;
+  scientificName: string;
+  commonNameZh: string | null;
+  commonNameEn: string | null;
+  isInvasive: boolean;
+  reportCount: number;
+  pages: ReportPage[];
+} | null> {
+  const scopes = REPORT_PAGE_KEYS.map(
+    (p) => `${inPageScope(REPORT_PAGES[p].species)} as "in_${p}"`,
+  ).join(", ");
+  const rows = await asPublic(
+    (tx) => tx<
+      ({
+        id: number;
+        taicolId: string;
+        scientificName: string;
+        commonNameZh: string | null;
+        commonNameEn: string | null;
+        isInvasive: boolean;
+        reportCount: number;
+        offered: boolean;
+      } & Record<`in_${ReportPage}`, boolean>)[]
+    >`
+      select t.id, t.taicol_id as "taicolId", t.scientific_name as "scientificName",
+             t.common_name_zh as "commonNameZh",
+             t.common_name_en as "commonNameEn",
+             t.is_invasive as "isInvasive",
+             coalesce(s.report_count, 0) as "reportCount",
+             ${tx.unsafe(OFFERED)} as offered,
+             ${tx.unsafe(scopes)}
+        from taxa t
+        left join species_report_stats s on s.taxon_id = t.id
+       where t.id = ${id}`,
+  );
+  const row = rows[0];
+  if (!row?.offered) return null;
+  const pages = REPORT_PAGE_KEYS.filter((p) => row[`in_${p}`]);
+  if (pages.length === 0) return null;
+  return {
+    id: row.id,
+    taicolId: row.taicolId,
+    scientificName: row.scientificName,
+    commonNameZh: row.commonNameZh,
+    commonNameEn: row.commonNameEn,
+    isInvasive: row.isInvasive,
+    reportCount: row.reportCount,
+    pages,
+  };
 }
 
 /**
@@ -286,6 +382,11 @@ export async function listSpecies(opts: {
    * case to the top; excluding would hide the animal in front of the reporter.
    */
   preferNative?: boolean;
+  /**
+   * A report page's species, and nothing outside them (see inPageScope). For
+   * the pickers only; the directory and the map search everything.
+   */
+  scope?: SpeciesScope;
   limit?: number;
   offset?: number;
 }): Promise<SpeciesSummary[]> {
@@ -293,9 +394,11 @@ export async function listSpecies(opts: {
     q,
     filter = "recorded",
     preferNative = false,
+    scope,
     limit = 60,
     offset = 0,
   } = opts;
+  const inScope = scope ? inPageScope(scope) : "true";
   const term = q ?? null;
   const like = q ? `%${q}%` : null;
   const prefix = q ? `${q}%` : null;
@@ -307,6 +410,7 @@ export async function listSpecies(opts: {
         from taxa t
         left join species_report_stats s on s.taxon_id = t.id
        where ${speciesWhere(tx, filter, like)}
+         and ${tx.unsafe(inScope)}
        -- Relevance first, and it has to be: searching 石虎 returned 豹貓 (its own
        -- alternate name) and 前鰭吻鮋 above the species actually called 石虎,
        -- because the only ordering was by record count. That is tolerable in a

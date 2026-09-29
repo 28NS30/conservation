@@ -144,16 +144,21 @@ describe("a report naming a species the picker would not offer", () => {
 });
 
 describe("nothing leads a reporter to such a name", () => {
-  test("the report form does not prefill one", async () => {
+  test("the report pages do not prefill one", async () => {
+    // A species page's link lands on the chooser, which names the animal and
+    // carries it on to the page the reporter picks; both must refuse a
+    // retired name.
     const deleted = await taxon("t0123866");
     const accepted = await taxon("t0028707");
-    const form = async (t) =>
-      (await fetch(`${BASE_URL}/report?taxonId=${t.id}`)).text();
-    assert.ok(
-      (await form(accepted)).includes(accepted.scientific_name),
-      "an accepted name is prefilled, so the next assertion means something",
-    );
-    assert.ok(!(await form(deleted)).includes(deleted.scientific_name));
+    for (const path of ["/report", "/report/wildlife"]) {
+      const form = async (t) =>
+        (await fetch(`${BASE_URL}${path}?taxonId=${t.id}`)).text();
+      assert.ok(
+        (await form(accepted)).includes(accepted.scientific_name),
+        `${path}: an accepted name is prefilled, so the next assertion means something`,
+      );
+      assert.ok(!(await form(deleted)).includes(deleted.scientific_name), path);
+    }
   });
 
   test("a species page for one does not offer to report it", async () => {

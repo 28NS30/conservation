@@ -3,11 +3,15 @@ import { serverSupabase } from "@/lib/supabase/server";
 import { statUploadedPhoto } from "@/lib/supabase/service";
 import { verifyTurnstile, withinRateLimit, screenSubmission, SUBMIT_LIMITS } from "@/lib/abuse";
 import { clientIp } from "@/lib/request";
-import { OFFERED } from "@/lib/species";
+import { OFFERED, inPageScope } from "@/lib/species";
 import {
   reportSubmissionSchema,
   requiresClassification,
+  pageAllows,
+  pageOf,
+  REPORT_PAGES,
   UNIDENTIFIED_PRECISION,
+  UNVERIFIED_INVASIVE_PRECISION,
   ACCEPTED_IMAGE_TYPES,
   MAX_UPLOAD_BYTES,
 } from "@conservation/shared";
@@ -50,6 +54,19 @@ export async function POST(req: Request) {
     );
   }
   const input = parsed.data;
+
+  // The page it was filed on, and what that page can produce.
+  //
+  // Every form since the three pages sends `page`. A report queued offline by
+  // an older build does not, and is held to the page its category belongs to,
+  // which is where that build's form would have put it. What a page cannot
+  // produce is refused rather than refiled: the category is the one thing on
+  // the page the reporter chose deliberately, and silently changing it — a live
+  // sighting stored as roadkill — is the failure the pages were split to end.
+  const page = input.page ?? pageOf(input.category);
+  if (!pageAllows(page, input.category)) {
+    return Response.json({ error: "category_not_on_page" }, { status: 400 });
+  }
 
   // Who, if anyone, is signed in. Reporting stays open to anonymous users —
   // friction is what kills citizen-science participation.
@@ -108,11 +125,24 @@ export async function POST(req: Request) {
   // open to a moderator — and blurred at least as hard as the name it gave
   // would have been, so a retired name rated 縣市 does not come out at the
   // unidentified 10 km.
+  //
+  // A name we do offer, but not on this page, is a different case, and it IS
+  // refused: a native animal posted to the invasive page, or a plant to any
+  // page. That is not a name that went stale between the reporter choosing it
+  // and the report arriving — the page's picker never offered it (inPageScope,
+  // lib/species.ts) — so it is a request built by hand, or a client that asks
+  // the picker for a wider list than its page. Filing it unidentified would
+  // put a report the reporter said was one animal into the invasive
+  // collection as something else; the answer is a code the form shows beside
+  // the picker, where they can choose again.
   let taxonId = input.taxonId ?? null;
   let heldAt: string | null = null;
   if (input.taxonId) {
-    const [taxon] = await sql<{ offered: boolean; unidentified: string }[]>`
+    const [taxon] = await sql<
+      { offered: boolean; in_scope: boolean; unidentified: string }[]
+    >`
       select ${sql.unsafe(OFFERED)} as offered,
+             ${sql.unsafe(inPageScope(REPORT_PAGES[page].species))} as in_scope,
              stricter_precision(${UNIDENTIFIED_PRECISION}::text,
                                 report_precision(t.id, null)) as unidentified
         from taxa t where t.id = ${input.taxonId}`;
@@ -120,6 +150,8 @@ export async function POST(req: Request) {
     if (!taxon.offered) {
       taxonId = null;
       heldAt = taxon.unidentified;
+    } else if (!taxon.in_scope) {
+      return Response.json({ error: "taxon_out_of_scope" }, { status: 400 });
     }
   }
 
@@ -156,7 +188,18 @@ export async function POST(req: Request) {
   // category that expects one" flag holding it as `pending`, and, since 0011,
   // the trigger's own else-branch. Two backstops for a guard that was not
   // guarding, and neither of them is this comment's promise.
-  const precisionOverride = identified ? null : (heldAt ?? UNIDENTIFIED_PRECISION);
+  //
+  // A report from the invasive page is held at UNVERIFIED_INVASIVE_PRECISION
+  // even when it is named, because there naming is the doubtful part: a
+  // protected native is exactly what gets mistaken for its invasive
+  // look-alike, and the name the reporter gives is what would set the blur.
+  // It is stamped here, as a decision rather than as the "not known yet" stamp,
+  // so every later naming keeps it (lib/report/precision.ts). Nothing lifts it
+  // on a moderator's confirmation yet; when that may happen is the owner's call.
+  const pageHold = page === "invasive" ? UNVERIFIED_INVASIVE_PRECISION : null;
+  const precisionOverride = identified
+    ? pageHold
+    : (heldAt ?? UNIDENTIFIED_PRECISION);
 
   try {
     const result = await sql.begin(async (tx) => {

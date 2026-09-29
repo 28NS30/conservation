@@ -1,5 +1,5 @@
 import { openDB, type IDBPDatabase } from "idb";
-import type { Category } from "@conservation/shared";
+import type { Category, ReportPage } from "@conservation/shared";
 
 /**
  * Offline submission queue.
@@ -30,6 +30,12 @@ export type QueuedReport = {
   createdAt: number;
   payload: {
     category: Category;
+    /**
+     * The page it was filed on, which the server holds the category and the
+     * species to. Absent on rows queued before the three pages existed; the
+     * server then takes the page the category belongs to.
+     */
+    page?: ReportPage;
     lng: number;
     lat: number;
     observedAt: string;

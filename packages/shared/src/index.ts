@@ -30,23 +30,135 @@ export const CATEGORIES = {
  */
 
 /**
- * The three choices a reporter is actually offered, and what each one stores.
+ * Which animals a report page's species picker offers, as data rather than SQL.
  *
- * The team's list asks for exactly three at the top of the form: invasive
- * species, native wildlife sighting, and roadkill or injured. The last covers
- * two stored categories, because an injured animal implies someone should
- * respond and a dead one does not — a distinction worth keeping in the data
- * even when it is one button in the form. Choosing that group reveals a
- * dead/injured sub-choice; the others have nothing to ask.
+ * Both the picker's search and `POST /api/reports` read it, and they have to
+ * agree: a picker that offered a species the server then refused would strand
+ * a reporter at the roadside, and a server that accepted one the picker never
+ * offered would let a hand-built request file a native animal as an invasive
+ * one — which is how request 6 was being violated before the pages were split
+ * (a "search all species" button on the invasive list, and nothing checking
+ * what came back). `apps/web/lib/species.ts` turns this into a WHERE clause.
  *
- * Defined here rather than in the form because the map's toggles are the same
- * three buckets: if the two drifted apart, the map would filter for something
- * the form cannot produce.
+ * Animals only, on every page. TaiCOL also tags 55 plants invasive, and whether
+ * the invasive page should take them is the team's question (Q1); until they
+ * answer, a plant is not something any of the three pages is for.
+ */
+export type SpeciesScope = {
+  kingdom: "Animalia";
+  /** Only taxa TaiCOL tags invasive (`taxa.is_invasive`). */
+  invasiveOnly: boolean;
+};
+
+/**
+ * The three report pages, what each may store, and which species each offers.
+ *
+ * The team asked for three separate pages rather than one form that opens by
+ * asking which of three kinds of report this is (requests 3 and 9). The page
+ * is therefore the report's kind, and it decides the stored category: the
+ * invasive page files `invasive`, the wildlife page files `sighting`, and the
+ * roadkill page files `roadkill` or `injured` by the one question it asks —
+ * dead, or alive and hurt — because an injured animal implies someone should
+ * respond and a dead one does not, a distinction worth keeping in the data.
+ *
+ * `sighting` keeps its stored name although the page is called "wildlife":
+ * renaming a stored value means migrating the CHECK constraint (0008), the
+ * classifier's label sets and every map colour for no change in meaning.
+ *
+ * The server holds each submission to its page (`app/api/reports/route.ts`):
+ * a category the page cannot produce and a species the page does not offer
+ * are both refused, so a request built by hand cannot file what the page
+ * would not have let a person file.
+ */
+export const REPORT_PAGES = {
+  roadkill: {
+    categories: ["roadkill", "injured"],
+    species: { kingdom: "Animalia", invasiveOnly: false },
+  },
+  invasive: {
+    categories: ["invasive"],
+    species: { kingdom: "Animalia", invasiveOnly: true },
+  },
+  wildlife: {
+    categories: ["sighting"],
+    species: { kingdom: "Animalia", invasiveOnly: false },
+  },
+} as const satisfies Record<
+  string,
+  { categories: readonly Category[]; species: SpeciesScope }
+>;
+
+export type ReportPage = keyof typeof REPORT_PAGES;
+
+/**
+ * In the team's order, which is the home page's and the header menu's:
+ * roadkill, invasive, wildlife. Spelled out rather than taken from
+ * Object.keys so that reordering the object above cannot reorder the site.
+ */
+export const REPORT_PAGE_KEYS = [
+  "roadkill",
+  "invasive",
+  "wildlife",
+] as const satisfies readonly ReportPage[];
+
+export function isReportPage(v: unknown): v is ReportPage {
+  return (
+    typeof v === "string" && (REPORT_PAGE_KEYS as readonly string[]).includes(v)
+  );
+}
+
+/** Whether a page can produce a stored category. */
+export function pageAllows(page: ReportPage, category: Category): boolean {
+  return (REPORT_PAGES[page].categories as readonly Category[]).includes(
+    category,
+  );
+}
+
+/**
+ * The page a stored category is filed from.
+ *
+ * Every category belongs to exactly one page, which the shared test asserts.
+ * This is how a submission that does not say which page it came from — a
+ * report queued offline by a build from before the pages were split, or a
+ * client that has not caught up — is held to the right page's rules.
+ */
+export function pageOf(category: Category): ReportPage {
+  const found = REPORT_PAGE_KEYS.find((p) => pageAllows(p, category));
+  // Unreachable while REPORT_PAGES covers CATEGORY_KEYS. Roadkill is the page
+  // with the fewest consequences for a wrong guess: it offers every animal,
+  // and it blurs nothing less than any other page would.
+  return found ?? "roadkill";
+}
+
+/**
+ * Where an old `/report?category=` link now goes, or `null` for a value that
+ * never named a category.
+ *
+ * `?category=injured` goes to the roadkill page and pre-answers nothing: the
+ * dead-or-hurt question has no default, because a silent default on
+ * condition is how injured animals were filed as dead ones.
+ */
+export function legacyReportPage(
+  category: string | null | undefined,
+): ReportPage | null {
+  if (!category || !(CATEGORY_KEYS as readonly string[]).includes(category))
+    return null;
+  return pageOf(category as Category);
+}
+
+/**
+ * The map's three buckets, which are the three pages under their older names.
+ *
+ * Kept, and derived rather than written out again: the map, the list and the
+ * tile endpoint filter by these (`?group=`), and if the buckets and the pages
+ * could drift apart the map would filter for something no page can produce.
+ * The keys keep their order, which is the order the map's toggles are drawn
+ * in, and `sighting` keeps its name because it is in URLs people have shared.
  */
 export const REPORT_GROUPS = {
-  invasive: { categories: ["invasive"] },
-  sighting: { categories: ["sighting"] },
-  roadkill: { categories: ["roadkill", "injured"] },
+  invasive: { categories: REPORT_PAGES.invasive.categories },
+  sighting: { categories: REPORT_PAGES.wildlife.categories },
+  roadkill: { categories: REPORT_PAGES.roadkill.categories },
 } as const satisfies Record<string, { categories: readonly Category[] }>;
 
 export type ReportGroup = keyof typeof REPORT_GROUPS;
@@ -436,6 +548,13 @@ export const IMAGE_WEBP_QUALITY = 0.82;
 export const reportSubmissionSchema = z
   .object({
     category: z.enum(CATEGORY_KEYS as [Category, ...Category[]]),
+    /**
+     * The page the report was filed on. Optional so that a report queued
+     * offline by an older build still sends; the server then takes the page
+     * the category belongs to (`pageOf`). When it is given, the category and
+     * the species are both held to it.
+     */
+    page: z.enum(REPORT_PAGE_KEYS).optional(),
     lng: z.number().min(-180).max(180),
     lat: z.number().min(-90).max(90),
     observedAt: z.iso.datetime(),
@@ -506,6 +625,21 @@ export function requiresClassification(
  * trigger will tighten it further if classification reveals something rarer.
  */
 export const UNIDENTIFIED_PRECISION: LocationPrecision = "coarse_10km";
+
+/**
+ * The least a report filed on the invasive page is blurred by, named or not.
+ *
+ * A named invasive species is very often a guess at a look-alike: 25 invasive
+ * animals share a genus with a protected native (白尾八哥 and 家八哥 beside 八哥,
+ * 家麻雀 beside the Class I 山麻雀), and the reporter's word is what sets the
+ * blur. So until a person has checked the species, the record is public but
+ * no finer than this — the team's default for Q4 in the plan.
+ *
+ * Stamped as `precision_override` at submission, and kept through every later
+ * naming (lib/report/precision.ts, keepDeliberateOverride). When a moderator's
+ * confirmation may lift it is the owner's decision, and nothing lifts it yet.
+ */
+export const UNVERIFIED_INVASIVE_PRECISION: LocationPrecision = "coarse_10km";
 
 /* ------------------------------------------------------------------ *
  * Tile strategy

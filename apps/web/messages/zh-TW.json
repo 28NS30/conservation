@@ -97,9 +97,6 @@
     "about": "關於"
   },
   "report": {
-    "heading": "新增通報",
-    "subheading": "路殺或受傷動物、外來入侵種，或一般目擊",
-    "type": "通報類型",
     "photos": "照片",
     "photoHelp": "照片會在上傳前縮小並移除 EXIF（含裝置資訊）。",
     "photoProcessing": "處理中…",
@@ -131,7 +128,10 @@
       "photoUnreadable": "這張照片讀不了，換一張或重拍。",
       "taxon_not_found": "找不到這個物種，請重新選一次。",
       "validation_failed": "有欄位的內容不對，請檢查後再送。",
-      "server": "伺服器出了問題，通報沒有送出。內容還在。"
+      "network": "連不上伺服器，可能沒有訊號。通報會留在這支手機裡，有訊號時打開通報頁面就會送出。",
+      "server": "伺服器出了問題，通報沒有送出。內容還在。",
+      "taxon_out_of_scope": "這一頁不收這個物種。請從名單中選擇，或到對應的通報頁面通報。",
+      "category_not_on_page": "這一頁不能送出這類通報。請重新整理頁面後再試一次。"
     },
     "privacyNote": "敏感或保育類物種的座標會自動模糊化後才公開，避免成為盜獵線索。",
     "receipt": {
@@ -144,7 +144,13 @@
       "withheldSpecies": "臺灣物種名錄將這個物種的座標列為不公開。這筆紀錄會保存下來，但不會出現在地圖、通報列表或任何統計裡。",
       "viewRecord": "看這筆紀錄",
       "checkStatus": "看目前狀態",
-      "another": "再通報一筆"
+      "another": "再通報一筆",
+      "notVerified": "尚未查證",
+      "invasiveNextTitle": "接下來會怎樣",
+      "invasiveNextBody": "我們會保存這筆紀錄，並由審核人員查證物種。在那之前，它會標示為「尚未查證」，位置至少模糊化到 10 公里。不會有人前往現場，你也不需要再做什麼。",
+      "taironTitle": "也可以通報給路殺社（TaiRON）",
+      "taironBody": "路殺社（TaiRON）有自己的臺灣路殺紀錄。想把這筆也加進去，請到他們的網站通報；你需要有自己的 TaiRON 帳號。我們不會替你送過去。",
+      "taironLink": "前往 roadkill.tw"
     },
     "needChallenge": "請先完成人機驗證",
     "preparingPhotos": "照片處理中…",
@@ -161,15 +167,37 @@
     "noDispatch": "這裡只做紀錄，不會有人前往現場。",
     "species": "物種",
     "speciesSearch": "輸入名稱搜尋 — 石虎、leopard cat、Prionailurus",
-    "speciesSearchInvasive": "搜尋外來入侵種名錄",
+    "speciesSearchInvasive": "搜尋外來入侵動物 — 綠鬣蜥、Iguana",
     "speciesResults": "{count, plural, =0 {查無物種} other {# 個物種}}",
     "speciesNoHits": "查不到這個名稱。",
-    "speciesWiden": "不是這些？搜尋全部物種",
     "speciesInvasive": "入侵種",
     "speciesChange": "更改",
     "speciesUnsure": "我不確定那是什麼",
     "speciesUnsureHint": "這比亂猜好。我們會記為未鑑定。有照片的話，辨識模型會先試著從照片判斷物種；判斷不出來，就會以未鑑定、位置模糊化的方式公開。",
-    "accuracy": "誤差約 {m} 公尺"
+    "accuracy": "誤差約 {m} 公尺",
+    "pages": {
+      "roadkill": "通報路殺或受傷動物",
+      "invasive": "通報外來入侵種",
+      "wildlife": "通報野生動物目擊"
+    },
+    "allKinds": "所有通報類型",
+    "otherKinds": "不是這一種？",
+    "chooserSpecies": "你要通報這種動物。是哪一種通報？",
+    "required": "必填",
+    "needCondition": "請先選擇動物已經死亡，還是活著但受傷",
+    "addPhoto": "加入照片",
+    "alsoInvasive": "這是外來入侵種，這筆紀錄也會列入入侵種的資料，不需要另外處理。",
+    "speciesNoHitsInvasive": "入侵種名單裡沒有這個名稱。",
+    "speciesUnsureHintInvasive": "這比亂猜好。我們會記為未鑑定，在確認物種之前，位置都會模糊化。",
+    "notOnListLead": "名單裡沒有？",
+    "notOnListLink": "改用野生動物目擊通報",
+    "saveOnPhone": "先存在手機裡",
+    "saving": "儲存中…",
+    "offlineHint": "目前沒有網路。先把通報存在手機裡，之後有訊號時打開通報頁面就會送出。",
+    "backupNoToken": "等不到驗證？先存在手機裡",
+    "backupSlow": "訊號不好？先存在手機裡",
+    "backupHint": "會先存在這支手機裡，下次有訊號時打開通報頁面就會送出。",
+    "newTab": "（在新分頁開啟）"
   },
   "detail": {
     "species": "物種",
@@ -330,17 +358,18 @@
     "seeAllRecords": "查看這個物種的所有紀錄"
   },
   "offline": {
-    "queuedTitle": "已存到裝置，等待送出",
-    "queuedBody": "目前沒有網路。這筆通報已安全存在手機裡，等你回到有訊號的地方並開啟本網站時就會自動送出。",
+    "queuedTitle": "存在手機裡了，還沒送出",
+    "queuedBody": "下次有訊號時打開通報頁面，就會自動送出。iPhone 無法在背景送出，請記得回來打開通報頁面。",
     "waiting": "{count, plural, other {# 筆通報等待送出}}",
-    "explain": "回到有網路的地方並開啟本網站時會自動送出。iPhone 無法在背景送出，請記得回來開一下。",
+    "explain": "有訊號時打開通報頁面就會送出。iPhone 無法在背景送出，請記得回來打開通報頁面。",
     "staleWarning": "有通報已等待超過三天。瀏覽器可能會清除長期未使用的資料，建議盡快送出。",
     "sendNow": "立即送出",
     "sending": "送出中…",
     "discard": "刪除",
     "sentCount": "{count, plural, other {已送出 # 筆通報。}}",
     "queueFailed": "這筆通報沒辦法存在你的裝置上，也還沒送出。請確認瀏覽器沒有封鎖儲存空間，或空間是否已滿。",
-    "verifying": "送出前正在驗證瀏覽器，請稍候。"
+    "verifying": "送出前正在驗證瀏覽器，請稍候。",
+    "explainOffline": "目前沒有訊號。它們會留在這支手機裡，下次有訊號時打開通報頁面就會送出。"
   },
   "errors": {
     "title": "發生錯誤",

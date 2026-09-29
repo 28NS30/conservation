@@ -1,23 +1,29 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Turnstile, { turnstileEnabled } from "./Turnstile";
 import { withBase } from "@/lib/basePath";
 import SpeciesPicker, { type SpeciesHit } from "./SpeciesPicker";
 import { useTranslations, useLocale } from "next-intl";
 import {
   CATEGORIES,
-  REPORT_GROUPS,
-  REPORT_GROUP_KEYS,
-  groupOf,
+  REPORT_PAGES,
   MAX_PHOTOS,
   MAX_NOTES,
   type Category,
+  type ReportPage,
 } from "@conservation/shared";
 import { preparePhoto, type PreparedPhoto } from "@/lib/image";
 import { browserSupabase, PHOTO_BUCKET } from "@/lib/supabase/client";
 import { enqueue } from "@/lib/offline/queue";
+import { useOnline } from "@/lib/offline/online";
 import { outcomeOf } from "@/lib/report/outcome";
+import { awaitingVerification } from "@/lib/report/verification";
+import {
+  sendControls,
+  SEND_PATIENCE_MS,
+  TOKEN_PATIENCE_MS,
+} from "@/lib/report/sendState";
 import {
   ReportError,
   describeFailure,
@@ -32,21 +38,44 @@ import LocationPicker, { useGeolocate, type LatLng } from "./LocationPicker";
 type Photo = PreparedPhoto & { previewUrl: string; id: string };
 type Phase = "editing" | "submitting" | "done" | "queued" | "error";
 
+/** Where 路殺社 takes reports. A link only: nothing is sent there for anyone. */
+const TAIRON_URL = "https://roadkill.tw";
+
 type ReportFormProps = {
+  /**
+   * Which of the three report pages this is. It decides the stored category —
+   * outright on the invasive and wildlife pages, by the one question the
+   * roadkill page asks — and which species the picker offers. The server holds
+   * the submission to the same page, so the two cannot disagree.
+   */
+  page: ReportPage;
   maptilerKey?: string;
   /**
-   * Preselected from the front page's category doors, so that choosing one there
-   * and arriving here is a single act rather than the same question twice.
-   * Validated against CATEGORY_KEYS by the page, never trusted raw.
-   */
-  initialCategory?: Category;
-  /**
-   * Preselected from a species page's "report this species" link, for the same
-   * reason. Looked up in the database by the page, so an unknown or malformed
-   * ?taxonId= arrives here as undefined rather than as a name nobody checked.
+   * Preselected from a species page's "report this species" link, so that
+   * naming the animal and starting the report are one act. Looked up in the
+   * database by the page, and only for a species this page offers, so an
+   * unknown, retired or out-of-scope ?taxonId= arrives here as undefined
+   * rather than as a name the server would refuse.
+   *
+   * The only thing ever preselected, and only because the reporter chose it
+   * on the page they came from.
    */
   initialSpecies?: SpeciesHit;
 };
+
+/**
+ * The category a page files before anything is answered: its only one, or
+ * nothing at all when the page has a question to ask.
+ *
+ * The roadkill page asks dead or hurt, and there is no default. There used to
+ * be — the form opened on "roadkill, dead" — and a default on condition is how
+ * a live sighting from the header's report button, or an injured animal whose
+ * reporter did not notice the second choice, was stored as a dead one.
+ */
+function initialCategoryFor(page: ReportPage): Category | null {
+  const categories: readonly Category[] = REPORT_PAGES[page].categories;
+  return categories.length === 1 ? categories[0] : null;
+}
 
 function toLocalInput(d: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -64,9 +93,9 @@ function toLocalInput(d: Date) {
  * again actually means.
  *
  * The props survive, which is the point of passing them through: someone who
- * arrived from a species page or a category door is starting their second
- * report of the same kind, and asking the question again would be the same
- * duplication those links exist to remove.
+ * arrived from a species page is starting their second report of the same
+ * animal, on the same page, and asking again would be the duplication the
+ * link exists to remove.
  */
 export default function ReportForm(props: ReportFormProps) {
   const [attempt, setAttempt] = useState(0);
@@ -80,8 +109,8 @@ export default function ReportForm(props: ReportFormProps) {
 }
 
 function ReportFormFields({
+  page,
   maptilerKey,
-  initialCategory,
   initialSpecies,
   onReportAnother,
 }: ReportFormProps & {
@@ -91,12 +120,12 @@ function ReportFormFields({
   const t = useTranslations("report");
   const locale = useLocale();
   const tOffline = useTranslations("offline");
-  const [category, setCategory] = useState<Category>(
-    initialCategory ?? "roadkill",
+  const online = useOnline();
+  const [category, setCategory] = useState<Category | null>(() =>
+    initialCategoryFor(page),
   );
-  // Derived, never stored: the group is a view of the category, so the two can
-  // never disagree — including when ?category=injured arrives from a link.
-  const group = groupOf(category);
+  const conditions: readonly Category[] = REPORT_PAGES[page].categories;
+  const asksCondition = conditions.length > 1;
   // What the reporter says it is. `unsure` is a judgement, not an empty field:
   // it separates "nobody could name this" from "nobody has looked yet".
   const [species, setSpecies] = useState<SpeciesHit | null>(
@@ -180,11 +209,42 @@ function ReportFormFields({
   /** The browser refused or could not produce a fix. Says so under the map. */
   const [locationError, setLocationError] = useState(false);
 
+  /**
+   * How long the reporter has been kept waiting, in the two places a wait can
+   * strand a report: a challenge that never solves, and a send that never
+   * answers. Each only ever turns on, from a timer; what it means is decided
+   * in lib/report/sendState.ts, which ignores a slow token once one arrives.
+   */
+  const [tokenSlow, setTokenSlow] = useState(false);
+  const [sendNumber, setSendNumber] = useState(0);
+  const [slowSend, setSlowSend] = useState<number | null>(null);
+  /**
+   * The send that is still allowed to finish. Saving on the phone mid-send
+   * moves this on, so the abandoned send's answer — if one ever comes — is
+   * dropped rather than landing on top of the "saved" card. The queue then
+   * sends under the same nonce, and the server keeps one report either way.
+   */
+  const liveSend = useRef(0);
+  const inFlight = useRef<AbortController | null>(null);
+
   // Generated once per form instance so a double-tap cannot create two reports.
   // When a submission is queued this same value becomes the queue item's id, so
   // every later retry reuses it and the server's duplicate check holds.
   const nonce = useRef<string>(crypto.randomUUID());
   const { locate, busy: locating } = useGeolocate();
+
+  useEffect(() => {
+    if (!turnstileEnabled || turnstileToken || !online) return;
+    const id = window.setTimeout(() => setTokenSlow(true), TOKEN_PATIENCE_MS);
+    return () => window.clearTimeout(id);
+  }, [turnstileToken, online]);
+
+  useEffect(() => {
+    if (phase !== "submitting") return;
+    const n = sendNumber;
+    const id = window.setTimeout(() => setSlowSend(n), SEND_PATIENCE_MS);
+    return () => window.clearTimeout(id);
+  }, [phase, sendNumber]);
 
   const addFiles = useCallback(
     async (files: FileList | null) => {
@@ -239,13 +299,75 @@ function ReportFormFields({
     [photos.length, location, timeEdited, fail],
   );
 
+  /**
+   * The report as the reporter entered it, for sending or for saving.
+   *
+   * One builder for both, so a saved report and a sent one cannot say
+   * different things. Never a Turnstile token: a token is single-use and dies
+   * in about five minutes, so the queue mints its own when it sends
+   * (test/offline-challenge.test.mjs).
+   */
+  const entered = (where: LatLng, what: Category) => ({
+    category: what,
+    page,
+    lng: where.lng,
+    lat: where.lat,
+    accuracyM: accuracyM ?? undefined,
+    observedAt: new Date(observedAt).toISOString(),
+    taxonId: species?.id,
+    taxonUnknown: unsure || undefined,
+    notes: notes.trim() || undefined,
+    contactEmail: email.trim() || undefined,
+  });
+
+  /**
+   * Keep the report on this phone, to be sent from the queue later.
+   *
+   * Reached four ways: the main button when the phone is offline, the two
+   * "save on this phone" buttons that appear when a challenge or a send has
+   * kept the reporter waiting too long, and a send that failed for want of a
+   * network. Needs no token and no connection — that is the point of it.
+   */
+  async function saveOnPhone() {
+    if (!location || !category) return;
+    // Abandon anything in flight. Its photos may already be in the bucket and
+    // its row may already be stored; the queue re-sends under the same nonce,
+    // so the server answers that with the row it has rather than a second one.
+    liveSend.current += 1;
+    inFlight.current?.abort();
+    setError(null);
+    setQueueFailed(false);
+    setPhase("submitting");
+    try {
+      await enqueue({
+        id: nonce.current,
+        payload: entered(location, category),
+        photos: photos.map((p) => p.blob),
+      });
+      window.dispatchEvent(new Event("conservation:queue-changed"));
+      setPhase("queued");
+    } catch (queueErr) {
+      // `t` is the `report` namespace and this key lives in `offline`, so
+      // the old call rendered the literal string "report.queueFailed" to
+      // the one person whose report had just failed to save anywhere at all.
+      console.error("[report] could not queue:", queueErr);
+      setQueueFailed(true);
+      setPhase("error");
+    }
+  }
+
   async function submit() {
     setError(null);
     setQueueFailed(false);
-    // Unreachable through the button, which is disabled without one, and the
+    // Unreachable through the button, which is disabled without both, and the
     // sentence above it already says which requirement is unmet.
-    if (!location) return;
+    if (!location || !category) return;
 
+    const mine = ++liveSend.current;
+    const stillMine = () => liveSend.current === mine;
+    const controller = new AbortController();
+    inFlight.current = controller;
+    setSendNumber(mine);
     setPhase("submitting");
     try {
       let paths: string[] = [];
@@ -254,6 +376,7 @@ function ReportFormFields({
         const signRes = await fetch(withBase("/api/uploads/sign"), {
           method: "POST",
           headers: { "content-type": "application/json" },
+          signal: controller.signal,
           // Say what is being uploaded rather than leaning on the default.
           // `stripAndDownscale` always writes WebP through a canvas, so this
           // is the truth here — and stating it is what lets the key match the
@@ -273,6 +396,7 @@ function ReportFormFields({
         const { uploads } = (await signRes.json()) as {
           uploads: { path: string; token: string }[];
         };
+        if (!stillMine()) return;
 
         const storage = browserSupabase().storage.from(PHOTO_BUCKET);
         // The result was thrown away. supabase-js resolves with `{ error }`
@@ -284,6 +408,7 @@ function ReportFormFields({
             storage.uploadToSignedUrl(u.path, u.token, photos[i].blob),
           ),
         );
+        if (!stillMine()) return;
         const bad = results.find((r) => r.error);
         if (bad) {
           console.error("[report] photo upload:", bad.error);
@@ -295,16 +420,9 @@ function ReportFormFields({
       const res = await fetch(withBase("/api/reports"), {
         method: "POST",
         headers: { "content-type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
-          category,
-          lng: location.lng,
-          lat: location.lat,
-          accuracyM: accuracyM ?? undefined,
-          observedAt: new Date(observedAt).toISOString(),
-          taxonId: species?.id,
-          taxonUnknown: unsure || undefined,
-          notes: notes.trim() || undefined,
-          contactEmail: email.trim() || undefined,
+          ...entered(location, category),
           photoPaths: paths,
           clientNonce: nonce.current,
           turnstileToken: turnstileToken ?? undefined,
@@ -312,6 +430,7 @@ function ReportFormFields({
       });
 
       const data = await res.json().catch(() => ({}));
+      if (!stillMine()) return;
       if (!res.ok) throw new ReportError(data.error ?? "unknown", res.status);
 
       setResult({
@@ -326,6 +445,10 @@ function ReportFormFields({
       });
       setPhase("done");
     } catch (e) {
+      // Abandoned for the queue while it was in flight: the reporter has
+      // already been told it is saved, and this is the abort arriving.
+      if (!stillMine()) return;
+
       // Network failure (or an outright offline browser) means the report is not
       // lost — it goes to the queue and is sent when connectivity returns. Any
       // other failure is a real rejection and should be shown as one.
@@ -334,34 +457,8 @@ function ReportFormFields({
       const networkish = offline || e instanceof TypeError;
 
       if (networkish) {
-        try {
-          await enqueue({
-            id: nonce.current,
-            payload: {
-              category,
-              lng: location!.lng,
-              lat: location!.lat,
-              accuracyM: accuracyM ?? undefined,
-              observedAt: new Date(observedAt).toISOString(),
-              taxonId: species?.id,
-              taxonUnknown: unsure || undefined,
-              notes: notes.trim() || undefined,
-              contactEmail: email.trim() || undefined,
-            },
-            photos: photos.map((p) => p.blob),
-          });
-          window.dispatchEvent(new Event("conservation:queue-changed"));
-          setPhase("queued");
-          return;
-        } catch (queueErr) {
-          // `t` is the `report` namespace and this key lives in `offline`, so
-          // the old call rendered the literal string "report.queueFailed" to
-          // the one person whose report had just failed to save anywhere at all.
-          console.error("[report] could not queue:", queueErr);
-          setQueueFailed(true);
-          setPhase("error");
-          return;
-        }
+        await saveOnPhone();
+        return;
       }
 
       const code = e instanceof ReportError ? e.code : "unknown";
@@ -400,9 +497,69 @@ function ReportFormFields({
   const noDispatchNote = () => (
     <p
       role="note"
-      className="border-l-4 border-ink-600 pl-3 text-sm leading-relaxed text-ink-700"
+      className="border-l-4 border-ink-600 pl-3 text-sm leading-relaxed text-ink-800"
     >
       {t("noDispatch")}
+    </p>
+  );
+
+  /**
+   * What happens to a report from the invasive page, said before anyone asks.
+   *
+   * Invasive animals invite a particular wrong assumption: that reporting one
+   * sets off a removal, or that the reporter is expected to do something about
+   * it. Neither is true, and the answer must never suggest catching, moving or
+   * harming the animal — a reporter who tries to catch a "sacred ibis" that is
+   * a protected egret has been told to by us. So it says what we do (keep it,
+   * have it checked, blur it until then) and that nothing more is asked of
+   * them. No agency or number: those wait for the owner (Q7 in the plan).
+   */
+  const invasiveNext = () => (
+    <div role="note" className="border-l-4 border-leaf-600 pl-3">
+      <p className="text-sm font-semibold text-forest-900">
+        {t("receipt.invasiveNextTitle")}
+      </p>
+      <p className="mt-1 text-sm leading-relaxed text-ink-800">
+        {t("receipt.invasiveNextBody")}
+      </p>
+    </div>
+  );
+
+  /**
+   * 路殺社's own record of the same animal (plan, stage 9 step 37).
+   *
+   * TaiRON keeps Taiwan's roadkill record and has no way for another site to
+   * send it reports; its partners type records into TaiRON's own site. So this
+   * is a link and an explanation, nothing more: the reporter can add the same
+   * animal there themselves, with their own account, and nothing is sent or
+   * stored on their behalf. Whether a later bulk transfer should skip records
+   * the reporter filed there too is for when TaiRON has agreed to one.
+   */
+  const taironNote = () => (
+    <div className="rounded-lg border border-forest-900/15 bg-paper-50 p-4">
+      <p className="text-sm font-semibold text-forest-900">
+        {t("receipt.taironTitle")}
+      </p>
+      <p className="mt-1 text-sm leading-relaxed text-ink-800">
+        {t("receipt.taironBody")}
+      </p>
+      <a
+        href={TAIRON_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-1 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-leaf-700 underline underline-offset-2 hover:text-forest-900"
+      >
+        {t("receipt.taironLink")}
+        <span aria-hidden>↗</span>
+        <span className="sr-only">{t("newTab")}</span>
+      </a>
+    </div>
+  );
+
+  /** Marked on everything the reporter is shown about an unchecked record. */
+  const unverifiedTag = () => (
+    <p className="mt-2 inline-flex items-center rounded-full border border-ink-900/20 bg-paper-50 px-3 py-1 text-sm font-medium text-ink-800">
+      {t("receipt.notVerified")}
     </p>
   );
 
@@ -435,25 +592,44 @@ function ReportFormFields({
     <button
       type="button"
       onClick={onReportAnother}
-      className="inline-flex min-h-6 items-center text-xs text-ink-600 underline decoration-ink-900/25 underline-offset-2 hover:text-ink-900"
+      className="inline-flex min-h-11 items-center text-sm font-medium text-ink-800 underline decoration-ink-900/30 underline-offset-2 hover:text-ink-950"
     >
       {t("receipt.another")}
     </button>
   );
 
+  /**
+   * What the page says after the report has left the form, sent or saved.
+   *
+   * Repeated on both cards rather than shown only beside the choices: a saved
+   * report is the case where waiting for a response is most plausible and
+   * least warranted, because it has not even left the phone yet.
+   */
+  const afterwards = () => (
+    <>
+      {category === "injured" && <div className="mt-3">{noDispatchNote()}</div>}
+      {page === "invasive" && <div className="mt-3">{invasiveNext()}</div>}
+      {page === "roadkill" && <div className="mt-4">{taironNote()}</div>}
+    </>
+  );
+
+  const unverified =
+    category !== null && awaitingVerification({ category, taxonSource: null });
+
   if (phase === "queued") {
     return (
-      <div className="rounded-xl border border-amber-500/30 bg-amber-600/10 p-5">
-        <h2 className="text-base font-semibold text-amber-800">
+      <div
+        role="status"
+        className="rounded-xl border border-forest-900/20 bg-paper-100 p-5"
+      >
+        <h2 className="text-lg font-semibold text-forest-900">
           {tOffline("queuedTitle")}
         </h2>
-        <p className="mt-2 text-xs leading-relaxed text-amber-800/80">
+        {unverified && unverifiedTag()}
+        <p className="mt-2 text-sm leading-relaxed text-ink-800">
           {tOffline("queuedBody")}
         </p>
-        {/* Repeated on the cards, not only beside the choice. A queued report
-            is the case where waiting for a response is most plausible and
-            least warranted: it has not even left the phone yet. */}
-        {category === "injured" && <div className="mt-3">{noDispatchNote()}</div>}
+        {afterwards()}
         <div className="mt-4">{another()}</div>
       </div>
     );
@@ -469,17 +645,21 @@ function ReportFormFields({
       result.visible,
     );
     return (
-      <div className="rounded-xl border border-ember-500/30 bg-ember-500/10 p-5">
-        <h2 className="text-base font-semibold text-ember-700">
+      <div
+        role="status"
+        className="rounded-xl border border-ember-500/30 bg-ember-500/10 p-5"
+      >
+        <h2 className="text-lg font-semibold text-ember-700">
           {t(`receipt.${outcome.title}`)}
         </h2>
+        {unverified && unverifiedTag()}
         {outcome.body && (
-          <p className="mt-2 text-sm leading-relaxed text-ink-700">
+          <p className="mt-2 text-sm leading-relaxed text-ink-800">
             {t(`receipt.${outcome.body}`)}
           </p>
         )}
-        {category === "injured" && <div className="mt-3">{noDispatchNote()}</div>}
-        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+        {afterwards()}
+        <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-1">
           {/*
             Offered only where there is something to open. The old card always
             linked to /reports/{id}, and that page reads `reports_public`, which
@@ -491,7 +671,7 @@ function ReportFormFields({
           {outcome.link && (
             <Link
               href={`/reports/${result.id}`}
-              className="inline-flex min-h-6 items-center text-xs text-ember-700 underline underline-offset-2"
+              className="inline-flex min-h-11 items-center text-sm font-medium text-ember-700 underline underline-offset-2"
             >
               {t(`receipt.${outcome.link}`)}
             </Link>
@@ -503,98 +683,75 @@ function ReportFormFields({
   }
 
   const heldForReview =
-    CATEGORIES[category].classifiable && photos.length === 0;
+    category !== null && CATEGORIES[category].classifiable && photos.length === 0;
 
+  const busy = phase === "submitting";
+  const controls = sendControls({
+    online,
+    turnstileEnabled,
+    hasToken: turnstileToken !== null,
+    hasLocation: location !== null,
+    preparing,
+    needsCondition: category === null,
+    busy,
+    tokenSlow,
+    sendSlow: busy && slowSend === sendNumber,
+  });
   // The first unmet requirement, in the order someone meets them.
-  const blocker = preparing
-    ? t("preparingPhotos")
-    : !location
-      ? t("needLocation")
-      : turnstileEnabled && !turnstileToken
-        ? t("needChallenge")
-        : null;
+  const blocker = controls.blocker ? t(controls.blocker) : null;
+  const saving = controls.primary === "save";
+
+  const chip = (pressed: boolean) =>
+    `inline-flex min-h-12 items-center justify-center rounded-lg border-2 px-4 text-base font-medium transition ${
+      pressed
+        ? "border-forest-900 bg-forest-900 text-paper-50"
+        : "border-ink-900/20 bg-paper-100 text-ink-900 hover:border-forest-900/50"
+    }`;
 
   return (
-    <div className="space-y-6">
-      {/* Category */}
+    <div className="space-y-8">
       {/*
-        Three choices, not four. The team's list asks for invasive species,
-        wildlife sighting, and roadkill-or-injured; the last covers two stored
-        categories because an injured animal needs a response and a dead one
-        does not, so the distinction survives as a sub-choice rather than as a
-        fourth button competing with the other three.
+        The roadkill page's one question, and it comes first because it is the
+        one thing it asks that the others do not. Required, with no default:
+        the two answers are two stored categories — an injured animal implies
+        someone should respond and a dead one does not — and nothing may be
+        chosen for the reporter. The header used to open a form already set to
+        "roadkill, dead", so a live animal could be filed dead without anyone
+        having said so.
       */}
-      <section>
-        <h2 className="mb-2 text-sm font-medium text-ink-700">{t("type")}</h2>
-        <div className="flex flex-wrap gap-1.5">
-          {REPORT_GROUP_KEYS.map((g) => {
-            const first = REPORT_GROUPS[g].categories[0];
-            return (
+      {asksCondition && (
+        <section aria-labelledby="condition-label">
+          <h2
+            id="condition-label"
+            className="mb-2 text-base font-semibold text-forest-900"
+          >
+            {t("conditionLabel")}{" "}
+            <span className="text-sm font-normal text-ink-600">
+              {t("required")}
+            </span>
+          </h2>
+          <div role="group" aria-labelledby="condition-label" className="grid grid-cols-2 gap-2">
+            {conditions.map((k) => (
               <button
-                key={g}
+                key={k}
                 type="button"
-                // Which one is chosen was conveyed by fill colour alone, so a
-                // screen reader announced identical buttons and no state.
-                aria-pressed={group === g}
-                // Only when it CHANGES the group. Tapping the chip that is
-                // already pressed used to run `setCategory(first)` anyway, and
-                // `first` is the group's first category — so a reporter who
-                // chose 還活著，但受傷 and then touched the 路殺或受傷 chip above
-                // it, which was already active, had their answer silently
-                // replaced with 已死亡. Re-pressing a pressed control should do
-                // nothing, and here doing something meant recording a live
-                // animal as a dead one.
-                onClick={() => {
-                  if (group !== g) setCategory(first);
-                }}
-                className={`flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-medium transition ${
-                  group === g
-                    ? "border-ink-900 bg-ink-900 text-paper-50"
-                    : "border-ink-900/12 bg-paper-100/70 text-ink-600 hover:bg-paper-200"
-                }`}
+                aria-pressed={category === k}
+                onClick={() => setCategory(k)}
+                className={chip(category === k)}
               >
-                <span
-                  className="h-2 w-2 rounded-full"
-                  style={{ background: CATEGORIES[first].color }}
-                />
-                {t(`group.${g}`)}
+                {t(`condition.${k}`)}
               </button>
-            );
-          })}
-        </div>
-
-        {REPORT_GROUPS[group].categories.length > 1 && (
-          <div className="mt-3">
-            <h3 className="mb-1.5 text-xs font-medium text-ink-600">
-              {t("conditionLabel")}
-            </h3>
-            <div className="flex flex-wrap gap-1.5">
-              {REPORT_GROUPS[group].categories.map((k) => (
-                <button
-                  key={k}
-                  type="button"
-                  aria-pressed={category === k}
-                  onClick={() => setCategory(k)}
-                  className={`rounded-full border px-3 py-1.5 text-xs transition ${
-                    category === k
-                      ? "border-ink-900/70 bg-paper-200 font-medium text-ink-900"
-                      : "border-ink-900/12 bg-paper-100/70 text-ink-600 hover:bg-paper-200"
-                  }`}
-                >
-                  {t(`condition.${k}`)}
-                </button>
-              ))}
-            </div>
-            {category === "injured" && (
-              <div className="mt-3">{noDispatchNote()}</div>
-            )}
+            ))}
           </div>
-        )}
-      </section>
+          {category === "injured" && (
+            <div className="mt-3">{noDispatchNote()}</div>
+          )}
+        </section>
+      )}
 
       <section>
         <SpeciesPicker
-          group={group}
+          page={page}
           value={species}
           onChange={setSpecies}
           unsure={unsure}
@@ -605,14 +762,14 @@ function ReportFormFields({
 
       {/* Photos */}
       <section>
-        <h2 className="mb-2 text-sm font-medium text-ink-700">
+        <h2 className="mb-2 text-base font-semibold text-forest-900">
           {t("photos")}{" "}
-          <span className="font-normal text-ink-500">
+          <span className="text-sm font-normal text-ink-600">
             ({photos.length}/{MAX_PHOTOS})
           </span>
         </h2>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-3">
           {photos.map((p) => (
             <div key={p.id} className="relative">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -632,7 +789,7 @@ function ReportFormFields({
                 // 24px and a pseudo-element carries the rest of the 44px hit
                 // area inwards and downwards, over the photograph it belongs
                 // to, so growing it cannot steal a tap from the next tile.
-                className="absolute -right-1.5 -top-1.5 grid h-6 w-6 place-items-center rounded-full bg-paper-200 text-xs text-ink-700 ring-1 ring-ink-900/15 after:absolute after:-bottom-5 after:-left-5 after:right-0 after:top-0 after:content-['']"
+                className="absolute -right-1.5 -top-1.5 grid h-6 w-6 place-items-center rounded-full bg-paper-200 text-sm text-ink-800 ring-1 ring-ink-900/15 after:absolute after:-bottom-5 after:-left-5 after:right-0 after:top-0 after:content-['']"
                 aria-label={t("removePhoto")}
               >
                 ×
@@ -645,8 +802,9 @@ function ReportFormFields({
             // itself is `hidden`, so focusing it shows nothing at all, and the
             // only visible affordance is this label. Tabbing to the photo picker
             // used to give no indication whatsoever.
-            <label className="grid h-20 w-20 cursor-pointer place-items-center rounded-lg border border-dashed border-ink-900/20 text-2xl text-ink-500 hover:border-ink-900/30 hover:text-ink-600 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ember-400">
-              +
+            <label className="grid h-20 w-20 cursor-pointer place-items-center rounded-lg border-2 border-dashed border-ink-900/25 text-2xl text-ink-600 hover:border-forest-900/50 hover:text-forest-900 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ember-400">
+              <span aria-hidden>+</span>
+              <span className="sr-only">{t("addPhoto")}</span>
               <input
                 type="file"
                 accept="image/*"
@@ -667,12 +825,12 @@ function ReportFormFields({
           )}
         </div>
 
-        <p className="mt-2 text-[11px] leading-relaxed text-ink-500">
+        <p className="mt-2 text-sm leading-relaxed text-ink-600">
           {preparing ? t("photoProcessing") : t("photoHelp")}
         </p>
 
         {heldForReview && (
-          <p className="mt-2 text-[11px] text-amber-700">
+          <p className="mt-2 text-sm leading-relaxed text-ink-800">
             {t("noPhotoWarning")}
           </p>
         )}
@@ -681,8 +839,10 @@ function ReportFormFields({
 
       {/* Location */}
       <section>
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-medium text-ink-700">{t("location")}</h2>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-base font-semibold text-forest-900">
+            {t("location")}
+          </h2>
           <button
             type="button"
             onClick={async () => {
@@ -700,7 +860,7 @@ function ReportFormFields({
                 setLocationError(true);
               }
             }}
-            className="rounded-full border border-ink-900/12 bg-paper-100/70 px-3 py-1.5 text-xs text-ink-600 hover:bg-paper-200"
+            className="inline-flex min-h-11 items-center rounded-full border border-forest-900/30 bg-paper-100 px-4 text-sm font-medium text-forest-900 hover:bg-paper-200"
           >
             {locating ? t("locating") : t("useMyLocation")}
           </button>
@@ -711,12 +871,12 @@ function ReportFormFields({
           // site uses, and it set its text at 1.02–1.28:1 on cream — invisible
           // rather than merely low-contrast, on the one strip that asks whether
           // to take a location out of a photograph.
-          <div className="mb-2 flex items-center justify-between gap-3 rounded-lg border border-ink-900/12 bg-paper-100 px-3 py-2 text-[11px] text-ink-700">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-ink-900/12 bg-paper-100 px-3 py-2 text-sm text-ink-800">
             <span>{t("exifOffer")}</span>
             <span className="flex shrink-0 gap-2">
               <button
                 type="button"
-                className="inline-flex min-h-8 items-center rounded bg-ember-500/15 px-2.5 font-medium text-ember-700"
+                className="inline-flex min-h-11 items-center rounded bg-ember-500/15 px-3 font-medium text-ember-700"
                 onClick={() => {
                   setLocation(exifOffer);
                   setAccuracyM(null);
@@ -727,7 +887,7 @@ function ReportFormFields({
               </button>
               <button
                 type="button"
-                className="inline-flex min-h-8 items-center px-2 text-ink-600"
+                className="inline-flex min-h-11 items-center px-3 text-ink-700"
                 onClick={() => setExifOffer(null)}
               >
                 {t("exifSkip")}
@@ -747,31 +907,31 @@ function ReportFormFields({
         {/* "Tap to adjust" is about a pin that exists. Before one does, the
             instruction is to make one — the old text told a reporter with
             nothing chosen to adjust something that was not there. */}
-        <p className="mt-1.5 text-[11px] text-ink-500">
+        <p className="mt-1.5 text-sm text-ink-600">
           {location ? t("tapToAdjust") : t("needLocation")}
           {accuracyM != null && (
-            <span className="ml-1.5 tabular-nums text-ink-500">
+            <span className="ml-1.5 tabular-nums text-ink-600">
               · {t("accuracy", { m: accuracyM })}
             </span>
           )}
         </p>
         {locationError && (
-          <p role="alert" className="mt-1.5 text-[11px] text-ember-700">
+          <p role="alert" className="mt-1.5 text-sm text-ember-700">
             {t("locationError")}
           </p>
         )}
       </section>
 
       {/* Details */}
-      <section className="space-y-3">
+      <section className="space-y-4">
         <div>
           <label
             htmlFor="observedAt"
-            className="mb-1 block text-sm font-medium text-ink-700"
+            className="mb-1 block text-base font-semibold text-forest-900"
           >
             {t("observedAt")}
             {timeFromPhoto && (
-              <span className="ms-2 font-normal text-ink-600">
+              <span className="ms-2 text-sm font-normal text-ink-600">
                 {t("observedFromPhoto")}
               </span>
             )}
@@ -786,17 +946,17 @@ function ReportFormFields({
               setTimeEdited(true);
               setTimeFromPhoto(false);
             }}
-            className="w-full rounded-lg border border-ink-900/12 bg-paper-100/70 px-3 py-2 text-sm text-ink-800"
+            className="min-h-12 w-full rounded-lg border border-ink-900/20 bg-paper-100 px-3 py-2 text-base text-ink-900"
           />
         </div>
 
         <div>
           <label
             htmlFor="notes"
-            className="mb-1 block text-sm font-medium text-ink-700"
+            className="mb-1 block text-base font-semibold text-forest-900"
           >
             {t("notes")}{" "}
-            <span className="font-normal text-ink-500">({t("optional")})</span>
+            <span className="text-sm font-normal text-ink-600">({t("optional")})</span>
           </label>
           <textarea
             id="notes"
@@ -804,17 +964,17 @@ function ReportFormFields({
             maxLength={MAX_NOTES}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="w-full rounded-lg border border-ink-900/12 bg-paper-100/70 px-3 py-2 text-sm text-ink-800"
+            className="w-full rounded-lg border border-ink-900/20 bg-paper-100 px-3 py-2 text-base text-ink-900"
           />
         </div>
 
         <div>
           <label
             htmlFor="email"
-            className="mb-1 block text-sm font-medium text-ink-700"
+            className="mb-1 block text-base font-semibold text-forest-900"
           >
             {t("email")}{" "}
-            <span className="font-normal text-ink-500">({t("optional")})</span>
+            <span className="text-sm font-normal text-ink-600">({t("optional")})</span>
           </label>
           <input
             id="email"
@@ -822,9 +982,9 @@ function ReportFormFields({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
-            className="w-full rounded-lg border border-ink-900/12 bg-paper-100/70 px-3 py-2 text-sm text-ink-800"
+            className="min-h-12 w-full rounded-lg border border-ink-900/20 bg-paper-100 px-3 py-2 text-base text-ink-900"
           />
-          <p className="mt-1 text-[11px] text-ink-500">{t("emailHelp")}</p>
+          <p className="mt-1 text-sm text-ink-600">{t("emailHelp")}</p>
         </div>
       </section>
 
@@ -835,15 +995,25 @@ function ReportFormFields({
         </p>
       )}
 
-      {/* Directly above the button it gates, so it reads as part of submitting
-          rather than as an unexplained box. Renders nothing without a site key. */}
-      <Turnstile
-        onToken={setTurnstileToken}
-        locale={locale}
-        onReady={(api) => {
-          resetTurnstile.current = api.reset;
-        }}
-      />
+      {/*
+        Directly above the button it gates, so it reads as part of sending
+        rather than as an unexplained box. Renders nothing without a site key.
+
+        Not at all while offline: its script comes from Cloudflare and cannot
+        load, and an empty box saying nothing is worse than no box. Unmounted
+        and mounted again with the connection, so it fetches the script afresh
+        when the signal comes back (see the onerror in Turnstile.tsx).
+      */}
+      {online && (
+        <Turnstile
+          onToken={setTurnstileToken}
+          locale={locale}
+          theme="light"
+          onReady={(api) => {
+            resetTurnstile.current = api.reset;
+          }}
+        />
+      )}
 
       {/*
           Say what is missing, rather than leaving a dead button.
@@ -853,7 +1023,7 @@ function ReportFormFields({
           greys out and nothing on screen explains why. That is a dead end on the
           one page whose entire job is collecting a report.
 
-          Its own group, rather than two children of `space-y-6` with a negative
+          Its own group, rather than two children of `space-y-8` with a negative
           margin pulling them together. `-mb-1` did not merely tighten the gap:
           it cancelled the parent's spacing outright, and at 390px the button's
           box rose into the sentence explaining why the button was disabled. The
@@ -862,25 +1032,53 @@ function ReportFormFields({
       */}
       <div className="space-y-2">
         {blocker && (
-          <p id="submit-blocker" className="text-center text-xs text-ink-500">
+          <p id="submit-blocker" className="text-center text-sm text-ink-700">
             {blocker}
+          </p>
+        )}
+        {saving && (
+          <p className="text-center text-sm leading-relaxed text-ink-800">
+            {t("offlineHint")}
           </p>
         )}
 
         <button
           type="button"
-          onClick={submit}
+          onClick={saving ? saveOnPhone : submit}
           aria-describedby={blocker ? "submit-blocker" : undefined}
-          disabled={
-            phase === "submitting" ||
-            preparing ||
-            !location ||
-            (turnstileEnabled && !turnstileToken)
-          }
-          className="w-full rounded-xl bg-ember-500 px-4 py-3 text-sm font-semibold text-bark-950 transition disabled:cursor-not-allowed disabled:bg-paper-200 disabled:text-ink-600"
+          disabled={controls.disabled}
+          className="min-h-12 w-full rounded-xl bg-ember-500 px-4 py-3 text-base font-semibold text-ink-950 transition hover:bg-ember-400 disabled:cursor-not-allowed disabled:bg-paper-200 disabled:text-ink-700"
         >
-          {phase === "submitting" ? t("submitting") : t("submit")}
+          {busy
+            ? saving
+              ? t("saving")
+              : t("submitting")
+            : saving
+              ? t("saveOnPhone")
+              : t("submit")}
         </button>
+
+        {/*
+          The way out of a wait that may not end: a challenge that never
+          solves, or a send on one bar of signal that never answers. Beside the
+          main button rather than instead of it, so someone halfway through a
+          challenge, or whose send is about to land, is not moved onto the
+          other path by a timer.
+        */}
+        {controls.backup && (
+          <div className="pt-2 text-center">
+            <button
+              type="button"
+              onClick={saveOnPhone}
+              className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border-2 border-forest-900 px-4 text-base font-semibold text-forest-900 hover:bg-forest-900/5"
+            >
+              {controls.backup === "slow" ? t("backupSlow") : t("backupNoToken")}
+            </button>
+            <p className="mt-2 text-sm leading-relaxed text-ink-700">
+              {t("backupHint")}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
