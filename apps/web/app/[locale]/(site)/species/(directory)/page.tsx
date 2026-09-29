@@ -132,10 +132,14 @@ export default async function SpeciesDirectory({
               <Link
                 key={f}
                 href={href}
-                className={`rounded-full border px-3 py-1.5 text-xs transition ${
+                // Which filter is on, said to a screen reader as well as drawn.
+                aria-current={on ? "true" : undefined}
+                // 44px, like every other control a thumb has to hit: these were
+                // 30px pills in 12px type, the smallest targets on the page.
+                className={`inline-flex min-h-11 items-center rounded-full border px-4 text-sm transition ${
                   on
-                    ? "border-ink-900 bg-ink-900 font-medium text-paper-50"
-                    : "border-ink-900/12 bg-paper-100/70 text-ink-600 hover:bg-paper-200"
+                    ? "border-forest-900 bg-forest-900 font-semibold text-paper-50"
+                    : "border-ink-900/20 bg-paper-100/70 text-ink-800 hover:bg-paper-200"
                 }`}
               >
                 {t(`filter.${f}`)}
@@ -174,7 +178,7 @@ export default async function SpeciesDirectory({
           {/* Where this page sits in the whole. Printed above the grid so the
               reader knows there is more before scrolling to the bottom to find
               out. */}
-          <p className="mt-5 text-xs tabular-nums text-ink-500">
+          <p className="mt-5 text-sm tabular-nums text-ink-700">
             {t("range", {
               from: win.from.toLocaleString(locale),
               to: win.to.toLocaleString(locale),
@@ -203,7 +207,7 @@ export default async function SpeciesDirectory({
                         species={s}
                         locale={locale}
                         primaryClassName="truncate text-sm text-ink-800"
-                        secondaryClassName="truncate text-xs text-ink-500"
+                        secondaryClassName="truncate text-sm text-ink-600"
                       />
                       <StatusBadges {...s} />
                     </span>
@@ -211,7 +215,7 @@ export default async function SpeciesDirectory({
                         a stray glyph floating under the count. One plural
                         message rather than a number beside a fixed word, which
                         printed "1 records" for every species seen once. */}
-                    <span className="shrink-0 whitespace-nowrap text-xs tabular-nums text-ink-500">
+                    <span className="shrink-0 whitespace-nowrap text-sm tabular-nums text-ink-600">
                       {ts.rich("recordTally", {
                         count: s.reportCount,
                         n: (c) => <span className="text-sm text-ink-700">{c}</span>,

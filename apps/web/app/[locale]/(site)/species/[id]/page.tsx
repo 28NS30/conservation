@@ -146,7 +146,10 @@ export default async function SpeciesPage({
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 pb-24 pt-10">
-      <Link href="/species" className="text-xs text-ink-500 hover:text-ink-700">
+      <Link
+        href="/species"
+        className="inline-flex min-h-11 items-center text-sm font-medium text-leaf-700 underline underline-offset-2 hover:text-forest-900"
+      >
         {nav("backToSpecies")}
       </Link>
 
@@ -162,7 +165,7 @@ export default async function SpeciesPage({
           />
         </h1>
         {s.altNamesZh && s.altNamesZh.length > 0 && (
-          <p className="mt-1 text-xs text-ink-500">
+          <p className="mt-1 text-sm text-ink-600">
             {t("alsoKnownAs")}: {s.altNamesZh.join("、")}
           </p>
         )}
@@ -186,7 +189,7 @@ export default async function SpeciesPage({
       {lineage.length > 0 && (
         <nav
           aria-label={t("taxonomy")}
-          className="mt-4 text-[11px] text-ink-500"
+          className="mt-4 text-sm text-ink-600"
         >
           {lineage.join(" › ")}
         </nav>
@@ -236,21 +239,21 @@ export default async function SpeciesPage({
             )}
 
             {records.length > 0 && (
-              <ul className="mt-3 space-y-1 text-xs">
+              <ul className="mt-3 space-y-1.5 text-sm">
                 {records.map((r) => (
                   <li
                     key={r.id}
-                    className="flex items-center justify-between gap-3 rounded border border-ink-900/10 px-2.5 py-1.5"
+                    className="flex items-center justify-between gap-3 rounded border border-ink-900/10 px-3"
                   >
                     <Link
                       href={`/reports/${r.id}`}
-                      className="text-ink-600 hover:text-ink-800"
+                      className="inline-flex min-h-11 items-center font-medium text-leaf-700 underline underline-offset-2 hover:text-forest-900"
                     >
                       {new Date(r.observedAt).toLocaleDateString(locale, {
                         timeZone: "Asia/Taipei",
                       })}
                     </Link>
-                    <span className="tabular-nums text-ink-500">
+                    <span className="tabular-nums text-ink-700">
                       {r.lat.toFixed(3)}, {r.lng.toFixed(3)}
                       {r.isObscured && (
                         <span className="ml-1.5 text-amber-700">≈</span>
