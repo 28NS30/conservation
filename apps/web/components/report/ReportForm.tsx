@@ -1205,7 +1205,20 @@ function ReportFormFields({
           group owns the relationship, and `aria-describedby` states it to a
           screen reader, which previously heard a disabled button and no reason.
       */}
-      <div className="space-y-2">
+      {/*
+          Pinned while the form is on screen, as the owner chose in the design
+          lab: on one long page the way out has to be in the same place however
+          far down you are. `sticky`, so it settles into its place at the end of
+          the form rather than covering the page after it, and a direct child of
+          the form's own box, because a sticky element only travels within its
+          parent. globals.css keeps focused fields clear of it
+          (scroll-padding-bottom), and the safe-area inset keeps the button above
+          an iPhone's home bar.
+      */}
+      <div
+        id="report-send-bar"
+        className="sticky bottom-0 z-10 -mx-5 space-y-2 border-t border-ink-900/10 bg-paper-50/95 px-5 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-sm sm:-mx-8 sm:px-8"
+      >
         {blocker && (
           <p id="submit-blocker" className="text-center text-sm text-ink-700">
             {blocker}
@@ -1232,29 +1245,29 @@ function ReportFormFields({
               ? t("saveOnPhone")
               : t("submit")}
         </button>
-
-        {/*
-          The way out of a wait that may not end: a challenge that never
-          solves, or a send on one bar of signal that never answers. Beside the
-          main button rather than instead of it, so someone halfway through a
-          challenge, or whose send is about to land, is not moved onto the
-          other path by a timer.
-        */}
-        {controls.backup && (
-          <div className="pt-2 text-center">
-            <button
-              type="button"
-              onClick={saveOnPhone}
-              className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border-2 border-forest-900 px-4 text-base font-semibold text-forest-900 hover:bg-forest-900/5"
-            >
-              {controls.backup === "slow" ? t("backupSlow") : t("backupNoToken")}
-            </button>
-            <p className="mt-2 text-sm leading-relaxed text-ink-700">
-              {t("backupHint")}
-            </p>
-          </div>
-        )}
       </div>
+
+      {/*
+        The way out of a wait that may not end: a challenge that never
+        solves, or a send on one bar of signal that never answers. Beside the
+        main button rather than instead of it, so someone halfway through a
+        challenge, or whose send is about to land, is not moved onto the
+        other path by a timer.
+      */}
+      {controls.backup && (
+        <div className="pt-2 text-center">
+          <button
+            type="button"
+            onClick={saveOnPhone}
+            className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border-2 border-forest-900 px-4 text-base font-semibold text-forest-900 hover:bg-forest-900/5"
+          >
+            {controls.backup === "slow" ? t("backupSlow") : t("backupNoToken")}
+          </button>
+          <p className="mt-2 text-sm leading-relaxed text-ink-700">
+            {t("backupHint")}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
