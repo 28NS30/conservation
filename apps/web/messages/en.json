@@ -231,7 +231,7 @@
     "aiIdentified": "Identified by AI",
     "blurredNotice": "This is a sensitive or protected species. {precision} before publication, so this record cannot be used to find it.",
     "blurredUnknownNotice": "{precision} — this record has not been identified, and until we know what the animal is we cannot tell whether it is sensitive.",
-    "suggestions": "Suggestions",
+    "suggestions": "The AI's suggestions",
     "pickCorrect": "Pick the correct species to fix this record.",
     "confirmedBy": "Confirmed by the reporter or a moderator.",
     "source": "Source",
@@ -244,7 +244,8 @@
     },
     "aiSuggested": "AI suggestion",
     "testTitle": "Test report",
-    "testNote": "Test report. Only moderators can see this page. It is not on the map, in the statistics or in the data we share."
+    "testNote": "Test report. Only moderators can see this page. It is not on the map, in the statistics or in the data we share.",
+    "confirmFailed": "That did not save. Try again."
   },
   "admin": {
     "heading": "Moderation queue",
