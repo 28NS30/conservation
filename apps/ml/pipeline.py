@@ -105,6 +105,37 @@ DATA_DIR = pathlib.Path(
 # score in the set and would answer "never withhold the list" regardless of the
 # data. Caveat: only 25 images fall below 0.28, so treat the exact value as
 # provisional.
+# The most pixels a photograph may have. The website's client downscales to a
+# 2048 px edge (lib/image.ts), about 3 MP; a camera original is 12 to 50 MP.
+# Nothing checked this, and only the byte size is checked on upload: a 657 KB
+# PNG of flat colour decoded to 1.3 GB here, and a larger one crashed the
+# endpoint with a PIL error that became a 500, retried five times (security
+# audit, 29 September 2026). Read from the header, before any decoding.
+MAX_IMAGE_PIXELS = 60_000_000
+# PIL's own guard, lowered to match, for any path that opens an image elsewhere.
+Image.MAX_IMAGE_PIXELS = MAX_IMAGE_PIXELS
+
+
+def open_image(image_bytes: bytes) -> Image.Image:
+    """Decode a photograph, refusing one too large to decode safely.
+
+    ValueError for anything the caller sent wrong, which the endpoint answers
+    400 and the website does not retry.
+    """
+    try:
+        img = Image.open(io.BytesIO(image_bytes))
+    except Image.DecompressionBombError as e:
+        raise ValueError(f"image too large: {e}") from e
+    w, h = img.size
+    if w * h > MAX_IMAGE_PIXELS:
+        raise ValueError(f"image too large: {w}x{h} pixels")
+    try:
+        img.load()
+    except Image.DecompressionBombError as e:
+        raise ValueError(f"image too large: {e}") from e
+    return img
+
+
 BAND_HIGH = 0.73
 BAND_MEDIUM = 0.28
 
@@ -245,8 +276,7 @@ class Classifier:
 
     def image_features(self, image_bytes: bytes) -> tuple[np.ndarray, bool]:
         """Decode, optionally crop, and embed a photograph."""
-        img = Image.open(io.BytesIO(image_bytes))
-        img.load()
+        img = open_image(image_bytes)
         crop, detector_hit = self._crop(img)
         return encode_image(crop), detector_hit
 
