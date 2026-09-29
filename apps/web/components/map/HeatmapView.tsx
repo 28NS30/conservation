@@ -13,8 +13,8 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import {
   CATEGORIES,
   CATEGORY_KEYS,
-  REPORT_GROUP_KEYS,
-  categoriesIn,
+  MAP_TYPES,
+  MAP_TYPE_KEYS,
   aggregationCellMeters,
   DENSITY_CLASSES,
   densityClassMax,
@@ -334,12 +334,16 @@ const dotColor = [
 ] as unknown as ExpressionSpecification;
 
 /**
- * Report type -> colour for an aggregated cell.
+ * Record type -> colour for an aggregated cell.
  *
  * A cell holds many reports, so "its type" is whichever dominates. Below a
  * two-thirds majority it is drawn neutral instead: a cell that is half roadkill
  * and half sightings has no colour that is honest, and picking the winner by one
  * report would paint a strong claim onto a coin flip.
+ *
+ * The types are MAP_TYPES, a partition of the records — dead or injured, a live
+ * invasive animal, any other live animal — rather than the collections, which
+ * overlap and so cannot each own a colour.
  */
 const MIXED = "#94a3b8";
 const MIXED_BELOW = 0.667;
@@ -351,18 +355,28 @@ const groupColor: ExpressionSpecification = [
   [
     "match",
     ["get", "top_group"],
-    ...REPORT_GROUP_KEYS.flatMap(
-      (g) =>
-        [g, CATEGORIES[categoriesIn(g)[0]].color] as [string, string],
-    ),
+    ...MAP_TYPE_KEYS.flatMap((k) => [k, MAP_TYPES[k].color] as [string, string]),
+    // The live non-invasive type was called `sighting` in tiles built before
+    // collections, and the CDN serves a tile for up to a day after it was
+    // built. No production record was ever a sighting, so no such tile can
+    // exist; kept so one could not turn grey if it did.
+    "sighting",
+    MAP_TYPES.wildlife.color,
     MIXED,
   ],
 ] as unknown as ExpressionSpecification;
 
-/** Category -> colour, as a MapLibre `match` expression. */
+/**
+ * One record -> colour, as a MapLibre `match` expression.
+ *
+ * On `kind` — the category, with the species deciding between the two live
+ * ones (see the tile route) — so a live invasive animal filed as a sighting is
+ * drawn as invasive. Falls back to `category` for a tile cached before `kind`
+ * existed, which drew by category alone.
+ */
 const categoryColor: ExpressionSpecification = [
   "match",
-  ["get", "category"],
+  ["coalesce", ["get", "kind"], ["get", "category"]],
   ...CATEGORY_KEYS.flatMap((k) => [k, CATEGORIES[k].color] as [string, string]),
   "#94a3b8",
 ] as unknown as ExpressionSpecification;
@@ -963,7 +977,14 @@ export default function HeatmapView({
     // Depending on the individual fields rather than the `filter` object avoids
     // re-running on every render just because the object identity changed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, filter.group, filter.taxonId, filter.from, filter.to]);
+  }, [
+    ready,
+    filter.collection,
+    filter.condition,
+    filter.taxonId,
+    filter.from,
+    filter.to,
+  ]);
 
   /**
    * Where "see this as a list" goes, for both links that offer it.
@@ -1113,9 +1134,9 @@ export default function HeatmapView({
                 count. Six numeric classes beside it were naming quantities that
                 are not on screen, so it gets the bar it actually is. */}
             {legend.kind === "points" ? (
-              /* Past the handoff the map draws one circle per record, from
-                 `category` — all four stored ones, not the three groups the
-                 form offers, because injured has its own paint here. */
+              /* Past the handoff the map draws one circle per record, by its
+                 `kind`: the four stored categories, with the species deciding
+                 between the two live ones. Injured has its own paint here. */
               <ul className="space-y-0.5">
                 {CATEGORY_KEYS.map((k) => (
                   <li key={k} className="flex items-center gap-1.5">
@@ -1146,22 +1167,20 @@ export default function HeatmapView({
                 <span className="text-parchment-300">{t("map.high")}</span>
               </div>
             ) : legend.kind === "type" ? (
-              /* The three the form offers, plus the cell that is not mostly any
-                 of them. Grey is a real answer here, not a fallback. */
+              /* The three map types, plus the cell that is not mostly any of
+                 them. Grey is a real answer here, not a fallback. */
               <ul className="space-y-0.5">
-                {REPORT_GROUP_KEYS.map((g) => (
-                  <li key={g} className="flex items-center gap-1.5">
+                {MAP_TYPE_KEYS.map((k) => (
+                  <li key={k} className="flex items-center gap-1.5">
                     <span className="flex w-4 shrink-0 justify-center">
                       <span
                         aria-hidden
                         className="size-2.5 rounded-full"
-                        style={{
-                          background: CATEGORIES[categoriesIn(g)[0]].color,
-                        }}
+                        style={{ background: MAP_TYPES[k].color }}
                       />
                     </span>
                     <span className="text-parchment-300">
-                      {t(`report.group.${g}`)}
+                      {t(`collections.mapType.${k}`)}
                     </span>
                   </li>
                 ))}

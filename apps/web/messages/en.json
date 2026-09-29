@@ -616,5 +616,99 @@
       "flamawatch": "Atlántico, Colombia"
     },
     "email": "Email"
+  },
+  "collections": {
+    "name": {
+      "roadkill": "Roadkill",
+      "invasive": "Invasive species",
+      "wildlife": "Wildlife sightings"
+    },
+    "filterLabel": "Collection",
+    "conditionLabel": "Alive or dead",
+    "condition": {
+      "any": "Either",
+      "alive": "Seen alive",
+      "dead": "Dead or injured"
+    },
+    "aboutCollection": "About the “{name}” collection",
+    "mapType": {
+      "roadkill": "Dead or injured",
+      "invasive": "Invasive, alive",
+      "wildlife": "Other animals, alive"
+    },
+    "badge": {
+      "invasive": "Invasive",
+      "reported": "Reported as invasive",
+      "invasiveWhy": "TaiCOL, Taiwan's species checklist, lists this animal as invasive.",
+      "reportedWhy": "Filed as an invasive animal without a species name; not confirmed yet."
+    },
+    "hub": {
+      "kicker": "Collection",
+      "records": "Records",
+      "species": "Species named",
+      "years": "Years",
+      "viewOnMap": "View on the map",
+      "file": {
+        "roadkill": "Report roadkill",
+        "invasive": "Report an invasive animal",
+        "wildlife": "Report a sighting"
+      },
+      "holdsTitle": "What it holds",
+      "holdsHeading": "What counts",
+      "overlapHeading": "Where else it appears",
+      "blurHeading": "Locations",
+      "blur": "The location of a species protected by law or rated sensitive is blurred before it is published, here as everywhere on the site. So is the location of a record nobody has identified yet.",
+      "newestTitle": "Newest records",
+      "newestHint": "Newest first, by the date each animal was seen. The newest is from {date}; the records here were seen in {years}.",
+      "recordCount": "{count, plural, one {# record} other {# records}}",
+      "seeAll": "See all {count, plural, one {# record} other {# records}} as a list",
+      "sources": "Imported from open data shared through GBIF: {imported, number}. Filed on this site: {filed, number}."
+    },
+    "roadkill": {
+      "lede": "Animals found dead or injured, most of them on roads. Each record marks a place where a road and wildlife meet, and together they show which stretches are most dangerous.",
+      "holds": "Every report filed as dead or injured, whatever the animal: native or invasive, identified or not.",
+      "overlap": "A dead or injured invasive animal is in this collection and in the invasive one. Animals seen alive are in wildlife sightings instead.",
+      "empty": "No roadkill has been recorded yet."
+    },
+    "invasive": {
+      "lede": "Animals that people brought to Taiwan and that now harm its native wildlife, such as the green iguana and the spot-legged tree frog. Their records show where they live and where they are spreading.",
+      "holds": "Every record whose species TaiCOL, Taiwan's species checklist, tags as an invasive animal, alive or dead and whichever page it was filed on. Nobody ticks a box: it follows the species. A report filed as invasive without a species name is here too, marked “reported as invasive” until someone confirms what it is.",
+      "overlap": "An invasive animal seen alive is also a wildlife sighting; one found dead or injured is also roadkill. Choose “Seen alive” or “Dead or injured” below to see either.",
+      "empty": "No invasive animal has been recorded yet.",
+      "listTitle": "Invasive animals in Taiwan",
+      "listHint": "Every animal TaiCOL tags as invasive: {count} species and subspecies, under the names TaiCOL accepts. The counts are records in this collection.",
+      "catsDogs": "TaiCOL includes the domestic cat and the dog, citing Ho et al. (2024, 2025) and the Global Invasive Species Database. We follow TaiCOL, so records of cats and dogs are in this collection.",
+      "searchLabel": "Find an animal",
+      "searchPlaceholder": "Chinese or scientific name",
+      "matches": "{count, plural, one {# animal matches} other {# animals match}}",
+      "noMatch": "No invasive animal matches “{q}”.",
+      "total": "{count, plural, one {# animal} other {# animals}}, grouped below.",
+      "groupCount": "{count, plural, one {# species} other {# species}}",
+      "taicolNote": "TaiCOL's note: {note}",
+      "protected": "Protected",
+      "records": "{count, plural, =0 {No records} one {# record} other {# records}}"
+    },
+    "wildlife": {
+      "lede": "Every live wild animal reported here, native or not. Invasive animals are included and marked, so this collection is the whole picture of what people see alive.",
+      "holds": "Every report of an animal seen alive: those filed as wildlife sightings, and those filed on the invasive page. A record whose species TaiCOL tags invasive is marked, whichever page it came from.",
+      "overlap": "A live invasive animal is in this collection and in the invasive one. Animals found dead or injured are in roadkill instead.",
+      "empty": "No wildlife sightings have been filed yet. Seen a wild animal alive? Yours could be the first."
+    },
+    "group": {
+      "birds": "Birds",
+      "reptiles": "Reptiles",
+      "amphibians": "Amphibians",
+      "mammals": "Mammals",
+      "fish": "Fish",
+      "insects": "Insects",
+      "molluscs": "Snails, slugs and shellfish",
+      "crustaceans": "Crustaceans",
+      "arachnids": "Spiders and mites",
+      "other": "Other animals"
+    },
+    "stats": {
+      "title": "By collection",
+      "hint": "The collections overlap — a road-killed invasive animal is in roadkill and in invasive — so their shares add up to more than 100%."
+    }
   }
 }

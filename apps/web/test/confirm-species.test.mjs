@@ -109,16 +109,18 @@ describe("confirm species", () => {
   });
 });
 
-describe("naming the species also fixes what kind of record it is", () => {
-  test("both paths that set a taxon re-derive the category", () => {
-    // `category` was written once at insert and never revisited, so a
-    // `sighting` confirmed to be a listed invasive stayed a `sighting` and
-    // never appeared under the map's invasive filter. Two actions set a taxon
-    // and they must agree; the rule itself is `recategorise`, covered by
-    // test/report-category.test.mjs.
+describe("naming the species leaves the category as it was filed", () => {
+  test("neither path that sets a taxon rewrites the category", () => {
+    // They used to (`recategorise`), so that a `sighting` confirmed to be an
+    // invasive species would show under the invasive filter. The classifier
+    // and a TaiCOL refresh never did, so the stored category drifted from the
+    // species. Invasiveness is read from the species now (0016), and naming
+    // it is enough; test/report-category.test.mjs walks what that does to a
+    // record's collections.
     for (const [name, source] of [["confirmSpecies", src], ["setReportTaxon", ADMIN]]) {
-      assert.match(source, /recategorise\(/, `${name} does not re-derive the category`);
-      assert.match(source, /category = \$\{category\}/, `${name} does not store it`);
+      const code = source.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
+      assert.doesNotMatch(code, /recategorise/, `${name} re-derives the category`);
+      assert.doesNotMatch(code, /\bcategory\s*=\s*\$\{/, `${name} writes the category`);
     }
   });
 });

@@ -619,9 +619,11 @@ describe("lab display faces", () => {
     // to the system face entirely rather than mixing per glyph.
     for (const name of ["黑眶蟾蜍", "斯文豪氏頸槽蛇", "臺灣穿山甲"])
       assert.equal(labFaceClass(name), "", `${name} should be in the subset`);
-    assert.equal(labFaceClass("貓"), "face-system");
+    // 鼴 (mole): no catalogue string uses it. 貓 used to stand here until the
+    // invasive collection's copy named cats, which put it in the subset.
+    assert.equal(labFaceClass("鼴"), "face-system");
     // One character out of six is enough: it is all or nothing, per title.
-    assert.equal(labFaceClass("黑眶蟾蜍貓"), "face-system");
+    assert.equal(labFaceClass("黑眶蟾蜍鼴"), "face-system");
     // Latin, digits and the space between words never drop a title.
     assert.equal(labFaceClass("FormosaWatch 2011–2017"), "");
   });

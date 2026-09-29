@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { mapFilterSchema } from "@conservation/shared";
+import { pageFilter } from "@conservation/shared";
 import { asPublic } from "@/lib/db";
 import LabHeader from "@/components/lab/chrome/LabHeader";
 import LabTabBar from "@/components/lab/chrome/LabTabBar";
@@ -116,8 +116,8 @@ export default async function LabMapPage({
   const view = parseView(sp as { lng?: string; lat?: string; z?: string });
   // Filters travel in the URL, parsed with the same schema the tile endpoint
   // uses, so a malformed filter is dropped rather than handed to the client.
-  const parsed = mapFilterSchema.safeParse(sp);
-  const initialFilter = parsed.success ? parsed.data : {};
+  // pageFilter also reads an old `group=` link as the collection it meant.
+  const initialFilter = pageFilter(sp);
 
   const nav = await getTranslations("nav");
   const [years, initialSpecies] = await Promise.all([

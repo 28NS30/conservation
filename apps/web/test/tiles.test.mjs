@@ -14,6 +14,7 @@ import { gunzipSync } from "node:zlib";
 import { sql, BASE_URL } from "./helpers.mjs";
 import {
   aggregationCellMeters,
+  selectionFor,
   TILE_AGGREGATION_MAX_ZOOM,
   TILE_SOURCE_BOUNDS,
 } from "@conservation/shared";
@@ -188,18 +189,19 @@ describe("empty tiles", () => {
 const CELL_M_Z6 = aggregationCellMeters(6);
 
 describe("filters discriminate", () => {
-  test("a report type with no data yields an empty tile", async () => {
-    // Every one of the 46,334 records is imported roadkill, so any other live
-    // group is empty. This used to ask for `pollution`, which was retired in
-    // 0008 and is now rejected as unknown — a 400, not an empty 200.
+  test("a collection with no data yields an empty tile", async () => {
+    // Every one of the 46,334 records is imported roadkill, so the wildlife
+    // collection — live animals only — is empty. This used to ask for
+    // `pollution`, which was retired in 0008 and is now rejected as unknown —
+    // a 400, not an empty 200.
     const { status, bytes } = await getTile(
-      `${Z6.z}/${Z6.x}/${Z6.y}?group=sighting`,
+      `${Z6.z}/${Z6.x}/${Z6.y}?collection=wildlife`,
     );
     assert.equal(status, 200);
     assert.equal(bytes, 0);
   });
 
-  test("the roadkill group carries injured reports too", async () => {
+  test("the roadkill collection carries injured reports too", async () => {
     // One button on the form, two stored categories. A map that filtered to
     // `roadkill` alone would hide every injured animal behind a toggle claiming
     // to show them — and nothing else would notice, because every seeded record
@@ -227,10 +229,90 @@ describe("filters discriminate", () => {
            and geom_3857 && st_tileenvelope(${high.z}, ${high.x}, ${high.y})`;
       assert.ok(n > 0, "the planted report must fall inside the test tile");
 
-      const roadkill = await getTile(`${high.z}/${high.x}/${high.y}?group=roadkill`);
-      const sighting = await getTile(`${high.z}/${high.x}/${high.y}?group=sighting`);
-      assert.ok(roadkill.bytes > 0, "the roadkill group must include it");
-      assert.equal(sighting.bytes, 0, "no other group may");
+      const roadkill = await getTile(`${high.z}/${high.x}/${high.y}?collection=roadkill`);
+      const wildlife = await getTile(`${high.z}/${high.x}/${high.y}?collection=wildlife`);
+      assert.ok(roadkill.bytes > 0, "the roadkill collection must include it");
+      assert.equal(wildlife.bytes, 0, "it was not seen alive");
+    } finally {
+      await sql`delete from reports where id = ${id}`;
+    }
+  });
+
+  test("the invasive collection is the species' flag, dead records included", async () => {
+    // Weighted like the date filter below: a tile's cells count the reports
+    // inside it plus a one-cell collar, never fewer and never more.
+    const { categories, invasiveOnly } = selectionFor({ collection: "invasive" });
+    assert.equal(categories, null);
+    assert.equal(invasiveOnly, true);
+    const [row] = await sql`
+      with env as (select st_tileenvelope(${Z6.z}, ${Z6.x}, ${Z6.y}) as e)
+      select count(*) filter (where r.geom_3857 && env.e)::int as inside,
+             count(*)::int as inside_with_collar
+        from reports_public r, env
+       where r.geom_3857 && st_expand(env.e, ${CELL_M_Z6}::float8)
+         and r.is_invasive`;
+    const tile = await getTile(`${Z6.z}/${Z6.x}/${Z6.y}?collection=invasive`);
+    assert.equal(tile.status, 200);
+    if (row.inside_with_collar === 0) return assert.equal(tile.bytes, 0);
+    const layer = new VectorTile(new PbfReader(tile.buf)).layers.reports;
+    const total = [...Array(layer.length).keys()].reduce(
+      (s, i) => s + layer.feature(i).properties.weight,
+      0,
+    );
+    assert.ok(
+      total >= row.inside && total <= row.inside_with_collar,
+      `invasive weights (${total}) must lie between ${row.inside} and ${row.inside_with_collar}`,
+    );
+  });
+
+  test("a live invasive animal filed as a sighting is drawn as invasive", async () => {
+    // The team's wildlife database marks the invasive animals in it, whatever
+    // page they were filed on. The species decides, in the tile as on the
+    // record page: `kind` says invasive, `category` still says what was filed.
+    // Planted, committed and removed, like the injured record above: the tile
+    // endpoint reads on its own connection.
+    const [invasive] = await sql`
+      select id from taxa
+       where is_invasive and kingdom = 'Animalia'
+         and taxon_status is not distinct from 'accepted' and is_in_taiwan
+         and sensitivity is null and protected_status is null
+       order by id limit 1`;
+    assert.ok(invasive, "expected an unrated invasive animal in the fixture");
+    const [{ id }] = await sql`
+      insert into reports (category, location, location_public, observed_at,
+                           taxon_id, taxon_source, status, source)
+      values ('sighting',
+              st_setsrid(st_makepoint(121.0, 23.7), 4326)::geography,
+              st_setsrid(st_makepoint(121.0, 23.7), 4326)::geography,
+              now(), ${invasive.id}, 'imported', 'published', 'user')
+      returning id`;
+    try {
+      const at = { z: 14, x: 13698, y: 7081 };
+      const [{ n }] = await sql`
+        select count(*)::int as n from reports_public
+         where id = ${id} and geom_3857 && st_tileenvelope(${at.z}, ${at.x}, ${at.y})`;
+      assert.equal(n, 1, "the planted report must fall inside the test tile");
+
+      const find = async (q) => {
+        const t = await getTile(`${at.z}/${at.x}/${at.y}${q}`);
+        if (!t.bytes) return null;
+        const layer = new VectorTile(new PbfReader(t.buf)).layers.reports;
+        for (let i = 0; i < layer.length; i++) {
+          const f = layer.feature(i);
+          if (f.properties.id === id) return f.properties;
+        }
+        return null;
+      };
+      const plain = await find("");
+      assert.ok(plain, "the point is on the unfiltered map");
+      assert.equal(plain.category, "sighting", "the stored category is what was filed");
+      assert.equal(plain.kind, "invasive", "and it is drawn as the invasive animal it is");
+
+      assert.ok(await find("?collection=invasive"), "in the invasive collection");
+      assert.ok(await find("?collection=invasive&condition=alive"), "seen alive");
+      assert.equal(await find("?collection=invasive&condition=dead"), null, "not dead");
+      assert.ok(await find("?collection=wildlife"), "and in wildlife, marked");
+      assert.equal(await find("?collection=roadkill"), null, "never roadkill");
     } finally {
       await sql`delete from reports where id = ${id}`;
     }
@@ -295,21 +377,40 @@ describe("input validation", () => {
     });
   }
 
-  test("rejects an unknown report type", async () => {
+  test("rejects an unknown collection", async () => {
     const { status } = await getTile(
-      `${Z6.z}/${Z6.x}/${Z6.y}?group=notagroup`,
+      `${Z6.z}/${Z6.x}/${Z6.y}?collection=notacollection`,
     );
     assert.equal(status, 400);
   });
 
-  test("the filter's old name is refused rather than ignored", async () => {
-    // `category` took one stored category and is now `group`, taking the three
-    // the form offers. Left to zod it would be stripped as an unknown key and
-    // the tile would come back unfiltered — a filter that looks applied.
+  test("the filter's oldest name is refused rather than ignored", async () => {
+    // `category` took one stored category. Left to zod it would be stripped
+    // as an unknown key and the tile would come back unfiltered — a filter
+    // that looks applied.
     const { status } = await getTile(
       `${Z6.z}/${Z6.x}/${Z6.y}?category=roadkill`,
     );
     assert.equal(status, 400);
+  });
+
+  test("`group` is refused, so no cached tile can answer for `collection`", async () => {
+    // group=invasive matched the stored category and held nothing;
+    // collection=invasive holds every invasive animal. Tiles are served from
+    // the CDN for up to a day after they were built, keyed on the query, so a
+    // `group` answered under the new meaning would have sat beside cached
+    // copies of the old one. Refused, it cannot be mistaken for either.
+    for (const g of ["roadkill", "invasive", "sighting"]) {
+      const { status } = await getTile(`${Z6.z}/${Z6.x}/${Z6.y}?group=${g}`);
+      assert.equal(status, 400, `group=${g} was answered`);
+    }
+  });
+
+  test("a condition outside the invasive collection is refused", async () => {
+    for (const q of ["?condition=alive", "?collection=roadkill&condition=dead"]) {
+      const { status } = await getTile(`${Z6.z}/${Z6.x}/${Z6.y}${q}`);
+      assert.equal(status, 400, `${q} was answered`);
+    }
   });
 });
 
@@ -355,14 +456,14 @@ describe("transfer", () => {
     // production. An empty tile is identical in every encoding.
     const data = await raw(`${Z6.z}/${Z6.x}/${Z6.y}`, { "accept-encoding": "gzip, deflate, br" });
     assert.match(data.headers.vary ?? "", /accept-encoding/i);
-    const empty = await raw(`${Z6.z}/${Z6.x}/${Z6.y}?group=sighting`, { "accept-encoding": "gzip" });
+    const empty = await raw(`${Z6.z}/${Z6.x}/${Z6.y}?collection=wildlife`, { "accept-encoding": "gzip" });
     assert.equal(empty.body.length, 0);
     assert.equal((empty.headers.vary ?? "").match(/accept-encoding/i), null);
   });
 
   test("an empty tile is never gzipped", async () => {
     // Twenty bytes of gzip header would break the zero-length contract above.
-    const res = await raw(`${Z6.z}/${Z6.x}/${Z6.y}?group=sighting`, {
+    const res = await raw(`${Z6.z}/${Z6.x}/${Z6.y}?collection=wildlife`, {
       "accept-encoding": "gzip",
     });
     assert.equal(res.status, 200);
@@ -379,9 +480,10 @@ describe("transfer", () => {
     const at = `${Z6.z}/${Z6.x}/${Z6.y}`;
     const refused = {
       "an ignored key": `?cb=12345`,
-      "a repeated key": `?group=invasive&group=roadkill`,
+      "a repeated key": `?collection=invasive&collection=roadkill`,
       "another spelling of the same id": `?taxonId=0032116`,
-      "the right keys in another order": `?taxonId=32116&group=roadkill`,
+      "the right keys in another order": `?taxonId=32116&collection=roadkill`,
+      "the condition before the collection": `?condition=alive&collection=invasive`,
     };
     for (const [what, q] of Object.entries(refused)) {
       const { status } = await getTile(at + q);
@@ -390,14 +492,15 @@ describe("transfer", () => {
   });
 
   test("every query the map itself builds is accepted", async () => {
-    // filterToQuery's order: group, taxonId, from, to. The species page builds
-    // ?taxonId=<n> on its own, which is the same form.
+    // filterToQuery's order: collection, condition, taxonId, from, to. The
+    // species page builds ?taxonId=<n> on its own, which is the same form.
     const at = `${Z6.z}/${Z6.x}/${Z6.y}`;
     for (const q of [
       "",
-      "?group=roadkill",
+      "?collection=roadkill",
+      "?collection=invasive&condition=alive",
       "?taxonId=32116",
-      "?group=roadkill&taxonId=32116&from=2014-01-01&to=2015-01-01",
+      "?collection=roadkill&taxonId=32116&from=2014-01-01&to=2015-01-01",
       "?from=2014-01-01",
     ]) {
       const { status } = await getTile(at + q);
