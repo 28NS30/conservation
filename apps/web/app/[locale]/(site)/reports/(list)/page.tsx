@@ -385,8 +385,8 @@ export default async function ReportsListPage({
       )}
 
       {filterParts.length > 0 && (
-        <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-600">
-          <span className="text-ink-500">{t("filteredBy")}</span>
+        <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-700">
+          <span className="text-ink-600">{t("filteredBy")}</span>
           {named && (
             <Link
               href={`/species/${speciesSlug(named)}`}
@@ -410,10 +410,10 @@ export default async function ReportsListPage({
           inside that list would say it was. Below the filter line rather than
           above it, so the order on the page is what is filtered, then the way
           out of the list — and mapHref carries those same filters across. */}
-      <p className="mt-3 text-xs">
+      <p className="mt-3 text-sm">
         <Link
           href={mapHref}
-          className="inline-flex items-center gap-1 py-1 text-ink-600 underline-offset-2 transition hover:text-ink-900 hover:underline"
+          className="inline-flex min-h-11 items-center gap-1 font-medium text-leaf-700 underline underline-offset-2 transition hover:text-forest-900"
         >
           {t("viewOnMap")}
           <span aria-hidden>→</span>
@@ -434,9 +434,12 @@ export default async function ReportsListPage({
         </div>
       ) : (
         <div className="mt-4 overflow-x-auto">
+          {/* Stays 12px: at 14px its English headers make it wider than a
+              320px screen, and the page then scrolls sideways despite the
+              wrapper (e2e/reflow.spec.mjs). */}
           <table className="w-full text-left text-xs">
             <caption className="sr-only">{filterCaption}</caption>
-            <thead className="text-ink-500">
+            <thead className="text-ink-600">
               <tr>
                 {showPhotos && (
                   <th scope="col" className="w-14 py-1.5">
@@ -551,7 +554,7 @@ export default async function ReportsListPage({
           version of the map. Shown only when a row on this page actually is
           obscured, so it never explains a mark that is not there. */}
       {rows.some((r) => r.isObscured) && (
-        <p className="mt-3 text-[11px] leading-relaxed text-ink-500">
+        <p className="mt-3 text-sm leading-relaxed text-ink-700">
           <span className="text-amber-700">≈</span> {t("obscuredLegend")}
         </p>
       )}
