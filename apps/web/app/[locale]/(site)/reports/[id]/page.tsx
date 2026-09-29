@@ -541,6 +541,29 @@ export default async function ReportPage({
             )}
           </p>
         )}
+        {/* A person's own report, under the licence they chose and the name
+            they gave (/terms). The form promised "anyone may reuse it if they
+            credit you", and the export carries the name, but the record page
+            showed a credit only for GBIF imports (security audit, 29 September
+            2026). No name given, or CC0, is credited as the form says it will
+            be. */}
+        {row.source === "user" && row.license && (
+          <p className="text-sm leading-relaxed text-ink-700">
+            {t("detail.sharedBy")}:{" "}
+            <span className="[overflow-wrap:anywhere]">
+              {row.rights_holder || t("detail.contributorDefault")}
+            </span>
+            {" · "}
+            <a
+              href={row.license}
+              target="_blank"
+              rel="noreferrer"
+              className="text-ember-700 underline underline-offset-2 transition hover:text-ink-900"
+            >
+              {licenseLabel(row.license)}
+            </a>
+          </p>
+        )}
       </section>
     </main>
   );

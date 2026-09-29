@@ -260,7 +260,9 @@
       "save": "Save species",
       "saved": "Saved.",
       "failed": "That did not save. Try again."
-    }
+    },
+    "sharedBy": "Shared by",
+    "contributorDefault": "FormosaWatch contributor"
   },
   "admin": {
     "heading": "Moderation queue",
@@ -537,7 +539,7 @@
     "analyticsTitle": "Usage statistics",
     "analyticsBody": "We count page views through Vercel Analytics, to see how many people find the reporting page. It sets no cookies, creates no cross-site identifier, and records nothing that identifies a person — what we see is “the home page was viewed N times”, not who viewed it.",
     "cookiesTitle": "Cookies",
-    "cookiesBody": "Only essential cookies, and only if you choose to sign in. One keeps you signed in. Two more are used only while you sign in: a security check for the sign-in link, and the page to return you to afterwards. No advertising or tracking cookies are used.",
+    "cookiesBody": "Only essential cookies. If you sign in, one keeps you signed in, and two more are used only while you sign in: a security check for the sign-in link, and the page to return you to afterwards. If you switch language, one remembers your choice until you close the browser. No advertising or tracking cookies are used.",
     "contactTitle": "Contact us",
     "contactBody": "To ask about, correct, or remove your own reports and contact address — or with any question about how this site handles personal data — write to Neo Su, who is responsible for this site. We will reply within a reasonable time.",
     "sharingTitle": "Sharing with research partners",
