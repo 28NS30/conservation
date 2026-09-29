@@ -163,7 +163,10 @@ describe("where a test report can be seen", () => {
       }
     };
     for (const d of ["app", "lib", "components"]) walk(join(WEB, d));
-    assert.deepEqual(hits, [join("app", "[locale]", "(site)", "reports", "[id]", "page.tsx")]);
+    // lib/schemaStatus.ts names it only in a health check on the view's definition.
+    assert.deepEqual(hits.filter((h) => h !== join("lib", "schemaStatus.ts")), [
+      join("app", "[locale]", "(site)", "reports", "[id]", "page.tsx"),
+    ]);
   });
 
   test("the record page reads it for moderators only", () => {

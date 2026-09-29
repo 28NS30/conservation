@@ -144,13 +144,15 @@ describe("every path that names a species applies one override rule", () => {
     ]) {
       // One of the two shared fragments, or a choice between them.
       const shared = String.raw`(?:keepDeliberateOverride\(\)|photoIdentificationOverride\([^)]*\))`;
-      assert.match(
-        source,
-        new RegExp(
-          String.raw`precision_override = \$\{\s*(?:[^?}]*\?\s*${shared}\s*:\s*)?${shared}\s*\}`,
-        ),
-        `${name} does not use the shared rule`,
+      // Or through a variable built from them: confirmSpecies wraps the rule
+      // in stricter_precision(..., location_precision) for a reporter's re-pick.
+      const direct = new RegExp(
+        String.raw`precision_override = \$\{\s*(?:[^?}]*\?\s*${shared}\s*:\s*)?${shared}\s*\}`,
       );
+      const viaVariable =
+        /precision_override = \$\{override\}/.test(source) &&
+        new RegExp(String.raw`const override =[\s\S]*?${shared}[\s\S]*?:\s*${shared};`).test(source);
+      assert.ok(direct.test(source) || viaVariable, `${name} does not use the shared rule`);
       assert.doesNotMatch(
         source,
         /precision_override = null/,
@@ -180,7 +182,9 @@ describe("a species named from the model's suggestions", () => {
   }
 
   test("both confirm paths name a species through the photograph rule", () => {
-    assert.match(src, /precision_override = \$\{photoIdentificationOverride\(taxonId\)\}/);
+    assert.match(src, /precision_override = \$\{override\}/);
+    assert.match(src, /: photoIdentificationOverride\(taxonId\);/);
+    assert.match(src, /stricter_precision\(\$\{photoIdentificationOverride\(taxonId\)\}, location_precision\)/);
     assert.match(
       ADMIN,
       /taxonId === null\s*\?\s*keepDeliberateOverride\(\)\s*:\s*photoIdentificationOverride\(taxonId\)/,

@@ -298,7 +298,9 @@
       "wrongModel": "The model's version does not match the thresholds it was tested with, so it only suggests.",
       "onlySuggestsClass": "For {group} the model only suggests a species.",
       "includesInvasive": "The model suggests {name}, which is or includes an invasive form. A person must confirm.",
-      "stricterSibling": "The model is sure it is {name}, but also lists {other}, whose location is protected more strictly. A person must confirm."
+      "stricterSibling": "The model is sure it is {name}, but also lists {other}, whose location is protected more strictly. A person must confirm.",
+      "locationInText": "The notes or the credit name seem to give a location (coordinates, a map link or a plus code).",
+      "contactInText": "The notes or the credit name contain an email address or phone number."
     },
     "actionFailed": "That did not save. Try again.",
     "confirmReject": "Reject it",

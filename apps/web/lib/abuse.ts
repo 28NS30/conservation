@@ -1,4 +1,5 @@
 import { sql } from "@/lib/db";
+import { LOCATION_REASONS, screenText } from "@/lib/forum/screen";
 import { isInTaiwanBounds, CATEGORIES, type Category } from "@conservation/shared";
 
 /* ------------------------------------------------------------------ *
@@ -94,16 +95,31 @@ export function screenSubmission(input: {
   lng: number;
   lat: number;
   notes?: string;
+  /** The name the reporter asked to be credited with, published beside the record. */
+  creditName?: string;
   photoCount: number;
 }): string | null {
   if (!isInTaiwanBounds(input.lng, input.lat)) return "coordinates outside Taiwan";
+
+  // Before the photo rule, so a moderator is told the reason that matters
+  // most: words that say where the animal is get past the coordinate blur,
+  // which is the one promise this site makes. The forum's own screen reads
+  // them (lib/forum/screen.ts), so the two agree on what a location looks
+  // like; the notes are also hidden on every blurred record (0025).
+  const text = [input.notes, input.creditName].filter(Boolean).join("\n");
+  if (text) {
+    const { reasons } = screenText(text, { watchedWords: [], newAccount: false });
+    if (reasons.some((r) => LOCATION_REASONS.includes(r)))
+      return "a location in the notes or credit";
+    if (reasons.includes("contact")) return "contact details in the notes or credit";
+  }
 
   if (CATEGORIES[input.category].classifiable && input.photoCount === 0) {
     return "no photo on a category that expects one";
   }
 
-  if (input.notes) {
-    if (/https?:\/\/|www\.|\bt\.me\b|@[a-z0-9_]{4,}/i.test(input.notes)) {
+  if (text) {
+    if (/https?:\/\/|www\.|\bt\.me\b|@[a-z0-9_]{4,}/i.test(text)) {
       return "links or handles in notes";
     }
   }

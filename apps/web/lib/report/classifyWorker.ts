@@ -286,8 +286,13 @@ export async function classifyQueued({ reportId = null }: { reportId?: string | 
                    -- Claim and process are two transactions, so a moderator can
                    -- reject a report in between. Publishing may lift a hold; it
                    -- may not reverse a decision.
-                   status = case when status = 'pending' then 'published' else status end
-             where id = ${job.report_id}::uuid`;
+                   status = case when status = 'pending' and flagged_reason is null then 'published' else status end
+             where id = ${job.report_id}::uuid
+               -- Only if nobody named the species while the model ran: claim
+               -- and write are two transactions, and a person's identification
+               -- made in between is theirs, not the model's to overwrite.
+               and taxon_id is not distinct from ${job.taxon_id}::bigint
+               and taxon_source is not distinct from ${job.taxon_source}::text`;
         } else if (action === "record") {
           // Keep their identification and the precision it implies; record what
           // the model thought, and say so if the two disagree. Nothing here
@@ -301,11 +306,11 @@ export async function classifyQueued({ reportId = null }: { reportId?: string | 
             update reports
                set ai_confidence = ${best?.score ?? null},
                    ai_band = ${result.band},
-                   flagged_reason = ${
+                   flagged_reason = coalesce(flagged_reason, ${
                      disagrees
                        ? "the model and the reporter name different species"
                        : null
-                   }
+                   })
              where id = ${job.report_id}::uuid`;
         } else {
           // Not a species the model may name: either it is not confident enough,
@@ -329,16 +334,21 @@ export async function classifyQueued({ reportId = null }: { reportId?: string | 
                  job.report_id,
                  result.band !== "low",
                )},
-                   status = case when status = 'pending' then 'published' else status end,
+                   status = case when status = 'pending' and flagged_reason is null then 'published' else status end,
                    ai_band = ${result.band},
-                   flagged_reason = ${
+                   flagged_reason = coalesce(flagged_reason, ${
                      result.band === "low"
                        ? "model could not identify this with any confidence"
                        : AUTO_ASSIGN_BANDS.has(result.band)
                          ? "the model only suggests a species for this kind of report"
                          : "low confidence identification"
-                   }
-             where id = ${job.report_id}::uuid`;
+                   })
+             where id = ${job.report_id}::uuid
+               -- Only if nobody named the species while the model ran: claim
+               -- and write are two transactions, and a person's identification
+               -- made in between is theirs, not the model's to overwrite.
+               and taxon_id is not distinct from ${job.taxon_id}::bigint
+               and taxon_source is not distinct from ${job.taxon_source}::text`;
         }
 
         await tx`update classification_jobs set status = 'done', last_error = null, updated_at = now()
@@ -376,7 +386,7 @@ export async function classifyQueued({ reportId = null }: { reportId?: string | 
             update reports
                set precision_override = stricter_precision(precision_override,
                                                            ${UNIDENTIFIED_PRECISION}::text),
-                   flagged_reason = 'classification unavailable'
+                   flagged_reason = coalesce(flagged_reason, 'classification unavailable')
              where id = ${job.report_id}::uuid
                and status = 'pending'`;
         }

@@ -159,7 +159,7 @@ describe("the copy does not contradict itself", () => {
     const classify = code("lib/report/classifyWorker.ts");
     assert.match(
       classify,
-      /precision_override = \$\{suggestionOverride\([^}]*\)\},\s*status = case when status = 'pending' then 'published'/,
+      /precision_override = \$\{suggestionOverride\([^}]*\)\},\s*status = case when status = 'pending' and flagged_reason is null then 'published'/,
       "the classifier no longer publishes the reports it cannot name — the form and the receipt say it does; say otherwise there too, then change this test",
     );
     const helper = code("lib/report/precision.ts");

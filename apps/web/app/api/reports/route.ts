@@ -130,6 +130,7 @@ export async function POST(req: Request) {
     lng: input.lng,
     lat: input.lat,
     notes: input.notes,
+    creditName: input.license ? input.creditName : undefined,
     photoCount: photos.length,
   });
 

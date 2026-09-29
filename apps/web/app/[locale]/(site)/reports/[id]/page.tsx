@@ -318,9 +318,13 @@ export default async function ReportPage({
   const { userId, role } = viewer ?? (await currentRole());
   const [owner] = await sql<{ reporter_id: string | null }[]>`
     select reporter_id from reports where id = ${id}::uuid`;
+  // A moderator's identification is final for the reporter (confirmSpecies
+  // refuses it too), so the owner is not offered buttons that would fail.
   const canEdit =
     !!userId &&
-    (role === "moderator" || role === "admin" || owner?.reporter_id === userId);
+    (role === "moderator" ||
+      role === "admin" ||
+      (owner?.reporter_id === userId && row.taxon_source !== "expert"));
 
   return (
     <main className="mx-auto w-full max-w-xl px-6 pb-24 pt-12">
