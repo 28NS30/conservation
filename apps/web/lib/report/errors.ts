@@ -47,6 +47,7 @@ export type ErrorKey =
   | "taxon_not_found"
   | "taxon_out_of_scope"
   | "category_not_on_page"
+  | "test_not_allowed"
   | "validation_failed"
   | "network"
   | "server";
@@ -94,6 +95,9 @@ export function errorKey(code: string | null | undefined): ErrorKey {
   // A category this page cannot produce. Only a stale or hand-built client can
   // send one; the form itself never does.
   if (code === "category_not_on_page") return "category_not_on_page";
+  // A test report (0018) from someone who is not a moderator: a test link
+  // opened while signed out, or by the wrong account.
+  if (code === "test_not_allowed") return "test_not_allowed";
   if (code === "validation_failed") return "validation_failed";
   if (
     code === PHOTO_UPLOAD_FAILED ||

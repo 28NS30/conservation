@@ -65,6 +65,13 @@ type ReportFormProps = {
    * on the page they came from.
    */
   initialSpecies?: SpeciesHit;
+  /**
+   * A moderator trying the whole path (`?test=1`, linked from /admin). The
+   * report is sent as a test, which the server accepts from moderators only
+   * and never shows publicly (migration 0018). Said at the top of the form,
+   * so nobody files a real sighting by mistake from a test link.
+   */
+  test?: boolean;
 };
 
 /**
@@ -116,6 +123,7 @@ function ReportFormFields({
   page,
   maptilerKey,
   initialSpecies,
+  test = false,
   onReportAnother,
 }: ReportFormProps & {
   /** Discard this form and mount a fresh one. See ReportForm above. */
@@ -201,6 +209,8 @@ function ReportFormFields({
     awaitingIdentification: boolean;
     /** Whether the row reached `reports_public`; see lib/report/outcome.ts. */
     visible: boolean;
+    /** A moderator's test, never shown publicly. */
+    test: boolean;
     photoCount: number;
   } | null>(null);
   const [exifOffer, setExifOffer] = useState<LatLng | null>(null);
@@ -335,6 +345,9 @@ function ReportFormFields({
     creditName: license === "cc-by-4.0" ? creditName.trim() || undefined : undefined,
     sharePartners: asksPartners ? sharePartners : undefined,
     consentVersion: CONSENT_VERSION,
+    // In the payload rather than added at send time, so a test saved on the
+    // phone offline is still sent as a test.
+    test: test || undefined,
   });
 
   /**
@@ -458,6 +471,7 @@ function ReportFormFields({
         // missing field as visible keeps today's behaviour for every report
         // that is not withheld, which is all but a handful.
         visible: data.visible !== false,
+        test: data.test === true,
         photoCount: photos.length,
       });
       setPhase("done");
@@ -660,6 +674,7 @@ function ReportFormFields({
       result.awaitingIdentification,
       result.photoCount,
       result.visible,
+      result.test,
     );
     return (
       <div
@@ -727,6 +742,26 @@ function ReportFormFields({
 
   return (
     <div className="space-y-8">
+      {test && (
+        <section
+          role="note"
+          aria-labelledby="test-report-title"
+          className="rounded-lg border-2 border-dashed border-forest-900/40 bg-paper-100 p-4"
+        >
+          <h2 id="test-report-title" className="text-base font-semibold text-forest-900">
+            {t("testMode.title")}
+          </h2>
+          <p className="mt-1 text-sm leading-relaxed text-ink-800">
+            {t("testMode.body")}
+          </p>
+          <Link
+            href={`/report/${page}`}
+            className="mt-2 inline-flex min-h-11 items-center text-sm font-medium text-leaf-700 underline underline-offset-2 hover:text-forest-900"
+          >
+            {t("testMode.realInstead")}
+          </Link>
+        </section>
+      )}
       {/*
         The roadkill page's one question, and it comes first because it is the
         one thing it asks that the others do not. Required, with no default:

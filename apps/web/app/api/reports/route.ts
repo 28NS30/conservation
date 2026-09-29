@@ -86,6 +86,20 @@ export async function POST(req: Request) {
   const { data: auth } = await supabase.auth.getUser();
   const reporterId = auth?.user?.id ?? null;
 
+  // A test report (0018): a moderator trying the whole path without it being
+  // shown. The role comes from `profiles`, never from the request, and anyone
+  // else who asks for a test is refused. Filing it as a real report instead
+  // would publish something its sender meant nobody to see.
+  const isTest = input.test === true;
+  if (isTest) {
+    const [profile] = reporterId
+      ? await sql<{ role: string }[]>`
+          select role from profiles where id = ${reporterId}::uuid`
+      : [];
+    if (profile?.role !== "moderator" && profile?.role !== "admin")
+      return Response.json({ error: "test_not_allowed" }, { status: 403 });
+  }
+
   const subject = reporterId ? `user:${reporterId}` : `ip:${ip}`;
   const [burstOk, dailyOk] = await Promise.all([
     withinRateLimit(`submit-burst:${subject}`, SUBMIT_LIMITS.burst.windowSeconds, SUBMIT_LIMITS.burst.budget),
@@ -235,7 +249,7 @@ export async function POST(req: Request) {
           status, source, reporter_id, contact_email, flagged_reason,
           client_nonce, precision_override, taxon_id, taxon_source,
           location_accuracy_m, license, rights_holder, share_partners,
-          consent_version, consent_at
+          consent_version, consent_at, is_test
         ) values (
           ${input.category},
           st_setsrid(st_makepoint(${input.lng}, ${input.lat}), 4326)::geography,
@@ -245,7 +259,7 @@ export async function POST(req: Request) {
           ${input.clientNonce}, ${precisionOverride},
           ${taxonId}, ${taxonSource},
           ${input.accuracyM ?? null}, ${license}, ${rightsHolder}, ${sharePartners},
-          ${consentVersion}, ${consentVersion ? tx`now()` : null}
+          ${consentVersion}, ${consentVersion ? tx`now()` : null}, ${isTest}
         )
         on conflict (client_nonce) where client_nonce is not null do nothing
         returning id, location_precision`;
@@ -258,9 +272,10 @@ export async function POST(req: Request) {
             status: string;
             location_precision: string;
             awaiting: boolean;
+            is_test: boolean;
           }[]
         >`
-          select r.id, r.status, r.location_precision,
+          select r.id, r.status, r.location_precision, r.is_test,
                  -- What the receipt needs to know about THIS row, computed from
                  -- the row. The same three facts the insert branch decides from,
                  -- read back rather than recomputed: a retry of a report that
@@ -285,6 +300,7 @@ export async function POST(req: Request) {
           status: existing.status,
           precision: existing.location_precision,
           awaiting: existing.awaiting,
+          test: existing.is_test,
           duplicate: true,
         };
       }
@@ -311,6 +327,7 @@ export async function POST(req: Request) {
         status,
         precision: inserted[0].location_precision,
         awaiting: awaitingId,
+        test: isTest,
         duplicate: false,
       };
     });
@@ -354,6 +371,9 @@ export async function POST(req: Request) {
         // so the answer carries what the trigger decided rather than leaving the
         // client to assume.
         visible: result.precision !== "suppressed",
+        // A test is never in reports_public, whatever `visible` says about
+        // where the blur put it; the receipt says so (lib/report/outcome.ts).
+        test: result.test,
       },
       { status: result.duplicate ? 200 : 201 },
     );

@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { notFound } from "next/navigation";
+import type postgres from "postgres";
 import { asPublic, sql } from "@/lib/db";
 import { receiptState } from "@/lib/receipt";
-import { currentUserId } from "@/lib/supabase/server";
 import { signedPhotoUrl } from "@/lib/supabase/service";
 import {
   CATEGORIES,
@@ -104,8 +104,15 @@ export async function generateMetadata({
   const t = await getTranslations({ locale });
   if (!pub) {
     const held = (await receiptState(id, null)) === "held";
+    // A moderator opening a published test report sees the record (see the
+    // page below), so the tab says what it is rather than "not available".
+    const test = !held && (await moderatorSeesTest(id));
     return {
-      title: held ? t("detail.receipt.title") : t("detail.unavailableTitle"),
+      title: held
+        ? t("detail.receipt.title")
+        : test
+          ? t("detail.testTitle")
+          : t("detail.unavailableTitle"),
       robots: { index: false, follow: false },
     };
   }
@@ -189,6 +196,43 @@ type Row = {
   is_invasive: boolean;
 };
 
+/** Whether the viewer is a moderator and this id a published test report. */
+async function moderatorSeesTest(id: string): Promise<boolean> {
+  const { role } = await currentRole();
+  if (role !== "moderator" && role !== "admin") return false;
+  const [row] = await sql<{ ok: boolean }[]>`
+    select true as ok from reports_published
+     where id = ${id}::uuid and is_test`;
+  return Boolean(row);
+}
+
+/**
+ * The record as the public sees it, from one of two views with the same rules
+ * (migration 0018): `reports_public` for everyone, read as web_anon, or
+ * `reports_published` for a moderator's test reports, read on the server's
+ * connection. One query for both, so a test is shown with exactly the columns
+ * and the blur a real record would have.
+ */
+function recordQuery(
+  tx: postgres.Sql | postgres.TransactionSql,
+  id: string,
+  from: "public" | "tests",
+) {
+  return tx<Row[]>`
+      select rp.id, rp.taxon_id, null::uuid as reporter_id,
+             rp.category, rp.location_precision, rp.is_obscured, rp.observed_at,
+             rp.notes, rp.taxon_source, rp.verbatim_name, rp.ai_confidence,
+             rp.source, rp.license, rp.rights_holder,
+             st_x(rp.location_public::geometry) as lng,
+             st_y(rp.location_public::geometry) as lat,
+             t.scientific_name, t.common_name_zh, t.protected_status,
+             rp.is_invasive
+        from ${from === "public" ? tx`reports_public` : tx`reports_published`} rp
+        left join taxa t on t.id = rp.taxon_id
+       where rp.id = ${id}::uuid
+         ${from === "tests" ? tx`and rp.is_test` : tx``}`;
+}
+
 export default async function ReportPage({
   params,
 }: {
@@ -202,21 +246,20 @@ export default async function ReportPage({
   // Read through `reports_public` as web_anon. Reports that are unpublished, or
   // whose taxon is rated 座標不開放, are absent from that view — so this page
   // cannot render them at all, rather than relying on a check we might forget.
-  const [row] = await asPublic(
-    (tx) =>
-      tx<Row[]>`
-      select rp.id, rp.taxon_id, null::uuid as reporter_id,
-             rp.category, rp.location_precision, rp.is_obscured, rp.observed_at,
-             rp.notes, rp.taxon_source, rp.verbatim_name, rp.ai_confidence,
-             rp.source, rp.license, rp.rights_holder,
-             st_x(rp.location_public::geometry) as lng,
-             st_y(rp.location_public::geometry) as lat,
-             t.scientific_name, t.common_name_zh, t.protected_status,
-             rp.is_invasive
-        from reports_public rp
-        left join taxa t on t.id = rp.taxon_id
-       where rp.id = ${id}::uuid`,
-  );
+  const [publicRow] = await asPublic((tx) => recordQuery(tx, id, "public"));
+
+  // A moderator's test report (migration 0018): published, and deliberately
+  // absent from the view above. Its sender needs to see what the public
+  // would have seen, so a moderator reads it from reports_published, which
+  // applies the same rules and keeps tests, on the server's connection. Asked
+  // only when the public read found nothing, so an ordinary record costs no
+  // extra round trip, and never for anyone but a moderator.
+  const viewer = publicRow ? null : await currentRole();
+  const [testRow] =
+    viewer && (viewer.role === "moderator" || viewer.role === "admin")
+      ? await recordQuery(sql, id, "tests")
+      : [];
+  const row = publicRow ?? testRow;
 
   if (!row) {
     // Not in the public view. That is the ordinary case for a report someone
@@ -225,13 +268,14 @@ export default async function ReportPage({
     // query answers whether this is a held report of theirs to be told about,
     // deliberately NOT by widening the read above: that one stays the public
     // one, as `web_anon`, seeing only what anybody may see.
-    const state = await receiptState(id, await currentUserId());
+    const state = await receiptState(id, viewer?.userId ?? null);
     if (!state) notFound();
     return <Receipt state={state} t={t} />;
   }
 
   // Safe to read photo paths with the privileged connection: the row above
-  // already proved this report is publicly visible.
+  // already proved this report is publicly visible, or is a test report and
+  // the viewer a moderator.
   const photos = await sql<{ storage_path: string }[]>`
     select storage_path from report_photos where report_id = ${id}::uuid order by created_at`;
   const urls = (
@@ -266,7 +310,7 @@ export default async function ReportPage({
     months && total >= 12 ? months.indexOf(Math.max(...months)) + 1 : null;
 
   // Only the report's author or a moderator may change an identification.
-  const { userId, role } = await currentRole();
+  const { userId, role } = viewer ?? (await currentRole());
   const [owner] = await sql<{ reporter_id: string | null }[]>`
     select reporter_id from reports where id = ${id}::uuid`;
   const canEdit =
@@ -305,6 +349,18 @@ export default async function ReportPage({
       <p className="mt-1 text-xs text-ink-500">
         {seenOn(row.observed_at, row.source, locale)}
       </p>
+
+      {/* Only a moderator ever reaches a test report's page (see above), and
+          it says what it is before anything else could be mistaken for a
+          public record. */}
+      {!publicRow && (
+        <p
+          role="note"
+          className="mt-4 rounded-lg border-2 border-dashed border-forest-900/40 bg-paper-100 px-3 py-2.5 text-sm leading-relaxed text-ink-800"
+        >
+          {t("detail.testNote")}
+        </p>
+      )}
 
       {urls.length > 0 && (
         <div className="mt-4 grid grid-cols-2 gap-2">

@@ -110,6 +110,9 @@ export default async function MyReportsPage({
       from reports r
       left join taxa t on t.id = r.taxon_id
      where r.reporter_id = ${user.id}::uuid
+       -- A moderator's tests (0018) are not contributions: they would count
+       -- toward "published" and fill the species journal. /admin lists them.
+       and not r.is_test
      order by r.created_at desc
      limit 200`;
 

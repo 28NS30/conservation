@@ -57,7 +57,10 @@ export default async function ReportKindPage({
   searchParams,
 }: {
   params: Promise<{ locale: string; kind: string }>;
-  searchParams: Promise<{ taxonId?: string | string[] }>;
+  searchParams: Promise<{
+    taxonId?: string | string[];
+    test?: string | string[];
+  }>;
 }) {
   const { locale, kind } = await params;
   // Belt and braces for development, where params are generated on
@@ -89,7 +92,8 @@ export default async function ReportKindPage({
    * offline queue treats a refusal as final. Unfilled, the reporter picks from
    * names that work.
    */
-  const taxonParam = first((await searchParams).taxonId);
+  const query = await searchParams;
+  const taxonParam = first(query.taxonId);
   const id = taxonParam ? parseSpeciesId(taxonParam) : null;
   const found = id ? await reportableSpecies(id) : null;
   const initialSpecies =
@@ -104,6 +108,10 @@ export default async function ReportKindPage({
           reportCount: found.reportCount,
         }
       : undefined;
+
+  // A moderator's test report, from the links on /admin (migration 0018).
+  // Only a flag for the form: the server decides who may send one.
+  const test = first(query.test) === "1";
 
   const others = REPORT_PAGE_KEYS.filter((p): p is ReportPage => p !== kind);
 
@@ -158,6 +166,7 @@ export default async function ReportKindPage({
         page={kind}
         maptilerKey={process.env.NEXT_PUBLIC_MAPTILER_KEY || undefined}
         initialSpecies={initialSpecies}
+        test={test}
       />
 
       <p className="mt-10 text-sm leading-relaxed text-ink-700">
