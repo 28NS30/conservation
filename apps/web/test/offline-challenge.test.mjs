@@ -120,12 +120,11 @@ describe("offline queue challenge", () => {
     // stored as "unknown" and shown as "something went wrong at our end" —
     // under a banner that had just said there was no signal — and each one
     // spent one of the report's eight attempts.
-    assert.match(
-      flush,
-      /const network =\s*e instanceof TypeError \|\|\s*\(e instanceof DOMException && e\.name === "TimeoutError"\);/,
-    );
-    assert.match(flush, /network \? NETWORK : "unknown"/);
-    assert.match(flush, /const attempts = network \? item\.attempts : item\.attempts \+ 1;/);
+    // One definition of "never reached us" (lib/report/errors.ts), which a
+    // photograph that never reached Storage now meets too.
+    assert.match(flush, /const network = isNetworkFailure\(e\);/);
+    assert.match(flush, /network \? NETWORK :/);
+    assert.match(flush, /const attempts = network \|\| limited \? item\.attempts : item\.attempts \+ 1;/);
     const en = JSON.parse(read("messages", "en.json"));
     const zh = JSON.parse(read("messages", "zh-TW.json"));
     assert.match(en.report.errors.network, /report page/);

@@ -1,6 +1,6 @@
-import { browserSupabase, PHOTO_BUCKET } from "@/lib/supabase/client";
 import {
   listQueued,
+  getQueued,
   updateQueued,
   markUploaded,
   isPending,
@@ -8,7 +8,8 @@ import {
 } from "./queue";
 import { withBase } from "@/lib/basePath";
 import { turnstileEnabled } from "@/lib/turnstile";
-import { ReportError, PHOTO_UPLOAD_FAILED, NETWORK } from "@/lib/report/errors";
+import { ReportError, NETWORK, isNetworkFailure } from "@/lib/report/errors";
+import { uploadPhoto } from "@/lib/report/upload";
 
 /**
  * Runs the full submission pipeline for queued reports.
@@ -70,6 +71,18 @@ const REQUEST_TIMEOUT_MS = 30_000;
 let inFlight: Promise<FlushResult> | null = null;
 /** Whether the flush in flight can get challenge tokens. See flushQueue. */
 let inFlightHasToken = false;
+/** The report being sent right now, which the banner will not let be discarded. */
+let sending: string | null = null;
+
+export function currentlySending(): string | null {
+  return sending;
+}
+
+function setSending(id: string | null) {
+  sending = id;
+  if (typeof window !== "undefined")
+    window.dispatchEvent(new Event("conservation:queue-changed"));
+}
 
 async function uploadPhotos(item: QueuedReport): Promise<string[]> {
   // Resume rather than restart: re-uploading photos that already landed would
@@ -97,16 +110,12 @@ async function uploadPhotos(item: QueuedReport): Promise<string[]> {
     uploads: { path: string; token: string }[];
   };
 
-  const storage = browserSupabase().storage.from(PHOTO_BUCKET);
   const paths = [...done];
 
   for (let i = 0; i < pending.length; i++) {
     const { path, token } = uploads[i];
-    const { error } = await storage.uploadToSignedUrl(path, token, pending[i]);
-    if (error) {
-      console.error("[flush] photo upload:", error);
-      throw new ReportError(PHOTO_UPLOAD_FAILED);
-    }
+    // NETWORK when the photo never reached Storage, which costs no attempt.
+    await uploadPhoto(path, token, pending[i]);
     paths.push(path);
     // Persist after each photo so a mid-upload disconnect resumes from here.
     await updateQueued(item.id, { uploadedPaths: paths });
@@ -114,10 +123,22 @@ async function uploadPhotos(item: QueuedReport): Promise<string[]> {
   return paths;
 }
 
+/**
+ * What became of one report.
+ *
+ * `limited` is a 429: the sender's budget is spent for now, so every report
+ * after this one would be refused too, and the flush stops. It costs no
+ * attempt. It used to cost one, and a phone with a dozen reports saved on a
+ * long road ground the later ones down to `failed` in a few flushes (security
+ * audit, 29 September 2026).
+ */
+type Outcome = "sent" | "failed" | "skipped" | "limited";
+
 async function sendOne(
   item: QueuedReport,
   getToken?: TokenProvider,
-): Promise<"sent" | "failed" | "skipped"> {
+  photosRetried = false,
+): Promise<Outcome> {
   // Before anything is spent — no attempt, no upload. An unsolved challenge is a
   // reason to come back later, not a reason to give up on the report.
   const turnstileToken = await getToken?.();
@@ -133,6 +154,11 @@ async function sendOne(
 
   try {
     const photoPaths = await uploadPhotos(item);
+
+    // Discarded while its photos were going up: it is not filed. The row is
+    // gone, so nothing below could record the outcome, and a report the
+    // reporter was told was deleted used to be published anyway.
+    if (!(await getQueued(item.id))) return "skipped";
 
     const res = await fetch(withBase("/api/reports"), {
       method: "POST",
@@ -152,8 +178,31 @@ async function sendOne(
       // comes along so the banner can offer the right link: a report that
       // landed as `pending` has no public page to open, and the receipt used
       // to link to one anyway.
-      await markUploaded(item.id, String(data.id ?? ""), data.status);
+      await markUploaded(item.id, String(data.id ?? ""), data.status, data.visible !== false);
       return "sent";
+    }
+
+    if (res.status === 429) throw new ReportError("rate_limited", 429);
+
+    // Its photos are gone from Storage: uploaded on an earlier try whose post
+    // never landed, then collected as orphans. They are still on this phone,
+    // so upload them again, once, instead of failing a sound report for good.
+    if (res.status === 400 && data.error === "photo_missing" && !photosRetried && item.uploadedPaths.length) {
+      const again = { ...item, uploadedPaths: [], attempts: item.attempts + 1 };
+      await updateQueued(item.id, { uploadedPaths: [] });
+      return sendOne(again, getToken, true);
+    }
+
+    // Saved under another account than the one signed in now, or under none.
+    // Not filed under the wrong person: it waits, at no cost, for its own
+    // account, and says so. The reporter can also discard it.
+    if (res.status === 409 && data.error === "signed_in_as_someone_else") {
+      await updateQueued(item.id, {
+        status: "queued",
+        attempts: item.attempts,
+        lastError: data.error,
+      });
+      return "skipped";
     }
 
     // A stale or already-spent token is not the report's fault, and the next
@@ -188,18 +237,19 @@ async function sendOne(
     // bar of signal, or on a captive portal, and eight such flushes would
     // otherwise grind a perfectly good report down to `failed`. A request
     // that went out and never came back (REQUEST_TIMEOUT_MS) is the same.
-    const network =
-      e instanceof TypeError ||
-      (e instanceof DOMException && e.name === "TimeoutError");
-    const code = e instanceof ReportError ? e.code : network ? NETWORK : "unknown";
+    //
+    // A photograph that never reached Storage is the same (lib/report/upload.ts).
+    const network = isNetworkFailure(e);
+    const limited = e instanceof ReportError && e.code === "rate_limited";
+    const code = network ? NETWORK : e instanceof ReportError ? e.code : "unknown";
     if (!(e instanceof ReportError) && !network) console.error("[flush]", e);
-    const attempts = network ? item.attempts : item.attempts + 1;
+    const attempts = network || limited ? item.attempts : item.attempts + 1;
     await updateQueued(item.id, {
       status: attempts >= MAX_ATTEMPTS ? "failed" : "queued",
       attempts,
       lastError: code,
     });
-    return "failed";
+    return limited ? "limited" : "failed";
   }
 }
 
@@ -237,11 +287,22 @@ export async function flushQueue(
     }
 
     for (const item of (await listQueued()).filter(isPending)) {
-      if (item.status === "failed" && item.attempts >= MAX_ATTEMPTS) continue;
-      const outcome = await sendOne(item, getToken);
+      // `failed` is final: refused by the server for something about the
+      // report, or out of attempts. Sending it again on every flush spent the
+      // sender's rate limit on answers already known, so it stays on screen,
+      // to be read and discarded, and is not sent.
+      if (item.status === "failed") continue;
+      setSending(item.id);
+      let outcome: Outcome;
+      try {
+        outcome = await sendOne(item, getToken);
+      } finally {
+        setSending(null);
+      }
       if (outcome === "sent") sent++;
       else if (outcome === "skipped") skipped++;
       else failed++;
+      if (outcome === "limited") break;
     }
 
     return { sent, failed, skipped, remaining: await pending() };

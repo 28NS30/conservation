@@ -47,6 +47,11 @@ export default function LocationPicker({
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+  /** The latest value, for the map once it has loaded; see the effect below. */
+  const valueRef = useRef(value);
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
 
   useEffect(() => {
     if (!container.current || handle.current) return;
@@ -71,12 +76,17 @@ export default function LocationPicker({
       // east coast fell off the right edge of the column, so anyone reporting
       // from Hualien or Taitung had to pan before they could tap. Once a
       // location exists the effect below takes over and zooms in.
-      if (!value) {
-        const fit = () =>
+      //
+      // The value as it is NOW, not as it was at the first render: the map
+      // takes seconds to load, and a GPS fix or a photo's place set meanwhile
+      // got no pin, and the island stayed in view. And a resize (turning the
+      // phone) fitted the whole island over a pin already placed.
+      const fit = () => {
+        if (!valueRef.current)
           h.map.fitBounds(TAIWAN_MAIN_BOUNDS, { padding: 12, duration: 0 });
-        fit();
-        h.map.on("resize", fit);
-      }
+      };
+      fit();
+      h.map.on("resize", fit);
 
       /**
        * No pin until there is something to pin.
@@ -104,7 +114,11 @@ export default function LocationPicker({
         marker.current.setLngLat([lng, lat]);
       };
 
-      if (value) place.current(value.lng, value.lat);
+      const now = valueRef.current;
+      if (now) {
+        place.current(now.lng, now.lat);
+        h.map.jumpTo({ center: [now.lng, now.lat], zoom: 14 });
+      }
 
       // Tapping the map is far easier than dragging a pin on a phone.
       h.map.on("click", (e) => {
@@ -120,8 +134,8 @@ export default function LocationPicker({
       marker.current = null;
       place.current = null;
     };
-    // `value` is the initial centre only; later changes are handled by the effect
-    // below, which moves the existing marker instead of rebuilding the map.
+    // `value` is read through valueRef when the map is ready; later changes are
+    // handled by the effect below, which moves the marker instead of rebuilding.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [maptilerKey]);
 

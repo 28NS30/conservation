@@ -90,7 +90,18 @@ export async function POST(req: Request) {
   // friction is what kills citizen-science participation.
   const supabase = await serverSupabase();
   const { data: auth } = await supabase.auth.getUser();
-  const reporterId = auth?.user?.id ?? null;
+  const signedIn = auth?.user?.id ?? null;
+
+  // A report saved on a phone says who made it. The queue is per device, not
+  // per account, so without this a report saved by one person was filed under
+  // whoever was signed in when it finally sent: their email and notes on
+  // someone else's /me, editable by them (security audit, 29 September 2026).
+  // Saved signed out, it is filed signed out. Saved under an account, it waits
+  // for that account: the queue keeps it, at no cost, and says why.
+  if (input.filedBy && input.filedBy !== "anonymous" && input.filedBy !== signedIn) {
+    return Response.json({ error: "signed_in_as_someone_else" }, { status: 409 });
+  }
+  const reporterId = input.filedBy === "anonymous" ? null : signedIn;
 
   // A test report (0018): a moderator trying the whole path without it being
   // shown. The role comes from `profiles`, never from the request, and anyone

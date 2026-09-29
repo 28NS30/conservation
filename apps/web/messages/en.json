@@ -134,7 +134,11 @@
       "server": "Something went wrong at our end and the report was not sent. What you entered is still here.",
       "taxon_out_of_scope": "This page doesn't take that species. Choose one from the list, or report it on the page for that kind of report.",
       "category_not_on_page": "This page can't file that kind of report. Reload the page and try again.",
-      "test_not_allowed": "Only moderators can send test reports. Sign in as a moderator, or send this as a real report with the link at the top of the form."
+      "test_not_allowed": "Only moderators can send test reports. Sign in as a moderator, or send this as a real report with the link at the top of the form.",
+      "signed_in_as_someone_else": "Saved while another account was signed in on this device. Sign in to that account to send it, or discard it.",
+      "timeInvalid": "Enter the date and time you saw it. It can't be in the future.",
+      "emailInvalid": "That email address isn't complete. Check it, or leave the field empty.",
+      "creditInvalid": "A credit name can't contain @. Use a name or nickname."
     },
     "privacyNote": "Locations of sensitive and protected species are automatically blurred before publication, so reports cannot be used to find them.",
     "receipt": {
@@ -221,7 +225,9 @@
       "realInstead": "Send a real report instead"
     },
     "photoTake": "Take a photo",
-    "photoLibrary": "Choose a photo you already took"
+    "photoLibrary": "Choose a photo you already took",
+    "speciesSearchFailed": "Can't search without a signal. Tick “I'm not sure what it was”, or write the name in the notes.",
+    "notOnListConfirm": "The wildlife page starts empty: the photo, the place and your notes here would be lost. Go there anyway?"
   },
   "detail": {
     "species": "Species",

@@ -49,17 +49,30 @@ export default function SpeciesPicker({
   onChange,
   unsure,
   onUnsure,
+  hasEntries = false,
 }: {
   page: ReportPage;
   value: SpeciesHit | null;
   onChange: (hit: SpeciesHit | null) => void;
   unsure: boolean;
   onUnsure: (v: boolean) => void;
+  /** Whether the form holds anything that leaving this page would lose. */
+  hasEntries?: boolean;
 }) {
   const t = useTranslations("report");
   const locale = useLocale();
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SpeciesHit[]>([]);
+  /**
+   * The query `hits` answer, and the last query whose search failed.
+   *
+   * A failed search kept the previous query's results on screen under the new
+   * one: one tap from naming the wrong species, which sets the blur. With no
+   * earlier results it said the name did not exist, when the cause was the
+   * signal (security audit, 29 September 2026).
+   */
+  const [hitsFor, setHitsFor] = useState("");
+  const [failedFor, setFailedFor] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [searching, setSearching] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
@@ -78,9 +91,16 @@ export default function SpeciesPicker({
       setSearching(true);
       try {
         const res = await fetch(withBase(`/api/species/search?${params}`));
-        if (res.ok && !cancelled) setHits((await res.json()).results ?? []);
+        if (!res.ok) throw new Error(`search ${res.status}`);
+        const results = (await res.json()).results ?? [];
+        if (!cancelled) {
+          setHits(results);
+          setHitsFor(q);
+          setFailedFor(null);
+        }
       } catch {
-        /* offline, or the request was superseded — keep what is on screen */
+        // Offline, or the search failed. Superseded requests are `cancelled`.
+        if (!cancelled) setFailedFor(q);
       } finally {
         if (!cancelled) setSearching(false);
       }
@@ -100,7 +120,9 @@ export default function SpeciesPicker({
     return () => document.removeEventListener("mousedown", onDown);
   }, []);
 
-  const visible = query.trim() ? hits : [];
+  const q = query.trim();
+  const visible = q && hitsFor === q ? hits : [];
+  const failed = q !== "" && failedFor === q;
 
   if (value) {
     return (
@@ -179,7 +201,9 @@ export default function SpeciesPicker({
         */}
         <p aria-live="polite" className="sr-only">
           {open && query.trim() && !searching
-            ? t("speciesResults", { count: visible.length })
+            ? failed
+              ? t("speciesSearchFailed")
+              : t("speciesResults", { count: visible.length })
             : ""}
         </p>
 
@@ -217,7 +241,11 @@ export default function SpeciesPicker({
 
             {visible.length === 0 && !searching && (
               <li className="px-3.5 py-2 text-sm text-ink-600">
-                {invasivePage ? t("speciesNoHitsInvasive") : t("speciesNoHits")}
+                {failed
+                  ? t("speciesSearchFailed")
+                  : invasivePage
+                    ? t("speciesNoHitsInvasive")
+                    : t("speciesNoHits")}
               </li>
             )}
           </ul>
@@ -264,8 +292,14 @@ export default function SpeciesPicker({
       {invasivePage && (
         <p className="mt-1 text-sm text-ink-700">
           {t("notOnListLead")}{" "}
+          {/* A plain link to another page, which starts empty: the photo
+              (often not in the camera roll when taken through the form), the
+              place and the notes would all be gone. So it asks first. */}
           <Link
             href="/report/wildlife"
+            onClick={(e) => {
+              if (hasEntries && !window.confirm(t("notOnListConfirm"))) e.preventDefault();
+            }}
             className="inline-flex min-h-11 items-center font-medium text-leaf-700 underline underline-offset-2 hover:text-forest-900"
           >
             {t("notOnListLink")}
