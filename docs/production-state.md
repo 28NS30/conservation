@@ -10,7 +10,7 @@ This file exists so that stops happening. It records **verified** production
 state, with the date, the method, and — where it matters — an explicit "not
 known". It is not a plan and contains no intentions.
 
-Last verified **25 September 2026, 19:40 (Asia/Taipei)**; section "Changed on 28 September 2026" verified that day.
+Last verified **25 September 2026, 19:40 (Asia/Taipei)**; the "Changed on" sections were each verified on their day, the latest on **29 September 2026, 16:55**.
 
 ## How these were checked
 
@@ -26,13 +26,13 @@ Two ways, both from outside the repo:
 
 ## Schema
 
-**Migrations 0001–0015 and 0021 are applied** (0016–0020 are numbers reserved
-for open pull requests; see "Changed on 28 September 2026, evening"). `/api/health` returns
+**Migrations 0001–0019 and 0021–0023 are applied** (0020 was never used; see
+"Changed on 29 September 2026"). `/api/health` returns
 `"schemaCurrent": true`, and that is a *data* assertion rather than a shape
 check — `lib/schemaStatus.ts` verifies the rules the migrations were written to
 establish, not merely that the columns exist.
 
-**The `_migrations` ledger holds 16 rows.** It is baselined. Production
+**The `_migrations` ledger holds 22 rows.** It is baselined. Production
 `DATABASE_URL` is not obtainable from here, so migrations since 0014 were
 applied through the Management API's query endpoint, each as one transaction
 ending in its own ledger row, after a dry run that aborts itself and reports
@@ -209,6 +209,39 @@ everywhere (#85).
 **Pending at the time of writing:** 0022 moves 72 records onto the names that
 apply in Taiwan (石虎, 臺灣蛇蜥, a crab and a vole), tightening only; it is
 applied when #88 merges.
+
+## Changed on 29 September 2026
+
+Verified with one query through the Management API at 16:55: the ledger holds
+0001–0019 and 0021–0023 (22 rows); `reports_public` has **46,334** records;
+`taxa` has **136,680** rows, 13,531 with TaiCOL's alien-status note;
+`taxon_precision_floors` has 89 rows; and **no** record with a species is shown
+more exactly than that species' rule allows (0 rows).
+
+**Applied since the last entry:** 0016 (the invasive flag on
+`reports_public`), 0017 (what each contributor agreed to), 0019 (the forum's
+tables, switched off), 0022 (72 records moved onto the names that apply in
+Taiwan, tightening only), 0023 with the TaiCOL refresh (36 more floors, so no
+refreshed rating could loosen a blur), and 0018.
+
+**0018 (#103), test reports.** `reports.is_test`, and the public rules move to
+`reports_published`, which keeps tests and is granted to nobody;
+`reports_public` is that minus tests. Dry run and apply: the view returned the
+same 46,334 rows with the same checksum before and after, and `web_anon`,
+`anon` and `authenticated` cannot read `reports_published`.
+
+**No one in production is a moderator or an admin** (0 rows in `profiles` with
+either role). /admin, the moderation queue and test reports therefore have no
+user yet; `docs/owner-setup.md` step 3 is the one statement that changes it.
+No report has yet come from the public (0 with `source = 'user'`).
+
+**Now live in the code:** classification right after a report is sent (#101);
+record and species pages headed by the animal (#102); species status in
+sentences (#104); the photo-first report pages with a pinned send button (#105);
+the team's design on every inner page (#106) and the error pages (#111); the
+moderation queue readable on a phone in the moderator's language (#108); a
+person can delete their own account from /me (#109); the AI's suggestions and
+the stats page made readable (#110, #112).
 
 ## Known outstanding, on the credential holder
 
