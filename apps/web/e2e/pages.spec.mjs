@@ -48,6 +48,7 @@ const PAGES = [
   { path: "/me", name: "my reports (signed out)" },
   { path: "/attribution", name: "attribution" },
   { path: "/privacy", name: "privacy" },
+  { path: "/terms", name: "terms" },
 ];
 
 /** Namespaces from messages/*.json. A leaked key looks like `namespace.someKey`. */
@@ -73,6 +74,7 @@ const NAMESPACES = [
   "attribution",
   "about",
   "privacy",
+  "terms",
   "list",
 ];
 const LEAKED_KEY = new RegExp(

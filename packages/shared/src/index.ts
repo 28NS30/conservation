@@ -368,6 +368,41 @@ export function isAcceptedImageType(v: unknown): v is AcceptedImageType {
 export const IMAGE_MAX_EDGE = 2048;
 export const IMAGE_WEBP_QUALITY = 0.82;
 
+/* ------------------------------------------------------------------ *
+ * Contributor terms
+ * ------------------------------------------------------------------ */
+
+/**
+ * The version of /terms a report is filed under, stored with it. A change to
+ * the terms applies to reports filed after it, never to ones filed before, so
+ * each report has to say which it agreed to.
+ */
+export const CONSENT_VERSION = "2026-09-29";
+
+/**
+ * The licences a reporter may choose, and the legalcode URL stored for each in
+ * `reports.license` (the shape GBIF's imports already use, which
+ * apps/web/lib/license.ts turns into a label). CC BY 4.0 is the form's default;
+ * CC0 gives up the credit. Nothing else: a licence we cannot export to GBIF
+ * is one the record cannot travel under.
+ */
+export const CONTRIBUTOR_LICENSES = {
+  "cc-by-4.0": "https://creativecommons.org/licenses/by/4.0/legalcode",
+  "cc0-1.0": "https://creativecommons.org/publicdomain/zero/1.0/legalcode",
+} as const;
+export type ContributorLicense = keyof typeof CONTRIBUTOR_LICENSES;
+export const CONTRIBUTOR_LICENSE_KEYS = Object.keys(CONTRIBUTOR_LICENSES) as ContributorLicense[];
+
+/** How long the name a reporter is credited by may be. */
+export const MAX_CREDIT_NAME = 60;
+
+/**
+ * Which pages offer to share a record with research partners. TaiRON records
+ * deaths on and near roads; a live sighting or an invasive report is outside
+ * what it takes, so only the roadkill page asks.
+ */
+export const PARTNER_SHARING_PAGES: readonly ReportPage[] = ["roadkill"];
+
 export const reportSubmissionSchema = z
   .object({
     category: z.enum(CATEGORY_KEYS as [Category, ...Category[]]),
@@ -411,6 +446,22 @@ export const reportSubmissionSchema = z
     /** Client-generated, so a double-tap or offline retry cannot duplicate a report. */
     clientNonce: z.uuid(),
     turnstileToken: z.string().min(1).optional(),
+    /**
+     * The contributor terms, answered per report (/terms). Optional so that a
+     * report queued offline by a build from before the terms still sends; it
+     * is then stored with no licence, and nothing exports it under one.
+     */
+    license: z.enum(CONTRIBUTOR_LICENSE_KEYS as [ContributorLicense, ...ContributorLicense[]]).optional(),
+    /** The name to credit, a nickname by preference. Never an email address. */
+    creditName: z
+      .string()
+      .trim()
+      .max(MAX_CREDIT_NAME)
+      .refine((v) => !v.includes("@"), { message: "a credit name is not an email address" })
+      .optional(),
+    /** Share with research partners (TaiRON), exact location included. Starts unticked. */
+    sharePartners: z.boolean().optional(),
+    consentVersion: z.string().max(20).optional(),
   })
   .refine((r) => !(r.taxonId && r.taxonUnknown), {
     message: "a report cannot both name a species and be unidentifiable",

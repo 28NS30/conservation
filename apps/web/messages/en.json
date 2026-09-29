@@ -20,7 +20,8 @@
     "contact": "Contact",
     "season": "This season's goal",
     "team": "Team",
-    "fileReport": "File a report"
+    "fileReport": "File a report",
+    "terms": "Terms"
   },
   "categories": {
     "roadkill": "Roadkill",
@@ -197,7 +198,19 @@
     "backupNoToken": "Can't get verified? Save on this phone",
     "backupSlow": "Weak signal? Save on this phone",
     "backupHint": "It is kept on this phone and sent the next time you open the report page with a signal.",
-    "newTab": "(opens in a new tab)"
+    "newTab": "(opens in a new tab)",
+    "shareTitle": "How this record may be used",
+    "shareIntro": "Everything you file is published, with the location blurred where the species needs it. Choose how others may reuse your photo and record.",
+    "licenceLabel": "Licence",
+    "licenceBy": "Open, with credit (CC BY 4.0)",
+    "licenceByHint": "Anyone may reuse it if they credit you. Recommended.",
+    "licenceZero": "Open, no credit needed (CC0)",
+    "licenceZeroHint": "Anyone may use it for anything, without naming you.",
+    "creditLabel": "Credit me as",
+    "creditHint": "A nickname is fine, and it is all we show. Leave it empty to be credited as \"FormosaWatch contributor\". Never an email address.",
+    "sharePartners": "Also share this record, with its exact location, with TaiRON (路殺社)",
+    "sharePartnersHint": "Taiwan's roadkill research network uses exact locations to find the roads where animals die. Nothing is sent until TaiRON agrees to take records from this site.",
+    "termsLink": "Terms for contributors"
   },
   "detail": {
     "species": "Species",
@@ -441,6 +454,8 @@
     "retentionBody": "Reports are kept indefinitely, because their scientific value comes from accumulating over time. If you want your report or contact email removed, get in touch.",
     "thirdPartyTitle": "Third-party services",
     "thirdPartyBody": "The site uses Supabase (database and file storage), Vercel (hosting), OpenFreeMap and OpenStreetMap (the base map), Cloudflare Turnstile (the check described above), and Modal, which runs our species-identification model: photos attached to a report may be sent there so the model can suggest a species. Map tiles load from OpenFreeMap through Cloudflare, and OpenFreeMap may log IP addresses for up to 30 days when investigating abuse.",
+    "sharingTitle": "Sharing with research partners",
+    "sharingBody": "We share a record's exact location with a research partner only if you ticked the box for that record on the roadkill page. The only partner named there is the Taiwan Roadkill Observation Network (TaiRON, 路殺社), run by the Taiwan Biodiversity Research Institute, and nothing has been sent to it: that waits until TaiRON agrees to take records from this site. Your email address is never shared.",
     "analyticsTitle": "Usage statistics",
     "analyticsBody": "We count page views through Vercel Analytics, to see how many people find the reporting page. It sets no cookies, creates no cross-site identifier, and records nothing that identifies a person — what we see is “the home page was viewed N times”, not who viewed it.",
     "cookiesTitle": "Cookies",
@@ -616,5 +631,26 @@
       "flamawatch": "Atlántico, Colombia"
     },
     "email": "Email"
+  },
+  "terms": {
+    "title": "Terms for contributors",
+    "lede": "What you agree to when you file a report here, in plain words. Version {version}.",
+    "whatTitle": "What a report is",
+    "whatBody": "A report is the animal you saw, where and when, any photos you add, and any notes. We publish it on the map, in the list of records and in the statistics, so that anyone working to protect Taiwan's wildlife can use it.",
+    "licenceTitle": "How others may use it",
+    "licenceBody": "You choose a licence for each report. With CC BY 4.0, the default, anyone may copy and reuse your photo and record as long as they credit you. With CC0 you give up that credit, and anyone may use them for anything. Either way, you keep your own copyright in the photo; a licence is permission, not a transfer.",
+    "creditTitle": "How you are credited",
+    "creditBody": "By the name you give in the report. A nickname is fine, and it is all we show. Leave it empty and you are credited as \"FormosaWatch contributor\". We never show your email address.",
+    "locationTitle": "Where the animal was",
+    "locationBody": "The exact location is kept in our database only. The public sees it blurred for any species that is protected, rated sensitive or threatened, and for a record nobody has identified yet; see why on the About page.",
+    "partnersTitle": "Sharing with research partners",
+    "partnersBody": "On the roadkill page you can also choose to share a record, including its exact location, with the Taiwan Roadkill Observation Network (TaiRON, 路殺社), run by the Taiwan Biodiversity Research Institute, which uses it to find the roads where animals die. It is a separate box, and it starts unticked. Nothing is sent to anyone until TaiRON has agreed to take records from this site; if you ticked the box before then, your record is sent when that happens.",
+    "removeTitle": "Taking a report back",
+    "removeBody": "Write to us and we will remove your report and your contact address from this site. We cannot recall copies other people have already made under the licence you chose, which is why the choice is yours on every report.",
+    "youngTitle": "If you are under 18",
+    "youngBody": "Please talk to a parent or guardian before you choose a licence or share a record with a partner.",
+    "changesTitle": "If these terms change",
+    "changesBody": "Each report records the version of these terms it was filed under. A change applies to reports filed after it, never to ones filed before.",
+    "contact": "Questions about these terms: write to {email}."
   }
 }

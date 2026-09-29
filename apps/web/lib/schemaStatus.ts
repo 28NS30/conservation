@@ -101,6 +101,14 @@ export const REQUIRED_SCHEMA: SchemaCheck[] = [
                and not t.tgisinternal) as ok`,
   },
   {
+    // POST /api/reports writes the contributor-terms answers here; without the
+    // columns every report fails to insert.
+    name: "0017 reports record what the contributor agreed to",
+    sql: `select count(*) = 3 as ok from information_schema.columns
+           where table_schema = 'public' and table_name = 'reports'
+             and column_name in ('share_partners', 'consent_version', 'consent_at')`,
+  },
+  {
     // A rule check again: 0021 replaces 0014's taxon_precision(), so re-running
     // 0014 alone would quietly drop the Red List term while every object still
     // exists. The function body is what says which rule is live.
