@@ -225,6 +225,7 @@ Then **Settings → Environment Variables**, for Production *and* Preview:
 | `TURNSTILE_SECRET_KEY` | from step 5 | no bot protection |
 | `ML_ENDPOINT_URL` | from your local `.env` | no species identification |
 | `ML_ENDPOINT_TOKEN` | from your local `.env` | no species identification |
+| `ML_CONTRACT` | `2`, but only after steps 1–4 of `docs/ai-rollout.md` | the legacy contract: the model picks each page's label list |
 | `NEXT_PUBLIC_MAPTILER_KEY` | leave empty (see step 6) | nothing — the default basemap needs no key |
 
 The `service_role` key bypasses every access rule in the database. It belongs in

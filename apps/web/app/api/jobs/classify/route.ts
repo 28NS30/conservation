@@ -5,7 +5,14 @@ import {
   photoIdentificationOverride,
   suggestionOverride,
 } from "@/lib/report/precision";
-import { AUTO_ASSIGN_BANDS, classifierAction } from "@/lib/report/classifyPolicy";
+import {
+  AUTO_ASSIGN_BANDS,
+  classifierAction,
+  mlContract,
+  parseEvidence,
+  type EvidenceResponse,
+} from "@/lib/report/classifyPolicy";
+import { recordEvidence } from "@/lib/report/classifyEvidence";
 
 /**
  * Classification worker, driven by Vercel Cron (see apps/web/vercel.json).
@@ -15,6 +22,15 @@ import { AUTO_ASSIGN_BANDS, classifierAction } from "@/lib/report/classifyPolicy
  *
  * Claims jobs with `for update skip locked` so concurrent invocations never
  * process the same report twice.
+ *
+ * Two contracts with the model service, chosen by ML_CONTRACT (mlContract in
+ * lib/report/classifyPolicy.ts). Unset, the worker behaves exactly as it
+ * always has: it sends the report's category, the service picks the label
+ * list and the band, and the branches below act on its answer. At "2" the
+ * service returns the top 50 species over every accepted Taiwan taxon and the
+ * website applies the rules for each kind of report itself
+ * (lib/report/classifyEvidence.ts). docs/ai-rollout.md has the order in which
+ * the two are switched over, and how to switch back.
  */
 
 const MAX_ATTEMPTS = 5;
@@ -63,6 +79,8 @@ type Job = {
   /** Null until someone identifies it; 'user'/'expert' mean a person did. */
   taxon_source: string | null;
   taxon_id: number | null;
+  /** The scientific name of `taxon_id`, for comparing with the model at the binomial. */
+  taxon_name: string | null;
   attempts: number;
   storage_path: string | null;
 };
@@ -111,6 +129,32 @@ async function callModel(
       `model endpoint ${res.status}: ${(await res.text()).slice(0, 200)}`,
     );
   return (await res.json()) as MlResult;
+}
+
+/**
+ * The evidence contract: no category, because which species a page may be
+ * named as is decided here now, and a category reaching the model is how the
+ * invasive page's closed list happened. The answer is checked for shape
+ * (parseEvidence) so a service that is still the old version fails loudly
+ * instead of looking like a model that recognised nothing.
+ */
+async function callEvidenceModel(imageBase64: string): Promise<EvidenceResponse> {
+  const url = process.env.ML_ENDPOINT_URL;
+  const token = process.env.ML_ENDPOINT_TOKEN;
+  if (!url || !token)
+    throw new Error("ML_ENDPOINT_URL / ML_ENDPOINT_TOKEN not configured");
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ token, imageBase64, contract: 2 }),
+    signal: AbortSignal.timeout(120_000), // generous: covers a Modal cold start
+  });
+  if (!res.ok)
+    throw new Error(
+      `model endpoint ${res.status}: ${(await res.text()).slice(0, 200)}`,
+    );
+  return parseEvidence(await res.json());
 }
 
 /**
@@ -188,6 +232,8 @@ async function run(req: Request) {
               (select r.category from reports r where r.id = j.report_id) as category,
               (select r.taxon_source from reports r where r.id = j.report_id) as taxon_source,
               (select r.taxon_id from reports r where r.id = j.report_id) as taxon_id,
+              (select t.scientific_name from reports r join taxa t on t.id = r.taxon_id
+                where r.id = j.report_id) as taxon_name,
               (select p.storage_path from report_photos p
                 where p.report_id = j.report_id order by p.created_at limit 1) as storage_path`;
 
@@ -196,6 +242,7 @@ async function run(req: Request) {
   let succeeded = 0;
   let failed = 0;
   const startedAt = Date.now();
+  const contract = mlContract(process.env);
   const deferred: string[] = [];
 
   for (const job of jobs) {
@@ -209,6 +256,17 @@ async function run(req: Request) {
 
       const bytes = await downloadPhoto(job.storage_path);
       if (!bytes) throw new Error("could not read photo from storage");
+
+      if (contract === 2) {
+        // The model returns evidence and the website decides: the rules for
+        // each kind of report are in lib/report/classifyPolicy.ts, the writes
+        // (the same columns, through the same precision helpers as below) in
+        // lib/report/classifyEvidence.ts. Failure takes the catch below, as a
+        // legacy failure does.
+        await recordEvidence(job, await callEvidenceModel(bytes.toString("base64")));
+        succeeded++;
+        continue;
+      }
 
       // The page's own category chooses the label list (apps/ml/labelsets.py).
       // Not remapped here: an injured animal is scored against the whole

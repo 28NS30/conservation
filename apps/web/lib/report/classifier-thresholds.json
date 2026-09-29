@@ -1,0 +1,652 @@
+{
+  "_comment": "Written by apps/ml/evaluate.py --fit --write. Do not edit by hand: re-run it. What each number means is documented there and in apps/web/lib/report/classifyPolicy.ts; the story is in docs/ai-rollout.md.",
+  "modelVersion": "bioclip2-vitl14-v2",
+  "fittedAt": "2026-09-28",
+  "targetPrecision": 0.95,
+  "criterion": "high = lowest score whose precision's 95% Wilson lower bound reaches targetPrecision (at least 30 photos above it); medium = lowest equal-count bin whose local top-5 reaches 0.75; species level (binomial)",
+  "profiles": {
+    "wildlife": {
+      "high": 0.9528195844288152,
+      "medium": 0.3775,
+      "autoAssign": true,
+      "fittedOn": "live",
+      "photos": 308,
+      "species": 77,
+      "fitPopulation": {
+        "photos": 308,
+        "assignable": 240,
+        "outsideProfile": 0
+      },
+      "highFit": {
+        "threshold": 0.9528195844288152,
+        "n": 79,
+        "right": 79,
+        "precision": 1.0,
+        "wilson95": [
+          0.9536,
+          1.0
+        ],
+        "coverage": 0.2565
+      },
+      "highFitPointEstimate": {
+        "threshold": 0.8270357783964449,
+        "n": 127,
+        "right": 121,
+        "precision": 0.9528,
+        "wilson95": [
+          0.9008,
+          0.9782
+        ],
+        "coverage": 0.4123
+      },
+      "highHeldOut": [
+        {
+          "criterion": "strict",
+          "fitHalf": 0,
+          "threshold": null
+        },
+        {
+          "criterion": "strict",
+          "fitHalf": 1,
+          "threshold": null
+        },
+        {
+          "criterion": "pointEstimate",
+          "fitHalf": 0,
+          "threshold": 0.8384908047288362,
+          "inSample": 0.95,
+          "n": 61,
+          "right": 59,
+          "precision": 0.9672,
+          "wilson95": [
+            0.8881,
+            0.991
+          ]
+        },
+        {
+          "criterion": "pointEstimate",
+          "fitHalf": 1,
+          "threshold": 0.7441742474555648,
+          "inSample": 0.9565,
+          "n": 71,
+          "right": 66,
+          "precision": 0.9296,
+          "wilson95": [
+            0.8455,
+            0.9695
+          ]
+        }
+      ],
+      "top1": 0.763,
+      "top1Wilson95": [
+        0.7124,
+        0.8071
+      ],
+      "top5": 0.9513,
+      "bands": {
+        "high": {
+          "n": 109,
+          "share": 0.3539,
+          "top1": 0.9817,
+          "top5": 1.0,
+          "top1Wilson95": [
+            0.9356,
+            0.995
+          ]
+        },
+        "medium": {
+          "n": 174,
+          "share": 0.5649,
+          "top1": 0.6897,
+          "top5": 0.9655,
+          "top1Wilson95": [
+            0.6174,
+            0.7537
+          ]
+        },
+        "low": {
+          "n": 25,
+          "share": 0.0812,
+          "top1": 0.32,
+          "top5": 0.64,
+          "top1Wilson95": [
+            0.1721,
+            0.5159
+          ]
+        }
+      }
+    },
+    "roadkill": {
+      "high": 0.9673849061812072,
+      "medium": 0.2717,
+      "autoAssign": true,
+      "fittedOn": "dead",
+      "photos": 1144,
+      "species": 349,
+      "fitPopulation": {
+        "photos": 1032,
+        "assignable": 805,
+        "outsideProfile": 112
+      },
+      "highFit": {
+        "threshold": 0.9673849061812072,
+        "n": 148,
+        "right": 146,
+        "precision": 0.9865,
+        "wilson95": [
+          0.9521,
+          0.9963
+        ],
+        "coverage": 0.1434
+      },
+      "highFitPointEstimate": {
+        "threshold": 0.8865616955677421,
+        "n": 246,
+        "right": 234,
+        "precision": 0.9512,
+        "wilson95": [
+          0.9167,
+          0.9719
+        ],
+        "coverage": 0.2384
+      },
+      "highHeldOut": [
+        {
+          "criterion": "strict",
+          "fitHalf": 0,
+          "threshold": null
+        },
+        {
+          "criterion": "strict",
+          "fitHalf": 1,
+          "threshold": null
+        },
+        {
+          "criterion": "pointEstimate",
+          "fitHalf": 0,
+          "threshold": 0.960324209682307,
+          "inSample": 0.9551,
+          "n": 78,
+          "right": 77,
+          "precision": 0.9872,
+          "wilson95": [
+            0.9309,
+            0.9977
+          ]
+        },
+        {
+          "criterion": "pointEstimate",
+          "fitHalf": 1,
+          "threshold": 0.8211052599574665,
+          "inSample": 0.9562,
+          "n": 151,
+          "right": 135,
+          "precision": 0.894,
+          "wilson95": [
+            0.8348,
+            0.9337
+          ]
+        }
+      ],
+      "top1": 0.5481,
+      "top1Wilson95": [
+        0.5191,
+        0.5767
+      ],
+      "top5": 0.7526,
+      "bands": {
+        "high": {
+          "n": 178,
+          "share": 0.1725,
+          "top1": 0.9831,
+          "top5": 0.9944,
+          "top1Wilson95": [
+            0.9516,
+            0.9943
+          ]
+        },
+        "medium": {
+          "n": 679,
+          "share": 0.6579,
+          "top1": 0.6156,
+          "top5": 0.8733,
+          "top1Wilson95": [
+            0.5785,
+            0.6515
+          ]
+        },
+        "low": {
+          "n": 175,
+          "share": 0.1696,
+          "top1": 0.1943,
+          "top5": 0.52,
+          "top1Wilson95": [
+            0.1425,
+            0.2592
+          ]
+        }
+      }
+    },
+    "invasive": {
+      "high": null,
+      "medium": 0.3775,
+      "autoAssign": false,
+      "fittedOn": "lookalike",
+      "photos": 298,
+      "species": 33,
+      "fitPopulation": {
+        "photos": 298,
+        "assignable": 155,
+        "outsideProfile": 0
+      },
+      "highFit": null,
+      "highFitPointEstimate": {
+        "threshold": 0.7914652054269893,
+        "n": 67,
+        "right": 64,
+        "precision": 0.9552,
+        "wilson95": [
+          0.8764,
+          0.9847
+        ],
+        "coverage": 0.2248
+      },
+      "highHeldOut": [
+        {
+          "criterion": "strict",
+          "fitHalf": 0,
+          "threshold": null
+        },
+        {
+          "criterion": "strict",
+          "fitHalf": 1,
+          "threshold": null
+        },
+        {
+          "criterion": "pointEstimate",
+          "fitHalf": 0,
+          "threshold": 0.7914652054269893,
+          "inSample": 0.9688,
+          "n": 35,
+          "right": 33,
+          "precision": 0.9429,
+          "wilson95": [
+            0.8139,
+            0.9842
+          ]
+        },
+        {
+          "criterion": "pointEstimate",
+          "fitHalf": 1,
+          "threshold": 0.88751338240715,
+          "inSample": 0.9677,
+          "n": 25,
+          "right": 25,
+          "precision": 1.0,
+          "wilson95": [
+            0.8668,
+            1.0
+          ]
+        }
+      ],
+      "top1": 0.7886,
+      "top1Wilson95": [
+        0.7387,
+        0.8311
+      ],
+      "top5": 0.9698,
+      "mediumFittedOn": "live",
+      "mediumOnLookalike": 0.03982558226202693,
+      "bandsAtLookalikeMedium": {
+        "high": {
+          "n": 0,
+          "share": 0.0,
+          "top1": null,
+          "top5": null,
+          "top1Wilson95": null
+        },
+        "medium": {
+          "n": 298,
+          "share": 1.0,
+          "top1": 0.7886,
+          "top5": 0.9698,
+          "top1Wilson95": [
+            0.7387,
+            0.8311
+          ]
+        },
+        "low": {
+          "n": 0,
+          "share": 0.0,
+          "top1": null,
+          "top5": null,
+          "top1Wilson95": null
+        }
+      }
+    }
+  },
+  "neverAutoAssignClasses": [
+    "Malacostraca"
+  ],
+  "crabs": {
+    "photos": 123,
+    "top1": 37,
+    "top1Wilson95": [
+      0.2268,
+      0.3869
+    ],
+    "bySet": {
+      "dead": {
+        "n": 119,
+        "top1": 34,
+        "top5": 62
+      },
+      "live": {
+        "n": 4,
+        "top1": 3,
+        "top5": 4
+      },
+      "lookalike": null
+    }
+  },
+  "invasiveGate": {
+    "live": {
+      "natives": 276,
+      "nativeSuspected": 5,
+      "nativeSuspectedOrMixed": 6,
+      "nativeSuspectedShown": 5,
+      "invasives": 32,
+      "invasiveSuspected": 28,
+      "invasiveSuspectedOrMixed": 28,
+      "invasiveRightSpecies": 28,
+      "nativeSuspectedExamples": [
+        [
+          "Fejervarya limnocharis",
+          "Fejervarya cancrivora",
+          0.542
+        ],
+        [
+          "Fejervarya limnocharis",
+          "Fejervarya cancrivora",
+          0.653
+        ],
+        [
+          "Psammodynastes pulverulentus",
+          "Boiga irregularis",
+          0.972
+        ],
+        [
+          "Polypedates braueri",
+          "Polypedates megacephalus",
+          0.979
+        ],
+        [
+          "Rana sauteri",
+          "Eleutherodactylus planirostris",
+          0.605
+        ]
+      ]
+    },
+    "lookalike": {
+      "natives": 173,
+      "nativeSuspected": 5,
+      "nativeSuspectedOrMixed": 17,
+      "nativeSuspectedShown": 5,
+      "invasives": 125,
+      "invasiveSuspected": 105,
+      "invasiveSuspectedOrMixed": 105,
+      "invasiveRightSpecies": 100,
+      "nativeSuspectedExamples": [
+        [
+          "Polypedates braueri",
+          "Polypedates megacephalus",
+          0.876
+        ],
+        [
+          "Fejervarya limnocharis",
+          "Fejervarya cancrivora",
+          0.784
+        ],
+        [
+          "Fejervarya limnocharis",
+          "Fejervarya cancrivora",
+          0.384
+        ],
+        [
+          "Boiga kraepelini",
+          "Boiga irregularis",
+          0.677
+        ],
+        [
+          "Boiga kraepelini",
+          "Boiga irregularis",
+          0.419
+        ]
+      ]
+    }
+  },
+  "contract1": {
+    "dead": {
+      "roadkill": {
+        "top1": 0.5271,
+        "top5": 0.7107,
+        "bands": {
+          "high": {
+            "n": 241,
+            "share": 0.2107,
+            "top1": 0.8548,
+            "top5": 0.9295,
+            "top1Wilson95": [
+              0.8047,
+              0.8937
+            ]
+          },
+          "medium": {
+            "n": 630,
+            "share": 0.5507,
+            "top1": 0.5492,
+            "top5": 0.7524,
+            "top1Wilson95": [
+              0.5102,
+              0.5876
+            ]
+          },
+          "low": {
+            "n": 273,
+            "share": 0.2386,
+            "top1": 0.1868,
+            "top5": 0.4212,
+            "top1Wilson95": [
+              0.145,
+              0.2373
+            ]
+          }
+        }
+      },
+      "sighting": {
+        "top1": 0.5743,
+        "top5": 0.7858,
+        "bands": {
+          "high": {
+            "n": 254,
+            "share": 0.222,
+            "top1": 0.8701,
+            "top5": 0.9488,
+            "top1Wilson95": [
+              0.8232,
+              0.906
+            ]
+          },
+          "medium": {
+            "n": 617,
+            "share": 0.5393,
+            "top1": 0.6094,
+            "top5": 0.8525,
+            "top1Wilson95": [
+              0.5703,
+              0.6471
+            ]
+          },
+          "low": {
+            "n": 273,
+            "share": 0.2386,
+            "top1": 0.2198,
+            "top5": 0.4835,
+            "top1Wilson95": [
+              0.1747,
+              0.2726
+            ]
+          }
+        }
+      }
+    },
+    "live": {
+      "roadkill": {
+        "top1": 0.75,
+        "top5": 0.9221,
+        "bands": {
+          "high": {
+            "n": 103,
+            "share": 0.3344,
+            "top1": 0.9126,
+            "top5": 0.9709,
+            "top1Wilson95": [
+              0.8422,
+              0.9533
+            ]
+          },
+          "medium": {
+            "n": 179,
+            "share": 0.5812,
+            "top1": 0.6983,
+            "top5": 0.9218,
+            "top1Wilson95": [
+              0.6275,
+              0.7608
+            ]
+          },
+          "low": {
+            "n": 26,
+            "share": 0.0844,
+            "top1": 0.4615,
+            "top5": 0.7308,
+            "top1Wilson95": [
+              0.2876,
+              0.6454
+            ]
+          }
+        }
+      },
+      "sighting": {
+        "top1": 0.7597,
+        "top5": 0.9351,
+        "bands": {
+          "high": {
+            "n": 105,
+            "share": 0.3409,
+            "top1": 0.9238,
+            "top5": 0.9714,
+            "top1Wilson95": [
+              0.8568,
+              0.9609
+            ]
+          },
+          "medium": {
+            "n": 174,
+            "share": 0.5649,
+            "top1": 0.7126,
+            "top5": 0.9483,
+            "top1Wilson95": [
+              0.6414,
+              0.7747
+            ]
+          },
+          "low": {
+            "n": 29,
+            "share": 0.0942,
+            "top1": 0.4483,
+            "top5": 0.7241,
+            "top1Wilson95": [
+              0.2841,
+              0.6245
+            ]
+          }
+        }
+      }
+    },
+    "lookalike": {
+      "roadkill": {
+        "top1": 0.7785,
+        "top5": 0.9664,
+        "bands": {
+          "high": {
+            "n": 137,
+            "share": 0.4597,
+            "top1": 0.9197,
+            "top5": 0.9927,
+            "top1Wilson95": [
+              0.8619,
+              0.9546
+            ]
+          },
+          "medium": {
+            "n": 148,
+            "share": 0.4966,
+            "top1": 0.7095,
+            "top5": 0.9797,
+            "top1Wilson95": [
+              0.6318,
+              0.7766
+            ]
+          },
+          "low": {
+            "n": 13,
+            "share": 0.0436,
+            "top1": 0.0769,
+            "top5": 0.5385,
+            "top1Wilson95": [
+              0.0137,
+              0.3331
+            ]
+          }
+        }
+      },
+      "sighting": {
+        "top1": 0.7785,
+        "top5": 0.9664,
+        "bands": {
+          "high": {
+            "n": 135,
+            "share": 0.453,
+            "top1": 0.9333,
+            "top5": 1.0,
+            "top1Wilson95": [
+              0.8782,
+              0.9645
+            ]
+          },
+          "medium": {
+            "n": 149,
+            "share": 0.5,
+            "top1": 0.7047,
+            "top5": 0.9732,
+            "top1Wilson95": [
+              0.627,
+              0.7721
+            ]
+          },
+          "low": {
+            "n": 14,
+            "share": 0.047,
+            "top1": 0.0714,
+            "top5": 0.5714,
+            "top1Wilson95": [
+              0.0127,
+              0.3147
+            ]
+          }
+        }
+      }
+    }
+  }
+}
