@@ -115,7 +115,7 @@ export async function approvePost(_prev: ActionResult, form: FormData): Promise<
       select ${POST_AUTHOR} as author_id, p.status, p.is_opener, p.thread_id from forum_posts p
        where p.id = ${postId}::uuid for update of p`;
     if (!post || post.status === "deleted") return "noPost";
-    if (!canReview(actor.id, post.author_id)) return "ownPost";
+    if (!canReview(actor.id, post.author_id, actor.role)) return "ownPost";
 
     await tx`
       update forum_posts
@@ -151,7 +151,7 @@ export async function hidePost(_prev: ActionResult, form: FormData): Promise<Act
       select ${POST_AUTHOR} as author_id, p.status, p.is_opener, p.thread_id from forum_posts p
        where p.id = ${postId}::uuid for update of p`;
     if (!post || post.status === "deleted") return "noPost";
-    if (!canReview(actor.id, post.author_id)) return "ownPost";
+    if (!canReview(actor.id, post.author_id, actor.role)) return "ownPost";
 
     await tx`
       update forum_posts
@@ -191,7 +191,7 @@ export async function deletePost(_prev: ActionResult, form: FormData): Promise<A
       select ${POST_AUTHOR} as author_id, p.status, p.is_opener, p.thread_id from forum_posts p
        where p.id = ${postId}::uuid for update of p`;
     if (!post || post.status === "deleted") return "noPost";
-    if (!canReview(actor.id, post.author_id)) return "ownPost";
+    if (!canReview(actor.id, post.author_id, actor.role)) return "ownPost";
 
     await tx`
       update forum_posts
@@ -248,7 +248,7 @@ export async function redactPost(_prev: ActionResult, form: FormData): Promise<A
         from forum_posts p join forum_threads t on t.id = p.thread_id
        where p.id = ${postId}::uuid for update of p`;
     if (!post || post.status === "deleted") return "noPost";
-    if (!canReview(actor.id, post.author_id)) return "ownPost";
+    if (!canReview(actor.id, post.author_id, actor.role)) return "ownPost";
 
     await tx`
       insert into forum_post_revisions (post_id, title_before, body_before, editor_id, reason)

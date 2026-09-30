@@ -93,6 +93,10 @@ async function run(req: Request) {
           where greatest(m2.created_at, p.reviewed_at, p.deleted_at, p.edited_at, t.deleted_at)
                   < now() - ${days} * interval '1 day'
             and not p.legal_hold and not t.legal_hold
+            -- Not while a moderator still has to decide on it: the row is how
+            -- a moderator who left and rejoined is still known as its author
+            -- (canReview).
+            and p.status <> 'held'
           limit ${BATCH})
       returning 1`;
     const revisions = await sql`
