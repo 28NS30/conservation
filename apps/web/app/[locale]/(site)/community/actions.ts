@@ -75,8 +75,12 @@ async function holdReasons(viewer: ForumViewer, text: string): Promise<HoldReaso
   const [words, mods, [{ n: prior }]] = await Promise.all([
     watchedWords(),
     moderatorCount(),
+    // Posts of theirs that are out: approved, or never held. Every post
+    // counted, and two waiting in the queue or deleted by their author were
+    // enough to switch review off (security audit, 29 September 2026).
     sql<{ n: number }[]>`
-      select count(*)::int as n from forum_posts where author_id = ${viewer.userId}::uuid`,
+      select count(*)::int as n from forum_posts
+       where author_id = ${viewer.userId}::uuid and status = 'visible'`,
   ]);
   const { reasons } = screenText(text, { watchedWords: words, newAccount: viewer.member!.newAccount });
   if (
