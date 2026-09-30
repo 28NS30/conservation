@@ -2,13 +2,15 @@ import { after } from "next/server";
 import { sql } from "@/lib/db";
 import { classifyQueued } from "@/lib/report/classifyWorker";
 import { serverSupabase, sessionUser } from "@/lib/supabase/server";
-import { statUploadedPhoto } from "@/lib/supabase/service";
+import { statUploadedPhoto, StorageUnavailable } from "@/lib/supabase/service";
 import {
   verifyTurnstile,
-  withinRateLimit,
   screenSubmission,
   SIGNED_IN_ADDRESS_FACTOR,
   SUBMIT_LIMITS,
+  withinBudgets,
+  creditToPublish,
+  type Budget,
 } from "@/lib/abuse";
 import { addressKey, clientIp } from "@/lib/request";
 import { OFFERED, inPageScope } from "@/lib/species";
@@ -115,37 +117,51 @@ export async function POST(req: Request) {
       return Response.json({ error: "test_not_allowed" }, { status: 403 });
   }
 
+  // The challenge first, so a request that has not passed it spends nobody's
+  // budget. Charged the other way round, tokenless requests from a shared
+  // address used the day's budget of everyone behind it (review of the
+  // security fixes, 30 September 2026).
+  if (!(await verifyTurnstile(input.turnstileToken, ip))) {
+    return Response.json({ error: "challenge_failed" }, { status: 403 });
+  }
+
   // Every sender is counted by address; a signed-in one by their account as
   // well, and their address is given more room, since a school or a phone
   // network puts many people behind one. Counted by account alone, as before,
-  // one address with N throwaway accounts had N budgets.
+  // one address with N throwaway accounts had N budgets. Short windows first
+  // (withinBudgets): a burst refused is not counted against the day.
   const address = `ip:${addressKey(ip)}`;
   const factor = reporterId ? SIGNED_IN_ADDRESS_FACTOR : 1;
-  const checks = [
-    withinRateLimit(`submit-burst:${address}`, SUBMIT_LIMITS.burst.windowSeconds, SUBMIT_LIMITS.burst.budget * factor),
-    withinRateLimit(`submit-daily:${address}`, SUBMIT_LIMITS.daily.windowSeconds, SUBMIT_LIMITS.daily.budget * factor),
+  const account = reporterId ? `user:${reporterId}` : null;
+  const budgets: Budget[] = [
+    { key: `submit-burst:${address}`, windowSeconds: SUBMIT_LIMITS.burst.windowSeconds, budget: SUBMIT_LIMITS.burst.budget * factor },
+    ...(account
+      ? [{ key: `submit-burst:${account}`, windowSeconds: SUBMIT_LIMITS.burst.windowSeconds, budget: SUBMIT_LIMITS.burst.budget }]
+      : []),
+    { key: `submit-daily:${address}`, windowSeconds: SUBMIT_LIMITS.daily.windowSeconds, budget: SUBMIT_LIMITS.daily.budget * factor },
+    ...(account
+      ? [{ key: `submit-daily:${account}`, windowSeconds: SUBMIT_LIMITS.daily.windowSeconds, budget: SUBMIT_LIMITS.daily.budget }]
+      : []),
   ];
-  if (reporterId)
-    checks.push(
-      withinRateLimit(`submit-burst:user:${reporterId}`, SUBMIT_LIMITS.burst.windowSeconds, SUBMIT_LIMITS.burst.budget),
-      withinRateLimit(`submit-daily:user:${reporterId}`, SUBMIT_LIMITS.daily.windowSeconds, SUBMIT_LIMITS.daily.budget),
-    );
-  const [burstOk, dailyOk, ...perAccount] = await Promise.all(checks);
-  if (perAccount.some((ok) => !ok)) {
+  if (!(await withinBudgets(budgets))) {
     return Response.json({ error: "rate_limited" }, { status: 429 });
-  }
-  if (!burstOk || !dailyOk) {
-    return Response.json({ error: "rate_limited" }, { status: 429 });
-  }
-
-  if (!(await verifyTurnstile(input.turnstileToken, ip))) {
-    return Response.json({ error: "challenge_failed" }, { status: 403 });
   }
 
   // Confirm the referenced objects exist and are what they claim to be.
   const photos: { path: string; bytes: number; contentType: string }[] = [];
   for (const path of input.photoPaths) {
-    const stat = await statUploadedPhoto(path);
+    let stat;
+    try {
+      stat = await statUploadedPhoto(path);
+    } catch (e) {
+      // Storage could not be asked: a 503 the queue retries, not a verdict
+      // on the photo.
+      if (e instanceof StorageUnavailable) {
+        console.error("[reports] storage unavailable:", e.message);
+        return Response.json({ error: "storage_unavailable" }, { status: 503 });
+      }
+      throw e;
+    }
     if (!stat) return Response.json({ error: "photo_missing", path }, { status: 400 });
     if (stat.bytes > MAX_UPLOAD_BYTES) return Response.json({ error: "photo_too_large", path }, { status: 400 });
     if (!ACCEPTED_IMAGE_TYPES.includes(stat.contentType as (typeof ACCEPTED_IMAGE_TYPES)[number])) {
@@ -173,7 +189,6 @@ export async function POST(req: Request) {
     lng: input.lng,
     lat: input.lat,
     notes: input.notes,
-    creditName: input.license ? input.creditName : undefined,
     photoCount: photos.length,
   });
 
@@ -263,14 +278,26 @@ export async function POST(req: Request) {
   // person checks it: an invasive species is published at its exact spot
   // (owner decision, 30 September 2026; migration 0029). One that is also
   // protected or rated is blurred by its own rating, like any other species.
-  const precisionOverride = identified ? null : (heldAt ?? UNIDENTIFIED_PRECISION);
+  //
+  // A species the reporter chose from the model's suggestions for their photo
+  // (the report form asks as soon as a photo is added) is a photo
+  // identification, and is blurred as the model's own would be: at least as
+  // hard as every row sharing its binomial, since a photograph cannot tell a
+  // protected subspecies from the rest (binomial_precision_floor, 0014). Null
+  // where the taxon's own rule is already that strict.
+  let precisionOverride: string | null = identified ? null : (heldAt ?? UNIDENTIFIED_PRECISION);
+  if (identified && input.taxonFromPhoto) {
+    const [{ floor }] = await sql<{ floor: string | null }[]>`
+      select binomial_precision_floor(${taxonId}) as floor`;
+    precisionOverride = floor;
+  }
 
   // The contributor terms (/terms, migration 0017). Stored only when the form
   // answered them: a report queued offline before the terms existed carries no
   // licence, and nothing exports it under one. The partner box is honoured on
   // the pages that show it and nowhere else, whatever a request says.
   const license = input.license ? CONTRIBUTOR_LICENSES[input.license] : null;
-  const rightsHolder = input.license ? input.creditName || null : null;
+  const rightsHolder = input.license ? creditToPublish(input.creditName) : null;
   const sharePartners =
     Boolean(input.sharePartners) && PARTNER_SHARING_PAGES.includes(page);
   // The version the form showed, which is not always the one live now: a

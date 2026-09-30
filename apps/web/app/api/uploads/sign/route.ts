@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { serviceSupabase, PHOTO_BUCKET } from "@/lib/supabase/service";
-import { withinRateLimit, SIGN_LIMITS } from "@/lib/abuse";
+import { withinBudgets, SIGN_LIMITS, SIGNED_IN_ADDRESS_FACTOR, type Budget } from "@/lib/abuse";
+import { currentUserId } from "@/lib/supabase/server";
 import {
   ACCEPTED_IMAGE_TYPES,
   MAX_PHOTOS,
@@ -34,12 +35,27 @@ export async function POST(req: Request) {
 
   // Signing is itself an abusable endpoint — an unlimited supply of upload URLs
   // is a way to fill the bucket without ever submitting a report.
+  //
+  // Counted as the report route counts: a signed-in sender's address gets
+  // more room, because a class on one school network signs photos together,
+  // and their account has its own budget beside it; and a burst that is
+  // refused is not counted against the day (withinBudgets). Signing used to
+  // allow a class of twelve eight photos between them while the report route
+  // accepted thirty reports (review of the security fixes, 30 September 2026).
   const who = addressKey(ip);
-  const [burstOk, dailyOk] = await Promise.all([
-    withinRateLimit(`sign-burst:${who}`, SIGN_LIMITS.burst.windowSeconds, SIGN_LIMITS.burst.budget),
-    withinRateLimit(`sign-daily:${who}`, SIGN_LIMITS.daily.windowSeconds, SIGN_LIMITS.daily.budget),
-  ]);
-  if (!burstOk || !dailyOk) {
+  const userId = await currentUserId();
+  const factor = userId ? SIGNED_IN_ADDRESS_FACTOR : 1;
+  const budgets: Budget[] = [
+    { key: `sign-burst:${who}`, windowSeconds: SIGN_LIMITS.burst.windowSeconds, budget: SIGN_LIMITS.burst.budget * factor },
+    ...(userId
+      ? [{ key: `sign-burst:user:${userId}`, windowSeconds: SIGN_LIMITS.burst.windowSeconds, budget: SIGN_LIMITS.burst.budget }]
+      : []),
+    { key: `sign-daily:${who}`, windowSeconds: SIGN_LIMITS.daily.windowSeconds, budget: SIGN_LIMITS.daily.budget * factor },
+    ...(userId
+      ? [{ key: `sign-daily:user:${userId}`, windowSeconds: SIGN_LIMITS.daily.windowSeconds, budget: SIGN_LIMITS.daily.budget }]
+      : []),
+  ];
+  if (!(await withinBudgets(budgets))) {
     return Response.json({ error: "rate_limited" }, { status: 429 });
   }
 

@@ -10,7 +10,6 @@ import {
   REPORT_PAGES,
   MAX_PHOTOS,
   MAX_NOTES,
-  MAX_CREDIT_NAME,
   CONSENT_VERSION,
   PARTNER_SHARING_PAGES,
   type Category,
@@ -18,7 +17,7 @@ import {
   type ReportPage,
 } from "@conservation/shared";
 import { preparePhoto, type PreparedPhoto } from "@/lib/image";
-import { browserSupabase } from "@/lib/supabase/client";
+import { storedSessionUserId } from "@/lib/supabase/storedSession";
 import { uploadPhoto } from "@/lib/report/upload";
 import { checkFields, observedInstant, sendableAccuracy } from "@/lib/report/fieldChecks";
 import { enqueue } from "@/lib/offline/queue";
@@ -40,6 +39,8 @@ import {
 } from "@/lib/report/errors";
 import { Link } from "@/i18n/navigation";
 import LocationPicker, { useGeolocate, type LatLng } from "./LocationPicker";
+import PhotoSuggestions, { type PhotoSuggestionsState } from "./PhotoSuggestions";
+import type { PhotoIdentification } from "@/lib/report/photoSuggestion";
 
 type Photo = PreparedPhoto & { previewUrl: string; id: string };
 type Phase = "editing" | "submitting" | "done" | "queued" | "error";
@@ -201,11 +202,12 @@ function ReportFormFields({
   const [timeEdited, setTimeEdited] = useState(false);
   const [notes, setNotes] = useState("");
   const [email, setEmail] = useState("");
-  // The contributor terms (/terms), answered on every report. CC BY 4.0 is the
-  // default the team chose (plan question 10); the partner box starts unticked
-  // because sharing an exact location is a separate decision (PDPA Art. 7).
-  const [license, setLicense] = useState<ContributorLicense>("cc-by-4.0");
-  const [creditName, setCreditName] = useState("");
+  // The contributor terms (/terms), answered on every report. Every report is
+  // open data under CC0: the team asked for no credit and no choice, "just let
+  // everyone use everyone's data openly" (30 September 2026). The partner box
+  // starts unticked, because sharing an exact location is a separate decision
+  // (PDPA Art. 7).
+  const license: ContributorLicense = "cc0-1.0";
   const [sharePartners, setSharePartners] = useState(false);
   const asksPartners = PARTNER_SHARING_PAGES.includes(page);
   const [phase, setPhase] = useState<Phase>("editing");
@@ -251,6 +253,18 @@ function ReportFormFields({
     photoCount: number;
   } | null>(null);
   const [exifOffer, setExifOffer] = useState<LatLng | null>(null);
+  /**
+   * What the model thinks the first photo shows, asked as soon as it is added
+   * (team feedback, 30 September 2026), and whether the species on the form
+   * was chosen from those suggestions. That second thing goes with the report:
+   * a species named from a photograph is blurred at least as hard as every row
+   * sharing its binomial, as when the model names it (app/api/reports).
+   */
+  const [photoIdea, setPhotoIdea] = useState<PhotoSuggestionsState>({ status: "idle" });
+  const [speciesFromPhoto, setSpeciesFromPhoto] = useState(false);
+  const photoAsked = useRef(false);
+  /** The place on the map was read from the photo, and the form says so. */
+  const [locationFromPhoto, setLocationFromPhoto] = useState(false);
   const [preparing, setPreparing] = useState(false);
   // null until the challenge is solved. Only meaningful when a site key is
   // configured; without one no widget renders and the server does not ask.
@@ -304,6 +318,39 @@ function ReportFormFields({
     return () => window.clearTimeout(id);
   }, [phase, sendNumber]);
 
+  /**
+   * Ask the model about a photo, once per report, with a signal. Offline it
+   * is not asked at all: the queue sends the report later, and the model
+   * looks at it then, as it always did.
+   */
+  const identifyPhoto = useCallback(
+    async (blob: Blob) => {
+      if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+      setPhotoIdea({ status: "working" });
+      try {
+        const imageBase64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result).replace(/^data:[^,]*,/, ""));
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(blob);
+        });
+        const res = await fetch(withBase("/api/identify"), {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ imageBase64, page }),
+          signal: AbortSignal.timeout(60_000),
+        });
+        if (!res.ok) throw new Error(`identify ${res.status}`);
+        const data = (await res.json()) as PhotoIdentification;
+        setPhotoIdea({ status: "done", suggestions: data.suggestions, outsidePage: data.outsidePage });
+      } catch (e) {
+        console.error("[report] identify:", e);
+        setPhotoIdea({ status: "failed" });
+      }
+    },
+    [page],
+  );
+
   const addFiles = useCallback(
     async (files: FileList | null) => {
       if (!files?.length) return;
@@ -331,10 +378,30 @@ function ReportFormFields({
         ]);
         if (unreadable) fail(PHOTO_UNREADABLE, unreadable.reason);
 
-        // Offer the photo's own GPS rather than applying it: the picture may have
-        // been taken somewhere other than where it is being reported.
+        // The first photo of the report goes to the model now, not only after
+        // the report is sent.
+        if (prepared[0] && !photoAsked.current) {
+          photoAsked.current = true;
+          void identifyPhoto(prepared[0].blob);
+        }
+
+        // The photo's own place fills the location, as its time fills the time:
+        // the team asked that the location come from the photo rather than be
+        // entered separately (30 September 2026). It is shown on the map with
+        // a line saying where it came from, so a picture taken somewhere else
+        // is one tap to correct. Over a place already chosen it is offered,
+        // not applied: the reporter has answered that question.
         const withGps = prepared.find((p) => p.gps);
-        if (withGps?.gps && !location) setExifOffer(withGps.gps);
+        if (withGps?.gps) {
+          if (!location) {
+            setLocation(withGps.gps);
+            setAccuracyM(null);
+            setLocationFromPhoto(true);
+            setLocationError(false);
+          } else {
+            setExifOffer(withGps.gps);
+          }
+        }
 
         // The time IS applied, where the coordinate is only offered, and the
         // asymmetry is deliberate. A photograph taken somewhere else is an
@@ -362,7 +429,7 @@ function ReportFormFields({
         setPreparing(false);
       }
     },
-    [photos.length, location, timeEdited, fail],
+    [photos.length, location, timeEdited, fail, identifyPhoto],
   );
 
   /**
@@ -384,12 +451,10 @@ function ReportFormFields({
     observedAt: observedInstant(observedAt) ?? new Date().toISOString(),
     taxonId: species?.id,
     taxonUnknown: unsure || undefined,
+    taxonFromPhoto: species && speciesFromPhoto ? true : undefined,
     notes: notes.trim() || undefined,
     contactEmail: email.trim() || undefined,
     license,
-    // CC0 asks no credit, and its form hides the field; a name typed before
-    // switching is not sent.
-    creditName: license === "cc-by-4.0" ? creditName.trim() || undefined : undefined,
     sharePartners: asksPartners ? sharePartners : undefined,
     consentVersion: CONSENT_VERSION,
     // In the payload rather than added at send time, so a test saved on the
@@ -405,11 +470,10 @@ function ReportFormFields({
     const problem = checkFields({
       observedAt,
       email,
-      creditName: license === "cc-by-4.0" ? creditName : undefined,
     });
     if (!problem) return true;
     setError(problem);
-    const id = { time: "observedAt", contact: "email", credit: "creditName" }[problem.slot];
+    const id = { time: "observedAt", contact: "email", credit: "email" }[problem.slot];
     document.getElementById(id)?.focus();
     return false;
   }
@@ -417,19 +481,18 @@ function ReportFormFields({
   /**
    * Who is signed in on this device now, for a report being saved on it.
    *
-   * Read from the browser's own session, never from the page: the report pages
-   * are kept for offline use and served to whoever opens them next. Undefined
-   * when it cannot be told (a session that needs refreshing without a
-   * signal), and the server then files it as it always did.
+   * Read from the browser's own stored session, never from the page: the
+   * report pages are kept for offline use and served to whoever opens them
+   * next. And never over the network: supabase-js refreshes an old session
+   * before it answers, which with no signal took about 25 seconds and then
+   * said nobody (lib/supabase/storedSession.ts). Undefined only when a stored
+   * session cannot be read, and the server then files it as it always did.
    */
-  async function signedInAs(): Promise<string | undefined> {
-    try {
-      const { data, error } = await browserSupabase().auth.getSession();
-      if (error) return undefined;
-      return data.session?.user.id ?? "anonymous";
-    } catch {
-      return undefined;
-    }
+  function signedInAs(): string | undefined {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!url) return undefined;
+    const id = storedSessionUserId(document.cookie, url);
+    return id === null ? "anonymous" : id;
   }
 
   /**
@@ -454,7 +517,7 @@ function ReportFormFields({
     try {
       await enqueue({
         id: nonce.current,
-        payload: { ...entered(location, category), filedBy: await signedInAs() },
+        payload: { ...entered(location, category), filedBy: signedInAs() },
         photos: photos.map((p) => p.blob),
       });
       window.dispatchEvent(new Event("conservation:queue-changed"));
@@ -811,20 +874,12 @@ function ReportFormFields({
   // sr-only, not hidden. `hidden` is display:none, and a display:none input is
   // not focusable at all: the photo picker could not be reached by keyboard,
   // and the focus-within ring on its label could never fire.
-  const cameraInput = (
-    <input
-      type="file"
-      accept="image/*"
-      capture="environment"
-      className="sr-only"
-      disabled={preparing}
-      onChange={(e) => {
-        void addFiles(e.target.files);
-        e.target.value = "";
-      }}
-    />
-  );
-  const libraryInput = (
+  //
+  // One picker. There used to be a camera tile (`capture="environment"`) and a
+  // library link beside it; on a computer the tile only ever opened the file
+  // picker, and the team asked for uploading alone on the website (30
+  // September 2026). On a phone this same picker offers the camera too.
+  const photoInput = (
     <input
       type="file"
       accept="image/*"
@@ -875,11 +930,10 @@ function ReportFormFields({
         the top, every question visible under it, the condition still asked
         before the species.
 
-        Two inputs, because one could not do both. The old single input carried
-        `capture="environment"`, and on a phone that opens the camera and
-        nothing else, so a photo taken a minute earlier in the camera app could
-        not be attached at all. The tile takes a photo; the line under it
-        chooses one already taken.
+        One input without `capture`: on a phone it offers the camera and the
+        photos already taken, and on a computer it chooses a file. (A
+        `capture` input opened the camera and nothing else, so a photo taken a
+        minute earlier could not be attached.)
       */}
       <section aria-labelledby="photos-label">
         <h2 id="photos-label" className="mb-2 text-base font-semibold text-forest-900">
@@ -906,8 +960,8 @@ function ReportFormFields({
               <path d="M4 14h9l4-5h14l4 5h9v26H4z" />
               <circle cx="24" cy="26" r="8" />
             </svg>
-            <span className="text-lg font-semibold">{t("photoTake")}</span>
-            {cameraInput}
+            <span className="text-lg font-semibold">{t("photoAdd")}</span>
+            {photoInput}
           </label>
         ) : (
           <div className="flex flex-wrap gap-3">
@@ -923,7 +977,16 @@ function ReportFormFields({
                   type="button"
                   onClick={() => {
                     URL.revokeObjectURL(p.previewUrl);
-                    setPhotos((prev) => prev.filter((x) => x.id !== p.id));
+                    setPhotos((prev) => {
+                      const left = prev.filter((x) => x.id !== p.id);
+                      // Every photo taken off: the suggestions were about one
+                      // of them, and the next photo is asked about afresh.
+                      if (left.length === 0) {
+                        photoAsked.current = false;
+                        setPhotoIdea({ status: "idle" });
+                      }
+                      return left;
+                    });
                   }}
                   // 20px was under any target guideline, and it sits at the
                   // corner of a thumbnail with the "+" tile 8px away. The disc is
@@ -941,20 +1004,11 @@ function ReportFormFields({
             {photos.length < MAX_PHOTOS && (
               <label className="grid h-24 w-24 cursor-pointer place-items-center rounded-lg border-2 border-dashed border-ink-900/25 text-2xl text-ink-600 hover:border-forest-900/50 hover:text-forest-900 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ember-400">
                 <span aria-hidden>+</span>
-                <span className="sr-only">{t("photoTake")}</span>
-                {cameraInput}
+                <span className="sr-only">{t("photoAdd")}</span>
+                {photoInput}
               </label>
             )}
           </div>
-        )}
-
-        {photos.length < MAX_PHOTOS && (
-          <p className="mt-2">
-            <label className="inline-flex min-h-11 cursor-pointer items-center text-base font-medium text-leaf-700 underline underline-offset-2 hover:text-forest-900 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ember-400">
-              {t("photoLibrary")}
-              {libraryInput}
-            </label>
-          </p>
         )}
 
         <p className="mt-2 text-sm leading-relaxed text-ink-600">
@@ -983,6 +1037,7 @@ function ReportFormFields({
                 setLocation({ lat: p.lat, lng: p.lng });
                 setAccuracyM(p.accuracyM);
                 setExifOffer(null);
+                setLocationFromPhoto(false);
                 setLocationError(false);
               } else {
                 // Was 點地圖可調整位置 — "tap the map to adjust", the helper
@@ -1013,6 +1068,7 @@ function ReportFormFields({
                   setLocation(exifOffer);
                   setAccuracyM(null);
                   setExifOffer(null);
+                  setLocationFromPhoto(true);
                 }}
               >
                 {t("exifUse")}
@@ -1033,6 +1089,7 @@ function ReportFormFields({
           onChange={(v) => {
             setLocation(v);
             setAccuracyM(null);
+            setLocationFromPhoto(false);
           }}
           maptilerKey={maptilerKey}
         />
@@ -1040,7 +1097,7 @@ function ReportFormFields({
             instruction is to make one — the old text told a reporter with
             nothing chosen to adjust something that was not there. */}
         <p className="mt-1.5 text-sm text-ink-600">
-          {location ? t("tapToAdjust") : t("needLocation")}
+          {location ? t(locationFromPhoto ? "locationFromPhoto" : "tapToAdjust") : t("needLocation")}
           {accuracyM != null && (
             <span className="ml-1.5 tabular-nums text-ink-600">
               · {t("accuracy", { m: accuracyM })}
@@ -1096,10 +1153,23 @@ function ReportFormFields({
       )}
 
       <section>
+        {!species && !unsure && (
+          <PhotoSuggestions
+            state={photoIdea}
+            onPick={(hit) => {
+              setSpecies(hit);
+              setSpeciesFromPhoto(true);
+              setUnsure(false);
+            }}
+          />
+        )}
         <SpeciesPicker
           page={page}
           value={species}
-          onChange={setSpecies}
+          onChange={(hit) => {
+            setSpecies(hit);
+            setSpeciesFromPhoto(false);
+          }}
           unsure={unsure}
           onUnsure={setUnsure}
           hasEntries={photos.length > 0 || location !== null || notes.trim() !== ""}
@@ -1183,49 +1253,6 @@ function ReportFormFields({
           {t("shareTitle")}
         </legend>
         <p className="text-sm leading-relaxed text-ink-700">{t("shareIntro")}</p>
-        <div className="space-y-2" role="radiogroup" aria-label={t("licenceLabel")}>
-          {(
-            [
-              ["cc-by-4.0", "licenceBy", "licenceByHint"],
-              ["cc0-1.0", "licenceZero", "licenceZeroHint"],
-            ] as const
-          ).map(([value, label, hint]) => (
-            <label key={value} className="flex min-h-11 cursor-pointer items-start gap-3">
-              <input
-                type="radio"
-                name="license"
-                value={value}
-                checked={license === value}
-                onChange={() => setLicense(value)}
-                className="mt-1 size-5 accent-leaf-600"
-              />
-              <span>
-                <span className="block text-base text-ink-900">{t(label)}</span>
-                <span className="block text-sm text-ink-600">{t(hint)}</span>
-              </span>
-            </label>
-          ))}
-        </div>
-        {license === "cc-by-4.0" && (
-          <div>
-            <label htmlFor="creditName" className="mb-1 block text-base font-semibold text-forest-900">
-              {t("creditLabel")}{" "}
-              <span className="text-sm font-normal text-ink-600">({t("optional")})</span>
-            </label>
-            <input
-              id="creditName"
-              type="text"
-              maxLength={MAX_CREDIT_NAME}
-              value={creditName}
-              onChange={(e) => setCreditName(e.target.value)}
-              autoComplete="nickname"
-              aria-invalid={error?.slot === "credit" || undefined}
-              className="min-h-12 w-full rounded-lg border border-ink-900/20 bg-paper-50 px-3 py-2 text-base text-ink-900"
-            />
-            <p className="mt-1 text-sm text-ink-600">{t("creditHint")}</p>
-            {errorIn("credit")}
-          </div>
-        )}
         {asksPartners && (
           <label className="flex min-h-11 cursor-pointer items-start gap-3">
             <input
