@@ -9,8 +9,8 @@ import { currentUserId } from "@/lib/supabase/server";
  * 個人資料保護法 Art. 3 gives a person the right to a copy of their data. This
  * is that copy for the forum, self-service, from /me. It holds what the member
  * gave us and what we decided about it — their profile, every post in every
- * status with its thread's title, and the flags they raised — and nothing
- * about anyone else: not who flagged them, not a moderator's identity, not
+ * status with its thread's title, the flags they raised and the votes they
+ * cast — and nothing about anyone else: not who flagged them, not a moderator's identity, not
  * the IP hashes, which are kept only for abuse and legal requests.
  *
  * Scoped by the session's user id and nothing else; there is no parameter to
@@ -41,10 +41,17 @@ export async function GET() {
       from forum_flags f
      where f.reporter_id = ${userId}::uuid
      order by f.created_at`;
+  // Their own votes: nobody else ever sees one, but they are theirs to see.
+  const votes = await sql`
+    select v.post_id, p.thread_id, v.value, v.created_at, v.updated_at
+      from forum_votes v
+      join forum_posts p on p.id = v.post_id
+     where v.voter_id = ${userId}::uuid
+     order by v.created_at`;
 
   const now = new Date();
   const body = JSON.stringify(
-    { exportedAt: now.toISOString(), profile: profile ?? null, posts, flags },
+    { exportedAt: now.toISOString(), profile: profile ?? null, posts, flags, votes },
     null,
     2,
   );

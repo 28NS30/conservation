@@ -24,10 +24,17 @@
  *     the stranger see it — without the coordinates, marked as edited;
  *   a reply appears; one "sensitive location" flag takes it down at once;
  *     the moderator puts it back;
+ *   votes: a stranger sees scores and no arrows, the author has no arrows on
+ *     their own posts, the moderator votes the thread up, down and back, and
+ *     votes a reply up in a browser with JavaScript off;
+ *   replies to replies nest; hiding the middle one leaves "[removed]" in its
+ *     place with the answers still under it; Best and New order the replies;
+ *   a second thread: New, Top and a pin order the community's feed, and the
+ *     front page lists both with their community;
  *   the moderator suspends the member, who can then read but not post, and
  *     lifts it;
- *   the member downloads their posts, deletes their forum account, and their
- *     thread then reads "deleted member".
+ *   the member downloads their posts and votes, deletes their forum account,
+ *     their votes go with it, and their thread then reads "deleted member".
  *
  * Accounts are made on the Supabase Auth this build points at — the local
  * stack on a laptop, the stand-in (test/stub-gotrue.mjs) in CI — and removed
@@ -354,6 +361,203 @@ async function whenOn() {
     await anonPage.goto(`${BASE}/community/t/${threadId}`);
     check("a moderator's approval puts it back", (await anonPage.content()).includes("好可愛，希望牠平安。"));
 
+    // -- Votes ------------------------------------------------------------------
+    const [{ id: openerId }] = await sql`select id from forum_posts where thread_id = ${threadId}::uuid and is_opener`;
+    const score = async (id) => (await sql`select score from forum_posts where id = ${id}::uuid`)[0]?.score;
+    const modVote = async (id) =>
+      (await sql`select value from forum_votes where post_id = ${id}::uuid and voter_id = ${mod.id}::uuid`)[0]?.value ?? 0;
+    const arrow = (page, postId, which, pressed) =>
+      page.locator(`#post-${postId}`).getByRole("button", {
+        name: which === "up" ? ZH.vote.up : ZH.vote.down,
+        exact: true,
+        ...(pressed === undefined ? {} : { pressed }),
+      });
+    /** Press an arrow and wait for the score; if it never comes, say what the page said instead. */
+    const press = async (page, postId, which, expected) => {
+      await arrow(page, postId, which).click();
+      try {
+        await until(async () => (await score(postId)) === expected);
+      } catch {
+        const said = await page.locator(`#post-${postId} [role=alert]`).allInnerTexts().catch(() => []);
+        throw new Error(`the score of ${postId} did not reach ${expected} (it is ${await score(postId)}); the page said: ${said.join(" / ") || "nothing"}`);
+      }
+    };
+
+    await anonPage.goto(`${BASE}/community/t/${threadId}`);
+    check(
+      "a stranger sees the scores and no vote buttons",
+      (await anonPage.locator("button[aria-pressed]").count()) === 0 && (await anonPage.content()).includes("0 分"),
+    );
+    await memberPage.goto(`${BASE}/community/t/${threadId}`);
+    check("nobody gets arrows on their own posts", (await memberPage.locator("button[aria-pressed]").count()) === 0);
+
+    await modPage.goto(`${BASE}/community/t/${threadId}`);
+    await press(modPage, openerId, "up", 1);
+    await arrow(modPage, openerId, "up", true).waitFor({ timeout: 10000 });
+    check("voting the thread up counts it, and the arrow says so", (await modVote(openerId)) === 1);
+    await press(modPage, openerId, "down", -1);
+    await arrow(modPage, openerId, "down", true).waitFor({ timeout: 10000 });
+    check("changing to down is one vote, not two", (await modVote(openerId)) === -1);
+    await press(modPage, openerId, "down", 0);
+    await arrow(modPage, openerId, "down", false).waitFor({ timeout: 10000 });
+    check("pressing it again takes the vote back", (await modVote(openerId)) === 0);
+    await press(modPage, openerId, "up", 1);
+
+    // Without JavaScript: the arrows are a form, and a form posts.
+    {
+      const ctx = await browser.newContext({ locale: "zh-TW", javaScriptEnabled: false });
+      await ctx.addCookies(mod.cookies);
+      const page = await ctx.newPage();
+      await page.goto(`${BASE}/community/t/${threadId}`);
+      await press(page, reply.id, "up", 1);
+      await page.goto(`${BASE}/community/t/${threadId}`);
+      check(
+        "a vote works with JavaScript off",
+        (await modVote(reply.id)) === 1 && (await arrow(page, reply.id, "up", true).count()) === 1,
+      );
+      await ctx.close();
+    }
+
+    // -- Replies to replies -------------------------------------------------------
+    // Both accounts are a few minutes old, and a new account may post twice a
+    // minute (lib/forum/policy.ts postingLimits) — replies to replies
+    // included, which is how the first version of this step found out. A
+    // person does not post this fast; this run does, so it starts each of its
+    // own posts on a fresh minute.
+    const freshMinute = (who) => sql`delete from rate_limits where key = ${`forum:burst:${who.id}`}`;
+    /** Reply to a post from its own "Reply", and return the new post. */
+    const answer = async (page, who, parentId, body) => {
+      await freshMinute(who);
+      await page.goto(`${BASE}/community/t/${threadId}`);
+      const card = page.locator(`#post-${parentId}`);
+      await card.locator("summary", { hasText: ZH.replyToThis }).click();
+      await card.locator(`#reply-body-${parentId}`).fill(body);
+      await card.getByRole("button", { name: ZH.postReply, exact: true }).click();
+      try {
+        await until(async () => (await sql`select 1 from forum_posts where body = ${body}`).length === 1);
+      } catch {
+        const said = await card.locator("[role=alert]").allInnerTexts().catch(() => []);
+        throw new Error(`the reply to ${parentId} was not posted; the page said: ${said.join(" / ") || "nothing"}`);
+      }
+      const [row] = await sql`select id, parent_id, path, status, held_reasons from forum_posts where body = ${body}`;
+      // Held only as a first post when the database has three moderators (see above).
+      if (row.status === "held") await sql`update forum_posts set status = 'visible', held_reasons = '{}' where id = ${row.id}::uuid`;
+      return row;
+    };
+    const m2 = await answer(modPage, mod, reply.id, "應該是穿山甲，看尾巴就知道。");
+    check("a reply to a reply records whom it answers", m2.parent_id === reply.id && m2.path.join() === reply.id, JSON.stringify(m2));
+    await modPage.goto(`${BASE}/community/t/${threadId}`);
+    check("and is shown under it", (await modPage.locator(`li:has(> #post-${reply.id}) #post-${m2.id}`).count()) === 1);
+
+    await memberPage.goto(`${BASE}/community/t/${threadId}`);
+    await press(memberPage, m2.id, "up", 1);
+    const r3 = await answer(memberPage, member, m2.id, "謝謝版主，我下次會拍尾巴。");
+    check("a third level nests under the second", r3.path.join() === `${reply.id},${m2.id}`, r3.path.join());
+
+    // Hide the first reply: the answers under it keep their place.
+    await modPage.goto(`${BASE}/community/t/${threadId}`);
+    const hideCard = modPage.locator(`#post-${reply.id}`);
+    await hideCard.locator("summary", { hasText: ZH.mod.hide }).click();
+    await hideCard.locator(`#hide-reason-${reply.id}`).fill("e2e 測試隱藏");
+    await hideCard.locator(`form:has(#hide-reason-${reply.id}) button[type=submit]`).click();
+    await until(async () => (await sql`select status from forum_posts where id = ${reply.id}::uuid`)[0].status === "hidden");
+    await anonPage.goto(`${BASE}/community/t/${threadId}`);
+    const removed = anonPage.locator("li", { has: anonPage.getByText(ZH.removedPlace, { exact: true }) });
+    const hiddenHtml = await anonPage.content();
+    check(
+      "a hidden reply leaves [removed] in its place, with the answers still under it",
+      !hiddenHtml.includes("好可愛，希望牠平安。") &&
+        (await removed.count()) >= 1 &&
+        (await removed.first().locator(`#post-${m2.id}`).count()) === 1 &&
+        (await removed.first().locator(`#post-${r3.id}`).count()) === 1,
+    );
+    await modPage.goto(`${BASE}/community/t/${threadId}`);
+    await modPage.locator(`#post-${reply.id}`).getByRole("button", { name: ZH.mod.approve, exact: true }).click();
+    await until(async () => (await sql`select status from forum_posts where id = ${reply.id}::uuid`)[0].status === "visible");
+
+    // Best and New: the older reply has the higher score.
+    await freshMinute(mod);
+    await modPage.goto(`${BASE}/community/t/${threadId}`);
+    await modPage.locator("#reply-body").fill("另一個想法：也可能是鼬獾。");
+    await modPage.getByRole("button", { name: ZH.postReply, exact: true }).click();
+    await until(async () => (await sql`select 1 from forum_posts where body = '另一個想法：也可能是鼬獾。'`).length === 1);
+    const [late] = await sql`select id, status from forum_posts where body = '另一個想法：也可能是鼬獾。'`;
+    if (late.status === "held") await sql`update forum_posts set status = 'visible', held_reasons = '{}' where id = ${late.id}::uuid`;
+    const topLevel = async (query) => {
+      await anonPage.goto(`${BASE}/community/t/${threadId}${query}`);
+      return anonPage.locator("#replies > ol > li > article").evaluateAll((els) => els.map((e) => e.id.replace(/^post-/, "")));
+    };
+    const best = await topLevel("");
+    const newest = await topLevel("?sort=new");
+    check("Best puts the higher score first", best[0] === reply.id && best[1] === late.id, best.join());
+    check("New puts the newest first", newest[0] === late.id && newest[1] === reply.id, newest.join());
+
+    // -- Feeds: New, Top, a pin, and the front page ----------------------------
+    const title2 = `forum e2e newer ${randomUUID().slice(0, 8)}`;
+    await freshMinute(mod);
+    await modPage.goto(`${BASE}/community/c/sightings-id`);
+    await modPage.locator("#thread-title").fill(title2);
+    await modPage.locator("#thread-body").fill("第二個話題，用來測排序。");
+    await Promise.all([
+      modPage.waitForURL(/\/community\/t\/[0-9a-f-]{36}$/),
+      modPage.getByRole("button", { name: ZH.post, exact: true }).click(),
+    ]);
+    const thread2 = modPage.url().split("/").pop();
+    threads.push(thread2);
+    await sql`update forum_posts set status = 'visible', held_reasons = '{}' where thread_id = ${thread2}::uuid and status = 'held'`;
+    await sql`update forum_threads set status = 'visible' where id = ${thread2}::uuid and status = 'held'`;
+
+    const order = async (path) => {
+      await anonPage.goto(`${BASE}${path}`);
+      const html = await anonPage.content();
+      return { first: html.indexOf(title), second: html.indexOf(title2) };
+    };
+    let o = await order("/community/c/sightings-id?sort=new");
+    check("New: the newer thread first", o.first > 0 && o.second > 0 && o.second < o.first, JSON.stringify(o));
+    o = await order("/community/c/sightings-id?sort=top");
+    check("Top: the higher score first", o.first > 0 && o.second > 0 && o.first < o.second, JSON.stringify(o));
+    o = await order("/community?sort=new");
+    check("the front page lists threads from the communities", o.first > 0 && o.second > 0 && o.second < o.first, JSON.stringify(o));
+    // In the feed's own items, not the list of communities beside it.
+    check("each with its community", (await anonPage.locator('#feed-title ~ ul article a[href$="/community/c/sightings-id"]').count()) >= 2);
+
+    await modPage.goto(`${BASE}/community/t/${threadId}`);
+    await modPage.getByRole("button", { name: ZH.mod.pin, exact: true }).click();
+    await until(async () => (await sql`select pinned_at from forum_threads where id = ${threadId}::uuid`)[0].pinned_at !== null);
+    o = await order("/community/c/sightings-id?sort=new");
+    check("a pinned thread leads its community's feed in any order", o.first > 0 && o.first < o.second, JSON.stringify(o));
+    o = await order("/community?sort=new");
+    check("but not the front page's", o.second > 0 && o.second < o.first, JSON.stringify(o));
+
+    // A missing message renders as its key ("forum.rulesLink") and the page
+    // still answers 200, so look for keys in the text of every kind of page.
+    // In contexts of their own: visiting /en leaves the browser preferring
+    // English, and the steps below read the Chinese.
+    {
+      const readers = [
+        ["stranger", await browser.newContext({ locale: "zh-TW" })],
+        ["moderator", await browser.newContext({ locale: "zh-TW" })],
+      ];
+      await readers[1][1].addCookies(mod.cookies);
+      for (const [who, ctx] of readers) {
+        const page = await ctx.newPage();
+        for (const prefix of ["", "/en"])
+          for (const path of [
+            "/community",
+            "/community?sort=top&t=week",
+            "/community/c/sightings-id",
+            `/community/t/${threadId}`,
+            `/community/t/${threadId}?sort=new`,
+            "/community/guidelines",
+          ]) {
+            await page.goto(`${BASE}${prefix}${path}`);
+            const keys = (await page.locator("body").innerText()).match(/\bforum\.[a-z]\w*(\.\w+)*/g);
+            check(`${prefix}${path.replace(threadId, "…")} (${who}) shows no message keys`, !keys, keys?.join(", "));
+          }
+        await ctx.close();
+      }
+    }
+
     // -- Suspension -------------------------------------------------------------
     await modPage.goto(`${BASE}/community/moderation#suspensions`);
     await modPage.locator("#suspend-handle-console").fill(profile.handle);
@@ -377,7 +581,11 @@ async function whenOn() {
     // -- Export, and leaving -------------------------------------------------------
     const exp = await fetch(`${BASE}/api/forum/export`, { headers: { Cookie: member.header } });
     const data = exp.ok ? await exp.json() : null;
-    check("the member can download their posts", data?.posts?.length === 2 && data.profile?.handle === profile.handle);
+    check(
+      "the member can download their posts and votes",
+      data?.posts?.length === 3 && data.votes?.length === 1 && data.profile?.handle === profile.handle,
+      `${data?.posts?.length} posts, ${data?.votes?.length} votes`,
+    );
     check("the download is only theirs", !JSON.stringify(data).includes(mod.id) && !JSON.stringify(data).includes(member.email));
 
     await memberPage.goto(`${BASE}/me`);
@@ -386,6 +594,8 @@ async function whenOn() {
     await memberPage.getByText(ZH.me.notJoined).waitFor({ timeout: 10000 });
     const [gone] = await sql`select 1 from forum_profiles where user_id = ${member.id}::uuid`;
     check("deleting the forum account removes the profile", !gone);
+    const [{ n: votesLeft }] = await sql`select count(*)::int as n from forum_votes where voter_id = ${member.id}::uuid`;
+    check("and their votes, and the scores they were in", votesLeft === 0 && (await score(m2.id)) === 0);
     await anonPage.goto(`${BASE}/community/t/${threadId}`);
     const after = await anonPage.content();
     check("their posts stay, as a deleted member", after.includes(ZH.deletedMember) && after.includes("好可愛，希望牠平安。"));

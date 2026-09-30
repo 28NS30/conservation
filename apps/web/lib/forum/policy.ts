@@ -31,7 +31,18 @@ export const REASON_MIN = 3;
 export const REASON_MAX = 500;
 
 export const THREADS_PER_PAGE = 20;
-export const POSTS_PER_PAGE = 30;
+/** Top-level replies on a page of a thread, each with every reply under it. */
+export const REPLIES_PER_PAGE = 20;
+
+/**
+ * How deep replies nest: a reply to the thread is on the first level, a reply
+ * to that on the second, and so on to the fourth. A reply to a fourth-level
+ * reply goes beside it rather than under it, marked with whom it answers, so
+ * a long back-and-forth does not march off the side of a phone. Migration
+ * 0030 (forum_place_reply) holds the same number; test/forum-policy.test.mjs
+ * checks they agree.
+ */
+export const REPLY_DEPTH_MAX = 4;
 
 /** A one-flag hide: these three cannot wait for a second opinion. */
 export const URGENT_FLAG_REASONS = ["sensitive_location", "personal_info", "safety"] as const;
@@ -61,7 +72,64 @@ export function postingLimits(newAccount: boolean) {
     threadsPerDay: { windowSeconds: 86_400, budget: newAccount ? 3 : 10 },
     postsPerDay: { windowSeconds: 86_400, budget: newAccount ? 20 : 100 },
     flagsPerDay: { windowSeconds: 86_400, budget: 20 },
+    // Votes are cheap to cast and cheap to script. Taking one back counts
+    // too, or flipping a vote a thousand times would be free.
+    votesBurst: { windowSeconds: 60, budget: newAccount ? 15 : 30 },
+    votesPerDay: { windowSeconds: 86_400, budget: newAccount ? 150 : 500 },
   } as const;
+}
+
+/* ------------------------------------------------------------------ *
+ * Votes
+ * ------------------------------------------------------------------ */
+
+export type VoteValue = -1 | 0 | 1;
+
+/** A vote from a form: 1 up, -1 down, 0 to take it back. Anything else is not a vote. */
+export function parseVote(v: unknown): VoteValue | null {
+  if (v === "1" || v === 1) return 1;
+  if (v === "-1" || v === -1) return -1;
+  if (v === "0" || v === 0) return 0;
+  return null;
+}
+
+/**
+ * What a vote button sends, given the vote the member already has: pressing
+ * the arrow you chose takes the vote back, pressing the other one changes it.
+ *
+ * The button carries the RESULT, not "toggle", so the action is idempotent: a
+ * double tap on a slow connection sends the same answer twice rather than
+ * voting and un-voting.
+ */
+export function nextVote(current: VoteValue, pressed: 1 | -1): VoteValue {
+  return current === pressed ? 0 : pressed;
+}
+
+export type VoteTarget = {
+  /** The voter wrote it (for the page) or is its author of record (for the action). */
+  own: boolean;
+  status: string;
+  threadStatus: string;
+  locked: boolean;
+  archived: boolean;
+};
+
+/**
+ * Why a member may not vote on this post, or null if they may.
+ *
+ * Only what the public can read is voted on: a held post has not been let out,
+ * and a hidden or deleted one has been taken down, so a score on it would
+ * count something nobody should be reacting to. Nobody votes for their own
+ * words. And a locked thread is closed to everything new, votes included: a
+ * moderator locks a thread to stop a pile-on, and a pile-on can be votes.
+ * Migration 0030 refuses the first two in the database as well.
+ */
+export function voteRefusal(target: VoteTarget | null | undefined): "noPost" | "ownPost" | "locked" | null {
+  if (!target) return "noPost";
+  if (target.status !== "visible" || target.threadStatus !== "visible" || target.archived) return "noPost";
+  if (target.own) return "ownPost";
+  if (target.locked) return "locked";
+  return null;
 }
 
 export const AGE_BANDS = ["under_13", "13_17", "18_plus"] as const;

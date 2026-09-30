@@ -215,6 +215,17 @@ export const FORUM_SCHEMA: SchemaCheck[] = [
                and t.tgname = 'forum_mod_actions_no_update'
                and not t.tgisinternal) as ok`,
   },
+  {
+    // Without it every feed fails: they sort by the views' score and hot.
+    name: "0030 forum votes, scores and replies to replies",
+    sql: `select to_regclass('public.forum_votes') is not null
+             and exists (select 1 from information_schema.columns
+                          where table_schema = 'public' and table_name = 'forum_threads_public'
+                            and column_name = 'hot')
+             and exists (select 1 from information_schema.columns
+                          where table_schema = 'public' and table_name = 'forum_posts_public'
+                            and column_name = 'path') as ok`,
+  },
 ];
 
 /** The checks this deployment needs: the forum's only while it is on. */

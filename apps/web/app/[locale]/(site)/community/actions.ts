@@ -21,13 +21,16 @@ import {
   flagHidesAtOnce,
   isFlagReason,
   joinDecision,
+  parseVote,
   postingLimits,
+  voteRefusal,
 } from "@/lib/forum/policy";
 import { isUuid } from "@/lib/forum/queries";
 import { fail, ok, type ActionResult } from "@/lib/forum/result";
 
 /**
- * What a member can do: join, post, flag, delete their own words, leave.
+ * What a member can do: join, post, reply, vote, flag, delete their own words,
+ * leave.
  *
  * Every export starts with `requireForum()`, which answers 404 while the forum
  * is switched off, and then reads who is asking from the session — never from
@@ -216,6 +219,15 @@ export async function createThread(_prev: ActionResult, form: FormData): Promise
   return null;
 }
 
+/**
+ * Reply to a thread, or, with `parent`, to a reply in it.
+ *
+ * A reply answers only what its writer can see and everyone else can too: a
+ * visible post, in this thread. The opening post is the thread itself, so an
+ * answer to it is a top-level reply. Where the reply sits in the tree is the
+ * database's to decide (migration 0030, forum_place_reply), and it is
+ * screened, held, rate-limited and moderated exactly as any other post.
+ */
 export async function replyToThread(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   requireForum();
   const viewer = await forumViewer();
@@ -229,6 +241,17 @@ export async function replyToThread(_prev: ActionResult, form: FormData): Promis
   if (!thread || thread.status !== "visible") return fail("noThread");
   if (thread.locked && !viewer.isModerator) return fail("locked");
 
+  let parentId: string | null = null;
+  const rawParent = String(form.get("parent") ?? "");
+  if (rawParent) {
+    if (!isUuid(rawParent)) return fail("noParent");
+    const [parent] = await sql<{ status: string; is_opener: boolean }[]>`
+      select status, is_opener from forum_posts
+       where id = ${rawParent}::uuid and thread_id = ${threadId}::uuid`;
+    if (!parent || parent.status !== "visible") return fail("noParent");
+    parentId = parent.is_opener ? null : rawParent;
+  }
+
   const body = boundedText(form.get("body"), BODY_MIN, BODY_MAX);
   if (!body) return fail("bodyLength");
 
@@ -240,8 +263,8 @@ export async function replyToThread(_prev: ActionResult, form: FormData): Promis
 
   await sql.begin(async (tx) => {
     const [post] = await tx<{ id: string }[]>`
-      insert into forum_posts (thread_id, author_id, body, status, held_reasons)
-      values (${threadId}::uuid, ${viewer.userId}::uuid, ${body}, ${status}, ${reasons}::text[])
+      insert into forum_posts (thread_id, author_id, parent_id, body, status, held_reasons)
+      values (${threadId}::uuid, ${viewer.userId}::uuid, ${parentId}::uuid, ${body}, ${status}, ${reasons}::text[])
       returning id`;
     await tx`
       insert into forum_post_meta (post_id, author_id, ip_hash, user_agent)
@@ -250,6 +273,77 @@ export async function replyToThread(_prev: ActionResult, form: FormData): Promis
 
   refresh();
   return status === "held" ? ok("held", reasons) : ok("posted");
+}
+
+/**
+ * Vote a post up or down, change the vote, or take it back (value 0).
+ *
+ * A vote on a thread is a vote on its opening post. Members only, on the
+ * current guidelines and not suspended, as for posting; never on your own
+ * post, on anything the public cannot see, or in a locked thread
+ * (voteRefusal). The score is kept by the database in the same transaction
+ * (migration 0030), which also refuses the first two on its own.
+ *
+ * The author of record comes from the post's metadata when the post has lost
+ * it, as it does for review (moderation/actions.ts POST_AUTHOR): leaving and
+ * rejoining must not let anyone vote for their own words.
+ */
+export async function votePost(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  requireForum();
+  const viewer = await forumViewer();
+  const blocked = postingBlock(viewer);
+  if (blocked) return fail(blocked);
+
+  const postId = String(form.get("post") ?? "");
+  if (!isUuid(postId)) return fail("noPost");
+  const value = parseVote(form.get("value"));
+  if (value === null) return fail("voteInvalid");
+  const takeBack = value === 0;
+
+  const limits = postingLimits(viewer.member!.newAccount);
+  const within = await Promise.all([
+    withinRateLimit(`forum:votes:${viewer.userId}`, limits.votesBurst.windowSeconds, limits.votesBurst.budget),
+    withinRateLimit(`forum:votes-day:${viewer.userId}`, limits.votesPerDay.windowSeconds, limits.votesPerDay.budget),
+  ]);
+  if (!within.every(Boolean)) return fail("tooManyVotes");
+
+  const result = await sql.begin(async (tx) => {
+    const [post] = await tx<
+      { author_id: string | null; status: string; thread_status: string; locked: boolean; archived: boolean }[]
+    >`
+      select coalesce(p.author_id,
+               (select pm.author_id from forum_post_meta pm where pm.post_id = p.id)) as author_id,
+             p.status, t.status as thread_status, t.locked, c.archived
+        from forum_posts p
+        join forum_threads t on t.id = p.thread_id
+        join forum_categories c on c.id = t.category_id
+       where p.id = ${postId}::uuid`;
+    const refused = voteRefusal(
+      post && {
+        own: post.author_id === viewer.userId,
+        status: post.status,
+        threadStatus: post.thread_status,
+        locked: post.locked,
+        archived: post.archived,
+      },
+    );
+    if (refused) return refused;
+
+    if (takeBack)
+      await tx`delete from forum_votes where post_id = ${postId}::uuid and voter_id = ${viewer.userId}::uuid`;
+    else
+      await tx`
+        insert into forum_votes (post_id, voter_id, value)
+        values (${postId}::uuid, ${viewer.userId}::uuid, ${value})
+        on conflict (post_id, voter_id) do update
+           set value = excluded.value, updated_at = now()
+         where forum_votes.value <> excluded.value`;
+    return null;
+  });
+  if (result) return fail(result);
+
+  refresh();
+  return ok(takeBack ? "voteRemoved" : "voted");
 }
 
 /**
