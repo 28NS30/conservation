@@ -20,9 +20,15 @@ import { RETENTION_DAYS } from "@/lib/forum/policy";
  *
  * 180 days because 兒童及少年性剝削防制條例 Art. 8 asks a platform to keep the
  * content, the poster's data and the logs that long after it removes
- * something on notice; keeping them longer than that has no reason. A row
- * under legal hold is skipped by every step, and so is anything in a thread
- * under legal hold: a hold is set by an admin, in SQL, on a legal request.
+ * something on notice; keeping them longer than that has no reason. So the
+ * poster's data is kept 180 days from the post's LAST removal or moderation
+ * (hidden, deleted, redacted, or its thread removed), not from when it was
+ * written: keyed on the writing, a post removed late in its life kept its
+ * poster's data only for the days that were left. A row under legal hold is
+ * skipped by every step, and so is anything in a thread under legal hold: a
+ * hold is set by an admin, in SQL, on a legal request. Three steps checked
+ * only the post's own hold, and flags checked none (security audit, 29
+ * September 2026).
  *
  * A 404 while the forum is off — checked before the secret, so a switched-off
  * forum answers exactly as a route that does not exist. Each delete is capped
@@ -83,8 +89,14 @@ async function run(req: Request) {
        where m.post_id in (
          select m2.post_id from forum_post_meta m2
            join forum_posts p on p.id = m2.post_id
-          where m2.created_at < now() - ${days} * interval '1 day'
-            and not p.legal_hold
+           join forum_threads t on t.id = p.thread_id
+          where greatest(m2.created_at, p.reviewed_at, p.deleted_at, p.edited_at, t.deleted_at)
+                  < now() - ${days} * interval '1 day'
+            and not p.legal_hold and not t.legal_hold
+            -- Not while a moderator still has to decide on it: the row is how
+            -- a moderator who left and rejoined is still known as its author
+            -- (canReview).
+            and p.status <> 'held'
           limit ${BATCH})
       returning 1`;
     const revisions = await sql`
@@ -92,16 +104,20 @@ async function run(req: Request) {
        where r.id in (
          select r2.id from forum_post_revisions r2
            join forum_posts p on p.id = r2.post_id
+           join forum_threads t on t.id = p.thread_id
           where r2.created_at < now() - ${days} * interval '1 day'
-            and not p.legal_hold
+            and not p.legal_hold and not t.legal_hold
           limit ${BATCH})
       returning 1`;
     const flags = await sql`
       delete from forum_flags f
        where f.id in (
          select f2.id from forum_flags f2
+           join forum_posts p on p.id = f2.post_id
+           join forum_threads t on t.id = p.thread_id
           where f2.status <> 'open'
             and f2.resolved_at < now() - ${days} * interval '1 day'
+            and not p.legal_hold and not t.legal_hold
           limit ${BATCH})
       returning 1`;
     const limits = await sql`

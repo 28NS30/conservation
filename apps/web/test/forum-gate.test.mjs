@@ -201,8 +201,12 @@ describe("the forum's API routes ask first", () => {
   });
 
   test("every forum route file is one of these", () => {
-    const routes = files(join(WEB, "app", "api"), (n) => n === "route.ts").filter((f) => /forum/.test(f));
-    assert.deepEqual(routes.map((f) => f.slice(WEB.length + 1)).sort(), [
+    // Matched inside the app, not on the whole path: a checkout in a folder
+    // with "forum" in its name made every route a forum route.
+    const routes = files(join(WEB, "app", "api"), (n) => n === "route.ts")
+      .map((f) => f.slice(WEB.length + 1))
+      .filter((f) => /forum/.test(f));
+    assert.deepEqual(routes.sort(), [
       "app/api/forum/export/route.ts",
       "app/api/jobs/forum-retention/route.ts",
     ]);

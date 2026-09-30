@@ -11,6 +11,7 @@ export type SignInFailure =
   | "refused"
   | "notOpen"
   | "tooMany"
+  | "captcha"
   | "wrongCode"
   | "verifyFailed"
   | "googleFailed";
@@ -35,6 +36,8 @@ export type SignInFailure =
  */
 export function sendFailure(status: number | undefined, code?: string): SignInFailure {
   if (status === 429) return "tooMany";
+  // The browser check (SignInForm) was missing, stale or failed.
+  if (code === "captcha_failed") return "captcha";
   if (status && status >= 400 && status < 500 && status !== 408)
     return code === "email_address_not_authorized" ? "notOpen" : "refused";
   return "failed";
