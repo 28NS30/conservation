@@ -29,8 +29,12 @@
 
 set local lock_timeout = '5s';
 
--- What is blurred now, and why, before the rule changes.
-create temp table blurred_before on commit drop as
+-- What is blurred now, and why, before the rule changes. Session temp tables,
+-- dropped at the end: `on commit drop` vanishes at once where each statement
+-- is its own transaction, as when CI applies migrations file by file.
+drop table if exists pg_temp.blurred_before;
+drop table if exists pg_temp.loosen;
+create temp table blurred_before as
   select r.id, r.location_precision, taxon_precision(r.taxon_id) as taxon_rule
     from reports r
    where r.location_precision <> 'exact';
@@ -87,7 +91,7 @@ delete from taxon_precision_floors
 -- reasons decided: the Red List term is gone, or the species is invasive and
 -- otherwise unrated. Its override goes too, whatever set it: the invasive
 -- page's hold, or the stamp the name correction left to keep a Red List blur.
-create temp table loosen on commit drop as
+create temp table loosen as
   select r.id
     from reports r
     join taxa t on t.id = r.taxon_id
@@ -116,3 +120,6 @@ begin
     raise exception '0029 would loosen % record(s) outside the decision', other;
   end if;
 end $$;
+
+drop table pg_temp.loosen;
+drop table pg_temp.blurred_before;
