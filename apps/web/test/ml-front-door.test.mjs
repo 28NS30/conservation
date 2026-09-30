@@ -54,10 +54,13 @@ describe("the classifier service", () => {
 
 describe("the website", () => {
   test("gives up at once on a photograph the model refuses", () => {
+    // The calls live in lib/report/model.ts since the report form asks the
+    // model too (app/api/identify); the worker decides what a refusal means.
+    const model = read("apps", "web", "lib", "report", "model.ts");
     const worker = read("apps", "web", "lib", "report", "classifyWorker.ts");
-    assert.match(worker, /res\.status === 400 \? new ModelRefused\(message\) : new Error\(message\)/);
+    assert.match(model, /res\.status === 400 \? new ModelRefused\(message\) : new Error\(message\)/);
     assert.match(worker, /const giveUp = job\.attempts >= MAX_ATTEMPTS \|\| err instanceof ModelRefused;/);
-    assert.equal((worker.match(/if \(!res\.ok\) throw await modelError\(res\);/g) ?? []).length, 2,
+    assert.equal((model.match(/if \(!res\.ok\) throw await modelError\(res\);/g) ?? []).length, 2,
       "both model calls must read the answer the same way");
   });
 });

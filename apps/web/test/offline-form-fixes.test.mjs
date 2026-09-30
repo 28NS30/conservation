@@ -85,7 +85,8 @@ describe("typed fields are checked before a report leaves the form", () => {
     }
     assert.match(src, /accuracyM: sendableAccuracy\(accuracyM\)/);
     assert.doesNotMatch(src, /new Date\(observedAt\)\.toISOString\(\)/, "a cleared time field throws here");
-    for (const slot of ["time", "contact", "credit"]) assert.match(src, new RegExp(`errorIn\\("${slot}"\\)`));
+    // No credit field since every report is CC0 (30 September 2026).
+    for (const slot of ["time", "contact"]) assert.match(src, new RegExp(`errorIn\\("${slot}"\\)`));
   });
 
   test("each new sentence exists in both languages, in its slot", () => {
@@ -226,7 +227,8 @@ describe("the form keeps what was entered, and shows what it has", () => {
   });
 
   test("a second pick cannot pass the photo limit", () => {
-    assert.equal((form.match(/disabled=\{preparing\}/g) ?? []).length, 2, "both pickers stay open while a pick is prepared");
+    // One picker since the camera tile went (30 September 2026).
+    assert.equal((form.match(/disabled=\{preparing\}/g) ?? []).length, 1, "the picker stays open while a pick is prepared");
     assert.match(form, /MAX_PHOTOS - prev\.length/);
   });
 

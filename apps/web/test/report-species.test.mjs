@@ -248,7 +248,7 @@ describe("a reporter names the species", () => {
     // (migration 0029; test/report-pages.test.mjs asserts it at runtime).
     assert.match(
       route,
-      /const precisionOverride = identified \? null : \(heldAt \?\? UNIDENTIFIED_PRECISION\);/,
+      /let precisionOverride: string \| null = identified \? null : \(heldAt \?\? UNIDENTIFIED_PRECISION\);/,
     );
     assert.doesNotMatch(route, /UNVERIFIED_INVASIVE_PRECISION|pageHold/);
   });
