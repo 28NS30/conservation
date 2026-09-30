@@ -239,6 +239,21 @@ function recordQuery(
          ${from === "tests" ? tx`and rp.is_test` : tx``}`;
 }
 
+/**
+ * A read the record page can do without: if it fails, most likely by running
+ * past the public statement timeout, the page renders without it rather than
+ * answering 500. The model's suggestions once took long enough on a cold
+ * connection to fail a public report's first view (0031).
+ */
+async function optional<T>(what: string, read: () => Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await read();
+  } catch (err) {
+    console.error(`record page: ${what} failed`, err);
+    return fallback;
+  }
+}
+
 export default async function ReportPage({
   params,
 }: {
@@ -296,40 +311,46 @@ export default async function ReportPage({
   // of what a test is for (0018). For a test, the same rules are applied here
   // on the server's connection, in the view's own terms, the exclusion of
   // tests aside; the row above already proved the viewer is a moderator.
-  const suggestions = publicRow
-    ? await asPublic(
-        (tx) =>
-          tx<Suggestion[]>`
-          select s.taxon_id as "taxonId", s.rank, s.score,
-                 s.scientific_name as "scientificName", s.common_name_zh as "commonNameZh",
-                 -- The English name from taxa, which the public role reads, rather
-                 -- than a new column on the 0004 view.
+  const readSuggestions = () =>
+    publicRow
+      ? asPublic(
+          (tx) =>
+            tx<Suggestion[]>`
+            select s.taxon_id as "taxonId", s.rank, s.score,
+                   s.scientific_name as "scientificName", s.common_name_zh as "commonNameZh",
+                   -- The English name from taxa, which the public role reads, rather
+                   -- than a new column on the 0004 view.
+                   t.common_name_en as "commonNameEn", t.taicol_id as "taicolId"
+              from report_ai_suggestions s
+              left join taxa t on t.id = s.taxon_id
+             where s.report_id = ${id}::uuid
+             order by s.rank`,
+        )
+      : sql<Suggestion[]>`
+          select t.id as "taxonId", c.rank, c.score,
+                 t.scientific_name as "scientificName", t.common_name_zh as "commonNameZh",
                  t.common_name_en as "commonNameEn", t.taicol_id as "taicolId"
-            from report_ai_suggestions s
-            left join taxa t on t.id = s.taxon_id
-           where s.report_id = ${id}::uuid
-           order by s.rank`,
-      )
-    : await sql<Suggestion[]>`
-        select t.id as "taxonId", c.rank, c.score,
-               t.scientific_name as "scientificName", t.common_name_zh as "commonNameZh",
-               t.common_name_en as "commonNameEn", t.taicol_id as "taicolId"
-          from classifications c
-          join reports r on r.id = c.report_id
-                        and r.status = 'published'
-                        and r.location_precision <> 'suppressed'
-                        and r.ai_band is distinct from 'low'
-                        and r.is_test
-                        and suggestions_within_blur(r.id, r.location_precision)
-          join taxa t on t.id = c.taxon_id
-         where c.report_id = ${id}::uuid
-         order by c.rank`;
+            from classifications c
+            join reports r on r.id = c.report_id
+                          and r.status = 'published'
+                          and r.location_precision <> 'suppressed'
+                          and r.ai_band is distinct from 'low'
+                          and r.is_test
+                          and suggestions_within_blur(r.id, r.location_precision)
+            join taxa t on t.id = c.taxon_id
+           where c.report_id = ${id}::uuid
+           order by c.rank`;
 
   // The species card, when this report has a species. Two small reads rather
   // than widening the query above: the page renders without either of them, and
-  // neither should be able to fail the page.
-  const card = row.taxon_id ? await getSpecies(row.taxon_id) : null;
-  const months = row.taxon_id ? await monthlyCounts(row.taxon_id) : null;
+  // neither can fail the page. The three reads are independent, so they run at
+  // once.
+  const taxonId = row.taxon_id;
+  const [suggestions, card, months] = await Promise.all([
+    optional("the model's suggestions", readSuggestions, [] as Suggestion[]),
+    taxonId ? optional("the species card", () => getSpecies(taxonId), null) : null,
+    taxonId ? optional("the monthly counts", () => monthlyCounts(taxonId), null) : null,
+  ]);
   // A peak only means something with enough records to have a shape. Below
   // that, the "peak" is whichever month happened to catch two instead of one.
   const total = months?.reduce((a, b) => a + b, 0) ?? 0;
