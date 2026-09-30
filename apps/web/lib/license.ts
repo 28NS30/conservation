@@ -12,8 +12,17 @@
  */
 export function licenseLabel(url: string | null | undefined): string | null {
   if (!url) return null;
+  // CC0, which the report form offers: a public-domain dedication, under
+  // /publicdomain/ rather than /licenses/, and written "CC0".
+  const zero = /publicdomain\/zero\/([0-9.]+)/.exec(url);
+  if (zero) return `CC0 ${zero[1]}`;
   const m = /licenses\/([a-z-]+)\/([0-9.]+)/.exec(url);
   // Anything not matching the CC URL shape is returned as-is rather than
   // guessed at: a wrong licence label is worse than an ugly one.
   return m ? `CC ${m[1].toUpperCase()} ${m[2]}` : url;
+}
+
+/** Whether a licence URL is the CC0 public-domain dedication, which asks for no credit. */
+export function isCc0(url: string | null | undefined): boolean {
+  return Boolean(url && /publicdomain\/zero\//.test(url));
 }
