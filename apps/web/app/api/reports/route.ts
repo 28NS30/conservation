@@ -279,7 +279,19 @@ export async function POST(req: Request) {
   // person checks it: an invasive species is published at its exact spot
   // (owner decision, 30 September 2026; migration 0029). One that is also
   // protected or rated is blurred by its own rating, like any other species.
-  const precisionOverride = identified ? null : (heldAt ?? UNIDENTIFIED_PRECISION);
+  //
+  // A species the reporter chose from the model's suggestions for their photo
+  // (the report form asks as soon as a photo is added) is a photo
+  // identification, and is blurred as the model's own would be: at least as
+  // hard as every row sharing its binomial, since a photograph cannot tell a
+  // protected subspecies from the rest (binomial_precision_floor, 0014). Null
+  // where the taxon's own rule is already that strict.
+  let precisionOverride: string | null = identified ? null : (heldAt ?? UNIDENTIFIED_PRECISION);
+  if (identified && input.taxonFromPhoto) {
+    const [{ floor }] = await sql<{ floor: string | null }[]>`
+      select binomial_precision_floor(${taxonId}) as floor`;
+    precisionOverride = floor;
+  }
 
   // The contributor terms (/terms, migration 0017). Stored only when the form
   // answered them: a report queued offline before the terms existed carries no

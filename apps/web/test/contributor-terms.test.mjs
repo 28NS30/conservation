@@ -12,6 +12,7 @@ import { test, describe, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { sql, BASE_URL } from "./helpers.mjs";
+import { CONSENT_VERSION } from "@conservation/shared";
 
 after(async () => {
   await sql`delete from reports where client_nonce = any(${nonces})`;
@@ -111,7 +112,7 @@ describe("the pages", () => {
       assert.equal(res.status, 200, path);
       const html = await res.text();
       assert.ok(html.includes(word), path);
-      assert.match(html, /2026-09-29/);
+      assert.match(html, new RegExp(CONSENT_VERSION));
       assert.match(html, /href="(\/en)?\/terms"/, `${path}: footer links /terms`);
     }
   });
@@ -123,7 +124,11 @@ describe("the pages", () => {
     // also ships to the browser, which holds every string of the form.
     assert.match(roadkill, />Also share this record, with its exact location, with TaiRON/);
     assert.doesNotMatch(roadkill, /type="checkbox"[^>]*checked/, "the partner box starts unticked");
-    assert.match(roadkill, /type="radio"[^>]*value="cc-by-4.0"[^>]*checked|type="radio"[^>]*checked[^>]*value="cc-by-4.0"/, "CC BY is the default");
+    // Every report is CC0 (team request, 30 September 2026): no licence to
+    // choose and no credit to give.
+    assert.doesNotMatch(roadkill, /type="radio"[^>]*name="license"/, "a licence is still offered");
+    assert.doesNotMatch(roadkill, /id="creditName"/, "a credit is still asked for");
+    assert.match(roadkill, />Everything you file is published as open data under CC0/);
     for (const kind of ["wildlife", "invasive"]) {
       const html = await (await fetch(`${BASE_URL}/en/report/${kind}`)).text();
       assert.doesNotMatch(html, />Also share this record, with its exact location, with TaiRON/, kind);

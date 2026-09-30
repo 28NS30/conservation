@@ -111,6 +111,19 @@ export const SIGN_LIMITS = {
  */
 export const SIGNED_IN_ADDRESS_FACTOR = 5;
 
+/**
+ * Identifying a photo in the report form (app/api/identify). Each one is a
+ * call to the GPU the project pays for, and it needs no challenge, so it is
+ * held tighter than signing: a reporter adds at most four photos to a report,
+ * and the form asks about the first. The whole site's day is capped too, so a
+ * flood from many addresses costs a known amount at most.
+ */
+export const IDENTIFY_LIMITS = {
+  burst: { windowSeconds: 120, budget: 6 },
+  daily: { windowSeconds: 86_400, budget: 40 },
+  siteDaily: { windowSeconds: 86_400, budget: 1_500 },
+} as const;
+
 export const SUBMIT_LIMITS = {
   /** Bursts: a handful of reports in a couple of minutes is normal fieldwork. */
   burst: { windowSeconds: 120, budget: 6 },

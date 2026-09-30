@@ -556,7 +556,7 @@ export const IMAGE_WEBP_QUALITY = 0.82;
  * the terms applies to reports filed after it, never to ones filed before, so
  * each report has to say which it agreed to.
  */
-export const CONSENT_VERSION = "2026-09-29";
+export const CONSENT_VERSION = "2026-09-30";
 
 /**
  * The licences a reporter may choose, and the legalcode URL stored for each in
@@ -675,6 +675,12 @@ export const reportSubmissionSchema = z
      * session that sends it.
      */
     filedBy: z.union([z.uuid(), z.literal("anonymous")]).optional(),
+    /**
+     * The species was chosen from the model's suggestions for the report's
+     * photo, in the form. The server blurs it as a photo identification: at
+     * least as hard as every row sharing its binomial.
+     */
+    taxonFromPhoto: z.boolean().optional(),
   })
   .refine((r) => !(r.taxonId && r.taxonUnknown), {
     message: "a report cannot both name a species and be unidentifiable",

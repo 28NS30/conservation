@@ -418,12 +418,15 @@ describe("the worker runs these rules, through the same blur as before", () => {
   const evidence = code(EVIDENCE);
 
   test("it asks for contract 2 only when switched, and sends no category with it", () => {
+    // The requests are built in lib/report/model.ts since the report form asks
+    // the model too (app/api/identify); the worker still chooses the contract.
+    const model = code(read(WEB, "lib", "report", "model.ts"));
     assert.match(route, /const contract = mlContract\(process\.env\)/);
     assert.match(route, /if \(contract === 2\)/);
-    assert.match(route, /JSON\.stringify\(\{ token, imageBase64, contract: 2 \}\)/);
-    assert.match(route, /return parseEvidence\(await res\.json\(\)\)/);
+    assert.match(model, /JSON\.stringify\(\{ token, imageBase64, contract: 2 \}\)/);
+    assert.match(model, /return parseEvidence\(await res\.json\(\)\)/);
     // The legacy request is unchanged.
-    assert.match(route, /JSON\.stringify\(\{ token, imageBase64, category \}\)/);
+    assert.match(model, /JSON\.stringify\(\{ token, imageBase64, category \}\)/);
   });
 
   test("a species it names carries the binomial's strictest blur", () => {
