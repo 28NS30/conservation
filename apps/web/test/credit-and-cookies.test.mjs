@@ -19,6 +19,15 @@ after(() => sql.end());
 
 const read = (...p) => readFileSync(join(import.meta.dirname, "..", ...p), "utf8");
 const up = async () => Boolean(await fetch(BASE_URL).catch(() => null));
+/**
+ * A record page as rendered, and what it shows: every page carries the whole
+ * message catalogue in its scripts, so a label's words are always somewhere in
+ * the HTML, and only the markup outside the scripts says whether it is shown.
+ */
+async function recordPage(id) {
+  const html = await fetch(`${BASE_URL}/en/reports/${id}`).then((r) => r.text());
+  return { html, shown: html.replace(/<script\b[\s\S]*?<\/script>/g, "") };
+}
 
 describe("a person's record carries the credit their licence asks for", () => {
   test("both licences the form offers have a label", () => {
@@ -50,19 +59,19 @@ describe("a person's record carries the credit their licence asks for", () => {
   test("the name they gave, and the licence", async (t) => {
     if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
     const id = await record({ license: CONTRIBUTOR_LICENSES["cc-by-4.0"], credit: "林小明" });
-    const html = await fetch(`${BASE_URL}/en/reports/${id}`).then((r) => r.text());
-    assert.match(html, /Shared by/);
-    assert.match(html, /林小明/);
-    assert.match(html, /CC BY 4\.0/);
+    const { shown } = await recordPage(id);
+    assert.match(shown, /Shared by/);
+    assert.match(shown, /林小明/);
+    assert.match(shown, /CC BY 4\.0/);
   });
 
   test("CC0: open data, with no name", async (t) => {
     if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
     const id = await record({ license: CONTRIBUTOR_LICENSES["cc0-1.0"], credit: null });
-    const html = await fetch(`${BASE_URL}/en/reports/${id}`).then((r) => r.text());
-    assert.match(html, /Open data: anyone may use this record/);
-    assert.doesNotMatch(html, /Shared by/);
-    assert.match(html, /CC0 1\.0/);
+    const { shown } = await recordPage(id);
+    assert.match(shown, /Open data: anyone may use this record/);
+    assert.doesNotMatch(shown, /Shared by|FormosaWatch contributor/);
+    assert.match(shown, /CC0 1\.0/);
   });
 
   test("a blurred record's credit is the default contributor, whatever name was given", async (t) => {
@@ -70,9 +79,10 @@ describe("a person's record carries the credit their licence asks for", () => {
     // the notes (0025); it stays in the export.
     if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
     const id = await record({ license: CONTRIBUTOR_LICENSES["cc-by-4.0"], credit: "大雪山林道巡守隊", blurred: true });
-    const html = await fetch(`${BASE_URL}/en/reports/${id}`).then((r) => r.text());
-    assert.doesNotMatch(html, /大雪山林道巡守隊/);
-    assert.match(html, /FormosaWatch contributor/);
+    const { html, shown } = await recordPage(id);
+    assert.doesNotMatch(html, /大雪山林道巡守隊/, "the name is somewhere in the page, scripts included");
+    assert.match(shown, /Shared by/);
+    assert.match(shown, /FormosaWatch contributor/);
   });
 });
 
