@@ -18,9 +18,12 @@ export default function ForumHeading({
   crumbLabel,
   zh,
   kind = "section",
+  titleId,
   children,
 }: {
   title: string;
+  /** An id for the heading, for controls elsewhere that name it (a thread's vote arrows). */
+  titleId?: string;
   lede?: string;
   crumbs?: { href: string; label: string }[];
   crumbLabel: string;
@@ -49,6 +52,7 @@ export default function ForumHeading({
         </nav>
       )}
       <h1
+        id={titleId}
         className={`font-display font-bold leading-[1.05] text-forest-900 [overflow-wrap:anywhere] [text-wrap:balance] ${
           section
             ? `text-[clamp(2.1rem,6vw,3.2rem)] ${zh ? "tracking-[0.04em]" : "uppercase tracking-[0.01em]"}`

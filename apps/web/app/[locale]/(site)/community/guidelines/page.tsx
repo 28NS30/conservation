@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 }
 
 /** The sections, in order. Each is a title and a body in `forum.rules`. */
-const SECTIONS = ["kind", "location", "privacy", "here", "animals", "topic", "ages", "help", "how", "appeal", "data"] as const;
+const SECTIONS = ["kind", "location", "privacy", "here", "animals", "topic", "votes", "ages", "help", "how", "appeal", "data"] as const;
 
 /**
  * The community guidelines, in words a thirteen-year-old reads without a
@@ -29,6 +29,10 @@ const SECTIONS = ["kind", "location", "privacy", "here", "animals", "topic", "ag
  * expects a platform minors use to publish. And they explain what moderation
  * does and how to appeal it, because a rule nobody can see enforced reads as
  * arbitrary. Pending legal review, like the rest of the forum (plan section 6).
+ *
+ * The seventh is about votes: no second accounts, no asking for votes, no
+ * following someone around voting them down. Nobody can see who voted, so a
+ * rule is the only thing that says what a vote is for.
  *
  * The second rule is the one the site exists for: never publish where a
  * protected animal lives. It is also enforced mechanically — lib/forum/screen.ts

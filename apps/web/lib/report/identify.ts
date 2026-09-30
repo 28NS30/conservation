@@ -22,6 +22,14 @@ import type { PhotoIdentification, PhotoSuggestion } from "@/lib/report/photoSug
  * Nothing is stored: the photo goes to the model and the answer comes back.
  */
 
+/**
+ * The least a species must score to be offered. The form shows each score as a
+ * whole percentage, and a species the model puts under 1% would appear as a
+ * "0%" choice a reporter could tap by mistake (a green iguana's photo came
+ * back with 綠水龍 at 0.1% and 高冠變色龍 at 0%, 30 September 2026).
+ */
+const MIN_OFFERED_SCORE = 0.01;
+
 /** The category whose rules a page's photos are judged by, before any is chosen. */
 const CATEGORY_OF_PAGE: Readonly<Record<ReportPage, string>> = {
   roadkill: "roadkill",
@@ -57,6 +65,8 @@ export async function identifyPhoto(
     band = result.band;
     ranked = result.predictions.slice(0, 5).map((p) => ({ id: p.taxon_id, score: p.score }));
   }
+
+  ranked = ranked.filter((r) => r.score >= MIN_OFFERED_SCORE);
 
   // A list that is wrong a third of the time is not offered (as on the record
   // page, which withholds the low band's suggestions).

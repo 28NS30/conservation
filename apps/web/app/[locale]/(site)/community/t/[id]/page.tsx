@@ -3,24 +3,26 @@ import { notFound } from "next/navigation";
 import { getFormatter, getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { forumViewer, requireForum } from "@/lib/forum/server";
-import { listCategories, postsForViewer, threadForViewer, type PostRow } from "@/lib/forum/queries";
-import { POSTS_PER_PAGE } from "@/lib/forum/policy";
-import { LOCATION_REASONS } from "@/lib/forum/screen";
+import { listCategories, myVotes, postsForViewer, threadForViewer } from "@/lib/forum/queries";
+import { REPLIES_PER_PAGE } from "@/lib/forum/policy";
+import { parseReplySort } from "@/lib/forum/rank";
+import { buildReplyTree } from "@/lib/forum/tree";
 import { forumSignInHref } from "@/lib/forum/signIn";
 import { pageWindow } from "@/lib/paging";
 import ForumHeading from "@/components/forum/ForumHeading";
-import Nickname, { StartedBy } from "@/components/forum/Nickname";
+import { StartedBy } from "@/components/forum/Nickname";
 import ForumPager from "@/components/forum/ForumPager";
 import { ReplyComposer } from "@/components/forum/Composer";
-import { DeleteOwnForm, FlagForm } from "@/components/forum/PostActions";
-import { ModeratePost, ThreadTools } from "@/components/forum/ModTools";
-import { badge, btnPrimary, link } from "@/components/forum/styles";
+import { PostCard, ReplyTree, type ThreadContext } from "@/components/forum/PostCard";
+import { ReplySortNav } from "@/components/forum/SortNav";
+import { ThreadTools } from "@/components/forum/ModTools";
+import { badge, btnPrimary } from "@/components/forum/styles";
 
 export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ locale: string; id: string }>;
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; sort?: string }>;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -32,18 +34,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 /**
- * One thread: its posts, oldest first, thirty to a page, and a reply box.
+ * One thread: its opening post with the score and arrows, a reply box, and
+ * the replies as a tree, twenty top-level replies (with everything under
+ * them) to a page, Best or New.
  *
  * WHO SEES WHAT. The public sees visible posts in a visible thread, read as
  * `web_anon` from the public views. A post's author also sees their own posts
  * that are waiting or were hidden, each marked with why. A moderator sees
- * everything, with the tools to act on it. A thread that is not public is a
- * 404 to everyone else: a held thread's title can carry the location as
- * easily as its text.
- *
- * Post text is rendered as text. React escapes it, so `<script>` shows as the
- * word "<script>", and there is no markdown and no auto-linking: a pasted
- * image URL stays a line of text, never a picture.
+ * everything, with the tools to act on it. A reply nobody here may read,
+ * with replies under it, keeps its place as "[removed]", so the answers to
+ * it still read as answers. A thread that is not public is a 404 to everyone
+ * else: a held thread's title can carry the location as easily as its text.
  */
 export default async function ThreadPage({ params, searchParams }: Props) {
   requireForum();
@@ -58,60 +59,37 @@ export default async function ThreadPage({ params, searchParams }: Props) {
   const thread = await threadForViewer(id, reader);
   if (!thread) notFound();
 
-  const { page: requested } = await searchParams;
-  const first = await postsForViewer(thread.id, 0, reader);
-  const paging = pageWindow(requested, first.total, POSTS_PER_PAGE);
-  const posts = paging.offset === 0 ? first : await postsForViewer(thread.id, paging.offset, reader);
+  const { page: requested, sort: rawSort } = await searchParams;
+  const sort = parseReplySort(rawSort);
+  const rows = await postsForViewer(thread.id, reader);
+  const opener = rows.find((p) => p.is_opener) ?? null;
+  const replies = rows.filter((p) => !p.is_opener);
+  const tree = buildReplyTree(replies, sort);
+  const paging = pageWindow(requested, tree.length, REPLIES_PER_PAGE);
+  const shown = tree.slice(paging.offset, paging.offset + REPLIES_PER_PAGE);
 
-  const [t, tr, format, categories] = await Promise.all([
+  const [t, format, categories, votes] = await Promise.all([
     getTranslations("forum"),
-    getTranslations("forum.reason"),
     getFormatter(),
     viewer.canModerate ? listCategories() : Promise.resolve([]),
+    viewer.member && viewer.userId
+      ? myVotes(
+          viewer.userId,
+          rows.filter((p) => p.status === "visible").map((p) => p.id),
+        )
+      : Promise.resolve(new Map<string, 1 | -1>()),
   ]);
 
   const categoryName = zh ? thread.category_name_zh : thread.category_name_en;
   const path = `/community/t/${thread.id}`;
   const when = (d: Date) => format.dateTime(d, { dateStyle: "medium", timeStyle: "short" });
-
-  const statusNote = (p: PostRow) => {
-    if (p.status === "held")
-      return (
-        <div className="mb-3 border-l-4 border-ember-500 bg-paper-100 px-4 py-3" role="note">
-          <p className="text-[15px] font-semibold text-ink-900">{t("awaitingReview")}</p>
-          {p.mine && <p className="mt-1 text-[15px] text-ink-700">{t("awaitingReviewBody")}</p>}
-          {p.held_reasons.length > 0 && (
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-[14px] leading-relaxed text-ink-700">
-              {p.held_reasons.map((r) => (
-                <li key={r}>{tr(r)}</li>
-              ))}
-            </ul>
-          )}
-          {p.mine && p.held_reasons.some((r) => LOCATION_REASONS.includes(r)) && (
-            <Link href="/report" className={`${link} mt-2 inline-flex min-h-11 items-center text-[15px]`}>
-              {t("fileReport")}
-            </Link>
-          )}
-        </div>
-      );
-    if (p.status === "hidden" || p.status === "deleted")
-      return (
-        <div className="mb-3 border-l-4 border-ink-900/40 bg-paper-100 px-4 py-3" role="note">
-          <p className="text-[15px] font-semibold text-ink-900">
-            {p.status === "hidden" ? t("hiddenTitle") : t("deletedTitle")}
-          </p>
-          {p.moderator_note && (
-            <p className="mt-1 text-[15px] text-ink-700">{t("moderatorNote", { reason: p.moderator_note })}</p>
-          )}
-        </div>
-      );
-    return null;
-  };
+  const ctx: ThreadContext = { thread, viewer, locale, votes, byId: new Map(rows.map((p) => [p.id, p])) };
 
   return (
     <main>
       <ForumHeading
         title={thread.title}
+        titleId="thread-title"
         kind="content"
         crumbs={[
           { href: "/community", label: t("home") },
@@ -141,90 +119,60 @@ export default async function ThreadPage({ params, searchParams }: Props) {
         />
       )}
 
-      <h2 className="sr-only">{t("posts")}</h2>
-      <ol className="space-y-5">
-        {posts.rows.map((p) => (
-          <li key={p.id}>
-            <article
-              aria-labelledby={`post-${p.id}-by`}
-              className={`border px-4 py-4 sm:px-5 ${
-                p.status === "visible" ? "border-ink-900/12 bg-white/70" : "border-dashed border-ink-900/30 bg-paper-100/60"
-              }`}
-            >
-              {statusNote(p)}
-              <header className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <span id={`post-${p.id}-by`}>
-                  <Nickname handle={p.author_handle} locale={locale} moderator={p.author_is_moderator} />
-                </span>
-                <time dateTime={p.created_at.toISOString()} className="text-[14px] text-ink-600">
-                  {when(p.created_at)}
-                </time>
-              </header>
-              <div className="mt-2 whitespace-pre-wrap text-[16px] leading-relaxed text-ink-950 [overflow-wrap:anywhere]">
-                {p.body}
-              </div>
-              {p.edited_by_moderator && (
-                <p className="mt-2 text-[14px] italic text-ink-600">{t("editedByModerator")}</p>
-              )}
-              <footer className="mt-3 flex flex-wrap items-start gap-x-4 gap-y-2">
-                {p.mine && p.status !== "deleted" && <DeleteOwnForm postId={p.id} />}
-                {!p.mine && viewer.member && !viewer.suspendedUntil && p.status === "visible" && (
-                  <FlagForm postId={p.id} />
-                )}
-              </footer>
-              {viewer.canModerate && p.status !== "deleted" && (
-                <div className="mt-4 border-t border-ink-900/10 pt-3">
-                  <ModeratePost
-                    postId={p.id}
-                    body={p.body}
-                    title={p.is_opener ? thread.title : undefined}
-                    status={p.status}
-                    authorHandle={p.author_handle}
-                    mine={p.mine}
-                  />
-                </div>
-              )}
-            </article>
-          </li>
-        ))}
-      </ol>
-
-      <ForumPager page={paging.page} hasPrev={paging.hasPrev} hasNext={paging.hasNext} path={path} />
+      {opener && <PostCard post={opener} ctx={ctx} replyable={false} />}
 
       {thread.status === "visible" && (
-      <section aria-labelledby="reply-title" className="mt-12">
-        <h2 id="reply-title" className="font-display text-[28px] font-bold leading-tight text-forest-900">
-          {t("reply")}
-        </h2>
-        <div className="mt-4">
-          {thread.locked && !viewer.isModerator ? (
-            <p className="text-[16px] text-ink-700">{t("lockedNotice")}</p>
-          ) : !viewer.userId ? (
-            <p className="flex flex-wrap items-center gap-4 text-[16px] text-ink-700">
-              {t("signInToReply")}
-              <Link href={forumSignInHref(locale, path)} className={btnPrimary}>
-                {t("signIn")}
-              </Link>
-            </p>
-          ) : !viewer.member ? (
-            <p className="flex flex-wrap items-center gap-4 text-[16px] text-ink-700">
-              {t("joinToReply")}
-              <Link href="/community/join" className={btnPrimary}>
-                {t("joinCta")}
-              </Link>
-            </p>
-          ) : !viewer.canPost ? (
-            <p className="text-[16px] text-ink-700">
-              {viewer.suspendedUntil
-                ? t("suspendedUntil", { date: when(viewer.suspendedUntil) })
-                : t("guidelinesChangedBody")}
-            </p>
-          ) : (
-            <ReplyComposer threadId={thread.id} />
-          )}
-        </div>
-      </section>
+        <section aria-labelledby="reply-title" className="mt-10">
+          <h2 id="reply-title" className="font-display text-[28px] font-bold leading-tight text-forest-900">
+            {t("reply")}
+          </h2>
+          <div className="mt-4">
+            {thread.locked && !viewer.isModerator ? (
+              <p className="text-[16px] text-ink-700">{t("lockedNotice")}</p>
+            ) : !viewer.userId ? (
+              <p className="flex flex-wrap items-center gap-4 text-[16px] text-ink-700">
+                {t("signInToReply")}
+                <Link href={forumSignInHref(locale, path)} className={btnPrimary}>
+                  {t("signIn")}
+                </Link>
+              </p>
+            ) : !viewer.member ? (
+              <p className="flex flex-wrap items-center gap-4 text-[16px] text-ink-700">
+                {t("joinToReply")}
+                <Link href="/community/join" className={btnPrimary}>
+                  {t("joinCta")}
+                </Link>
+              </p>
+            ) : !viewer.canPost ? (
+              <p className="text-[16px] text-ink-700">
+                {viewer.suspendedUntil
+                  ? t("suspendedUntil", { date: when(viewer.suspendedUntil) })
+                  : t("guidelinesChangedBody")}
+              </p>
+            ) : (
+              <ReplyComposer threadId={thread.id} />
+            )}
+          </div>
+        </section>
       )}
+
+      <section id="replies" aria-labelledby="replies-title" className="mt-12 scroll-mt-28">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h2 id="replies-title" className="font-display text-[28px] font-bold leading-tight text-forest-900">
+            {t("replyCount", { count: thread.reply_count })}
+          </h2>
+          {replies.length > 1 && <ReplySortNav path={path} sort={sort} />}
+        </div>
+        {shown.length > 0 && <ReplyTree nodes={shown} ctx={ctx} />}
+        <ForumPager
+          page={paging.page}
+          hasPrev={paging.hasPrev}
+          hasNext={paging.hasNext}
+          path={path}
+          query={sort === "best" ? {} : { sort }}
+          hash="replies"
+        />
+      </section>
     </main>
   );
 }
