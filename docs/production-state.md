@@ -246,11 +246,12 @@ the stats page made readable (#110, #112).
 ## Changed on 30 September 2026
 
 Verified through the Management API and over HTTP, 30 September, 22:45 (and
-0030–0031 at 23:40). The ledger holds 30 rows, through 0031; `reports_public` has **46,336** records;
-`taxon_precision_floors` has 86 rows; and, after the blur decision below,
-**no** record with a species is shown more exactly than its species' rule or
-its binomial's allows (0 rows), no public report without a species is exact
-(0), and no record of an unrated invasive species is still blurred (0).
+0030–0031 at 23:40). The ledger holds 30 rows, through 0031;
+`reports_public` has **46,336** records; `taxon_precision_floors` has 86
+rows; and, after the blur decision below, **no** record with a species is
+shown more exactly than its species' rule or its binomial's allows (0 rows),
+no public report without a species is exact (0), and no record of an unrated
+invasive species is still blurred (0).
 
 **The security audit and its review.** An audit of the whole site on 29
 September confirmed 66 problems; a review of the fixes on 30 September
