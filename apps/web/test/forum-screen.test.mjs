@@ -128,6 +128,20 @@ const HELD = [
   ["tinyurl.com/y7abc", "map_link"],
   ["https://g.page/r/abc", "map_link"],
   ["goo.gl/abc", "map_link"],
+  // From the review of the security fixes, 30 September 2026: a full stop
+  // ending the sentence, a 。 ending one before the coordinate, words between
+  // two-decimal numbers, and more shorteners.
+  ["Saw a pangolin at 25.0330, 121.5654.", "coordinates"],
+  ["25.03, 121.56.", "coordinates"],
+  ["TWD97 302000, 2770000.", "coordinates"],
+  ["早上7:30。25.0330，121.5654", "coordinates"],
+  ["編號1。25.0330 121.5654", "coordinates"],
+  ["25。0330。121。5654", "coordinates"],
+  ["lat 25.03 and lng 121.56", "coordinates"],
+  ["我在 25.03 附近 121.56 看到穿山甲", "coordinates"],
+  ["https://lurl.cc/abc", "map_link"],
+  ["https://dub.sh/abc123", "map_link"],
+  ["https://myppt.cc/abc", "map_link"],
 ];
 
 /** Text that must go straight through. */

@@ -1,0 +1,15 @@
+<!--
+  The sign-in email: a code, and deliberately no link. Used for both the
+  "Magic Link" and the "Confirm signup" templates (supabase/config.toml, and
+  production, set from this file; see docs/production-state.md).
+
+  No link, because a link and the code are one token: a school's mail scanner
+  that opens the link spends the code before the student types it. And both
+  templates, because a first sign-in is a sign-up, which Supabase answers with
+  "Confirm signup" rather than "Magic Link" (security audit, 29 September 2026).
+-->
+<p>你的登入碼 · Your sign-in code:</p>
+<p style="font-size:28px;font-weight:bold;letter-spacing:4px">{{ .Token }}</p>
+<p>在登入頁輸入這組數字，15 分鐘內有效。<br>
+   Type it on the sign-in page. It works for 15 minutes.</p>
+<p>如果不是你要求的，請忽略這封信。 · If you did not ask for this, ignore this email.</p>

@@ -103,8 +103,11 @@ describe("review", () => {
     assert.equal(canReview("d", "d"), false);
     assert.equal(canReview("d", "m"), true);
   });
-  test("a deleted member's post can be reviewed by anyone", () => {
-    assert.equal(canReview("d", null), true);
+  test("a post whose author cannot be told is an admin's to decide", () => {
+    // An author who cannot be told: an admin's decision, not any moderator's.
+    assert.equal(canReview("d", null), false);
+    assert.equal(canReview("d", null, "moderator"), false);
+    assert.equal(canReview("d", null, "admin"), true);
   });
 });
 

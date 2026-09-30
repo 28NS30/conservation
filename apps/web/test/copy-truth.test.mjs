@@ -278,20 +278,30 @@ describe("the copy does not contradict itself", () => {
     }
   });
 
-  test("why a record is blurred names the Red List, once the database does", () => {
-    // 0021 blurs the Red List's threatened categories. The pages that list why
-    // a record is blurred must say so, or a reader who checks a Vulnerable
-    // frog's rating and protection finds neither and concludes the map is
-    // hiding things at random.
+  test("why a record is blurred names the Red List exactly when the database does", () => {
+    // 0021 blurred the Red List's threatened categories and the pages said so;
+    // 0029 dropped that rule (owner decision, 30 September 2026). Whichever
+    // migration defines taxon_precision() last decides, and the pages that
+    // list why a record is blurred must agree with it either way: a reason the
+    // database does not apply is as misleading as one it does and nobody says.
     const MIGRATIONS = join(WEB, "..", "..", "supabase", "migrations");
-    const live = readdirSync(MIGRATIONS)
+    const defining = readdirSync(MIGRATIONS)
       .filter((f) => f.endsWith(".sql"))
-      .some((f) => /precision_from_redlist\(cur\.redlist\)/.test(readFileSync(join(MIGRATIONS, f), "utf8")));
-    if (!live) return;
+      .sort()
+      .map((f) => readFileSync(join(MIGRATIONS, f), "utf8"))
+      .filter((s) => /function public\.taxon_precision\b|function taxon_precision\b/.test(s))
+      .at(-1);
+    assert.ok(defining, "taxon_precision() is defined in no migration");
+    const live = /precision_from_redlist\(cur\.redlist\)/.test(defining);
     for (const key of ["statsPage.coverageBody", "season.obscuredNote", "about.privacyBody", "list.obscuredLegend"]) {
       const get = (l) => key.split(".").reduce((o, k) => o[k], catalogues[l]);
-      assert.match(get("en"), /threatened/, `en ${key}`);
-      assert.match(get("zh-TW"), /受威脅/, `zh-TW ${key}`);
+      if (live) {
+        assert.match(get("en"), /threatened/, `en ${key}`);
+        assert.match(get("zh-TW"), /受威脅/, `zh-TW ${key}`);
+      } else {
+        assert.doesNotMatch(get("en"), /threatened|Red List/, `en ${key}`);
+        assert.doesNotMatch(get("zh-TW"), /受威脅|紅皮書/, `zh-TW ${key}`);
+      }
     }
   });
 

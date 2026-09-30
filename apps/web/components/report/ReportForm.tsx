@@ -18,7 +18,9 @@ import {
   type ReportPage,
 } from "@conservation/shared";
 import { preparePhoto, type PreparedPhoto } from "@/lib/image";
-import { browserSupabase, PHOTO_BUCKET } from "@/lib/supabase/client";
+import { browserSupabase } from "@/lib/supabase/client";
+import { uploadPhoto } from "@/lib/report/upload";
+import { checkFields, observedInstant, sendableAccuracy } from "@/lib/report/fieldChecks";
 import { enqueue } from "@/lib/offline/queue";
 import { useOnline } from "@/lib/offline/online";
 import { outcomeOf } from "@/lib/report/outcome";
@@ -32,7 +34,7 @@ import {
   ReportError,
   describeFailure,
   PHOTO_UNREADABLE,
-  PHOTO_UPLOAD_FAILED,
+  isNetworkFailure,
   type ErrorKey,
   type ErrorSlot,
 } from "@/lib/report/errors";
@@ -161,6 +163,41 @@ function ReportFormFields({
    * answered this question already.
    */
   const [timeFromPhoto, setTimeFromPhoto] = useState(false);
+  /**
+   * The latest time the field offers, from this device's clock and only once
+   * it is running here. Rendered on the server it was the server's clock, in
+   * UTC, and hydration does not patch an attribute: the field opened eight
+   * hours "in the future" and invalid, and a copy kept for offline use could
+   * be days old.
+   */
+  const [maxTime, setMaxTime] = useState<string | undefined>(undefined);
+  /**
+   * The pinned send bar, measured so that a field scrolled into view lands
+   * above it (globals.css). Offline it holds three lines and runs to about
+   * 180 px, and a fixed 7rem left the focused field, 使用目前位置 included,
+   * underneath it.
+   */
+  const sendBar = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const bar = sendBar.current;
+    if (!bar || typeof ResizeObserver === "undefined") return;
+    const root = document.documentElement;
+    const measure = () =>
+      root.style.setProperty("--send-bar-height", `${Math.ceil(bar.getBoundingClientRect().height)}px`);
+    const observer = new ResizeObserver(measure);
+    observer.observe(bar);
+    measure();
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("--send-bar-height");
+    };
+  }, []);
+  useEffect(() => {
+    const tick = () => setMaxTime(toLocalInput(new Date()));
+    tick();
+    const id = window.setInterval(tick, 60_000);
+    return () => window.clearInterval(id);
+  }, []);
   const [timeEdited, setTimeEdited] = useState(false);
   const [notes, setNotes] = useState("");
   const [email, setEmail] = useState("");
@@ -275,16 +312,24 @@ function ReportFormFields({
       try {
         const room = MAX_PHOTOS - photos.length;
         const picked = Array.from(files).slice(0, room);
-        const prepared = await Promise.all(picked.map(preparePhoto));
+        // Each file on its own: one unreadable file (a HEIC on a desktop, a
+        // truncated download) used to throw away every photo picked with it.
+        const settled = await Promise.allSettled(picked.map(preparePhoto));
+        const prepared = settled.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
+        const unreadable = settled.find((r) => r.status === "rejected");
 
+        // Counted against what is on the form now, not when the pick began.
+        // The inputs are disabled while a pick is prepared, and this holds the
+        // cap even so: past it, the server refuses the whole report.
         setPhotos((prev) => [
           ...prev,
-          ...prepared.map((p) => ({
+          ...prepared.slice(0, Math.max(0, MAX_PHOTOS - prev.length)).map((p) => ({
             ...p,
             id: crypto.randomUUID(),
             previewUrl: URL.createObjectURL(p.blob),
           })),
         ]);
+        if (unreadable) fail(PHOTO_UNREADABLE, unreadable.reason);
 
         // Offer the photo's own GPS rather than applying it: the picture may have
         // been taken somewhere other than where it is being reported.
@@ -333,8 +378,10 @@ function ReportFormFields({
     page,
     lng: where.lng,
     lat: where.lat,
-    accuracyM: accuracyM ?? undefined,
-    observedAt: new Date(observedAt).toISOString(),
+    accuracyM: sendableAccuracy(accuracyM),
+    // Checked before anything calls this (fieldsOk), so the fallback is never
+    // what is sent.
+    observedAt: observedInstant(observedAt) ?? new Date().toISOString(),
     taxonId: species?.id,
     taxonUnknown: unsure || undefined,
     notes: notes.trim() || undefined,
@@ -351,6 +398,41 @@ function ReportFormFields({
   });
 
   /**
+   * The typed fields, against the server's own rules, before anything is sent
+   * or saved. A problem is shown beside its field, which is focused.
+   */
+  function fieldsOk(): boolean {
+    const problem = checkFields({
+      observedAt,
+      email,
+      creditName: license === "cc-by-4.0" ? creditName : undefined,
+    });
+    if (!problem) return true;
+    setError(problem);
+    const id = { time: "observedAt", contact: "email", credit: "creditName" }[problem.slot];
+    document.getElementById(id)?.focus();
+    return false;
+  }
+
+  /**
+   * Who is signed in on this device now, for a report being saved on it.
+   *
+   * Read from the browser's own session, never from the page: the report pages
+   * are kept for offline use and served to whoever opens them next. Undefined
+   * when it cannot be told (a session that needs refreshing without a
+   * signal), and the server then files it as it always did.
+   */
+  async function signedInAs(): Promise<string | undefined> {
+    try {
+      const { data, error } = await browserSupabase().auth.getSession();
+      if (error) return undefined;
+      return data.session?.user.id ?? "anonymous";
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
    * Keep the report on this phone, to be sent from the queue later.
    *
    * Reached four ways: the main button when the phone is offline, the two
@@ -360,6 +442,7 @@ function ReportFormFields({
    */
   async function saveOnPhone() {
     if (!location || !category) return;
+    if (!fieldsOk()) return;
     // Abandon anything in flight. Its photos may already be in the bucket and
     // its row may already be stored; the queue re-sends under the same nonce,
     // so the server answers that with the row it has rather than a second one.
@@ -371,7 +454,7 @@ function ReportFormFields({
     try {
       await enqueue({
         id: nonce.current,
-        payload: entered(location, category),
+        payload: { ...entered(location, category), filedBy: await signedInAs() },
         photos: photos.map((p) => p.blob),
       });
       window.dispatchEvent(new Event("conservation:queue-changed"));
@@ -392,6 +475,7 @@ function ReportFormFields({
     // Unreachable through the button, which is disabled without both, and the
     // sentence above it already says which requirement is unmet.
     if (!location || !category) return;
+    if (!fieldsOk()) return;
 
     const mine = ++liveSend.current;
     const stillMine = () => liveSend.current === mine;
@@ -428,22 +512,13 @@ function ReportFormFields({
         };
         if (!stillMine()) return;
 
-        const storage = browserSupabase().storage.from(PHOTO_BUCKET);
-        // The result was thrown away. supabase-js resolves with `{ error }`
-        // rather than rejecting, so a photograph that never reached the bucket
-        // looked exactly like one that did — and the report was then filed with
-        // a path pointing at nothing. flush.ts has always checked this.
-        const results = await Promise.all(
-          uploads.map((u, i) =>
-            storage.uploadToSignedUrl(u.path, u.token, photos[i].blob),
-          ),
+        // Rejects with NETWORK when a photo never reached the bucket, which
+        // saves the report on the phone below, and PHOTO_UPLOAD_FAILED when
+        // Storage refused it (lib/report/upload.ts).
+        await Promise.all(
+          uploads.map((u, i) => uploadPhoto(u.path, u.token, photos[i].blob)),
         );
         if (!stillMine()) return;
-        const bad = results.find((r) => r.error);
-        if (bad) {
-          console.error("[report] photo upload:", bad.error);
-          throw new ReportError(PHOTO_UPLOAD_FAILED);
-        }
         paths = uploads.map((u) => u.path);
       }
 
@@ -485,7 +560,7 @@ function ReportFormFields({
       // other failure is a real rejection and should be shown as one.
       const offline =
         typeof navigator !== "undefined" && navigator.onLine === false;
-      const networkish = offline || e instanceof TypeError;
+      const networkish = offline || isNetworkFailure(e);
 
       if (networkish) {
         await saveOnPhone();
@@ -742,6 +817,7 @@ function ReportFormFields({
       accept="image/*"
       capture="environment"
       className="sr-only"
+      disabled={preparing}
       onChange={(e) => {
         void addFiles(e.target.files);
         e.target.value = "";
@@ -754,6 +830,7 @@ function ReportFormFields({
       accept="image/*"
       multiple
       className="sr-only"
+      disabled={preparing}
       onChange={(e) => {
         void addFiles(e.target.files);
         e.target.value = "";
@@ -1025,6 +1102,7 @@ function ReportFormFields({
           onChange={setSpecies}
           unsure={unsure}
           onUnsure={setUnsure}
+          hasEntries={photos.length > 0 || location !== null || notes.trim() !== ""}
         />
         {errorIn("species")}
       </section>
@@ -1047,14 +1125,16 @@ function ReportFormFields({
             id="observedAt"
             type="datetime-local"
             value={observedAt}
-            max={toLocalInput(new Date())}
+            max={maxTime}
             onChange={(e) => {
               setObservedAt(e.target.value);
               setTimeEdited(true);
               setTimeFromPhoto(false);
             }}
+            aria-invalid={error?.slot === "time" || undefined}
             className="min-h-12 w-full rounded-lg border border-ink-900/20 bg-paper-100 px-3 py-2 text-base text-ink-900"
           />
+          {errorIn("time")}
         </div>
 
         <div>
@@ -1089,9 +1169,11 @@ function ReportFormFields({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
+            aria-invalid={error?.slot === "contact" || undefined}
             className="min-h-12 w-full rounded-lg border border-ink-900/20 bg-paper-100 px-3 py-2 text-base text-ink-900"
           />
           <p className="mt-1 text-sm text-ink-600">{t("emailHelp")}</p>
+          {errorIn("contact")}
         </div>
       </section>
 
@@ -1137,9 +1219,11 @@ function ReportFormFields({
               value={creditName}
               onChange={(e) => setCreditName(e.target.value)}
               autoComplete="nickname"
+              aria-invalid={error?.slot === "credit" || undefined}
               className="min-h-12 w-full rounded-lg border border-ink-900/20 bg-paper-50 px-3 py-2 text-base text-ink-900"
             />
             <p className="mt-1 text-sm text-ink-600">{t("creditHint")}</p>
+            {errorIn("credit")}
           </div>
         )}
         {asksPartners && (
@@ -1216,6 +1300,7 @@ function ReportFormFields({
           an iPhone's home bar.
       */}
       <div
+        ref={sendBar}
         id="report-send-bar"
         className="sticky bottom-0 z-10 -mx-5 space-y-2 border-t border-ink-900/10 bg-paper-50/95 px-5 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-sm sm:-mx-8 sm:px-8"
       >

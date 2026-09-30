@@ -23,10 +23,17 @@ describe("nobody reviews their own post", () => {
   test("the author comes from the post's metadata when the post has lost it", () => {
     assert.match(moderation, /coalesce\(p\.author_id,\s+\(select pm\.author_id from forum_post_meta pm where pm\.post_id = p\.id\)\)/);
     // Every query that feeds canReview reads the author that way.
-    const reviews = moderation.match(/if \(!canReview\(actor\.id, post\.author_id\)\)/g) ?? [];
+    const reviews = moderation.match(/if \(!canReview\(actor\.id, post\.author_id, actor\.role\)\)/g) ?? [];
     const reads = moderation.match(/select \$\{POST_AUTHOR\} as author_id/g) ?? [];
     assert.ok(reviews.length >= 4);
     assert.equal(reads.length, reviews.length, "a review reads the author without the fallback");
+  });
+});
+
+describe("a post whose author cannot be told", () => {
+  test("is an admin's to decide, and its metadata is kept while it is held", () => {
+    assert.match(read("lib", "forum", "policy.ts"), /if \(authorId === null\) return actorRole === "admin";/);
+    assert.match(retention, /and p\.status <> 'held'/);
   });
 });
 

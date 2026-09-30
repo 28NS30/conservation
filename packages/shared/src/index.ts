@@ -582,6 +582,28 @@ export const MAX_CREDIT_NAME = 60;
  */
 export const PARTNER_SHARING_PAGES: readonly ReportPage[] = ["roadkill"];
 
+/**
+ * The rules on fields a person types, shared by the form and the server.
+ *
+ * The form used to check none of them, so a slip the server refused — an
+ * address with no domain ending, a handle beginning with @, a time in the
+ * future — came back online as one generic sentence at the bottom of the form,
+ * and a report saved on the phone failed in the queue, where it cannot be
+ * edited (security audit, 29 September 2026). Checked on both sides from one
+ * definition, they cannot disagree.
+ */
+export const contactEmailSchema = z.email();
+export const creditNameSchema = z
+  .string()
+  .trim()
+  .max(MAX_CREDIT_NAME)
+  .refine((v) => !v.includes("@"), { message: "a credit name is not an email address" });
+/** Clock drift allowed on observedAt, and the earliest date it may name. */
+export const OBSERVED_AT_SLACK_MS = 5 * 60_000;
+export const OBSERVED_AT_EARLIEST = "1990-01-01";
+/** Beyond this the device's accuracy says nothing a null does not (CHECK in 0010). */
+export const MAX_ACCURACY_M = 100_000;
+
 export const reportSubmissionSchema = z
   .object({
     category: z.enum(CATEGORY_KEYS as [Category, ...Category[]]),
@@ -602,7 +624,7 @@ export const reportSubmissionSchema = z
      * upper bound matches the CHECK in 0010: beyond it the number says nothing a
      * null does not.
      */
-    accuracyM: z.coerce.number().int().min(0).max(100_000).optional(),
+    accuracyM: z.coerce.number().int().min(0).max(MAX_ACCURACY_M).optional(),
     /**
      * What the reporter says it is. Consequential: naming a species is what
      * sets the published location precision, because the trigger derives the
@@ -619,7 +641,7 @@ export const reportSubmissionSchema = z
     taxonUnknown: z.boolean().optional(),
     notes: z.string().trim().max(MAX_NOTES).optional(),
     /** Optional, so we can follow up on an interesting record. Never displayed. */
-    contactEmail: z.email().optional(),
+    contactEmail: contactEmailSchema.optional(),
     /** Storage paths returned by /api/uploads/sign, already uploaded by the client. */
     photoPaths: z
       .array(z.string().min(1))
@@ -636,12 +658,7 @@ export const reportSubmissionSchema = z
      */
     license: z.enum(CONTRIBUTOR_LICENSE_KEYS as [ContributorLicense, ...ContributorLicense[]]).optional(),
     /** The name to credit, a nickname by preference. Never an email address. */
-    creditName: z
-      .string()
-      .trim()
-      .max(MAX_CREDIT_NAME)
-      .refine((v) => !v.includes("@"), { message: "a credit name is not an email address" })
-      .optional(),
+    creditName: creditNameSchema.optional(),
     /** Share with research partners (TaiRON), exact location included. Starts unticked. */
     sharePartners: z.boolean().optional(),
     consentVersion: z.string().max(20).optional(),
@@ -651,16 +668,23 @@ export const reportSubmissionSchema = z
      * reads the sender's role from the database and refuses anyone else.
      */
     test: z.boolean().optional(),
+    /**
+     * Who was signed in when a report was saved on the phone: an account id,
+     * or "anonymous". The server files it under that and nobody else. Absent
+     * from a report sent straight from the form, which is filed under the
+     * session that sends it.
+     */
+    filedBy: z.union([z.uuid(), z.literal("anonymous")]).optional(),
   })
   .refine((r) => !(r.taxonId && r.taxonUnknown), {
     message: "a report cannot both name a species and be unidentifiable",
     path: ["taxonUnknown"],
   })
-  .refine((r) => new Date(r.observedAt) <= new Date(Date.now() + 5 * 60_000), {
+  .refine((r) => new Date(r.observedAt) <= new Date(Date.now() + OBSERVED_AT_SLACK_MS), {
     message: "observedAt cannot be in the future",
     path: ["observedAt"],
   })
-  .refine((r) => new Date(r.observedAt) >= new Date("1990-01-01"), {
+  .refine((r) => new Date(r.observedAt) >= new Date(OBSERVED_AT_EARLIEST), {
     message: "observedAt is implausibly old",
     path: ["observedAt"],
   });
@@ -689,20 +713,6 @@ export function requiresClassification(
  */
 export const UNIDENTIFIED_PRECISION: LocationPrecision = "coarse_10km";
 
-/**
- * The least a report filed on the invasive page is blurred by, named or not.
- *
- * A named invasive species is very often a guess at a look-alike: 25 invasive
- * animals share a genus with a protected native (白尾八哥 and 家八哥 beside 八哥,
- * 家麻雀 beside the Class I 山麻雀), and the reporter's word is what sets the
- * blur. So until a person has checked the species, the record is public but
- * no finer than this — the team's default for Q4 in the plan.
- *
- * Stamped as `precision_override` at submission, and kept through every later
- * naming (lib/report/precision.ts, keepDeliberateOverride). When a moderator's
- * confirmation may lift it is the owner's decision, and nothing lifts it yet.
- */
-export const UNVERIFIED_INVASIVE_PRECISION: LocationPrecision = "coarse_10km";
 
 /* ------------------------------------------------------------------ *
  * Tile strategy

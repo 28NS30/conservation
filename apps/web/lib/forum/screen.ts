@@ -123,11 +123,14 @@ export function normalise(text: string): string {
     .replace(/''/g, '"')
     .replace(/[\u00BA\u02DA\u2070]/g, "°")
     .replace(/[、，]/g, ",")
-    // An ideographic full stop after a whole number and before digits is its
-    // decimal point: NFKC keeps "。", so "２５。０３３０" would otherwise be two
-    // numbers. After a number that already has one ("25.0330。121.5654") it
-    // is a separator, and stays one.
-    .replace(/(?<![\d.])(\d+)。(?=\d)/g, "$1.")
+    // An ideographic full stop between two runs of digits is a decimal point
+    // when it could be one: NFKC keeps "。", so "２５。０３３０" would otherwise
+    // be two numbers. Not after a number that already has one
+    // ("25.0330。121.5654"), not after a time or a date ("7:30。25.0330"), and
+    // not when the digits after it carry their own point ("1。25.0330"): there
+    // it ends a sentence, and reading it as a point hid the coordinate that
+    // followed (review of the security fixes, 30 September 2026).
+    .replace(/(?<![\d.:\/])(\d{1,3})。(?=\d+(?![\d.]))/g, "$1.")
     .replace(/%[0-9a-f]{2}/gi, (m) => decodePunctuationEscapes(m));
 }
 
@@ -153,11 +156,13 @@ type Token = { start: number; end: number; value: number };
 const DMS = /(\d{1,3}(?:\.\d+)?)\s*(?:°|度)\s*(\d{1,2}(?:\.\d+)?)\s*(?:'|分)\s*(?:(\d{1,2}(?:\.\d+)?)\s*(?:"|秒))?/g;
 
 /** A decimal number with at least one digit after the point. */
-const DECIMAL = /(?<![\d.])(\d{1,3}\.\d+)(?![\d.])/g;
+// A full stop after the number ends a sentence; only a point followed by a
+// digit continues the number ("121.5654." is a coordinate at the end of one).
+const DECIMAL = /(?<![\d.])(\d{1,3}\.\d+)(?!\d|\.\d)/g;
 
 /** TWD97 easting (six digits) and northing (seven, 24xxxxx–28xxxxx). */
-const TWD97_E = /(?<![\d.])([1-3]\d{5})(?:\.\d+)?(?![\d.])/g;
-const TWD97_N = /(?<![\d.])(2[4-8]\d{5})(?:\.\d+)?(?![\d.])/g;
+const TWD97_E = /(?<![\d.])([1-3]\d{5})(?:\.\d+)?(?!\d|\.\d)/g;
+const TWD97_N = /(?<![\d.])(2[4-8]\d{5})(?:\.\d+)?(?!\d|\.\d)/g;
 
 /**
  * What may sit between the two halves of a coordinate pair: separators,
@@ -178,14 +183,14 @@ function isPairGap(gap: string): boolean {
 }
 
 /**
- * Two numbers each given to three or more decimal places (about 100 m or
+ * Two numbers each given to two or more decimal places (about 1 km or
  * finer), close together and a place in Taiwan as a pair, are a coordinate
  * whatever is written between them: "lat 25.0330 and lng 121.5654". Words
  * between two rougher numbers are left alone, so "measured 23.5 and 120.5"
  * still goes through.
  */
 const PRECISE_GAP = 40;
-const precise = (text: string, t: Token) => /\.\d{3,}/.test(text.slice(t.start, t.end));
+const precise = (text: string, t: Token) => /\.\d{2,}/.test(text.slice(t.start, t.end));
 
 function findCoordinates(text: string): string[] {
   const hits: string[] = [];
@@ -255,11 +260,13 @@ const MAP_LINKS: RegExp[] = [
   /(?<![a-z])geo:\s*-?\d/,
   // what3words' own notation: ///filled.count.soap, in any script.
   /\/\/\/[\p{L}]+\.[\p{L}]+\.[\p{L}]+/u,
-  // Short links of every kind, whatever the account's age. Any of them can
-  // point at a pinned map, and none can be opened here to see; only the map
-  // services' own shorteners were held, and bit.ly or reurl.cc went through
-  // from any account older than a week (security audit, 29 September 2026).
-  /(?<![a-z0-9-])(?:bit\.ly|reurl\.cc|lihi\d?\.(?:cc|com|me)|tinyurl\.com|tiny\.cc|g\.page|goo\.gl|t\.co|t\.ly|is\.gd|v\.gd|x\.gd|ow\.ly|buff\.ly|pse\.is|ppt\.cc|0rz\.tw|rebrand\.ly|cutt\.ly|shorturl\.at|rb\.gy|s\.id|b23\.tv)\/\S/,
+  // Short links of every kind we know of, whatever the account's age. Any of
+  // them can point at a pinned map, and none can be opened here to see; only
+  // the map services' own shorteners were held, and bit.ly or reurl.cc went
+  // through from any account older than a week (security audit, 29 September
+  // 2026). A list is best effort: a shortener not on it, or one on its own
+  // domain, still goes through, and a flag is the defence there.
+  /(?<![a-z0-9-])(?:bit\.ly|reurl\.cc|lihi\d?\.(?:cc|com|me)|tinyurl\.com|tiny\.cc|g\.page|goo\.gl|t\.co|t\.ly|is\.gd|v\.gd|x\.gd|ow\.ly|buff\.ly|pse\.is|ppt\.cc|0rz\.tw|rebrand\.ly|cutt\.ly|shorturl\.at|rb\.gy|s\.id|b23\.tv|lurl\.cc|myppt\.cc|dub\.sh|bit\.do|urlr\.me|psee\.io|shorturl\.asia|t2m\.io|tinyurl\.hu)\/\S/,
 ];
 
 /** Open Location Code: 4–8 characters of its alphabet, a plus, 2–3 more. */

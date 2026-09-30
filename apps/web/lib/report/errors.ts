@@ -50,10 +50,14 @@ export type ErrorKey =
   | "test_not_allowed"
   | "validation_failed"
   | "network"
-  | "server";
+  | "server"
+  | "signed_in_as_someone_else"
+  | "timeInvalid"
+  | "emailInvalid"
+  | "creditInvalid";
 
 /** Which part of the form the sentence belongs beside. */
-export type ErrorSlot = "photo" | "species" | "form";
+export type ErrorSlot = "photo" | "species" | "time" | "contact" | "credit" | "form";
 
 /**
  * The client's own word for a photograph it could not read at all — a file the
@@ -99,6 +103,10 @@ export function errorKey(code: string | null | undefined): ErrorKey {
   // opened while signed out, or by the wrong account.
   if (code === "test_not_allowed") return "test_not_allowed";
   if (code === "validation_failed") return "validation_failed";
+  // A report saved on this phone under one account, with another signed in
+  // now (or none). It waits for its own account rather than being filed under
+  // someone else's; see the route.
+  if (code === "signed_in_as_someone_else") return "signed_in_as_someone_else";
   if (
     code === PHOTO_UPLOAD_FAILED ||
     code === "sign_failed" ||
@@ -118,6 +126,9 @@ export function errorKey(code: string | null | undefined): ErrorKey {
  */
 export function slotOf(key: ErrorKey): ErrorSlot {
   if (key === "photo" || key === "photoUnreadable") return "photo";
+  if (key === "timeInvalid") return "time";
+  if (key === "emailInvalid") return "contact";
+  if (key === "creditInvalid") return "credit";
   if (key === "taxon_not_found" || key === "taxon_out_of_scope") return "species";
   return "form";
 }
@@ -129,4 +140,23 @@ export function describeFailure(code: string | null | undefined): {
 } {
   const key = errorKey(code);
   return { key, slot: slotOf(key) };
+}
+
+/**
+ * Whether a failure means the request never reached us (or never came back).
+ *
+ * Not something wrong with the report, so the form saves it on the phone and
+ * the queue spends no attempt on it. A photograph that could not be uploaded
+ * for want of signal used to count as a refused photograph: the form told the
+ * reporter to take their photos off, and the queue wore a sound report down to
+ * `failed` (security audit, 29 September 2026). See lib/report/upload.ts.
+ */
+export function isNetworkFailure(e: unknown): boolean {
+  if (e instanceof ReportError) return e.code === NETWORK;
+  if (e instanceof TypeError) return true;
+  return (
+    typeof DOMException !== "undefined" &&
+    e instanceof DOMException &&
+    (e.name === "TimeoutError" || e.name === "NetworkError")
+  );
 }

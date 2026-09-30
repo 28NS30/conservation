@@ -160,14 +160,16 @@ export const REQUIRED_SCHEMA: SchemaCheck[] = [
                             and indexname = 'report_photos_storage_path_key') as ok`,
   },
   {
-    // A rule check again: 0021 replaces 0014's taxon_precision(), so re-running
-    // 0014 alone would quietly drop the Red List term while every object still
-    // exists. The function body is what says which rule is live.
-    name: "0021 a threatened species on Taiwan's Red List is blurred",
+    // A rule check again: 0029 replaces 0021's taxon_precision() without its
+    // Red List term (owner decision, 30 September 2026). Re-running 0021 alone
+    // would quietly put the term back, blurring records the owner decided to
+    // show, while every object still exists. The function body says which rule
+    // is live.
+    name: "0029 the blur follows the protected list and TaiCOL, not the Red List",
     sql: `select exists (
             select 1 from pg_proc
              where proname = 'taxon_precision'
-               and prosrc like '%precision_from_redlist(%') as ok`,
+               and prosrc not like '%precision_from_redlist(%') as ok`,
   },
   {
     // Read, not written, but read by every public surface at once: the map's

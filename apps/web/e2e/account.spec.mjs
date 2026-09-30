@@ -10,7 +10,8 @@
  *   ticking it and pressing deletes the account and sends them home;
  *   the report stays, with no reporter and no contact address;
  *   the profile is gone, and the password no longer signs in;
- *   /me no longer knows them.
+ *   /me no longer knows them, and no record of their own confirmations
+ *   names them (security audit, 29 September 2026).
  *
  * Accounts come from the local Supabase or CI's stand-in (test/stub-gotrue.mjs),
  * as in e2e/forum.spec.mjs. Exits non-zero on any failure.
@@ -72,6 +73,10 @@ try {
             st_setsrid(st_makepoint(120.9, 23.8), 4326)::geography,
             now(), 'pending', 'user', ${userId}::uuid, ${email})
     returning id`;
+  // Their own species confirmation, which records them as its actor.
+  await sql`
+    insert into moderation_actions (report_id, actor_id, action, reason)
+    values (${reportId}::uuid, ${userId}::uuid, 'retaxon', 'reporter confirm')`;
 
   const { error, cookies } = await signIn(email, password);
   if (error) throw new Error(`could not sign the test account in: ${error.message}`);
@@ -104,6 +109,9 @@ try {
   check("the report stays", Boolean(report));
   check("with no reporter", report?.reporter_id === null);
   check("and no contact address", report?.contact_email === null);
+  const [linked] = await sql`
+    select count(*)::int as n from moderation_actions where actor_id = ${userId}::uuid`;
+  check("and no moderation record names them", linked.n === 0);
   const [profile] = await sql`select count(*)::int as n from profiles where id = ${userId}::uuid`;
   check("the profile is gone", profile.n === 0);
   check("the password no longer signs in", Boolean((await signIn(email, password)).error));

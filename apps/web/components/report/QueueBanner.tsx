@@ -11,7 +11,7 @@ import {
   type QueuedReport,
 } from "@/lib/offline/queue";
 import { Link } from "@/i18n/navigation";
-import { flushQueue, startFlushTriggers } from "@/lib/offline/flush";
+import { flushQueue, startFlushTriggers, currentlySending } from "@/lib/offline/flush";
 import Turnstile from "@/components/report/Turnstile";
 import { turnstileEnabled } from "@/lib/turnstile";
 import { receiptLinkFor } from "@/lib/report/outcome";
@@ -51,6 +51,8 @@ export default function QueueBanner() {
   /** Reports that have landed, kept as receipts. See markUploaded. */
   const [sent, setSent] = useState<QueuedReport[]>([]);
   const [busy, setBusy] = useState(false);
+  /** The report a flush is sending now; it cannot be discarded mid-send. */
+  const [sendingId, setSendingId] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
   const [ready, setReady] = useState(!turnstileEnabled);
 
@@ -77,6 +79,7 @@ export default function QueueBanner() {
     // Computed here rather than during render: Date.now() is impure and would
     // make the component's output depend on when it happened to re-render.
     setStale(waiting.some((i) => Date.now() - i.createdAt > STALE_AFTER_MS));
+    setSendingId(currentlySending());
   }, [STALE_AFTER_MS, RECEIPT_TTL_MS]);
 
   /** Hand out one token, then start minting the next. */
@@ -195,7 +198,11 @@ export default function QueueBanner() {
       */}
       <ul className="mt-1.5 space-y-1">
         {sent.map((r) => {
-          const link = r.reportId ? receiptLinkFor(r.serverStatus) : null;
+          // With the server's `visible`, as the form's own receipt has it: a
+          // withheld species is published but has no page, and this was a 404.
+          const link = r.reportId
+            ? receiptLinkFor(r.serverStatus, r.serverVisible !== false)
+            : null;
           const label = `${new Date(r.payload.observedAt).toLocaleDateString(
             locale,
             { timeZone: "Asia/Taipei" },
@@ -306,13 +313,18 @@ export default function QueueBanner() {
                   </span>
                 )}
               </span>
+              {/* Not while it is being sent. The flush already holds the report
+                  and would file it anyway, and the reporter, told it was
+                  deleted, would have no receipt for a report now public. */}
               <button
                 type="button"
+                disabled={sendingId === i.id}
                 onClick={async () => {
+                  if (currentlySending() === i.id) return;
                   await removeQueued(i.id);
                   await refresh();
                 }}
-                className="inline-flex min-h-11 shrink-0 items-center px-2 text-ink-700 underline underline-offset-2 hover:text-ink-950"
+                className="inline-flex min-h-11 shrink-0 items-center px-2 text-ink-700 underline underline-offset-2 hover:text-ink-950 disabled:cursor-not-allowed disabled:text-ink-600 disabled:no-underline"
               >
                 {t("discard")}
               </button>
