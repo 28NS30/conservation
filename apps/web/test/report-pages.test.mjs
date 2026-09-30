@@ -6,8 +6,9 @@
  * lose: every old link still lands somewhere sensible, the server holds a
  * submission to the page it came from — a native animal cannot be filed from
  * the invasive page, a live sighting cannot be filed from the roadkill page —
- * and a report from the invasive page stays blurred to at least 10 km,
- * however it is later named.
+ * and a named invasive species is published at its exact spot, from the
+ * invasive page as from any other (owner decision, 30 September 2026;
+ * migration 0029).
  *
  * Reports are POSTed for real — the API holds its own connection, so a
  * transaction here could not see them — and deleted by client nonce
@@ -311,23 +312,26 @@ describe("the server holds a report to its page", () => {
   });
 });
 
-describe("an invasive-page report stays blurred until someone checks it", () => {
-  test("named, it is still held at 10 km", async () => {
-    // 多線真稜蜥 has no sensitivity rating, so named anywhere else it is
-    // published exactly. On the invasive page the name is the doubtful part.
+describe("an invasive-page report is blurred only for what any report is blurred for", () => {
+  test("named, it is published exactly, as on any other page", async () => {
+    // 多線真稜蜥 has no sensitivity rating. The invasive page used to hold it at
+    // 10 km until a moderator checked it; the owner lifted that hold.
     const skink = await taxon(SKINK);
-    const invasive = await submit({ page: "invasive", category: "invasive", taxonId: skink });
-    assert.equal(invasive.row.precision_override, "coarse_10km");
-    assert.equal(invasive.row.location_precision, "coarse_10km");
-
-    const wildlife = await submit({ page: "wildlife", category: "sighting", taxonId: skink });
-    assert.equal(wildlife.row.precision_override, null, "the hold is the invasive page's alone");
-    assert.equal(wildlife.row.location_precision, "exact");
+    for (const [page, category] of [["invasive", "invasive"], ["wildlife", "sighting"]]) {
+      const r = await submit({ page, category, taxonId: skink });
+      assert.equal(r.row.precision_override, null, page);
+      assert.equal(r.row.location_precision, "exact", page);
+    }
   });
 
-  test("naming it later, by any path, does not lift the hold", async () => {
+  test("unnamed, it keeps the unidentified blur until it is named", async () => {
+    const r = await submit({ page: "invasive", category: "invasive", taxonUnknown: true });
+    assert.equal(r.row.location_precision, "coarse_10km");
+  });
+
+  test("naming it later clears the stamp as on any page, and keeps a stricter hold", async () => {
     // The fragment every naming path uses, read from the source so that this
-    // fails if the invasive clause is taken back out of it.
+    // fails if the fragment starts treating one page differently again.
     const src = readFileSync(
       join(import.meta.dirname, "..", "lib", "report", "precision.ts"),
       "utf8",
@@ -353,8 +357,8 @@ describe("an invasive-page report stays blurred until someone checks it", () => 
         select id, precision_override, location_precision from reports
          where id in (${held.id}, ${plain.id}, ${retired.id})`;
       const by = Object.fromEntries(rows.map((r) => [r.id, r]));
-      assert.equal(by[held.id].precision_override, "coarse_10km", "the invasive page's hold was lifted");
-      assert.equal(by[held.id].location_precision, "coarse_10km");
+      assert.equal(by[held.id].precision_override, null, "an invasive-page stamp outlived the naming");
+      assert.equal(by[held.id].location_precision, "exact");
       assert.equal(by[plain.id].precision_override, null, "an ordinary unidentified stamp still clears");
       assert.equal(by[retired.id].precision_override, "coarse_50km", "a stricter hold was cleared by naming");
     });
