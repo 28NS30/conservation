@@ -10,7 +10,7 @@ This file exists so that stops happening. It records **verified** production
 state, with the date, the method, and — where it matters — an explicit "not
 known". It is not a plan and contains no intentions.
 
-Last verified **25 September 2026, 19:40 (Asia/Taipei)**; the "Changed on" sections were each verified on their day, the latest on **29 September 2026, 16:55**.
+Last verified **25 September 2026, 19:40 (Asia/Taipei)**; the "Changed on" sections were each verified on their day, the latest on **30 September 2026, 22:45**.
 
 ## How these were checked
 
@@ -242,6 +242,89 @@ the team's design on every inner page (#106) and the error pages (#111); the
 moderation queue readable on a phone in the moderator's language (#108); a
 person can delete their own account from /me (#109); the AI's suggestions and
 the stats page made readable (#110, #112).
+
+## Changed on 30 September 2026
+
+Verified through the Management API and over HTTP, 30 September, 22:45. The
+ledger holds 28 rows, through 0029; `reports_public` has **46,336** records;
+`taxon_precision_floors` has 86 rows; and, after the blur decision below,
+**no** record with a species is shown more exactly than its species' rule or
+its binomial's allows (0 rows), no public report without a species is exact
+(0), and no record of an unrated invasive species is still blurred (0).
+
+**The security audit and its review.** An audit of the whole site on 29
+September confirmed 66 problems; a review of the fixes on 30 September
+confirmed 20 more in the fixes themselves. All are fixed in #119–#130 and live,
+except the ML service's (below). In the database:
+
+- **Migrations 0024–0029 are applied**, each dry-run first, each with its
+  ledger row. 0024: no function the site defines can be called through the
+  REST API. 0025: a blurred record publishes no notes, and the model's
+  suggestions only where every candidate's blur is no finer than the record's.
+  0026: when a rating tightens, records named under the same binomial re-blur.
+  0027: one report per photograph. 0028: an index on
+  `binomial_of(scientific_name)` (the record page's suggestions check had
+  scanned all of `taxa` 25 times per view: 1,222 ms, now 13 ms) and the
+  `search_path` pins restored. 0029: the owner's blur decision, below.
+- **Auth:** the sign-in code lasts 15 minutes (`mailer_otp_exp` 3600 → 900).
+  The code-only email templates could not be set: Supabase refuses template
+  changes on the free tier's default mailer until custom SMTP exists, so the
+  sign-in email is still a link and a code. `docs/owner-setup.md` §1.5 says
+  what to paste once SMTP is set up. Captcha on sign-in is still off (§1.6).
+- **Accounts:** 0 users, 0 moderators. A session opened with a password is
+  refused (#125).
+
+**The owner's blur decision (0029).** The team asked that only protected
+species be blurred, and no invasive ones. The owner chose: a record of an
+invasive species is exact, unless the species is also protected or rated; a
+record with no species stays at 10 km until named; the blur follows the
+protected list and TaiCOL's sensitivity ratings, no longer Taiwan's Red List;
+TaiCOL's 重度 stays 50 km and 座標不開放 stays hidden. 118 records became exact
+(102 blurred only by the Red List, 16 of invasive species), and blurred
+records went from 7,371 to 7,253. The three floors removed were three plants'
+(鈍頭落芒草, 粗毛懸鉤子, 台灣萍蓬草) whose only reason was a Red List rating;
+黃魚鴞, 黃鸝 and 熊鷹 keep their 50 km floors. The migration refuses to loosen
+anything else.
+
+**The first reports from the public**, 30 September at 08:50 and 09:27 UTC:
+two, from the invasive page, anonymous, each with a photo, an email and notes
+(the team testing). Each was classified within 31 seconds (band high, five
+suggestions). Checked from outside: neither the record page nor
+`/api/reports/{id}` carries the exact point, the notes or the email, and both
+served photos are WebP with no EXIF at all. Under 0029 both are shown at their
+exact spot, as an invasive species; both await a moderator's verification,
+and there is no moderator yet.
+
+**The team's feedback (#131), live from `d43fe5b`:**
+- Chinese unless someone chooses English: `localeDetection: false`, so an
+  English-language browser gets Chinese at an unprefixed address.
+- The pages speak for the team, not one person.
+- One photo picker, and the photo's GPS fills the location. The published copy
+  is still stripped of its metadata.
+- Every report from the form is CC0, with no credit field (consent version
+  2026-09-30).
+- The model suggests species as soon as a photo is added (`POST
+  /api/identify`, stores nothing, capped at 1,500 a day for the site).
+
+Checked over HTTP after the deploy:
+- `/report` with `Accept-Language: en-US` answers 200 in `zh-TW`.
+- `/api/identify` answers 400 to malformed bodies. It identified the site's own
+  green iguana photo on the invasive page as 綠鬛蜥, 98.5%, band high, in 16 s.
+  It also listed two species under 1%, which #134 stops offering.
+- `/terms` states CC0, and no page names one person as running the site.
+
+**Not deployed: the ML service's fixes (#123).** `modal deploy` stopped at
+Modal's payment check. The live service is still v2 of 5 August, and it works
+(it classified the two reports above, and answers `/api/identify`). Until the
+owner adds a payment method (owner-setup §4), a request without the token
+still starts a GPU, and the service still fetches an `imageUrl`.
+
+**Not applied: 0030 (the forum's votes, #132).** The forum is off; 0030 is
+applied once #132 merges.
+
+**From this machine:** for some hours on 29–30 September the network's DNS
+answered every `*.vercel.app` name with a local address. GitHub's deployment
+records showed production healthy throughout, and it cleared by itself.
 
 ## Known outstanding, on the credential holder
 
