@@ -451,7 +451,9 @@ describe("the location picker before anything is chosen", () => {
   test("the helper under the map matches whether there is a pin", () => {
     // "Tap the map to adjust" is about a pin that exists; before one does, the
     // instruction is to make one.
-    assert.match(FORM, /\{location \? t\("tapToAdjust"\) : t\("needLocation"\)\}/);
+    // Or, for a place read from the photo, where it came from (team
+    // feedback, 30 September 2026).
+    assert.match(FORM, /\{location \? t\(locationFromPhoto \? "locationFromPhoto" : "tapToAdjust"\) : t\("needLocation"\)\}/);
   });
 
   test("a refused fix says so, instead of repeating the helper text", () => {

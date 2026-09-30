@@ -147,7 +147,6 @@ describe("words that give a location are held for a moderator", () => {
   for (const [what, extra] of [
     ["coordinates in the notes", { notes: "found at 25.0330, 121.5654 by the road" }],
     ["a map link in the notes", { notes: "https://maps.app.goo.gl/abc123 here" }],
-    ["coordinates in the credit name", { license: "cc-by-4.0", creditName: "25.0330 121.5654" }],
   ]) {
     test(what, async (t) => {
       if (!(await fetch(BASE_URL).catch(() => null))) return t.skip(`no server at ${BASE_URL}`);
@@ -167,6 +166,40 @@ describe("words that give a location are held for a moderator", () => {
       const [row] = await sql`select status, flagged_reason from reports where client_nonce = ${clientNonce}`;
       assert.equal(row.status, "pending", "a location in words was published without review");
       assert.equal(row.flagged_reason, "a location in the notes or credit");
+    });
+  }
+});
+
+describe("a credit name that gives a place or a way to reach someone is not kept", () => {
+  const nonces = [];
+  after(async () => {
+    await sql`delete from reports where client_nonce = any(${nonces})`;
+  });
+
+  for (const [what, creditName, kept] of [
+    ["coordinates", "25.0330 121.5654", null],
+    ["a map link", "maps.app.goo.gl/abc123", null],
+    ["a phone number", "0912-345-678", null],
+    ["a nickname", "小明", "小明"],
+  ]) {
+    test(`${what}: ${kept ? "kept" : "dropped, and the report is not held for it"}`, async (t) => {
+      if (!(await fetch(BASE_URL).catch(() => null))) return t.skip(`no server at ${BASE_URL}`);
+      await sql`delete from rate_limits where key like 'submit-%'`;
+      const clientNonce = randomUUID();
+      nonces.push(clientNonce);
+      const res = await fetch(`${BASE_URL}/api/reports`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          category: "sighting", page: "wildlife", lng: 121.5, lat: 25.0,
+          observedAt: new Date().toISOString(), photoPaths: [], clientNonce,
+          taxonUnknown: true, license: "cc-by-4.0", creditName,
+        }),
+      });
+      assert.equal(res.status, 201);
+      const [row] = await sql`select rights_holder, flagged_reason from reports where client_nonce = ${clientNonce}`;
+      assert.equal(row.rights_holder, kept);
+      assert.doesNotMatch(row.flagged_reason ?? "", /location|contact/);
     });
   }
 });
