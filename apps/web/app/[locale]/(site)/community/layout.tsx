@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { hasLocale } from "next-intl";
+import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { notFound } from "next/navigation";
-import { setRequestLocale } from "next-intl/server";
+import { getMessages, setRequestLocale } from "next-intl/server";
+import { clientMessages, FORUM_NAMESPACES } from "@/i18n/clientMessages";
 import { routing } from "@/i18n/routing";
 import { requireForum } from "@/lib/forum/server";
 
@@ -29,6 +30,10 @@ import { requireForum } from "@/lib/forum/server";
  * site is built: a page prerendered by a build with the forum off would go on
  * answering 404 after the switch was turned on, and one built with it on would
  * go on answering after it was turned off.
+ *
+ * MESSAGES. The root layout gives the browser only the namespaces client code
+ * outside the forum reads (i18n/clientMessages.ts); the forum's own are added
+ * here, so no other page carries them.
  */
 export const dynamic = "force-dynamic";
 
@@ -47,5 +52,9 @@ export default async function CommunityLayout({
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
   setRequestLocale(locale);
-  return <div className="mx-auto w-full max-w-4xl px-4 pb-24 pt-8 sm:px-6 sm:pt-12">{children}</div>;
+  return (
+    <NextIntlClientProvider messages={clientMessages(await getMessages(), FORUM_NAMESPACES)}>
+      <div className="mx-auto w-full max-w-4xl px-4 pb-24 pt-8 sm:px-6 sm:pt-12">{children}</div>
+    </NextIntlClientProvider>
+  );
 }

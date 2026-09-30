@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
+import { clientMessages } from "@/i18n/clientMessages";
 import { routing } from "@/i18n/routing";
 import ServiceWorker from "@/components/ServiceWorker";
 import { Analytics } from "@vercel/analytics/next";
@@ -67,7 +68,8 @@ export default async function LocaleLayout({
   return (
     <html lang={locale} className={display.variable}>
       <body className="h-full antialiased">
-        <NextIntlClientProvider>
+        {/* Only what code in the browser reads (i18n/clientMessages.ts). */}
+        <NextIntlClientProvider messages={clientMessages(await getMessages())}>
           <ServiceWorker />
           {children}
         </NextIntlClientProvider>
