@@ -10,7 +10,7 @@ This file exists so that stops happening. It records **verified** production
 state, with the date, the method, and — where it matters — an explicit "not
 known". It is not a plan and contains no intentions.
 
-Last verified **25 September 2026, 19:40 (Asia/Taipei)**; the "Changed on" sections were each verified on their day, the latest on **30 September 2026, 22:45**.
+Last verified **25 September 2026, 19:40 (Asia/Taipei)**; the "Changed on" sections were each verified on their day, the latest on **30 September 2026, 23:40**.
 
 ## How these were checked
 
@@ -245,8 +245,8 @@ the stats page made readable (#110, #112).
 
 ## Changed on 30 September 2026
 
-Verified through the Management API and over HTTP, 30 September, 22:45. The
-ledger holds 28 rows, through 0029; `reports_public` has **46,336** records;
+Verified through the Management API and over HTTP, 30 September, 22:45 (and
+0030–0031 at 23:40). The ledger holds 30 rows, through 0031; `reports_public` has **46,336** records;
 `taxon_precision_floors` has 86 rows; and, after the blur decision below,
 **no** record with a species is shown more exactly than its species' rule or
 its binomial's allows (0 rows), no public report without a species is exact
@@ -312,6 +312,8 @@ Checked over HTTP after the deploy:
   green iguana photo on the invasive page as 綠鬛蜥, 98.5%, band high, in 16 s.
   It also listed two species under 1%, which #134 stops offering.
 - `/terms` states CC0, and no page names one person as running the site.
+- A crawl of every non-species sitemap URL, 61 species pages and 36 record
+  pages found no server error but the one above.
 
 **Not deployed: the ML service's fixes (#123).** `modal deploy` stopped at
 Modal's payment check. The live service is still v2 of 5 August, and it works
@@ -319,8 +321,26 @@ Modal's payment check. The live service is still v2 of 5 August, and it works
 owner adds a payment method (owner-setup §4), a request without the token
 still starts a GPU, and the service still fetches an `imageUrl`.
 
-**Not applied: 0030 (the forum's votes, #132).** The forum is off; 0030 is
-applied once #132 merges.
+**0030 (the forum's votes, #132) is applied**, with the forum still off.
+Checked after: `forum_votes` has row-level security on and no policy, and
+`anon`, `authenticated` and `web_anon` cannot read it.
+
+**0031 (#136) is applied: the binomial index serves every session.** A crawl
+of production after the deploys found the first view of the newest public
+report answering 500 after 8.9 s, and both public reports' pages taking 1.8 s
+warm, against 0.45 s for an imported record.
+- The cause: Postgres inlines `binomial_of()` only for a role that may execute
+  it, index expressions included, and caches the result for the session.
+  `web_anon` may not (0024). So in a session where a public read planned a
+  query on `taxa` first, 0028's index went unused, and the suggestions check
+  read all of `taxa` per candidate (1,158 ms; 16 ms with the owner first).
+- 0031 rebuilds the index on the expression itself. After it, both public
+  reports' pages answer in 0.45–0.7 s warm; a cold first view came back in 4.2
+  s, not 500.
+- #136 also makes the page's optional reads unable to fail it.
+
+**Every page now carries only the messages its browser code reads (#133)**:
+the roadkill report page's HTML fell from 35 KB to 21 KB compressed.
 
 **From this machine:** for some hours on 29–30 September the network's DNS
 answered every `*.vercel.app` name with a local address. GitHub's deployment
