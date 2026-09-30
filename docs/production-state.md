@@ -313,7 +313,7 @@ Checked over HTTP after the deploy:
   It also listed two species under 1%, which #134 stops offering.
 - `/terms` states CC0, and no page names one person as running the site.
 - A crawl of every non-species sitemap URL, 61 species pages and 36 record
-  pages found no server error but the one above.
+  pages found no server error but the one described under 0031 below.
 
 **Not deployed: the ML service's fixes (#123).** `modal deploy` stopped at
 Modal's payment check. The live service is still v2 of 5 August, and it works
