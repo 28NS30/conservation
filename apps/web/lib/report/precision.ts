@@ -24,15 +24,12 @@ import { UNIDENTIFIED_PRECISION } from "@conservation/shared";
  *     of them, for records whose old name justified a blur the corrected name
  *     would not. Clearing those publishes a location somebody withheld.
  *
- *   - An override on a report filed on the invasive page is a decision too,
- *     named or not (UNVERIFIED_INVASIVE_PRECISION, packages/shared). It holds
- *     the record at 10 km until a person has checked the species, because the
- *     species is the doubtful part: a protected native taken for its invasive
- *     look-alike. Clearing it when an unnamed one was named would have
- *     published exactly that guess — a reporter tapping one of the model's
- *     suggestions on their own report is enough — so it is kept, by every
- *     path, and a moderator's confirmation does not lift it either. When it
- *     may be lifted is the owner's decision, not this file's.
+ *   - A report filed on the invasive page used to be held at 10 km, named or
+ *     not, until a person had checked the species. The owner lifted that on
+ *     30 September 2026 (migration 0029): an invasive species is published at
+ *     its exact spot, and an invasive-page report is treated like any other.
+ *     A protected look-alike is still caught by its own rating once anyone
+ *     names it, which re-blurs the record.
  *
  *   - On a report with no taxon, only the stamp's own value is a stamp. A hold
  *     STRICTER than the unidentified blur is a decision too: the route writes
@@ -47,8 +44,7 @@ import { UNIDENTIFIED_PRECISION } from "@conservation/shared";
  * Postgres evaluates every SET expression against the row as it was BEFORE the
  * update, so `taxon_id is null` here asks "did this report have a taxon before
  * this change" — which is the question — even in the same statement that is
- * setting one. `category` likewise reads the page it was filed on, even where
- * the same statement re-derives it.
+ * setting one.
  *
  * A function rather than a constant because a postgres.js tagged template is a
  * query object, and one held at module scope and reused resolves to whatever
@@ -56,7 +52,7 @@ import { UNIDENTIFIED_PRECISION } from "@conservation/shared";
  * lib/schemaStatus.ts.
  */
 export const keepDeliberateOverride = () =>
-  sql`case when taxon_id is null and category is distinct from 'invasive'
+  sql`case when taxon_id is null
            then case when precision_rank(precision_override)
                           > precision_rank(${UNIDENTIFIED_PRECISION}::text)
                      then precision_override end

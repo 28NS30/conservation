@@ -1,12 +1,12 @@
 /**
- * A species Taiwan's Red List rates threatened is blurred to at least 10 km.
- * Migration 0021.
+ * Taiwan's Red List no longer blurs a record by itself. Migration 0029.
  *
- * TaiCOL's sensitivity rating and the protected-species list were the only
- * inputs before, and neither covers every threatened animal: 長腳赤蛙, Nationally
- * Vulnerable, unprotected and unrated, had 46 records at their exact
- * coordinates. The national biodiversity portal already blurs these
- * categories; we were publishing more precisely than it would.
+ * 0021 blurred every species the Red List rates Vulnerable or worse, as the
+ * national biodiversity portal does. On 30 September 2026 the owner decided,
+ * from the team's request to blur only protected species with the risk of
+ * poaching in mind, that the blur follows the Wildlife Conservation Act's
+ * protected list and TaiCOL's sensitivity ratings (Taiwan's poaching-risk
+ * list) and not the Red List. 102 records became exact.
  *
  * Each test builds its own taxa inside a rolled-back transaction, so it
  * asserts the rule, not what TaiCOL says this month.
@@ -24,37 +24,19 @@ const uid = () => `test-rl-${process.pid}-${Date.now()}-${seq++}`;
 /** A binomial no real taxon shares, so 0014's sibling rule sees only this test's rows. */
 const binomial = () => `Testudoredlist e${process.pid}x${Date.now()}x${seq++}`;
 
-async function taxon(tx, { rank = "Species", parent = null, redlist = null, sensitivity = null } = {}) {
+async function taxon(tx, { rank = "Species", parent = null, redlist = null, sensitivity = null, protectedStatus = null } = {}) {
   const name = binomial();
   const [t] = await tx`
     insert into taxa (taicol_id, parent_taicol_id, scientific_name, rank,
-                      is_in_taiwan, redlist, sensitivity, taxon_status)
+                      is_in_taiwan, redlist, sensitivity, protected_status, taxon_status)
     values (${uid()}, ${parent}, ${rank === "Species" ? name : `${name} minor`}, ${rank},
-            true, ${redlist}, ${sensitivity}, 'accepted')
+            true, ${redlist}, ${sensitivity}, ${protectedStatus}, 'accepted')
     returning id, taicol_id`;
   return t;
 }
 
-const precisionOf = async (tx, id) =>
-  (await tx`select location_precision from reports where id = ${id}`)[0].location_precision;
-
-describe("the Red List's threatened categories", () => {
-  for (const category of ["NCR", "NEN", "NVU", "RE"]) {
-    test(`${category} blurs a record to 10 km`, async () => {
-      await inRollback(async (tx) => {
-        const t = await taxon(tx, { redlist: category });
-        const r = await insertReport(tx, { taxonId: t.id });
-        assert.equal(r.location_precision, "coarse_10km");
-        assert.equal(r.is_obscured, true);
-      });
-    });
-  }
-
-  // The rule is a list of categories, and a list is easy to widen by accident.
-  // Near threatened and the rest are not blurred by this rule; the portal
-  // does not blur them either, and blurring every rated species would hide
-  // most of the map for no one's protection.
-  for (const category of ["NNT", "NLC", "DD", "NA", "NE"]) {
+describe("the Red List by itself", () => {
+  for (const category of ["NCR", "NEN", "NVU", "RE", "NNT", "NLC"]) {
     test(`${category} adds nothing`, async () => {
       await inRollback(async (tx) => {
         const t = await taxon(tx, { redlist: category });
@@ -64,94 +46,46 @@ describe("the Red List's threatened categories", () => {
     });
   }
 
-  test("a stricter rating from elsewhere still wins", async () => {
-    await inRollback(async (tx) => {
-      const t = await taxon(tx, { redlist: "NVU", sensitivity: "重度" });
-      const r = await insertReport(tx, { taxonId: t.id });
-      assert.equal(r.location_precision, "coarse_50km");
-    });
-  });
-});
-
-describe("where TaiCOL puts the rating", () => {
-  test("on the species, it reaches records filed under a subspecies", async () => {
-    // 長腳赤蛙's rating is on its species row.
+  test("on a species, it does not reach its subspecies either", async () => {
     await inRollback(async (tx) => {
       const sp = await taxon(tx, { redlist: "NVU" });
       const ssp = await taxon(tx, { rank: "Subspecies", parent: sp.taicol_id });
       const r = await insertReport(tx, { taxonId: ssp.id });
-      assert.equal(r.location_precision, "coarse_10km");
-    });
-  });
-
-  test("on the subspecies, it counts too", async () => {
-    // 粉紅鸚嘴's is on the Taiwan subspecies, and its species is unrated.
-    await inRollback(async (tx) => {
-      const sp = await taxon(tx);
-      const ssp = await taxon(tx, { rank: "Subspecies", parent: sp.taicol_id, redlist: "NEN" });
-      const r = await insertReport(tx, { taxonId: ssp.id });
-      assert.equal(r.location_precision, "coarse_10km");
+      assert.equal(r.location_precision, "exact");
     });
   });
 });
 
-describe("a rating that arrives later", () => {
-  test("re-blurs the records already published", async () => {
-    // The TaiCOL import writes redlist on every refresh. Without `redlist` in
-    // the trigger's column list, a newly listed species would stay exact
-    // until something else about it changed.
+describe("what still blurs", () => {
+  test("a TaiCOL sensitivity rating, with or without a Red List category", async () => {
     await inRollback(async (tx) => {
-      const sp = await taxon(tx, { redlist: "NLC" });
-      const ssp = await taxon(tx, { rank: "Subspecies", parent: sp.taicol_id });
-      const r = await insertReport(tx, { taxonId: ssp.id });
-      assert.equal(r.location_precision, "exact", "fixture precondition");
-
-      await tx`update taxa set redlist = 'NVU' where id = ${sp.id}`;
-      assert.equal(await precisionOf(tx, r.id), "coarse_10km");
+      const heavy = await taxon(tx, { redlist: "NVU", sensitivity: "重度" });
+      assert.equal((await insertReport(tx, { taxonId: heavy.id })).location_precision, "coarse_50km");
+      const light = await taxon(tx, { sensitivity: "輕度" });
+      assert.equal((await insertReport(tx, { taxonId: light.id })).location_precision, "coarse_10km");
     });
   });
 
-  test("withdrawn, does not un-blur", async () => {
-    // Publishing a withheld location is a decision (0012), and a list edit
-    // upstream is not that decision.
+  test("the protected list, rated or not", async () => {
     await inRollback(async (tx) => {
-      const t = await taxon(tx, { redlist: "NEN" });
-      const r = await insertReport(tx, { taxonId: t.id });
-      assert.equal(r.location_precision, "coarse_10km");
-
-      await tx`update taxa set redlist = 'NLC' where id = ${t.id}`;
-      assert.equal(await precisionOf(tx, r.id), "coarse_10km");
+      const t = await taxon(tx, { protectedStatus: "II" });
+      assert.equal((await insertReport(tx, { taxonId: t.id })).location_precision, "coarse_10km");
     });
   });
 });
 
-describe("the data this was written for", () => {
-  test("no record of a threatened species is published exactly", async () => {
-    // On the local copy this was 102 records before 0021: 長腳赤蛙 46,
-    // 粉紅鸚嘴 29, 緬甸蟒 12, 小雲雀 9 and four more.
-    const [{ n }] = await sql`
-      select count(*)::int as n
-        from reports r
-        join taxa t on t.id = r.taxon_id
-       where r.location_precision = 'exact'
-         and (t.redlist in ('NCR', 'NEN', 'NVU', 'RE')
-              or exists (select 1 from taxa p
-                          where p.taicol_id = t.parent_taicol_id
-                            and is_infraspecific(t.rank)
-                            and p.redlist in ('NCR', 'NEN', 'NVU', 'RE')))`;
-    assert.equal(n, 0);
+describe("the function and the data", () => {
+  test("taxon_precision() has no Red List term", async () => {
+    const [{ src }] = await sql`select prosrc as src from pg_proc where proname = 'taxon_precision'`;
+    assert.doesNotMatch(src, /precision_from_redlist\(/);
   });
 
-  test("the migration re-derives through the guarded path", () => {
-    // tighten_reports() is the one re-derive that cannot loosen (0014). A bare
-    // `update reports set location = location` would re-derive records that
-    // are deliberately stricter than their taxon, and could take them down.
+  test("the migration loosens only what was decided, and says so if it would do more", () => {
     const text = readFileSync(
-      join(import.meta.dirname, "../../../supabase/migrations/0021_red_list_blur.sql"),
+      join(import.meta.dirname, "../../../supabase/migrations/0029_blur_protected_species_only.sql"),
       "utf8",
     );
-    const code = text.split("\n").filter((l) => !l.trimStart().startsWith("--")).join("\n");
-    assert.match(code, /select tighten_reports\(null\);/);
-    assert.doesNotMatch(code, /update\s+reports/i);
+    assert.match(text, /raise exception '0029 would loosen % record\(s\) outside the decision'/);
+    assert.match(text, /taxon_precision\(r\.taxon_id\) = 'exact'\s+and binomial_precision\(r\.taxon_id\) = 'exact'/);
   });
 });

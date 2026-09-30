@@ -243,17 +243,14 @@ describe("a reporter names the species", () => {
     // one has stopped being necessary.
     // `heldAt` is the stricter blur of a name the reporter gave that we no
     // longer offer (test/accepted-names.test.mjs asserts it at runtime).
-    // A named report carries no override of its own, except on the invasive
-    // page, which holds every report at 10 km until it is checked
-    // (test/report-pages.test.mjs asserts that at runtime).
+    // A named report carries no override of its own, on every page: the
+    // invasive page's 10 km hold was lifted by the owner on 30 September 2026
+    // (migration 0029; test/report-pages.test.mjs asserts it at runtime).
     assert.match(
       route,
-      /const pageHold = page === "invasive" \? UNVERIFIED_INVASIVE_PRECISION : null;/,
+      /const precisionOverride = identified \? null : \(heldAt \?\? UNIDENTIFIED_PRECISION\);/,
     );
-    assert.match(
-      route,
-      /const precisionOverride = identified\s*\?\s*pageHold\s*:\s*\(heldAt \?\? UNIDENTIFIED_PRECISION\);/,
-    );
+    assert.doesNotMatch(route, /UNVERIFIED_INVASIVE_PRECISION|pageHold/);
   });
 
   test("the classifier does not overwrite a person's identification", () => {
