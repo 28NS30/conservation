@@ -207,6 +207,22 @@ describe("what the database refuses to count", () => {
     );
   });
 
+  test("a vote in an archived community", async () => {
+    // The public views leave an archived community out, so its posts are
+    // not the public's to rank.
+    await assert.rejects(
+      () =>
+        inRollback(async (tx) => {
+          const author = await makeMember(tx, 2076);
+          const a = await makeMember(tx, 2077);
+          const { opener } = await makeThread(tx, author);
+          await tx`update forum_categories set archived = true where slug = 'project'`;
+          await vote(tx, opener, a, 1);
+        }),
+      /only a visible post/,
+    );
+  });
+
   test("a vote from someone who has not joined", async () => {
     await assert.rejects(
       () =>

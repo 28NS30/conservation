@@ -30,7 +30,8 @@
 -- WHAT MAY BE VOTED ON. The server decides (lib/forum/policy.ts voteRefusal),
 -- and the trigger below refuses the two things that must never happen whatever
 -- the code does: a vote on your own post, and a vote on a post the public
--- cannot see (held, hidden, deleted, or in a thread that is).
+-- cannot see (held, hidden, deleted, in a thread that is, or in an archived
+-- community). Each function pins its search_path, as 0028 and 0029 do.
 --
 -- THREADED REPLIES. `parent_id` is the reply a reply answers; null for a
 -- reply to the thread itself, and for the opening post. `path` is where the
@@ -96,7 +97,9 @@ create index if not exists forum_posts_parent on forum_posts (thread_id, parent_
  * does. Nothing in the app moves a reply; this makes sure nothing can.
  */
 create or replace function forum_place_reply() returns trigger
-language plpgsql as $$
+language plpgsql
+set search_path = public
+as $$
 declare
   parent_path uuid[];
   parent_opener boolean;
@@ -164,28 +167,34 @@ create index if not exists forum_votes_voter on forum_votes (voter_id);
 
 /**
  * Refuse a vote nobody may cast: on your own post, or on a post the public
- * cannot read. The author is the post's, or, when they have left and come
+ * cannot read (held, hidden, deleted, in a thread that is, or in an archived
+ * community). The author is the post's, or, when they have left and come
  * back, the one its metadata kept (as moderation/actions.ts POST_AUTHOR does
  * for review), so leaving and rejoining does not let anyone vote for their
  * own words.
  */
 create or replace function forum_votes_check() returns trigger
-language plpgsql as $$
+language plpgsql
+set search_path = public
+as $$
 declare
   author uuid;
   post_status text;
   thread_status text;
+  in_archive boolean;
 begin
   select coalesce(p.author_id, (select pm.author_id from forum_post_meta pm where pm.post_id = p.id)),
-         p.status, t.status
-    into author, post_status, thread_status
+         p.status, t.status, c.archived
+    into author, post_status, thread_status, in_archive
     from forum_posts p
     join forum_threads t on t.id = p.thread_id
+    join forum_categories c on c.id = t.category_id
    where p.id = new.post_id;
   if author = new.voter_id then
     raise exception 'a member cannot vote on their own post' using errcode = 'check_violation';
   end if;
-  if post_status is distinct from 'visible' or thread_status is distinct from 'visible' then
+  if post_status is distinct from 'visible' or thread_status is distinct from 'visible'
+     or in_archive is distinct from false then
     raise exception 'only a visible post can be voted on' using errcode = 'check_violation';
   end if;
   return new;
@@ -198,7 +207,9 @@ create trigger forum_votes_check
 
 /** Keep forum_posts.score equal to the sum of its votes. See the note at the top on why by delta. */
 create or replace function forum_votes_score() returns trigger
-language plpgsql as $$
+language plpgsql
+set search_path = public
+as $$
 begin
   if tg_op = 'INSERT' then
     update forum_posts set score = score + new.value where id = new.post_id;
