@@ -58,10 +58,10 @@ const LEOPARD_CAT = "t0032116"; // Prionailurus bengalensis 豹貓, alt name 石
 const SHIHU = "t0105762"; // Prionailurus bengalensis euptilurus 石虎, a subspecies
 const DOG = "t0085383"; // Canis familiaris 犬
 const FERRET_BADGER = "t0027888"; // Melogale subaurantiaca 鼬貛, 747 records
-const CATTLE_EGRET = "t0029968"; // Bubulcus ibis coromandus 黃頭鷺, 27 records
+const CATTLE_EGRET = "t0029968"; // Ardea coromanda (was Bubulcus ibis coromandus) 黃頭鷺, 27 records
 const FORMOSAN_SALMON = "t0031284"; // Oncorhynchus masou formosanus 臺灣櫻花鉤吻鮭
 const BULBUL_KURODA = "t0123707"; // Microscelis amaurotis harterti Kuroda, 1922
-const PACIFIC_SWALLOW_SSP = "t0085756"; // Hirundo tahitica namiyei 洋燕, 49 records
+const PACIFIC_SWALLOW_SSP = "t0085756"; // Hirundo javanica namiyei (was H. tahitica namiyei) 洋燕, 49 records
 const TAIWAN_GLASS_LIZARD = "t0028707"; // Dopasia formosensis 臺灣蛇蜥
 const HARTS_GLASS_LIZARD = "t0124472"; // Dopasia harti 哈特氏蛇蜥, 30 records
 const BANANA_WILT = "t0086534"; // Fusarium oxysporum fo. cubense 香蕉分化型尖鐮孢菌
@@ -145,14 +145,16 @@ describe("following a synonym", () => {
 
 describe("a subspecies raised to a species", () => {
   test("gets the raised species' name, not the one its old species kept", () => {
-    // TaiCOL keeps Taiwan's cattle egret as Bubulcus ibis coromandus. Clements
+    // TaiCOL kept Taiwan's cattle egret as Bubulcus ibis coromandus. Clements
     // v2025 made it Ardea coromanda, Eastern Cattle-Egret, and calls what is
     // left of ibis the Western Cattle-Egret, a bird Taiwan does not have.
-    // Inheriting would have put that name on 27 Taiwanese records.
+    // Inheriting would have put that name on 27 Taiwanese records. The build
+    // reached Ardea coromanda through the synonym; since TaiCOL's refresh of
+    // 29 September 2026 that is TaiCOL's own name for it.
     const egret = FILE.names[CATTLE_EGRET];
     assert.equal(egret.name, "Eastern Cattle-Egret");
     assert.equal(egret.inherited_from, undefined);
-    assert.equal(egret.via, "Ardea coromanda");
+    assert.ok(egret.scientific_name === "Ardea coromanda" || egret.via === "Ardea coromanda", "not reached as Ardea coromanda");
     // Taiwan's own salmon is not the Cherry Salmon of Japan.
     assert.equal(FILE.names[FORMOSAN_SALMON].name, "Formosan Landlocked Salmon");
   });
@@ -469,11 +471,15 @@ describe("overrides", () => {
   });
 
   test("Taiwan's swallows are Pacific Swallows, whatever TaiCOL's species is called elsewhere", () => {
-    // TaiCOL's 洋燕 is Hirundo tahitica; Clements's Hirundo tahitica is the
-    // Tahiti Swallow of the Society Islands. The build cannot know which
-    // population a lumped species means in Taiwan; the overrides file does.
+    // TaiCOL's 洋燕 was Hirundo tahitica, and Clements's Hirundo tahitica is
+    // the Tahiti Swallow of the Society Islands, so the build called Taiwan's
+    // swallow that until the overrides file said otherwise. TaiCOL now files
+    // it as Hirundo javanica and the build finds Pacific Swallow by itself
+    // (rebuilt 30 September 2026); the override stays, so a TaiCOL that lumps
+    // them again cannot bring the Tahiti Swallow back.
     const final = resolveNames(FILE, OVERRIDES);
-    assert.equal(FILE.names[PACIFIC_SWALLOW_SSP].name, "Tahiti Swallow", "the build alone gets it wrong");
+    assert.notEqual(FILE.names[PACIFIC_SWALLOW_SSP].name, "Tahiti Swallow");
+    assert.ok(OVERRIDES.some((o) => o.common_name_en === "Pacific Swallow"), "the override is gone");
     assert.equal(final.get(PACIFIC_SWALLOW_SSP)?.name, "Pacific Swallow");
     assert.equal(final.get(PACIFIC_SWALLOW_SSP)?.inherited, true);
   });
