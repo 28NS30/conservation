@@ -17,15 +17,23 @@
 // moderator's /admin with exact coordinates, a person's /me with their email,
 // served again after sign-out to the next person on the device (security audit,
 // 29 September 2026). Only the pages listed in OFFLINE_PAGES are kept now.
-const VERSION = "v3";
+// v4 moves the report pages and what they load into a cache of their own that
+// is never trimmed: v3's cap on the shell, filled by Next's prefetches, threw
+// out the oldest entries first, and those were exactly the report pages and
+// their scripts (review of the security fixes, 30 September 2026).
+const VERSION = "v4";
 const SHELL = `shell-${VERSION}`;
+/** The report chooser and its three pages, and what they load. Never trimmed. */
+const REPORT = `report-${VERSION}`;
 const TILES = `tiles-${VERSION}`;
 // Sized down from 400 for vector tiles, which run to 100-220 KB each at low zoom
 // against the few KB of the raster PNGs the old figure was chosen for. Vector
 // tiles overzoom, so fewer entries still cover more ground.
 const MAX_TILE_ENTRIES = 150;
-// The shell holds a few dozen pages and their RSC payloads, plus the hashed
-// scripts they name. It had no cap, and RSC prefetches alone could fill it.
+// The shell holds the public pages a reader has opened and the hashed scripts
+// they name. Next's RSC requests and prefetches are not kept at all (see the
+// fetch handler), and the report pages live in REPORT, so this cap can only
+// ever cost a page that is not needed to file a report.
 const MAX_SHELL_ENTRIES = 250;
 
 self.addEventListener("install", () => self.skipWaiting());
@@ -60,11 +68,11 @@ async function trim(cacheName, max) {
  * `store` is false for everything outside OFFLINE_PAGES: such a response is
  * passed through and never written down.
  */
-async function networkFirst(request, cacheName, { store = true, timeoutMs = 3500 } = {}) {
+async function networkFirst(request, cacheName, { store = true, timeoutMs = 3500, max = null } = {}) {
   const cache = await caches.open(cacheName);
   const network = fetch(request).then((res) => {
     if (store && res.ok) {
-      cache.put(request, res.clone()).then(() => trim(cacheName, MAX_SHELL_ENTRIES), () => {});
+      cache.put(request, res.clone()).then(() => (max ? trim(cacheName, max) : undefined), () => {});
     }
     return res;
   });
@@ -100,13 +108,19 @@ async function networkFirst(request, cacheName, { store = true, timeoutMs = 3500
 }
 const SLOW = Symbol("slow");
 
-/** Hashed build output never changes under its name: the copy is the file. */
+/**
+ * Hashed build output never changes under its name: the copy is the file.
+ * Looked for in every cache, so a script the report pages keep in REPORT is
+ * served from there; one fetched here goes into the trimmed shell.
+ */
 async function cacheFirst(request, cacheName) {
-  const cache = await caches.open(cacheName);
-  const hit = await cache.match(request);
+  const hit = await caches.match(request);
   if (hit) return hit;
   const res = await fetch(request);
-  if (res.ok) cache.put(request, res.clone()).then(() => trim(cacheName, MAX_SHELL_ENTRIES), () => {});
+  if (res.ok) {
+    const cache = await caches.open(cacheName);
+    cache.put(request, res.clone()).then(() => trim(cacheName, MAX_SHELL_ENTRIES), () => {});
+  }
   return res;
 }
 
@@ -148,31 +162,46 @@ const NEXT_ASSET = /\/_next\/static\/[A-Za-z0-9_\-./~%]+?\.(?:js|css|woff2)/g;
 
 async function warmReportPages(paths) {
   const scope = new URL(self.registration.scope).pathname.replace(/\/$/, "");
-  const cache = await caches.open(SHELL);
+  const cache = await caches.open(REPORT);
   const assets = new Set();
+  const kept = new Set();
+  let complete = true;
   for (const path of Array.isArray(paths) ? paths : []) {
     if (typeof path !== "string" || !path.startsWith(`${scope}/`)) continue;
     if (!REPORT_PAGE_PATH.test(path.slice(scope.length))) continue;
     const url = new URL(path, self.location.origin);
     try {
       const res = await fetch(url, { credentials: "same-origin" });
-      if (!res.ok) continue;
+      if (!res.ok) {
+        complete = false;
+        continue;
+      }
       const html = await res.clone().text();
       await cache.put(url, res);
+      kept.add(url.href);
       for (const m of html.matchAll(NEXT_ASSET)) assets.add(m[0]);
     } catch {
       // The signal went again. The next visit to a report page tries again.
+      complete = false;
     }
   }
   for (const asset of assets) {
     const url = new URL(asset, self.location.origin);
+    kept.add(url.href);
     if (await cache.match(url)) continue;
     try {
-      const res = await fetch(url);
-      if (res.ok) await cache.put(url, res);
+      // From the shell if it is there, so the copy costs no signal.
+      const res = (await caches.match(url)) ?? (await fetch(url));
+      if (res.ok) await cache.put(url, res.clone());
+      else complete = false;
     } catch {
-      /* as above */
+      complete = false;
     }
+  }
+  // What an earlier build's pages loaded. Only after a warm-up that got every
+  // page and script, so a half-done one never throws away a working copy.
+  if (complete && kept.size) {
+    for (const req of await cache.keys()) if (!kept.has(req.url)) await cache.delete(req);
   }
 }
 
@@ -227,9 +256,24 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(cacheFirst(request, SHELL));
     return;
   }
-  // The pages and files the offline report flow needs, kept for next time.
+  // Next's RSC payloads and prefetches: never written down. Each is a new
+  // entry per page and per state, a species directory scrolled once was
+  // hundreds of them, and a page opened offline is loaded as a document,
+  // which is kept below.
+  if (
+    request.headers.get("RSC") === "1" ||
+    request.headers.has("Next-Router-Prefetch") ||
+    url.searchParams.has("_rsc")
+  )
+    return;
+  // The report chooser and its three pages, in the cache that is never trimmed.
+  if (REPORT_PAGE_PATH.test(path)) {
+    event.respondWith(networkFirst(request, REPORT));
+    return;
+  }
+  // The other public pages and files, kept for next time, within the cap.
   if (OFFLINE_PAGES.test(path) || PUBLIC_FILE.test(path)) {
-    event.respondWith(networkFirst(request, SHELL));
+    event.respondWith(networkFirst(request, SHELL, { max: MAX_SHELL_ENTRIES }));
     return;
   }
   // Everything else goes to the network and is never written down.

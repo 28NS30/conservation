@@ -136,7 +136,7 @@ describe("the queue does not wear a sound report down", () => {
   });
 
   test("photos collected from Storage are uploaded again from the phone, once", () => {
-    assert.match(flush, /data\.error === "photo_missing" && !photosRetried && item\.uploadedPaths\.length/);
+    assert.match(flush, /data\.error === "photo_missing" && !photosRetried && photoPaths\.length/);
     assert.match(flush, /return sendOne\(again, getToken, true\);/);
   });
 
@@ -203,8 +203,10 @@ describe("a saved report is filed under the account that saved it", () => {
     assert.match(route, /input\.filedBy !== signedIn/);
     assert.match(route, /const reporterId = input\.filedBy === "anonymous" \? null : signedIn;/);
     const form = read("components", "report", "ReportForm.tsx");
-    assert.match(form, /filedBy: await signedInAs\(\)/);
-    assert.match(form, /auth\.getSession\(\)/);
+    assert.match(form, /filedBy: signedInAs\(\)/);
+    // From the stored session, never the network (lib/supabase/storedSession.ts).
+    assert.match(form, /storedSessionUserId\(document\.cookie, url\)/);
+    assert.doesNotMatch(form, /auth\.getSession\(\)/);
   });
 
   test("the queue waits for its account at no cost", () => {

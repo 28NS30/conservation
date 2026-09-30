@@ -24,7 +24,11 @@ export default function ForgetOfflineCopies() {
       void caches
         .keys()
         .then((keys) =>
-          Promise.all(keys.filter((k) => k.startsWith("shell-")).map((k) => caches.delete(k))),
+          Promise.all(
+            keys
+              .filter((k) => k.startsWith("shell-") || k.startsWith("report-"))
+              .map((k) => caches.delete(k)),
+          ),
         )
         .catch(() => {});
     };

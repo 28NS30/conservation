@@ -290,19 +290,40 @@ export default async function ReportPage({
 
   // Top-k AI suggestions. `report_ai_suggestions` is itself joined to published,
   // non-suppressed reports, so it cannot expose anything the page shouldn't.
-  const suggestions = await asPublic(
-    (tx) =>
-      tx<Suggestion[]>`
-      select s.taxon_id as "taxonId", s.rank, s.score,
-             s.scientific_name as "scientificName", s.common_name_zh as "commonNameZh",
-             -- The English name from taxa, which the public role reads, rather
-             -- than a new column on the 0004 view.
-             t.common_name_en as "commonNameEn", t.taicol_id as "taicolId"
-        from report_ai_suggestions s
-        left join taxa t on t.id = s.taxon_id
-       where s.report_id = ${id}::uuid
-       order by s.rank`,
-  );
+  //
+  // A moderator's test report is left out of that view (0025), so a test could
+  // not show what the model said or be confirmed from its list, which is half
+  // of what a test is for (0018). For a test, the same rules are applied here
+  // on the server's connection, in the view's own terms, the exclusion of
+  // tests aside; the row above already proved the viewer is a moderator.
+  const suggestions = publicRow
+    ? await asPublic(
+        (tx) =>
+          tx<Suggestion[]>`
+          select s.taxon_id as "taxonId", s.rank, s.score,
+                 s.scientific_name as "scientificName", s.common_name_zh as "commonNameZh",
+                 -- The English name from taxa, which the public role reads, rather
+                 -- than a new column on the 0004 view.
+                 t.common_name_en as "commonNameEn", t.taicol_id as "taicolId"
+            from report_ai_suggestions s
+            left join taxa t on t.id = s.taxon_id
+           where s.report_id = ${id}::uuid
+           order by s.rank`,
+      )
+    : await sql<Suggestion[]>`
+        select t.id as "taxonId", c.rank, c.score,
+               t.scientific_name as "scientificName", t.common_name_zh as "commonNameZh",
+               t.common_name_en as "commonNameEn", t.taicol_id as "taicolId"
+          from classifications c
+          join reports r on r.id = c.report_id
+                        and r.status = 'published'
+                        and r.location_precision <> 'suppressed'
+                        and r.ai_band is distinct from 'low'
+                        and r.is_test
+                        and suggestions_within_blur(r.id, r.location_precision)
+          join taxa t on t.id = c.taxon_id
+         where c.report_id = ${id}::uuid
+         order by c.rank`;
 
   // The species card, when this report has a species. Two small reads rather
   // than widening the query above: the page renders without either of them, and

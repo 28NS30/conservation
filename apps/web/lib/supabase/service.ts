@@ -28,7 +28,14 @@ export function serviceSupabase() {
  * The client tells us which paths it uploaded; without this it could reference
  * paths it never wrote. Storage's own `allowed_mime_types` and `file_size_limit`
  * are the primary guard — this confirms the guard actually fired.
+ *
+ * Null means the object is not there. A Storage that could not be asked
+ * throws StorageUnavailable instead: answered as a missing photo, a brief
+ * Storage error failed a queued report for good (review of the security
+ * fixes, 30 September 2026).
  */
+export class StorageUnavailable extends Error {}
+
 export async function statUploadedPhoto(
   path: string,
 ): Promise<{ bytes: number; contentType: string } | null> {
@@ -40,7 +47,8 @@ export async function statUploadedPhoto(
     .storage.from(PHOTO_BUCKET)
     .list(dir, { search: name, limit: 1 });
 
-  if (error || !data?.length) return null;
+  if (error) throw new StorageUnavailable(error.message);
+  if (!data?.length) return null;
   const entry = data.find((e) => e.name === name);
   if (!entry?.metadata) return null;
 

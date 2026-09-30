@@ -72,6 +72,27 @@ export async function withinRateLimit(
   return row.ok;
 }
 
+/** One budget: a key, its window and how many it allows. */
+export type Budget = { key: string; windowSeconds: number; budget: number };
+
+/**
+ * Whether a request is within every budget, charging them in order and
+ * stopping at the first that refuses.
+ *
+ * Charging them all at once meant a flood the two-minute budget refused still
+ * counted in full against the daily one, so a script behind a school's or a
+ * carrier's shared address could spend a whole day's budget in a second and
+ * lock everyone there out until midnight UTC (review of the security fixes,
+ * 30 September 2026). Put the short windows first: a request they refuse is
+ * not counted against the longer ones.
+ */
+export async function withinBudgets(budgets: Budget[]): Promise<boolean> {
+  for (const b of budgets) {
+    if (!(await withinRateLimit(b.key, b.windowSeconds, b.budget))) return false;
+  }
+  return true;
+}
+
 /**
  * Photo upload URLs, per address. One report is one signing call for up to four
  * photos, so these sit just above SUBMIT_LIMITS: a sender cannot sign far more
@@ -108,13 +129,30 @@ export const SUBMIT_LIMITS = {
  * kills participation, which is the failure mode that matters most for a
  * citizen-science project.
  */
+/**
+ * The credit name to publish, or null to credit the record to the default
+ * contributor.
+ *
+ * A credit that gives a place, a map link or a way to reach someone is not a
+ * name, and it would be published beside the record whatever its blur. It
+ * used to hold the whole report for a moderator instead, but the queue never
+ * showed the credit, so the moderator could only publish it unseen (review of
+ * the security fixes, 30 September 2026). Such a credit is simply not kept.
+ */
+export function creditToPublish(creditName: string | undefined): string | null {
+  const credit = creditName?.trim();
+  if (!credit) return null;
+  const { reasons } = screenText(credit, { watchedWords: [], newAccount: false });
+  if (reasons.some((r) => LOCATION_REASONS.includes(r) || r === "contact")) return null;
+  if (/https?:\/\/|www\.|\bt\.me\b/i.test(credit)) return null;
+  return credit;
+}
+
 export function screenSubmission(input: {
   category: Category;
   lng: number;
   lat: number;
   notes?: string;
-  /** The name the reporter asked to be credited with, published beside the record. */
-  creditName?: string;
   photoCount: number;
 }): string | null {
   if (!isInTaiwanBounds(input.lng, input.lat)) return "coordinates outside Taiwan";
@@ -123,8 +161,9 @@ export function screenSubmission(input: {
   // most: words that say where the animal is get past the coordinate blur,
   // which is the one promise this site makes. The forum's own screen reads
   // them (lib/forum/screen.ts), so the two agree on what a location looks
-  // like; the notes are also hidden on every blurred record (0025).
-  const text = [input.notes, input.creditName].filter(Boolean).join("\n");
+  // like; the notes are also hidden on every blurred record (0025). The credit
+  // name is dealt with on its own (creditToPublish).
+  const text = input.notes ?? "";
   if (text) {
     const { reasons } = screenText(text, { watchedWords: [], newAccount: false });
     if (reasons.some((r) => LOCATION_REASONS.includes(r)))
