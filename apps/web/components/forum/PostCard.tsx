@@ -11,7 +11,7 @@ import { ReplyComposer } from "./Composer";
 import { DeleteOwnForm, FlagForm } from "./PostActions";
 import { ModeratePost } from "./ModTools";
 import VoteControl from "./VoteControl";
-import { btnQuiet, link } from "./styles";
+import { link } from "./styles";
 
 /**
  * One post on a thread's page, opening post or reply, and the tree of
@@ -75,6 +75,8 @@ export async function PostCard({
     viewer.canPost &&
     voteRefusal({
       own: p.mine,
+      // A handle is null exactly when the author has left the forum.
+      authorLeft: p.author_handle === null,
       status: p.status,
       threadStatus: thread.status,
       locked: thread.locked,
@@ -140,16 +142,7 @@ export async function PostCard({
             describedBy={p.is_opener ? "thread-title" : byId}
           />
         )}
-        {replyable && mayReplyTo(p, ctx) && (
-          <details className="open:basis-full">
-            <summary className={`${btnQuiet} cursor-pointer list-none [&::-webkit-details-marker]:hidden`}>
-              {t("replyToThis")}
-            </summary>
-            <div className="mt-2 border border-ink-900/15 bg-white px-4 py-4">
-              <ReplyComposer threadId={thread.id} parentId={p.id} />
-            </div>
-          </details>
-        )}
+        {replyable && mayReplyTo(p, ctx) && <ReplyComposer threadId={thread.id} parentId={p.id} />}
         {p.mine && p.status !== "deleted" && <DeleteOwnForm postId={p.id} />}
         {!p.mine && viewer.member && !viewer.suspendedUntil && p.status === "visible" && <FlagForm postId={p.id} />}
       </footer>

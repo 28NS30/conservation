@@ -997,7 +997,7 @@
       "exportBody": "Everything you have written in the community, and your votes, in one file (JSON).",
       "exportButton": "Download",
       "leaveTitle": "Delete my community account",
-      "leaveBody": "Your community name and your votes are deleted. Your posts stay, shown as written by a deleted member. Your account on this site and your reports are not affected.",
+      "leaveBody": "Your community name and your votes are deleted. Your posts stay, shown as written by a deleted member, and keep the score they have. Your account on this site and your reports are not affected.",
       "leaveConfirm": "I understand. Delete my community account.",
       "leaveButton": "Delete community account"
     },
@@ -1159,7 +1159,8 @@
       "voteInvalid": "That vote could not be counted. Reload the page and try again.",
       "tooManyVotes": "You are voting very quickly. Wait a little and try again.",
       "voted": "Vote counted.",
-      "voteRemoved": "Vote taken back."
+      "voteRemoved": "Vote taken back.",
+      "authorLeft": "Its writer has left the community, so this post takes no new votes."
     }
   },
   "terms": {

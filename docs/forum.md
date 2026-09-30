@@ -44,9 +44,10 @@ and The project. Only moderators start threads in Announcements.
   change or take back the vote (pressing the same arrow again). A thread's vote
   is its opening post's. Only members vote, on the current guidelines and not
   suspended; nobody votes on their own post, on anything held, hidden or
-  deleted, or in a locked thread. Votes are rate limited (30 a minute, 500 a
-  day; 15 and 150 in an account's first week). Only totals are ever shown:
-  nobody, moderators included, sees who voted for what on the site.
+  deleted, on a post whose author has left, or in a locked thread. Votes are
+  rate limited (30 a minute, 500 a day; 15 and 150 in an account's first
+  week). Only totals are ever shown: nobody, moderators included, sees who
+  voted for what on the site.
 - **Replies to replies**, nested four levels deep. A reply to a fourth-level
   reply goes beside it, marked "replying to …". Replies sort Best (score,
   then the older first) or New; the fourth level is always in the order it
@@ -67,8 +68,23 @@ at the same moment could each miss the other; an addition is applied to the
 row as it stands and cannot lose one. The feeds sort by it, so it is stored,
 not summed on every page. `test/forum-votes.test.mjs` checks the stored score
 against a fresh sum after every kind of change. A second trigger refuses a
-vote on your own post, or on a post the public cannot see, whatever the code
-does.
+vote on your own post, on a post the public cannot see, or on a post whose
+author has left, whatever the code does.
+
+### Why a departed member's posts take no votes
+
+"Nobody votes on their own post" needs to know who wrote the post. Once its
+author has left the forum, the post's `author_id` is null, and only its
+`forum_post_meta` row still says who they were; the retention job purges that
+after 180 days, and deleting the whole site account clears it at once. After
+that a member who left and came back (or signed up again) could vote for their
+own words, and nothing could tell. Keeping a marker of the author, even a
+keyed hash, would keep exactly the link between an account and its posts that
+the purge exists to remove. So a post whose author has left keeps the score it
+has and takes no new votes, from anyone: the page shows it without arrows and
+the action and the trigger refuse one. The votes it already had stay counted;
+a voter who leaves takes theirs with them, as anywhere. This is the same call
+`canReview` makes for a moderator when a post's author cannot be told.
 
 To check it by hand, this should return no rows:
 
@@ -186,8 +202,9 @@ on the thread page.
 180 days follows 兒童及少年性剝削防制條例 Art. 8, which asks a platform to keep
 removed content, the poster's data and the logs that long after removing
 something on notice. When a member deletes their forum account, their posts
-stay as "deleted member", and the per-post IP hash keeps their account id until
-it is purged at 180 days. That is the one piece of their data kept after they
+stay as "deleted member", keeping the score they had (see "Why a departed
+member's posts take no votes"), and the per-post IP hash keeps their account id
+until it is purged at 180 days. That is the one piece of their data kept after they
 leave, and the reason is this law; it needs the legal review to confirm it.
 
 **Legal hold.** A post or thread under legal hold is skipped by every purge. It

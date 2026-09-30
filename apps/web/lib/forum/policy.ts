@@ -106,8 +106,10 @@ export function nextVote(current: VoteValue, pressed: 1 | -1): VoteValue {
 }
 
 export type VoteTarget = {
-  /** The voter wrote it (for the page) or is its author of record (for the action). */
+  /** The voter wrote it. */
   own: boolean;
+  /** Its author has left the forum, so the post has no author any more ("deleted member"). */
+  authorLeft: boolean;
   status: string;
   threadStatus: string;
   locked: boolean;
@@ -122,12 +124,26 @@ export type VoteTarget = {
  * count something nobody should be reacting to. Nobody votes for their own
  * words. And a locked thread is closed to everything new, votes included: a
  * moderator locks a thread to stop a pile-on, and a pile-on can be votes.
- * Migration 0030 refuses the first two in the database as well.
+ *
+ * A post whose author has left takes no new votes, from anyone. Nothing
+ * public says who wrote it any more, and after 180 days nothing at all does:
+ * the retention job purges the metadata that remembered them, which is the
+ * point of it. So "is this the voter's own post?" can no longer be answered,
+ * and someone who left and came back could vote for their own words. Keeping
+ * a marker of the author to answer it would keep the link the purge exists to
+ * remove, so the post keeps the score it has instead. canReview makes the
+ * same call for a moderator (review of the forum-reddit work, 30 September
+ * 2026).
+ *
+ * Migration 0030 refuses all but the lock in the database as well.
  */
-export function voteRefusal(target: VoteTarget | null | undefined): "noPost" | "ownPost" | "locked" | null {
+export function voteRefusal(
+  target: VoteTarget | null | undefined,
+): "noPost" | "ownPost" | "authorLeft" | "locked" | null {
   if (!target) return "noPost";
   if (target.status !== "visible" || target.threadStatus !== "visible" || target.archived) return "noPost";
   if (target.own) return "ownPost";
+  if (target.authorLeft) return "authorLeft";
   if (target.locked) return "locked";
   return null;
 }

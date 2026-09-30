@@ -128,7 +128,7 @@ describe("flags", () => {
 });
 
 describe("votes", () => {
-  const open = { own: false, status: "visible", threadStatus: "visible", locked: false, archived: false };
+  const open = { own: false, authorLeft: false, status: "visible", threadStatus: "visible", locked: false, archived: false };
 
   test("a member votes on someone else's visible post in an open thread", () => {
     assert.equal(voteRefusal(open), null);
@@ -149,6 +149,13 @@ describe("votes", () => {
   });
   test("a locked thread takes no votes", () => {
     assert.equal(voteRefusal({ ...open, locked: true }), "locked");
+  });
+  test("a post whose author has left takes no new votes, from anyone", () => {
+    // Nothing can say any more whether the voter wrote it: after 180 days the
+    // metadata that remembered its author is purged, and someone who left and
+    // came back could vote for their own words.
+    assert.equal(voteRefusal({ ...open, authorLeft: true }), "authorLeft");
+    assert.equal(voteRefusal({ ...open, authorLeft: true, status: "hidden" }), "noPost");
   });
 
   test("a vote is up, down or taken back, and nothing else", () => {

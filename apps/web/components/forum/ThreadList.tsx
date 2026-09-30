@@ -16,9 +16,10 @@ import { badge } from "./styles";
  * the way a sighted reader's eye does. The title and the author are separate
  * links, side by side: a link cannot hold a link.
  *
- * A thread the viewer started, one that is locked, and one still waiting for
- * a moderator show their score without arrows; the action refuses those votes
- * anyway (policy.ts voteRefusal), this only avoids offering them.
+ * A thread the viewer started, one whose author has left, one that is locked,
+ * and one still waiting for a moderator show their score without arrows; the
+ * action refuses those votes anyway (policy.ts voteRefusal), this only avoids
+ * offering them.
  */
 export default async function ThreadList({
   threads,
@@ -44,7 +45,14 @@ export default async function ThreadList({
         const own = Boolean(viewer.member && th.author_handle === viewer.member.handle);
         const canVote =
           viewer.canPost &&
-          voteRefusal({ own, status: th.status, threadStatus: th.status, locked: th.locked, archived: false }) === null;
+          voteRefusal({
+            own,
+            authorLeft: th.author_handle === null,
+            status: th.status,
+            threadStatus: th.status,
+            locked: th.locked,
+            archived: false,
+          }) === null;
         return (
           <li key={th.id} className="border-b border-ink-900/10 px-1 py-3">
             <article aria-labelledby={titleId}>

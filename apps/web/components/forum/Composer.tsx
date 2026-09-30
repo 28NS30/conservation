@@ -2,7 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { createThread, replyToThread } from "@/app/[locale]/(site)/community/actions";
 import { BODY_MAX, TITLE_MAX } from "@/lib/forum/policy";
-import ActionForm from "./ActionForm";
+import ActionForm, { TypedInput, TypedTextarea } from "./ActionForm";
 import { btnPrimary, hint, label, link, textarea, input } from "./styles";
 
 /**
@@ -75,7 +75,7 @@ export async function ThreadComposer(
             <label htmlFor="thread-title" className={label}>
               {t("titleLabel")}
             </label>
-            <input
+            <TypedInput
               id="thread-title"
               name="title"
               required
@@ -92,7 +92,7 @@ export async function ThreadComposer(
             <label htmlFor="thread-body" className={label}>
               {t("bodyLabel")}
             </label>
-            <textarea
+            <TypedTextarea
               id="thread-body"
               name="body"
               required
@@ -116,38 +116,56 @@ export async function ThreadComposer(
 }
 
 /**
- * Reply to the thread, or, given `parentId`, to one reply in it (opened from
- * the "Reply" under that reply). Each has its own ids, so a page with a
- * dozen of them still ties every label to its own box.
+ * Reply to the thread, or, given `parentId`, to one reply in it: then behind
+ * the "Reply" under that reply, which opens by itself when the form has an
+ * answer to show (ActionForm). Each has its own ids, so a page with a dozen
+ * of them still ties every label to its own box.
  */
 export async function ReplyComposer({ threadId, parentId }: { threadId: string; parentId?: string }) {
   const t = await getTranslations("forum");
   const id = parentId ? `reply-body-${parentId}` : "reply-body";
+  const fields = (
+    <>
+      <input type="hidden" name="thread" value={threadId} />
+      {parentId && <input type="hidden" name="parent" value={parentId} />}
+      <label htmlFor={id} className={label}>
+        {t("replyLabel")}
+      </label>
+      <TypedTextarea
+        id={id}
+        name="body"
+        required
+        minLength={2}
+        maxLength={BODY_MAX}
+        rows={parentId ? 4 : 6}
+        aria-describedby={`${id}-hint`}
+        className={`${textarea} mt-2`}
+      />
+      <p id={`${id}-hint`} className={hint}>
+        {t("bodyHint")}
+      </p>
+      <button type="submit" className={`${btnPrimary} mt-4`}>
+        {t("postReply")}
+      </button>
+    </>
+  );
+  if (parentId)
+    return (
+      <ActionForm
+        action={replyToThread}
+        className="space-y-4"
+        successClassName="hidden"
+        summary={t("replyToThis")}
+        intro={<Reminder />}
+      >
+        {fields}
+      </ActionForm>
+    );
   return (
     <div>
       <Reminder />
-      <ActionForm action={replyToThread} className="space-y-4" successClassName={parentId ? "hidden" : undefined}>
-        <input type="hidden" name="thread" value={threadId} />
-        {parentId && <input type="hidden" name="parent" value={parentId} />}
-        <label htmlFor={id} className={label}>
-          {t("replyLabel")}
-        </label>
-        <textarea
-          id={id}
-          name="body"
-          required
-          minLength={2}
-          maxLength={BODY_MAX}
-          rows={parentId ? 4 : 6}
-          aria-describedby={`${id}-hint`}
-          className={`${textarea} mt-2`}
-        />
-        <p id={`${id}-hint`} className={hint}>
-          {t("bodyHint")}
-        </p>
-        <button type="submit" className={`${btnPrimary} mt-4`}>
-          {t("postReply")}
-        </button>
+      <ActionForm action={replyToThread} className="space-y-4">
+        {fields}
       </ActionForm>
     </div>
   );

@@ -28,10 +28,17 @@
 -- checks the stored score against a fresh sum after every kind of change.
 --
 -- WHAT MAY BE VOTED ON. The server decides (lib/forum/policy.ts voteRefusal),
--- and the trigger below refuses the two things that must never happen whatever
--- the code does: a vote on your own post, and a vote on a post the public
+-- and the trigger below refuses the three things that must never happen
+-- whatever the code does: a vote on your own post; a vote on a post the public
 -- cannot see (held, hidden, deleted, in a thread that is, or in an archived
--- community). Each function pins its search_path, as 0028 and 0029 do.
+-- community); and a vote on a post whose author has left the forum. The last
+-- is what makes the first hold for good. Once the author has left, nothing
+-- says who wrote the post except its forum_post_meta row, and the retention
+-- job purges that after 180 days; a member who left and came back after that
+-- could vote for their own words. A marker of the author kept to stop them
+-- would be the link between an account and its posts that the purge exists
+-- to remove, so the post keeps its score and takes no new votes instead.
+-- Each function pins its search_path, as 0028 and 0029 do.
 --
 -- THREADED REPLIES. `parent_id` is the reply a reply answers; null for a
 -- reply to the thread itself, and for the opening post. `path` is where the
@@ -154,7 +161,8 @@ create trigger forum_posts_place_reply
 -- One row per member per post they have voted on. Taking a vote back deletes
 -- the row; there is no zero. Leaving the forum deletes a member's votes with
 -- their profile (a vote says what someone liked, which is theirs to take
--- with them), and the scores they counted in go down with them.
+-- with them), and the scores they counted in go down with them. Their own
+-- posts keep the score they had, and take no more (forum_votes_check).
 create table if not exists forum_votes (
   post_id    uuid not null references forum_posts(id) on delete cascade,
   voter_id   uuid not null references forum_profiles(user_id) on delete cascade,
@@ -166,12 +174,11 @@ create table if not exists forum_votes (
 create index if not exists forum_votes_voter on forum_votes (voter_id);
 
 /**
- * Refuse a vote nobody may cast: on your own post, or on a post the public
+ * Refuse a vote nobody may cast: on your own post, on a post the public
  * cannot read (held, hidden, deleted, in a thread that is, or in an archived
- * community). The author is the post's, or, when they have left and come
- * back, the one its metadata kept (as moderation/actions.ts POST_AUTHOR does
- * for review), so leaving and rejoining does not let anyone vote for their
- * own words.
+ * community), or on a post whose author has left the forum (see the note at
+ * the top). A delete is not checked: leaving the forum and the retention
+ * job's purge both delete votes, and must be able to.
  */
 create or replace function forum_votes_check() returns trigger
 language plpgsql
@@ -183,19 +190,25 @@ declare
   thread_status text;
   in_archive boolean;
 begin
-  select coalesce(p.author_id, (select pm.author_id from forum_post_meta pm where pm.post_id = p.id)),
-         p.status, t.status, c.archived
+  select p.author_id, p.status, t.status, c.archived
     into author, post_status, thread_status, in_archive
     from forum_posts p
     join forum_threads t on t.id = p.thread_id
     join forum_categories c on c.id = t.category_id
    where p.id = new.post_id;
+  -- No such post: the foreign key refuses the row once this returns.
+  if not found then
+    return new;
+  end if;
   if author = new.voter_id then
     raise exception 'a member cannot vote on their own post' using errcode = 'check_violation';
   end if;
   if post_status is distinct from 'visible' or thread_status is distinct from 'visible'
      or in_archive is distinct from false then
     raise exception 'only a visible post can be voted on' using errcode = 'check_violation';
+  end if;
+  if author is null then
+    raise exception 'a post whose author has left takes no new votes' using errcode = 'check_violation';
   end if;
   return new;
 end $$;

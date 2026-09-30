@@ -27,14 +27,19 @@
  *   votes: a stranger sees scores and no arrows, the author has no arrows on
  *     their own posts, the moderator votes the thread up, down and back, and
  *     votes a reply up in a browser with JavaScript off;
- *   replies to replies nest; hiding the middle one leaves "[removed]" in its
- *     place with the answers still under it; Best and New order the replies;
- *   a second thread: New, Top and a pin order the community's feed, and the
- *     front page lists both with their community;
+ *   replies to replies nest; a reply to a reply refused as too fast comes
+ *     back open, saying why, with its text, with JavaScript off and on;
+ *     hiding the middle one leaves "[removed]" in its place with the answers
+ *     still under it; Best and New order the replies, with scores chosen so
+ *     that neither order could pass for the other;
+ *   a second thread: New and Top order the community's feed, Top of today
+ *     leaves out an older thread, a pin leads in every order, and the front
+ *     page lists both with their community and no pin;
  *   the moderator suspends the member, who can then read but not post, and
  *     lifts it;
  *   the member downloads their posts and votes, deletes their forum account,
- *     their votes go with it, and their thread then reads "deleted member".
+ *     their votes go with it, and their thread then reads "deleted member"
+ *     and offers nobody arrows.
  *
  * Accounts are made on the Supabase Auth this build points at — the local
  * stack on a laptop, the stand-in (test/stub-gotrue.mjs) in CI — and removed
@@ -454,6 +459,42 @@ async function whenOn() {
     const r3 = await answer(memberPage, member, m2.id, "謝謝版主，我下次會拍尾巴。");
     check("a third level nests under the second", r3.path.join() === `${reply.id},${m2.id}`, r3.path.join());
 
+    // A refused reply to a reply comes back open, saying why, with the text
+    // still in the box: without JavaScript the page is drawn anew, and with
+    // it React empties a form once its action has run. "Too fast" is the
+    // refusal a person meets most, so this spends the member's minute (the
+    // current one and the next, in case the run crosses it).
+    const spentMinute = (who) => sql`
+      insert into rate_limits (key, window_start, count)
+      select ${`forum:burst:${who.id}`},
+             to_timestamp(floor(extract(epoch from now()) / 60) * 60) + n * interval '1 minute', 1000
+        from generate_series(0, 1) n
+      on conflict (key, window_start) do update set count = 1000`;
+    const refusedText = "這一則會被拒絕，但打好的字要留著。";
+    for (const js of [false, true]) {
+      await spentMinute(member);
+      const ctx = await browser.newContext({ locale: "zh-TW", javaScriptEnabled: js });
+      await ctx.addCookies(member.cookies);
+      const page = await ctx.newPage();
+      await page.goto(`${BASE}/community/t/${threadId}`);
+      const card = page.locator(`#post-${m2.id}`);
+      await card.locator("summary", { hasText: ZH.replyToThis }).click();
+      await card.locator(`#reply-body-${m2.id}`).fill(refusedText);
+      await card.getByRole("button", { name: ZH.postReply, exact: true }).click();
+      const alert = card.locator("[role=alert]");
+      await alert.waitFor({ state: "attached", timeout: 10000 });
+      const said = await alert.innerText().catch(() => "");
+      const kept = await card.locator(`#reply-body-${m2.id}`).inputValue();
+      check(
+        `a refused reply to a reply is shown open, with why and the text (JavaScript ${js ? "on" : "off"})`,
+        (await alert.isVisible()) && said.includes(ZH.msg.tooFast) && kept === refusedText,
+        `alert ${(await alert.isVisible()) ? "visible" : "not visible"}: "${said}"; box: "${kept}"`,
+      );
+      await ctx.close();
+    }
+    await freshMinute(member);
+    check("and was not posted", (await sql`select 1 from forum_posts where body = ${refusedText}`).length === 0);
+
     // Hide the first reply: the answers under it keep their place.
     await modPage.goto(`${BASE}/community/t/${threadId}`);
     const hideCard = modPage.locator(`#post-${reply.id}`);
@@ -475,7 +516,8 @@ async function whenOn() {
     await modPage.locator(`#post-${reply.id}`).getByRole("button", { name: ZH.mod.approve, exact: true }).click();
     await until(async () => (await sql`select status from forum_posts where id = ${reply.id}::uuid`)[0].status === "visible");
 
-    // Best and New: the older reply has the higher score.
+    // Best and New. The older top-level reply has the higher score (the
+    // moderator's vote above), so New, newest first, is not Best...
     await freshMinute(mod);
     await modPage.goto(`${BASE}/community/t/${threadId}`);
     await modPage.locator("#reply-body").fill("另一個想法：也可能是鼬獾。");
@@ -487,10 +529,18 @@ async function whenOn() {
       await anonPage.goto(`${BASE}/community/t/${threadId}${query}`);
       return anonPage.locator("#replies > ol > li > article").evaluateAll((els) => els.map((e) => e.id.replace(/^post-/, "")));
     };
-    const best = await topLevel("");
+    let best = await topLevel("");
     const newest = await topLevel("?sort=new");
+    check("New puts the newest first, whatever the scores", newest[0] === late.id && newest[1] === reply.id, newest.join());
     check("Best puts the higher score first", best[0] === reply.id && best[1] === late.id, best.join());
-    check("New puts the newest first", newest[0] === late.id && newest[1] === reply.id, newest.join());
+    // ...and then the newer one overtakes it, so Best is not simply the older
+    // first either (that is only how a tie is broken).
+    await modPage.goto(`${BASE}/community/t/${threadId}`);
+    await press(modPage, reply.id, "up", 0);
+    await memberPage.goto(`${BASE}/community/t/${threadId}`);
+    await press(memberPage, late.id, "up", 1);
+    best = await topLevel("");
+    check("Best puts a newer reply with more votes above an older one", best[0] === late.id && best[1] === reply.id, best.join());
 
     // -- Feeds: New, Top, a pin, and the front page ----------------------------
     const title2 = `forum e2e newer ${randomUUID().slice(0, 8)}`;
@@ -521,11 +571,28 @@ async function whenOn() {
     // In the feed's own items, not the list of communities beside it.
     check("each with its community", (await anonPage.locator('#feed-title ~ ul article a[href$="/community/c/sightings-id"]').count()) >= 2);
 
+    // A pin, in every order. The first thread is moved back three days, so
+    // that without its pin it would be second in Hot and New, and not in Top
+    // of today at all; only the pin can put it first in each. (All time, it
+    // leads Top on its score anyway, which is checked above.)
+    await sql`update forum_threads set created_at = now() - interval '3 days' where id = ${threadId}::uuid`;
+    o = await order("/community/c/sightings-id?sort=top&t=day");
+    check("Top of today leaves out an older thread", o.first === -1 && o.second > 0, JSON.stringify(o));
+    o = await order("/community/c/sightings-id");
+    check("Hot puts the newer thread first", o.second > 0 && (o.first === -1 || o.second < o.first), JSON.stringify(o));
+
     await modPage.goto(`${BASE}/community/t/${threadId}`);
     await modPage.getByRole("button", { name: ZH.mod.pin, exact: true }).click();
     await until(async () => (await sql`select pinned_at from forum_threads where id = ${threadId}::uuid`)[0].pinned_at !== null);
-    o = await order("/community/c/sightings-id?sort=new");
-    check("a pinned thread leads its community's feed in any order", o.first > 0 && o.first < o.second, JSON.stringify(o));
+    for (const [name, query] of [
+      ["Hot", ""],
+      ["New", "?sort=new"],
+      ["Top", "?sort=top"],
+      ["Top of today", "?sort=top&t=day"],
+    ]) {
+      o = await order(`/community/c/sightings-id${query}`);
+      check(`a pinned thread leads its community's feed: ${name}`, o.first > 0 && o.first < o.second, JSON.stringify(o));
+    }
     o = await order("/community?sort=new");
     check("but not the front page's", o.second > 0 && o.second < o.first, JSON.stringify(o));
 
@@ -583,7 +650,7 @@ async function whenOn() {
     const data = exp.ok ? await exp.json() : null;
     check(
       "the member can download their posts and votes",
-      data?.posts?.length === 3 && data.votes?.length === 1 && data.profile?.handle === profile.handle,
+      data?.posts?.length === 3 && data.votes?.length === 2 && data.profile?.handle === profile.handle,
       `${data?.posts?.length} posts, ${data?.votes?.length} votes`,
     );
     check("the download is only theirs", !JSON.stringify(data).includes(mod.id) && !JSON.stringify(data).includes(member.email));
@@ -595,10 +662,23 @@ async function whenOn() {
     const [gone] = await sql`select 1 from forum_profiles where user_id = ${member.id}::uuid`;
     check("deleting the forum account removes the profile", !gone);
     const [{ n: votesLeft }] = await sql`select count(*)::int as n from forum_votes where voter_id = ${member.id}::uuid`;
-    check("and their votes, and the scores they were in", votesLeft === 0 && (await score(m2.id)) === 0);
+    check(
+      "and their votes, and the scores they were in",
+      votesLeft === 0 && (await score(m2.id)) === 0 && (await score(late.id)) === 0,
+    );
     await anonPage.goto(`${BASE}/community/t/${threadId}`);
     const after = await anonPage.content();
     check("their posts stay, as a deleted member", after.includes(ZH.deletedMember) && after.includes("好可愛，希望牠平安。"));
+    // Nothing can tell any more whether a voter wrote them (policy.ts
+    // voteRefusal), so they keep the score they have: the thread's is the
+    // moderator's vote.
+    await modPage.goto(`${BASE}/community/t/${threadId}`);
+    const theirs = [openerId, reply.id, r3.id].map((id) => `#post-${id} button[aria-pressed]`).join(", ");
+    check(
+      "and take no new votes: nobody is offered arrows on them",
+      (await modPage.locator(theirs).count()) === 0 && (await score(openerId)) === 1,
+      `${await modPage.locator(theirs).count()} arrows, thread score ${await score(openerId)}`,
+    );
 
     for (const ctx of [anon, memberCtx, modCtx]) await ctx.close();
   } catch (e) {

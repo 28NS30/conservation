@@ -161,20 +161,56 @@ describe("what the database refuses to count", () => {
     );
   });
 
-  test("a vote on your own post after leaving and rejoining", async () => {
-    // Leaving sets the post's author to null; its metadata keeps who wrote it.
+  test("a vote on a post whose author has left", async () => {
     await assert.rejects(
       () =>
         inRollback(async (tx) => {
           const author = await makeMember(tx, 2052);
+          const a = await makeMember(tx, 2053);
           const { opener } = await makeThread(tx, author);
           await tx`delete from forum_profiles where user_id = ${author}::uuid`;
+          await vote(tx, opener, a, 1);
+        }),
+      /author has left/,
+    );
+  });
+
+  test("a vote on your own post after leaving, the metadata's purge, and rejoining", async () => {
+    // Leaving sets the post's author to null. After 180 days the retention job
+    // purges forum_post_meta, the last record of who wrote it; this is the
+    // member coming back after that (review of the forum-reddit work, 30
+    // September 2026: it used to be let through).
+    await assert.rejects(
+      () =>
+        inRollback(async (tx) => {
+          const author = await makeMember(tx, 2054);
+          const { opener } = await makeThread(tx, author);
+          await tx`delete from forum_profiles where user_id = ${author}::uuid`;
+          await tx`delete from forum_post_meta where post_id = ${opener}`;
           await tx`insert into forum_profiles (user_id, nickname_key, nickname_no, age_band, guidelines_version, guidelines_accepted_at)
-                   values (${author}::uuid, 'vote-test', 2053, '18_plus', 1, now())`;
+                   values (${author}::uuid, 'vote-test', 2055, '18_plus', 1, now())`;
           await vote(tx, opener, author, 1);
         }),
-      /cannot vote on their own post/,
+      /author has left/,
     );
+  });
+
+  test("the votes a post had when its author left stay counted, and can go", async () => {
+    await inRollback(async (tx) => {
+      const author = await makeMember(tx, 2056);
+      const [a, b] = [await makeMember(tx, 2057), await makeMember(tx, 2058)];
+      const { opener } = await makeThread(tx, author);
+      await vote(tx, opener, a, 1);
+      await vote(tx, opener, b, 1);
+      await tx`delete from forum_profiles where user_id = ${author}::uuid`;
+      assert.equal(await scores(tx, opener), 2);
+      // A voter leaving takes theirs with them, as anywhere.
+      await tx`delete from forum_profiles where user_id = ${b}::uuid`;
+      assert.equal(await scores(tx, opener), 1);
+      // Changing one is a new vote on it, and refused.
+      await assert.rejects(() => tx.savepoint((sp) => vote(sp, opener, a, -1)), /author has left/);
+      assert.equal(await scores(tx, opener), 1);
+    });
   });
 
   for (const status of ["held", "hidden", "deleted"]) {
