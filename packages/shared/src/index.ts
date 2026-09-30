@@ -713,20 +713,6 @@ export function requiresClassification(
  */
 export const UNIDENTIFIED_PRECISION: LocationPrecision = "coarse_10km";
 
-/**
- * The least a report filed on the invasive page is blurred by, named or not.
- *
- * A named invasive species is very often a guess at a look-alike: 25 invasive
- * animals share a genus with a protected native (白尾八哥 and 家八哥 beside 八哥,
- * 家麻雀 beside the Class I 山麻雀), and the reporter's word is what sets the
- * blur. So until a person has checked the species, the record is public but
- * no finer than this — the team's default for Q4 in the plan.
- *
- * Stamped as `precision_override` at submission, and kept through every later
- * naming (lib/report/precision.ts, keepDeliberateOverride). When a moderator's
- * confirmation may lift it is the owner's decision, and nothing lifts it yet.
- */
-export const UNVERIFIED_INVASIVE_PRECISION: LocationPrecision = "coarse_10km";
 
 /* ------------------------------------------------------------------ *
  * Tile strategy

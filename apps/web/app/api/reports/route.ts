@@ -21,7 +21,6 @@ import {
   pageOf,
   REPORT_PAGES,
   UNIDENTIFIED_PRECISION,
-  UNVERIFIED_INVASIVE_PRECISION,
   CONTRIBUTOR_LICENSES,
   CONSENT_VERSION,
   PARTNER_SHARING_PAGES,
@@ -276,17 +275,11 @@ export async function POST(req: Request) {
   // the trigger's own else-branch. Two backstops for a guard that was not
   // guarding, and neither of them is this comment's promise.
   //
-  // A report from the invasive page is held at UNVERIFIED_INVASIVE_PRECISION
-  // even when it is named, because there naming is the doubtful part: a
-  // protected native is exactly what gets mistaken for its invasive
-  // look-alike, and the name the reporter gives is what would set the blur.
-  // It is stamped here, as a decision rather than as the "not known yet" stamp,
-  // so every later naming keeps it (lib/report/precision.ts). Nothing lifts it
-  // on a moderator's confirmation yet; when that may happen is the owner's call.
-  const pageHold = page === "invasive" ? UNVERIFIED_INVASIVE_PRECISION : null;
-  const precisionOverride = identified
-    ? pageHold
-    : (heldAt ?? UNIDENTIFIED_PRECISION);
+  // A named report from the invasive page is no longer held at 10 km until a
+  // person checks it: an invasive species is published at its exact spot
+  // (owner decision, 30 September 2026; migration 0029). One that is also
+  // protected or rated is blurred by its own rating, like any other species.
+  const precisionOverride = identified ? null : (heldAt ?? UNIDENTIFIED_PRECISION);
 
   // The contributor terms (/terms, migration 0017). Stored only when the form
   // answered them: a report queued offline before the terms existed carries no
