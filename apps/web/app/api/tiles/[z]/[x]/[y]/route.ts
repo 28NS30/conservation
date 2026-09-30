@@ -55,6 +55,27 @@ const TILE_HEADERS = {
   // Filters live in the query string, so the CDN keys on them automatically.
   "cache-control": "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400",
 };
+
+/**
+ * Tiles fine enough to place a record closer than any blur are cached for
+ * minutes, not a day.
+ *
+ * Point tiles, above TILE_AGGREGATION_MAX_ZOOM, carry each record's id and
+ * published point. Cached like the rest, a record a moderator had just blurred
+ * or rejected kept its old point under its id in the CDN for up to a day, and
+ * the id leads to the record's page and the species now named on it (security
+ * audit, 29 September 2026). Aggregated tiles are no safer at street zooms: a
+ * cell of one record at z13 is its position to about 40 m, and until z5 a cell
+ * is smaller than the smallest blur, 10 km (review of the security fixes, 30
+ * September 2026). Only the coarse zooms keep the long cache.
+ */
+const SHORT_TILE_CACHE = "public, max-age=0, s-maxage=120, stale-while-revalidate=120";
+/** The smallest blur (coarse_10km). A cell smaller than this can place a record. */
+const SMALLEST_BLUR_M = 10_000;
+const tileHeaders = (z: number, aggregated: boolean) =>
+  aggregated && aggregationCellMeters(z) >= SMALLEST_BLUR_M
+    ? TILE_HEADERS
+    : { ...TILE_HEADERS, "cache-control": SHORT_TILE_CACHE };
 /** Safety valve so a pathological viewport can't stream unbounded rows. */
 const POINT_LIMIT = 20_000;
 
@@ -278,7 +299,7 @@ export async function GET(
   // is the whole contract. No Vary either: an empty body is the same in every
   // encoding, so there is nothing for separate cache entries to separate.
   if (!tile || tile.length === 0) {
-    return new Response(new Uint8Array(0), { status: 200, headers: TILE_HEADERS });
+    return new Response(new Uint8Array(0), { status: 200, headers: tileHeaders(z, aggregated) });
   }
 
   // Compressed here because nothing else will. Vercel compresses the types it
@@ -305,7 +326,7 @@ export async function GET(
     return new Response(new Uint8Array(tile), {
       status: 200,
       headers: {
-        ...TILE_HEADERS,
+        ...tileHeaders(z, aggregated),
         "cache-control": "private, no-store",
         vary: "accept-encoding",
       },
@@ -315,7 +336,7 @@ export async function GET(
   return new Response(new Uint8Array(await gz(tile, { level: 6 })), {
     status: 200,
     headers: {
-      ...TILE_HEADERS,
+      ...tileHeaders(z, aggregated),
       "content-encoding": "gzip",
       vary: "accept-encoding",
     },

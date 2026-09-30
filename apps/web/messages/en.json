@@ -1150,7 +1150,7 @@
     "title": "How the queue works",
     "held": "A report waits here when a person has to look at it first: it has no photo, its location is outside Taiwan, its notes contain a link, or the identification model failed on it. Each one says which. A report with a photo also waits here until the model has tried to identify it, usually a few minutes.",
     "publish": "Publish puts it on the map, at the location its species allows. Protected and sensitive species stay blurred whatever is decided here.",
-    "reject": "Reject keeps it off the map for good. Write why: the reporter only sees that it was not used, and the reason stays in the moderation log.",
+    "reject": "Reject keeps it off the map for good. Write why: the reporter only sees that it was not used, and the reason stays in the moderation log. The map catches up with a decision within about five minutes.",
     "tests": "To try every step without anything being shown, use the test links further down."
   }
 }
