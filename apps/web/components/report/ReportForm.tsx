@@ -18,7 +18,7 @@ import {
   type ReportPage,
 } from "@conservation/shared";
 import { preparePhoto, type PreparedPhoto } from "@/lib/image";
-import { browserSupabase } from "@/lib/supabase/client";
+import { storedSessionUserId } from "@/lib/supabase/storedSession";
 import { uploadPhoto } from "@/lib/report/upload";
 import { checkFields, observedInstant, sendableAccuracy } from "@/lib/report/fieldChecks";
 import { enqueue } from "@/lib/offline/queue";
@@ -417,19 +417,18 @@ function ReportFormFields({
   /**
    * Who is signed in on this device now, for a report being saved on it.
    *
-   * Read from the browser's own session, never from the page: the report pages
-   * are kept for offline use and served to whoever opens them next. Undefined
-   * when it cannot be told (a session that needs refreshing without a
-   * signal), and the server then files it as it always did.
+   * Read from the browser's own stored session, never from the page: the
+   * report pages are kept for offline use and served to whoever opens them
+   * next. And never over the network: supabase-js refreshes an old session
+   * before it answers, which with no signal took about 25 seconds and then
+   * said nobody (lib/supabase/storedSession.ts). Undefined only when a stored
+   * session cannot be read, and the server then files it as it always did.
    */
-  async function signedInAs(): Promise<string | undefined> {
-    try {
-      const { data, error } = await browserSupabase().auth.getSession();
-      if (error) return undefined;
-      return data.session?.user.id ?? "anonymous";
-    } catch {
-      return undefined;
-    }
+  function signedInAs(): string | undefined {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!url) return undefined;
+    const id = storedSessionUserId(document.cookie, url);
+    return id === null ? "anonymous" : id;
   }
 
   /**
@@ -454,7 +453,7 @@ function ReportFormFields({
     try {
       await enqueue({
         id: nonce.current,
-        payload: { ...entered(location, category), filedBy: await signedInAs() },
+        payload: { ...entered(location, category), filedBy: signedInAs() },
         photos: photos.map((p) => p.blob),
       });
       window.dispatchEvent(new Event("conservation:queue-changed"));

@@ -506,7 +506,7 @@ try {
   await enPage.reload({ waitUntil: "load" });
   for (let i = 0; i < 30; i++) {
     const done = await enPage.evaluate(async () => {
-      const c = await caches.open("shell-v3");
+      const c = await caches.open("report-v4");
       return Boolean(await c.match(new URL("/en/report/roadkill", location.origin).href, { ignoreVary: true }));
     });
     if (done) break;
@@ -545,7 +545,7 @@ try {
     await keepPage.goto(`${BASE}${path}`, { waitUntil: "load" }).catch(() => {});
   await keepPage.waitForTimeout(1500);
   const kept = await keepPage.evaluate(async (paths) => {
-    const c = await caches.open("shell-v3");
+    const c = await caches.open("shell-v4");
     const out = {};
     for (const p of paths)
       out[p] = Boolean(await c.match(new URL(p, location.origin).href, { ignoreVary: true, ignoreSearch: true }));

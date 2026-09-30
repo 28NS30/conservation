@@ -187,7 +187,11 @@ async function sendOne(
     // Its photos are gone from Storage: uploaded on an earlier try whose post
     // never landed, then collected as orphans. They are still on this phone,
     // so upload them again, once, instead of failing a sound report for good.
-    if (res.status === 400 && data.error === "photo_missing" && !photosRetried && item.uploadedPaths.length) {
+    // Whenever this send carried photos, not only when the copy the flush
+    // started from already had uploads: a report whose photos went up in this
+    // very send was otherwise failed for good by one bad answer. (A Storage
+    // that cannot be asked is a 503 now, retried like any server error.)
+    if (res.status === 400 && data.error === "photo_missing" && !photosRetried && photoPaths.length) {
       const again = { ...item, uploadedPaths: [], attempts: item.attempts + 1 };
       await updateQueued(item.id, { uploadedPaths: [] });
       return sendOne(again, getToken, true);

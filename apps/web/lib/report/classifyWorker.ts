@@ -390,9 +390,15 @@ export async function classifyQueued({ reportId = null }: { reportId?: string | 
       const giveUp = job.attempts >= MAX_ATTEMPTS || err instanceof ModelRefused;
 
       await sql.begin(async (tx) => {
+        // A refused photograph is retired for good: attempts goes to the
+        // maximum, because the claim above takes 'failed' jobs back while
+        // attempts are left, and a 'failed' written with attempts to spare
+        // was sent to the GPU again on every run until they ran out (review of
+        // the security fixes, 30 September 2026).
         await tx`
           update classification_jobs
-             set status = ${giveUp ? "failed" : "queued"}, last_error = ${message}, updated_at = now()
+             set status = ${giveUp ? "failed" : "queued"}, last_error = ${message}, updated_at = now(),
+                 attempts = ${err instanceof ModelRefused ? sql`greatest(attempts, ${MAX_ATTEMPTS})` : sql`attempts`}
            where id = ${job.job_id}::bigint`;
 
         if (giveUp) {
