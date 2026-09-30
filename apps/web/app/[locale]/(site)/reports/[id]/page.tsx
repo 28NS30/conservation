@@ -12,7 +12,7 @@ import {
   type LocationPrecision,
 } from "@conservation/shared";
 import { currentRole } from "@/lib/auth";
-import { licenseLabel } from "@/lib/license";
+import { licenseLabel, isCc0 } from "@/lib/license";
 import ReportMap from "@/components/report/ReportMap";
 import SpeciesCard from "@/components/species/SpeciesCard";
 import { getSpecies, monthlyCounts, speciesSlug } from "@/lib/species";
@@ -541,18 +541,29 @@ export default async function ReportPage({
             )}
           </p>
         )}
-        {/* A person's own report, under the licence they chose and the name
-            they gave (/terms). The form promised "anyone may reuse it if they
-            credit you", and the export carries the name, but the record page
-            showed a credit only for GBIF imports (security audit, 29 September
-            2026). No name given, or CC0, is credited as the form says it will
-            be. */}
+        {/* A person's own report, under the licence they chose (/terms).
+            CC0 asks for no credit, so none is shown: the record is open data.
+            Under CC BY the form promised "anyone may reuse it if they credit
+            you", and the export carries the name, but the record page showed a
+            credit only for GBIF imports (security audit, 29 September 2026).
+            The name is a reporter's own words, though, and on a blurred record
+            their words are withheld (0025): a credit such as a school's or a
+            patrol's name places the animal better than the blur. So a blurred
+            record is credited to the default contributor, and the name stays
+            in the export (review of the security fixes, 30 September 2026). */}
         {row.source === "user" && row.license && (
           <p className="text-sm leading-relaxed text-ink-700">
-            {t("detail.sharedBy")}:{" "}
-            <span className="[overflow-wrap:anywhere]">
-              {row.rights_holder || t("detail.contributorDefault")}
-            </span>
+            {isCc0(row.license) ? (
+              t("detail.openData")
+            ) : (
+              <>
+                {t("detail.sharedBy")}:{" "}
+                <span className="[overflow-wrap:anywhere]">
+                  {(row.location_precision === "exact" && row.rights_holder) ||
+                    t("detail.contributorDefault")}
+                </span>
+              </>
+            )}
             {" · "}
             <a
               href={row.license}

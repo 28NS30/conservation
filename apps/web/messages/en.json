@@ -262,7 +262,8 @@
       "failed": "That did not save. Try again."
     },
     "sharedBy": "Shared by",
-    "contributorDefault": "FormosaWatch contributor"
+    "contributorDefault": "FormosaWatch contributor",
+    "openData": "Open data: anyone may use this record for anything"
   },
   "admin": {
     "heading": "Moderation queue",

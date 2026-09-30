@@ -31,7 +31,7 @@ describe("a person's record carries the credit their licence asks for", () => {
     await sql`delete from reports where client_nonce = any(${made})`;
   });
 
-  async function record({ license, credit }) {
+  async function record({ license, credit, blurred = false }) {
     const nonce = randomUUID();
     made.push(nonce);
     // A common, unrated species, so the record is published exactly.
@@ -42,7 +42,7 @@ describe("a person's record carries the credit their licence asks for", () => {
                            status, source, license, rights_holder, client_nonce)
       values ('roadkill', st_setsrid(st_makepoint(120.9, 23.8), 4326)::geography,
               st_setsrid(st_makepoint(120.9, 23.8), 4326)::geography, now(),
-              ${taxon?.id ?? null}, 'user', 'published', 'user', ${license}, ${credit}, ${nonce})
+              ${blurred ? null : (taxon?.id ?? null)}, ${blurred ? null : "user"}, 'published', 'user', ${license}, ${credit}, ${nonce})
       returning id::text`;
     return row.id;
   }
@@ -56,13 +56,23 @@ describe("a person's record carries the credit their licence asks for", () => {
     assert.match(html, /CC BY 4\.0/);
   });
 
-  test("no name, or CC0: the contributor name the form promises", async (t) => {
+  test("CC0: open data, with no name", async (t) => {
     if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
     const id = await record({ license: CONTRIBUTOR_LICENSES["cc0-1.0"], credit: null });
     const html = await fetch(`${BASE_URL}/en/reports/${id}`).then((r) => r.text());
-    assert.match(html, /Shared by/);
-    assert.match(html, /FormosaWatch contributor/);
+    assert.match(html, /Open data: anyone may use this record/);
+    assert.doesNotMatch(html, /Shared by/);
     assert.match(html, /CC0 1\.0/);
+  });
+
+  test("a blurred record's credit is the default contributor, whatever name was given", async (t) => {
+    // The name is the reporter's own words, withheld on a blurred record like
+    // the notes (0025); it stays in the export.
+    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    const id = await record({ license: CONTRIBUTOR_LICENSES["cc-by-4.0"], credit: "大雪山林道巡守隊", blurred: true });
+    const html = await fetch(`${BASE_URL}/en/reports/${id}`).then((r) => r.text());
+    assert.doesNotMatch(html, /大雪山林道巡守隊/);
+    assert.match(html, /FormosaWatch contributor/);
   });
 });
 

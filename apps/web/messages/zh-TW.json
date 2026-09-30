@@ -262,7 +262,8 @@
       "failed": "沒有儲存成功，請再試一次。"
     },
     "sharedBy": "分享者",
-    "contributorDefault": "福爾摩沙守望計畫通報者"
+    "contributorDefault": "福爾摩沙守望計畫通報者",
+    "openData": "開放資料：任何人都可以自由使用這筆紀錄"
   },
   "admin": {
     "heading": "審核佇列",
