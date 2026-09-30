@@ -32,14 +32,21 @@ function tileOf(lng, lat, z) {
 }
 
 describe("a point tile follows a moderator's decision within minutes", () => {
-  test("point tiles are cached for two minutes, aggregated tiles for an hour", async (t) => {
+  test("a tile that can place a record closer than a blur is cached for two minutes", async (t) => {
     if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
-    const point = await fetch(`${BASE_URL}/api/tiles/${tileOf(121.5, 25.03, TILE_AGGREGATION_MAX_ZOOM + 2)}`);
-    assert.equal(point.status, 200);
-    assert.match(point.headers.get("cache-control") ?? "", /s-maxage=120, stale-while-revalidate=120/);
-    const cell = await fetch(`${BASE_URL}/api/tiles/${tileOf(121.5, 25.03, 7)}`);
-    assert.equal(cell.status, 200);
-    assert.match(cell.headers.get("cache-control") ?? "", /s-maxage=3600/);
+    // Points above the aggregation zoom, and cells under 10 km below it.
+    for (const z of [TILE_AGGREGATION_MAX_ZOOM + 2, TILE_AGGREGATION_MAX_ZOOM, 9, 5]) {
+      const res = await fetch(`${BASE_URL}/api/tiles/${tileOf(121.5, 25.03, z)}`);
+      assert.equal(res.status, 200, `z${z}`);
+      assert.match(res.headers.get("cache-control") ?? "", /s-maxage=120, stale-while-revalidate=120/, `z${z}`);
+    }
+  });
+
+  test("only coarse tiles, with cells of 10 km or more, keep the long cache", async (t) => {
+    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    const coarse = await fetch(`${BASE_URL}/api/tiles/${tileOf(121.5, 25.03, 4)}`);
+    assert.equal(coarse.status, 200);
+    assert.match(coarse.headers.get("cache-control") ?? "", /s-maxage=3600/);
   });
 });
 
