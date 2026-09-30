@@ -23,10 +23,11 @@ begin;
 
 -- 2004 record(s): Cyclophiops major (GBIF: Ptyas major) Cyclophiops major 青蛇 → Cyclophiops major 青蛇  [exact 2004 → exact 2004, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0030820'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0030820')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60082', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59711', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59870', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59927', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60021', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60019', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60582', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61347',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60958', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60577', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:71600', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61050', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61399', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61172', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61963', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61802',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62371', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62247', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61832', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62199', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62139', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62214', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62216', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:65278',
@@ -282,10 +283,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0030820')
 
 -- 1435 record(s): Passer montanus saturatus (GBIF: Passer montanus) Passer montanus saturatus 麻雀 → Passer montanus saturatus 麻雀  [exact 1435 → exact 1435, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0031653'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0031653')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121510', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121572', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121438', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121898', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121877', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121813', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121986', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122715',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123088', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122518', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122816', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123167', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:126046', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123405', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122958', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122987',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123249', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123034', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123392', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123252', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123182', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123561', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123512', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:127386',
@@ -470,10 +472,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0031653')
 
 -- 1250 record(s): Streptopelia tranquebarica humilis (GBIF: Streptopelia tranquebarica) Streptopelia tranquebarica humilis 紅鳩 → Streptopelia tranquebarica humilis 紅鳩  [exact 1250 → exact 1250, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086301'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086301')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121553', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121437', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121436', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123083', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121874', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121984', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122170', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122247',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122265', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123089', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122248', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122709', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123104', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123154', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123151', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123172',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123416', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123229', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122983', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123248', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123238', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123235', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123550', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123548',
@@ -635,10 +638,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0086301')
 
 -- 1053 record(s): Lycodon rufozonatus rufozonatus (GBIF: Lycodon rufozonatus) Lycodon rufozonatus rufozonatus 紅斑蛇 → Lycodon rufozonatus rufozonatus 紅斑蛇  [exact 1053 → exact 1053, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0102405'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0102405')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122169', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123747', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31891', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32970', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33332', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33500', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33008', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33497',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33727', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33203', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33494', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33541', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33399', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33459', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33737', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33466',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33623', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34298', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33848', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34259', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34299', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34037', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:69604', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34468',
@@ -775,10 +779,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0102405')
 
 -- 891 record(s): Trimeresurus stejnegeri stejnegeri (GBIF: Trimeresurus stejnegeri) Trimeresurus stejnegeri stejnegeri 赤尾青竹絲 → Trimeresurus stejnegeri stejnegeri 赤尾青竹絲  [exact 891 → exact 891, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0102408'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0102408')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122254', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121734', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122526', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122496', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122436', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122568', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122377', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122684',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123140', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123012', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123555', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31764', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33984', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32169', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32481', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32505',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33310', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36614', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33498', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36620', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35879', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33205', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34301', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33865',
@@ -895,10 +900,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0102408')
 
 -- 747 record(s): Melogale moschata subaurantiaca (GBIF: Melogale moschata) Melogale subaurantiaca 鼬貛 → Melogale subaurantiaca 鼬貛  [exact 747 → exact 747, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0027888'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0027888')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121559', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121507', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122017', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121967', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122473', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122072', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122516', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122267',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122536', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123199', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123293', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123308', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123585', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123662', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123790', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123708',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123767', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123853', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123642', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123759', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123733', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123645', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:124085', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:124161',
@@ -997,10 +1003,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0027888')
 
 -- 549 record(s): Lycodon ruhstrati ruhstrati (GBIF: Lycodon ruhstrati) Lycodon ruhstrati ruhstrati 白梅花蛇 → Lycodon ruhstrati ruhstrati 白梅花蛇  [exact 549 → exact 549, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0102406'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0102406')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122471', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122711', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123488', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123827', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31763', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37016', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31887', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32348',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32482', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32992', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32960', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32434', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32502', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33435', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34428', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33835',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34010', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33837', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34297', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34038', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34224', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34695', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34738', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34249',
@@ -1074,10 +1081,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0102406')
 
 -- 499 record(s): Pycnonotus sinensis formosae (GBIF: Pycnonotus sinensis) Pycnonotus sinensis formosae 白頭翁 → Pycnonotus sinensis formosae 白頭翁  [exact 499 → exact 499, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086192'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086192')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121972', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122218', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123401', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32375', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32314', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32401', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32288', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32394',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33002', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32382', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32592', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32577', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32587', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34051', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33402', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33463',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33655', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35480', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33911', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33924', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33946', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34491', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34667', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34944',
@@ -1145,10 +1153,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0086192')
 
 -- 481 record(s): Hylarana guentheri (GBIF: Sylvirana guentheri) Hylarana guentheri 貢德氏赤蛙 → Hylarana guentheri 貢德氏赤蛙  [exact 481 → exact 481, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0033142'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0033142')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59178', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59804', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59801', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59799', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59827', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59832', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59765', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59944',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60176', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60036', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59953', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60270', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60062', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60221', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60485', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60261',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60660', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60722', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60716', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60640', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60741', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60868', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61051', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61120',
@@ -1214,10 +1223,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0033142')
 
 -- 445 record(s): Xenochrophis piscator (GBIF: Xenochrophis piscator) Fowlea flavipunctatus 草花蛇 → Fowlea flavipunctatus 草花蛇  [coarse_10km 445 → coarse_10km 445, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0048853'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0048853')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58538', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60768', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62481', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62910', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:63492', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:63493', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:63621', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64218',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64610', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64417', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64818', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64579', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64968', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:65082', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:65144', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:65342',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:71649', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:67110', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:67091', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:68138', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:68294', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:68990', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:68890', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:68874',
@@ -1278,10 +1288,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0048853')
 
 -- 395 record(s): Callosciurus erythraeus thaiwanensis (GBIF: Callosciurus erythraeus) Callosciurus erythraeus thaiwanensis 赤腹松鼠 → Callosciurus erythraeus thaiwanensis 赤腹松鼠  [exact 395 → exact 395, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085369'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085369')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121686', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121787', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122440', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122954', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122999', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123826', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123741', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123821',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31895', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31870', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32026', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32220', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32168', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32309', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32476', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33326',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32496', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33023', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33836', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35882', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33850', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34692', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34343', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34684',
@@ -1336,10 +1347,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0085369')
 
 -- 326 record(s): Streptopelia chinensis chinensis (GBIF: Spilopelia chinensis) Spilopelia chinensis chinensis 珠頸斑鳩 → Spilopelia chinensis chinensis 珠頸斑鳩  [exact 326 → exact 326, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0102334'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0102334')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122442', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122240', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122986', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122897', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123309', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123393', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123437', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123272',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123641', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123737', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123703', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123778', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31966', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31971', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31819', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32056',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32219', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32350', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32296', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32321', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32475', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32539', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32584', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32579',
@@ -1385,10 +1397,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0102334')
 
 -- 317 record(s): Gallinula chloropus chloropus (GBIF: Gallinula chloropus) Gallinula chloropus chloropus 紅冠水雞 → Gallinula chloropus chloropus 紅冠水雞  [exact 317 → exact 317, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0029265'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0029265')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121508', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121783', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122175', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121777', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123183', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123144', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123216', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122820',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122943', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:125353', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123247', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123975', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123239', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123411', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123398', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123558',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123410', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123173', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123310', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123418', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123541', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123425', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123481', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123593',
@@ -1433,10 +1446,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0029265')
 
 -- 310 record(s): Oreocryptophis porphyraceus kawakamii (GBIF: Oreocryptophis porphyraceus) Oreocryptophis porphyraceus kawakamii 紅竹蛇 → Oreocryptophis porphyraceus kawakamii 紅竹蛇  [exact 310 → exact 310, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086017'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086017')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122904', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32239', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32958', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32956', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32419', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32942', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32590', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34045',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33356', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34049', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33358', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33124', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33121', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33187', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33513', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33884',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33883', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60429', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34004', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34305', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34484', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34827', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35269', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37753',
@@ -1480,10 +1494,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0086017')
 
 -- 257 record(s): Nycticorax nycticorax nycticorax (GBIF: Nycticorax nycticorax) Nycticorax nycticorax nycticorax 夜鷺 → Nycticorax nycticorax nycticorax 夜鷺  [exact 257 → exact 257, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085989'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085989')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121537', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122005', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122244', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122749', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123126', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123121', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123127', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123130',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123420', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123415', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123664', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123765', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123815', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123817', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32014', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32010',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32030', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32175', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32186', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32092', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34565', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32593', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33638', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33901',
@@ -1521,10 +1536,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0085989')
 
 -- 240 record(s): Amaurornis phoenicurus chinensis (GBIF: Amaurornis phoenicurus) Amaurornis phoenicurus chinensis 白腹秧雞 → Amaurornis phoenicurus chinensis 白腹秧雞  [exact 240 → exact 240, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085213'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085213')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121996', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122464', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122465', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122895', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31961', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31830', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31884', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32180',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32225', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32233', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32473', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32532', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33011', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33007', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33009', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34422',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33762', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34665', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34813', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35441', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37747', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37883', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37881', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37743',
@@ -1559,10 +1575,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0085213')
 
 -- 236 record(s): Caprimulgus affinis stictomus (GBIF: Caprimulgus affinis) Caprimulgus affinis stictomus 南亞夜鷹 → Caprimulgus affinis stictomus 南亞夜鷹  [exact 236 → exact 236, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085386'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085386')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32045', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32512', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32469', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34634', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34431', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34912', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35716', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36523',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36663', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36752', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36756', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36923', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36836', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38007', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37496', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37198',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37596', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38004', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37191', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37497', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37559', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37511', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37907', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37550',
@@ -1597,10 +1614,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0085386')
 
 -- 228 record(s): Paguma larvata taivana (GBIF: Paguma larvata) Paguma larvata larvata 白鼻心 → Paguma larvata larvata 白鼻心  [exact 228 → exact 228, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086045'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086045')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123225', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123711', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58962', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34670', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32465', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32952', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49050', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33003',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32468', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33224', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32503', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34448', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33372', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33782', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34414', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33952',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34172', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34960', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34949', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34379', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34591', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36582', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35028', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34782',
@@ -1634,10 +1652,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0086045')
 
 -- 223 record(s): Hoplobatrachus rugulosus (GBIF: Hoplobatrachus rugulosus) Hoplobatrachus chinensis 虎皮蛙 → Hoplobatrachus chinensis 虎皮蛙  [exact 223 → exact 223, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0029740'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0029740')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59388', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61584', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61797', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61957', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62394', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62187', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62359', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62379',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62561', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62319', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62935', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62764', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62934', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:63084', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:63351', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:63445',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:63804', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:63881', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64277', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64521', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64734', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64922', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64979', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:65004',
@@ -1670,10 +1689,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0029740')
 
 -- 169 record(s): Turnix suscitator rostratus (GBIF: Turnix suscitator) Turnix suscitator rostratus 棕三趾鶉 → Turnix suscitator rostratus 棕三趾鶉  [exact 169 → exact 169, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0028406'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0028406')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121816', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36994', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32326', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34044', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34462', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33663', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37176', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:67680',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37264', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38774', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38733', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:40369', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:40251', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49170', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49491', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57497',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57884', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20595', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20555', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20258', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20731', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20725', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22656', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24677',
@@ -1700,10 +1720,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0028406')
 
 -- 162 record(s): Sinomicrurus macclellandi swinhoei (GBIF: Sinomicrurus macclellandi) Sinomicrurus swinhoei 斯文豪氏華珊瑚蛇 → Sinomicrurus swinhoei 斯文豪氏華珊瑚蛇  [coarse_10km 162 → coarse_10km 162, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0032872'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0032872')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33832', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34024', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34966', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34953', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34542', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35267', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35954', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35957',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36711', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38867', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38857', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38641', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38875', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37837', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39735', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38423',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38982', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39211', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49729', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:40601', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49471', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49748', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:50310', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57384',
@@ -1729,10 +1750,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0032872')
 
 -- 143 record(s): Plestiodon chinensis formosensis (GBIF: Plestiodon chinensis) Plestiodon chinensis formosensis 中國石龍子臺灣亞種 → Plestiodon chinensis formosensis 中國石龍子臺灣亞種  [exact 143 → exact 143, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0102062'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0102062')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121502', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122177', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122178', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32460', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32458', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32457', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32571', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33144',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33458', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34438', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34437', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33626', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33846', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34436', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35885', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35884',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35070', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34558', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35069', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35787', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36472', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36571', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:69945', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39013',
@@ -1755,10 +1777,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0102062')
 
 -- 142 record(s): Hirundo rustica gutturalis (GBIF: Hirundo rustica) Hirundo rustica gutturalis 家燕 → Hirundo rustica gutturalis 家燕  [exact 142 → exact 142, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085752'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085752')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32270', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32583', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33701', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32578', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33709', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33711', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33706', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33707',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33719', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33710', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20590', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20810', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20935', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20871', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21594', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25223',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25224', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25226', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22684', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22680', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22693', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22683', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22687', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22685',
@@ -1781,10 +1804,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0085752')
 
 -- 119 record(s): Sibynophis chinensis chinensis (GBIF: Sibynophis chinensis) Sibynophis chinensis chinensis 黑頭蛇 → Sibynophis chinensis chinensis 黑頭蛇  [exact 119 → coarse_10km 119, tightens, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0102407'),
-                   precision_override = 'coarse_10km',
+                   precision_override = stricter_precision('coarse_10km', location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0102407')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34241', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33960', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35143', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36865', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37182', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38784', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39425', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:40310',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49011', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49086', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:40582', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49624', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60980', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57226', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34683', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21159',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22057', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27353', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27379', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26418', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27256', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27932', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29416', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30157',
@@ -1804,10 +1828,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0102407')
 
 -- 117 record(s): Calamaria pavimentata pavimentata (GBIF: Calamaria pavimentata) Calamaria pavimentata pavimentata 鐵線蛇 → Calamaria pavimentata pavimentata 鐵線蛇  [exact 117 → coarse_10km 117, tightens, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0102404'),
-                   precision_override = 'coarse_10km',
+                   precision_override = stricter_precision('coarse_10km', location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0102404')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122710', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:141890', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33601', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37098', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38184', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38531', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39538', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49722',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49511', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21495', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25245', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22443', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:23948', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24939', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24484', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27393',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26036', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27235', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27875', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27844', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27777', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28280', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28305', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28381',
@@ -1827,10 +1852,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0102404')
 
 -- 116 record(s): Lonchura punctulata topela (GBIF: Lonchura punctulata) Lonchura punctulata topela 斑文鳥 → Lonchura punctulata topela 斑文鳥  [exact 116 → exact 116, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0027555'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0027555')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123082', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123257', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123635', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123797', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31853', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31855', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32349', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32198',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32077', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34568', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38893', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39634', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:50048', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57471', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57470', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20250',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20310', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20360', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20708', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20714', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21004', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21353', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21752', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22202',
@@ -1850,10 +1876,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0027555')
 
 -- 99 record(s): Discoplax hirtipes (GBIF: Tuerkayana hirtipes) Discoplax hirtipes 毛足圓盤蟹 → Discoplax hirtipes 毛足圓盤蟹  [exact 99 → exact 99, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0061812'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0061812')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36047', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:50272', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39069', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39163', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:56959', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22713', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:23243', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25079',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29956', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29959', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29961', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29960', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29955', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25391', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25385', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26218',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25502', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26214', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29946', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27526', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28190', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29494', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29567', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29977',
@@ -1871,10 +1898,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0061812')
 
 -- 97 record(s): Lanius cristatus cristatus (GBIF: Lanius cristatus) Lanius cristatus cristatus 紅尾伯勞 → Lanius cristatus cristatus 紅尾伯勞  [coarse_10km 97 → coarse_10km 97, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085799'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085799')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122942', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123275', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31983', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32305', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32420', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32572', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34251', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39254',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:40004', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57907', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39444', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39674', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:40338', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49805', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49970', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57041',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20302', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20356', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20532', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20956', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21155', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22598', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:23075', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28046',
@@ -1892,10 +1920,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0085799')
 
 -- 97 record(s): Herpestes urva formosanus (GBIF: Herpestes urva) Urva urva formosana 食蟹獴 → Urva urva formosana 食蟹獴  [coarse_10km 97 → coarse_10km 97, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085747'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085747')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58960', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59086', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59214', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59386', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61510', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60826', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61601', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62189',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62077', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62433', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61838', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:63533', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:63689', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64533', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64693', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:67258',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:70259', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:70769', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:71025', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:71075', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:71210', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:72506', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:73085', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:73545',
@@ -1913,10 +1942,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0085747')
 
 -- 94 record(s): Prinia inornata flavirostris (GBIF: Prinia inornata) Prinia inornata flavirostris 褐頭鷦鶯 → Prinia inornata flavirostris 褐頭鷦鶯  [exact 94 → exact 94, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086151'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086151')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122474', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123636', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61794', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35005', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35172', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37844', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38062', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38964',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20305', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20233', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20304', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22803', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24124', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25307', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24559', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25659',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26856', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27674', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29016', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31734', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9021', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9058', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9319', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14975',
@@ -1933,10 +1963,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0086151')
 
 -- 91 record(s): Japalura polygonata xanthostoma (GBIF: Diploderma polygonatum) Diploderma polygonatum xanthostomum 黃口攀蜥 → Diploderma polygonatum xanthostomum 黃口攀蜥  [exact 91 → exact 91, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085581'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085581')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34130', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34205', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34103', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34219', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34208', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34108', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34134', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34184',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34179', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34206', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34207', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34210', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34198', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34192', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34216', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34187',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34041', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34194', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34195', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34218', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34189', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34193', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34191', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33575',
@@ -1953,10 +1984,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0085581')
 
 -- 88 record(s): Acridotheres tristis tristis (GBIF: Acridotheres tristis) Acridotheres tristis tristis 家八哥 → Acridotheres tristis tristis 家八哥  [exact 88 → exact 88, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085172'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085172')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32236', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32938', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32567', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33818', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37040', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36873', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38765', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39733',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39389', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57540', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21087', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20883', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25492', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26670', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25833', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25988',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26907', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28156', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27922', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28968', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8849', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:23746', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9367', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19619',
@@ -1972,10 +2004,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0085172')
 
 -- 80 record(s): Centropus bengalensis lignator (GBIF: Centropus bengalensis) Centropus bengalensis lignator 番鵑 → Centropus bengalensis lignator 番鵑  [exact 80 → exact 80, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0030221'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0030221')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121494', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122331', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121975', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123720', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32173', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33241', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33228', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33923',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36239', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35567', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37878', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39732', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39104', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39354', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39878', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57440',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20295', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20834', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22028', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:23333', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29003', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8297', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8294', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9249',
@@ -1990,10 +2023,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0030221')
 
 -- 75 record(s): Cecropis striolata striolata (GBIF: Cecropis striolata) Cecropis striolata striolata 赤腰燕 → Cecropis striolata striolata 赤腰燕  [exact 75 → exact 75, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085400'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085400')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38946', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38768', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38411', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39192', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39901', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:50017', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:50110', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25218',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25216', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22599', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22232', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22921', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26925', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27117', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26650', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27118',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30796', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30798', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30797', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31536', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31696', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31375', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8799', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9734',
@@ -2008,10 +2042,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0085400')
 
 -- 72 record(s): Chalcophaps indica indica (GBIF: Chalcophaps indica) Chalcophaps indica indica 翠翼鳩 → Chalcophaps indica indica 翠翼鳩  [exact 72 → exact 72, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0030328'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0030328')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31831', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32138', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33520', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33705', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34043', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33460', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38796', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38384',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39217', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49662', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:56948', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22147', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24861', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24874', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24370', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27099',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27246', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31546', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:12167', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14035', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14435', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14550', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:3493', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:5394',
@@ -2025,10 +2060,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0030328')
 
 -- 71 record(s): Lepus sinensis formosus (GBIF: Lepus sinensis) Lepus sinensis formosus 臺灣野兔 → Lepus sinensis formosus 臺灣野兔  [exact 71 → exact 71, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085835'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085835')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122231', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122860', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31885', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32379', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32944', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39763', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:40400', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20897',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21162', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21423', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21512', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21955', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22409', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22790', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24676', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30822',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31588', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8156', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9196', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9067', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8905', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22777', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9394', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:12357',
@@ -2042,10 +2078,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0085835')
 
 -- 70 record(s): Dicrurus macrocercus harterti (GBIF: Dicrurus macrocercus) Dicrurus macrocercus harterti 大卷尾 → Dicrurus macrocercus harterti 大卷尾  [exact 70 → exact 70, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085575'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085575')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31889', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32582', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37557', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37672', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38484', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39194', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38973', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39406',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39537', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39429', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39871', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57061', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49175', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49802', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57554', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20308',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8293', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8231', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9617', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19634', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7146', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:6974', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58328', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59007',
@@ -2059,10 +2096,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0085575')
 
 -- 67 record(s): Pseudoxenodon stejnegeri stejnegeri (GBIF: Pseudoxenodon stejnegeri) Pseudoxenodon stejnegeri stejnegeri 史丹吉氏斜鱗蛇 → Pseudoxenodon stejnegeri stejnegeri 史丹吉氏斜鱗蛇  [exact 67 → exact 67, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0100974'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0100974')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121324', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122645', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34046', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38746', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:40278', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:40243', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49038', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20911',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21581', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24733', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26813', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27939', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29554', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29691', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30737', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30801',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31544', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8809', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:11417', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:16052', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:15507', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:15913', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:18683', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19669',
@@ -2076,10 +2114,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0100974')
 
 -- 66 record(s): Muntiacus reevesi micrurus (GBIF: Muntiacus reevesi) Muntiacus reevesi micrurus 臺灣山羌 → Muntiacus reevesi micrurus 臺灣山羌  [exact 66 → exact 66, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085944'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085944')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122256', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57826', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32376', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32552', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35051', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34380', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37360', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36527',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49476', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49900', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57580', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57484', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20287', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21684', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21629', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22489',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25108', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25458', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25435', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26476', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31397', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32524', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:11915', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14539',
@@ -2093,10 +2132,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0085944')
 
 -- 65 record(s): Mustela sibirica taivana (GBIF: Mustela sibirica) Mustela sibirica taivana 黃鼠狼 → Mustela sibirica taivana 黃鼠狼  [exact 65 → exact 65, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085950'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085950')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122551', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32570', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35068', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35184', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36795', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38795', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38300', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39922',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:50286', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49408', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20562', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21063', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21636', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30253', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29194', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30505',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8192', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7865', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9752', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:18617', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19763', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19672', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7082', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:4998',
@@ -2110,10 +2150,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0085950')
 
 -- 64 record(s): Mus caroli (GBIF: Mus caroli) Mus formosanus 田鼷鼠 → Mus formosanus 田鼷鼠  [exact 64 → exact 64, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0080708'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0080708')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59742', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:63108', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64526', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64946', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:67369', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:68069', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:68166', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:68295',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:68723', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:68735', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:68718', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:68881', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:69950', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:70955', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:71197', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:71813',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:71626', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:72045', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:72838', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:74627', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123098', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123339', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122862', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123196',
@@ -2126,10 +2167,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0080708')
 
 -- 62 record(s): Accipiter trivirgatus formosae (GBIF: Accipiter trivirgatus) Accipiter trivirgatus formosae 鳳頭蒼鷹 → Accipiter trivirgatus formosae 鳳頭蒼鷹  [coarse_10km 62 → coarse_10km 62, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0057537'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0057537')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122720', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122179', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122486', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123285', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33588', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35109', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37215', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38229',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:40033', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:40204', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57159', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21066', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21070', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20680', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21477', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26589',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29697', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30769', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31618', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9102', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8591', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14845', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14893', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19777',
@@ -2142,10 +2184,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0057537')
 
 -- 55 record(s): Apus nipalensis kuntzi (GBIF: Apus nipalensis) Apus nipalensis kuntzi 小雨燕 → Apus nipalensis kuntzi 小雨燕  [exact 55 → exact 55, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085274'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085274')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31993', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31997', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32176', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31988', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32032', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32362', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34225', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39708',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39530', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39424', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58601', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57647', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21071', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25529', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25877', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27589',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27587', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27852', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28353', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31035', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9507', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19987', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:3498', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:2653',
@@ -2157,10 +2200,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0085274')
 
 -- 53 record(s): Mauremys mutica mutica (GBIF: Mauremys mutica) Mauremys mutica mutica 柴棺龜 → Mauremys mutica mutica 柴棺龜  [coarse_10km 53 → coarse_10km 53, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0102401'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0102401')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33813', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33293', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33628', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33930', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36579', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36167', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21696', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22125',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22050', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22993', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:23135', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24008', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8855', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:12299', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:15379', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:1033',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7040', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:4239', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7173', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:2107', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:4547', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:5084', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:5650', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7098',
@@ -2172,10 +2216,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0102401')
 
 -- 52 record(s): Egretta garzetta garzetta (GBIF: Egretta garzetta) Egretta garzetta garzetta 小白鷺 → Egretta garzetta garzetta 小白鷺  [exact 52 → exact 52, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0028816'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0028816')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122466', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32322', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32459', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39294', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49368', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:56968', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57039', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20486',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21193', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21488', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28697', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29256', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30471', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31840', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9123', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10837',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:11662', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19388', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20138', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:3233', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:3230', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:2817', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7336', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:3006',
@@ -2187,10 +2232,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0028816')
 
 -- 51 record(s): Otus spilocephalus hambroecki (GBIF: Otus spilocephalus) Otus spilocephalus hambroecki 黃嘴角鴞 → Otus spilocephalus hambroecki 黃嘴角鴞  [coarse_10km 51 → coarse_10km 51, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086033'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086033')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123719', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123705', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123668', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31837', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32033', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32478', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32591', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49406',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57818', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20923', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22408', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:23182', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30009', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30164', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14863', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:18567',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:18851', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19775', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19516', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20188', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20161', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:4449', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:6365', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:6961',
@@ -2202,10 +2248,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0086033')
 
 -- 50 record(s): Alcedo atthis bengalensis (GBIF: Alcedo atthis) Alcedo atthis bengalensis 翠鳥 → Alcedo atthis bengalensis 翠鳥  [exact 50 → exact 50, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085207'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085207')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32329', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33252', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33226', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33888', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34715', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35627', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37979', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39195',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:40324', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26426', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28034', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28322', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29384', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32521', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9415', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10338',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14016', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:15963', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:15433', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:931', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:516', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:3685', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:15485', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61819',
@@ -2217,10 +2264,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0085207')
 
 -- 49 record(s): Hirundo tahitica namiyei (GBIF: Hirundo tahitica) Hirundo tahitica namiyei 洋燕 → Hirundo tahitica namiyei 洋燕  [exact 49 → exact 49, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085756'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085756')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32052', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20668', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22884', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24174', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26376', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27520', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28232', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28233',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29061', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31241', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8665', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8912', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8914', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:23734', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:13803', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:13530',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19637', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19979', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:494', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:3178', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:771', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:6963', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:3305', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:1332',
@@ -2232,10 +2280,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0085756')
 
 -- 46 record(s): Hipposideros armiger terasensis (GBIF: Hipposideros armiger) Hipposideros armiger terasensis 臺灣葉鼻蝠 → Hipposideros armiger terasensis 臺灣葉鼻蝠  [exact 46 → coarse_50km 46, tightens, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085749'),
-                   precision_override = 'coarse_50km',
+                   precision_override = stricter_precision('coarse_50km', location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085749')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34084', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39629', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:40543', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25816', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25859', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26956', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27066', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28561',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29391', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29909', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8309', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:12091', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:15985', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:18818', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19390', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9906',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:3547', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:5112', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:3659', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:2866', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60763', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:67854', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:68352', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59602',
@@ -2246,10 +2295,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0085749')
 
 -- 42 record(s): Hypsipetes leucocephalus nigerrimus (GBIF: Hypsipetes leucocephalus) Hypsipetes leucocephalus nigerrimus 紅嘴黑鵯 → Hypsipetes leucocephalus nigerrimus 紅嘴黑鵯  [exact 42 → exact 42, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085780'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085780')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32373', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38334', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38745', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20899', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21041', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21687', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21570', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22282',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27364', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26768', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7838', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9399', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9883', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9745', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10984', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:3134',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:1023', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:737', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:2712', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7402', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:13486', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59434', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61395', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62480',
@@ -2260,10 +2310,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0085780')
 
 -- 41 record(s): Sinomicrurus hatori (GBIF: Sinomicrurus hatori) Sinomicrurus sauteri 梭德氏帶紋赤蛇 → Sinomicrurus sauteri 梭德氏帶紋赤蛇  [coarse_10km 41 → coarse_10km 41, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0032871'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0032871')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64342', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:74104', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:69663', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:74715', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:70795', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35535', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35560', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37668',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37667', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36595', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36359', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38576', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39599', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49224', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24724', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26460',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31309', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10648', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10761', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:11852', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:11230', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24380', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:12370', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:12931',
@@ -2274,10 +2325,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0032871')
 
 -- 40 record(s): Sinonatrix percarinata suriki (GBIF: Trimerodytes percarinatus) Trimerodytes percarinatus suriki 白腹游蛇 → Trimerodytes percarinatus suriki 白腹游蛇  [exact 40 → coarse_10km 40, tightens, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086249'),
-                   precision_override = 'coarse_10km',
+                   precision_override = stricter_precision('coarse_10km', location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086249')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33299', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35390', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35719', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39978', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21043', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22403', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30160', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9001',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:11206', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:11237', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19453', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7710', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25273', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:491', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64702', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60593',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:71758', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:71423', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:63128', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:63203', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64299', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64490', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:68020', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:68531',
@@ -2287,10 +2339,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0086249')
 
 -- 37 record(s): Dendrocitta formosae formosae (GBIF: Dendrocitta formosae) Dendrocitta formosae formosae 樹鵲 → Dendrocitta formosae formosae 樹鵲  [exact 37 → exact 37, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085559'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085559')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32013', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32559', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33005', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33512', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33773', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35054', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36610', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36801',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38267', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38495', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20297', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21186', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22901', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:23141', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25110', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25797',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26242', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10592', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14117', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14487', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7155', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:4402', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:1141', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59543',
@@ -2300,10 +2353,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0085559')
 
 -- 37 record(s): Hypothymis azurea oberholseri (GBIF: Hypothymis azurea) Hypothymis azurea oberholseri 黑枕藍鶲 → Hypothymis azurea oberholseri 黑枕藍鶲  [exact 37 → exact 37, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0029835'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0029835')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33560', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33559', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37258', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24096', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24556', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26399', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31023', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10704',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10213', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10526', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:13574', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:4357', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7897', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:3252', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8505', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:1917',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64519', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:67076', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:67257', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61682', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62600', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:63462', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:68986', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:72155',
@@ -2313,10 +2367,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0029835')
 
 -- 36 record(s): Phoenicurus auroreus auroreus (GBIF: Phoenicurus auroreus) Phoenicurus auroreus auroreus 黃尾鴝 → Phoenicurus auroreus auroreus 黃尾鴝  [exact 36 → exact 36, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086101'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086101')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122266', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32335', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32234', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32337', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32363', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38410', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49278', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:50293',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49667', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:50304', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20291', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20290', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29266', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30506', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30712', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20061',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19504', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:18778', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:6357', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:6850', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:2892', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58365', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58775', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:74897',
@@ -2326,10 +2381,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0086101')
 
 -- 35 record(s): Prinia flaviventris sonitans (GBIF: Prinia flaviventris) Prinia flaviventris sonitans 灰頭鷦鶯 → Prinia flaviventris sonitans 灰頭鷦鶯  [exact 35 → exact 35, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0032108'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0032108')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123288', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32509', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37393', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38895', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:50485', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20666', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20891', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25802',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30313', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10457', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:13924', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:16073', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:2492', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:15553', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:72344', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:70362',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:71579', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59775', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60451', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61218', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64741', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:67772', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:73913', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122488',
@@ -2339,10 +2395,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0032108')
 
 -- 34 record(s): Streptopelia orientalis orii (GBIF: Streptopelia orientalis) Streptopelia orientalis orii 金背鳩 → Streptopelia orientalis orii 金背鳩  [exact 34 → exact 34, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086300'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086300')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121512', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123824', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31962', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37764', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49657', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25042', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26610', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31269',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31770', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7670', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8227', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:11832', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14092', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20182', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7430', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58434',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59368', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59623', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59237', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59051', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:65257', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:63347', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:65554', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:68093',
@@ -2352,10 +2409,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0086300')
 
 -- 34 record(s): Phasianus colchicus formosanus (GBIF: Phasianus colchicus) Phasianus colchicus formosanus 環頸雉 → Phasianus colchicus formosanus 環頸雉  [coarse_10km 34 → coarse_10km 34, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086094'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086094')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122737', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31863', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33223', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39808', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30085', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28635', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31424', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31810',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8788', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:11719', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:18912', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19924', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20170', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19955', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:3033', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:1210',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:2062', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58368', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59075', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59675', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59361', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59438', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61880', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59659',
@@ -2365,10 +2423,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0086094')
 
 -- 34 record(s): Dicrurus macrocercus cathoecus (GBIF: Dicrurus macrocercus) Dicrurus macrocercus cathoecus 大卷尾 → Dicrurus macrocercus cathoecus 大卷尾  [exact 34 → exact 34, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085574'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085574')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22446', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26664', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27937', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30076', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9757', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10474', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:13251', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:11909',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:15549', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14421', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:16174', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19129', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:5605', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8060', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:4834', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:3120',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:5449', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:2369', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20765', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21997', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26445', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27283', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26875', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30452',
@@ -2378,10 +2437,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0085574')
 
 -- 33 record(s): Dremomys pernyi owstoni (GBIF: Dremomys pernyi) Dremomys pernyi owstoni 長吻松鼠 → Dremomys pernyi owstoni 長吻松鼠  [exact 33 → exact 33, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085590'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085590')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34956', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38565', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49236', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38552', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20563', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26660', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26659', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28326',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27886', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31285', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9498', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:12085', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:18632', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:15413', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7141', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:4312',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:542', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:2245', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:6237', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:6916', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:5510', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60079', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64422', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:69877',
@@ -2391,10 +2451,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0085590')
 
 -- 32 record(s): Rhabdophis tigrinus formosanus (GBIF: Rhabdophis tigrinus) Rhabdophis formosanus 臺灣赤煉蛇 → Rhabdophis formosanus 臺灣赤煉蛇  [exact 32 → exact 32, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0032460'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0032460')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35121', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36676', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49223', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24632', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29014', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29452', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14475', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:16024',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:18471', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:774', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7123', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:391', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:3145', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:68692', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64449', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:67940',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:70431', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:71684', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:70411', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36677', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22480', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24248', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:11474', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14476',
@@ -2403,10 +2464,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0032460')
 
 -- 31 record(s): Cyanoderma ruficeps praecognitum (GBIF: Stachyridopsis ruficeps) Cyanoderma ruficeps praecognitum 山紅頭 → Cyanoderma ruficeps praecognitum 山紅頭  [exact 31 → exact 31, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0030810'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0030810')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59607', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59791', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61602', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:74454', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32423', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33845', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37337', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37528',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49530', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21079', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21157', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25304', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9482', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14182', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14017', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:16165',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:15961', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:18921', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:18576', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19965', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:565', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:2482', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:493', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:436',
@@ -2415,10 +2477,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0030810')
 
 -- 30 record(s): Rallina eurizonoides formosana (GBIF: Rallina eurizonoides) Rallina eurizonoides formosana 灰腳秧雞 → Rallina eurizonoides formosana 灰腳秧雞  [exact 30 → exact 30, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086199'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086199')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35104', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49263', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21078', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25834', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26876', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10994', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19611', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20343',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:1015', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8520', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8131', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:2890', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58802', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59737', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60215', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61428',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:65354', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:68604', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36153', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38534', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24339', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30577', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9116', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:13777',
@@ -2427,10 +2490,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0086199')
 
 -- 29 record(s): Sinosuthora webbiana bulomacha (GBIF: Sinosuthora webbiana) Sinosuthora webbiana bulomacha 粉紅鸚嘴 → Sinosuthora webbiana bulomacha 粉紅鸚嘴  [exact 29 → exact 29, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086251'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086251')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33703', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34835', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36919', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37238', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37921', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38216', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20253', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24569',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9547', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10461', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14229', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14184', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14123', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:870', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:2488', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:2499',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:1895', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7567', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58655', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61297', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:68905', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:67919', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:69797', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121249',
@@ -2439,10 +2503,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0086251')
 
 -- 29 record(s): Enhydris plumbea (GBIF: Hypsiscopus plumbea) Hypsiscopus wettsteini 韋氏水蛇 → Hypsiscopus wettsteini 韋氏水蛇  [suppressed 29 → suppressed 29, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0029845'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0029845')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58062', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64574', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:74882', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121821', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33693', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57074', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:50016', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26153',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30864', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:11605', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:12465', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:13979', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:6508', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:4621', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:3436', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:71466',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34876', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36788', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24399', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24629', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25123', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26462', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26778', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27546',
@@ -2451,10 +2516,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0029845')
 
 -- 27 record(s): Bubulcus ibis coromandus (GBIF: Bubulcus coromandus) Bubulcus ibis coromandus 黃頭鷺 → Bubulcus ibis coromandus 黃頭鷺  [exact 27 → exact 27, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0029968'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0029968')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58694', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59089', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61988', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123562', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32393', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36546', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38431', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:40093',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:40210', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:40499', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26448', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31686', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31685', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31687', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9652', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:11283',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14453', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14454', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14452', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:15952', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:3232', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:4334', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:6262', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:15430',
@@ -2463,10 +2529,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0029968')
 
 -- 27 record(s): Manis pentadactyla pentadactyla (GBIF: Manis pentadactyla) Manis pentadactyla pentadactyla 臺灣穿山甲 → Manis pentadactyla pentadactyla 臺灣穿山甲  [coarse_10km 27 → coarse_10km 27, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085879'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085879')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37339', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26902', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28501', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31465', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31540', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14528', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:1920', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61585',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:70679', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:71145', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121236', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60802', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62160', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:63796', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64040', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64582',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64912', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:65341', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:69980', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:72186', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:71863', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122463', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35870', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35850',
@@ -2475,10 +2542,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0085879')
 
 -- 26 record(s): Riparia chinensis chinensis (GBIF: Riparia chinensis) Riparia chinensis chinensis 棕沙燕 → Riparia chinensis chinensis 棕沙燕  [exact 26 → exact 26, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0103448'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0103448')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123122', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123409', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123391', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123672', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28464', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30314', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9316', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14864',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:666', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:668', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:667', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:1916', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59154', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59250', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60156', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60915',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:65190', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:73677', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61470', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123637', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33033', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38391', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:50074', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7883',
@@ -2487,10 +2555,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0103448')
 
 -- 26 record(s): Lonchura striata swinhoei (GBIF: Lonchura striata) Lonchura striata swinhoei 白腰文鳥 → Lonchura striata swinhoei 白腰文鳥  [exact 26 → exact 26, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0027556'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0027556')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32272', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38970', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22073', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27092', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28159', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30206', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29710', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:13698',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14567', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20085', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:4270', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:2884', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:15380', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64288', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:71479', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62740',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:63378', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:68920', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:71346', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:74296', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32939', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57597', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25051', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27761',
@@ -2499,10 +2568,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0027556')
 
 -- 26 record(s): Petaurista philippensis grandis (GBIF: Petaurista philippensis) Petaurista grandis 大赤鼯鼠 → Petaurista grandis 大赤鼯鼠  [exact 26 → exact 26, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086086'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086086')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33742', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33959', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37727', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39010', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57023', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21503', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27618', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30739',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19656', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:4224', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:141549', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60159', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:70964', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122991', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62161', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:71467',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:71134', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122941', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37278', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20311', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21075', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21517', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29201', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:12441',
@@ -2511,10 +2581,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0086086')
 
 -- 25 record(s): Trachemys scripta elegans (GBIF: Trachemys scripta) Trachemys scripta elegans 紅耳泥龜 → Trachemys scripta elegans 紅耳泥龜  [exact 25 → exact 25, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0033457'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0033457')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33887', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34901', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49246', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21709', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22755', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30083', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31582', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7823',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:6938', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:6895', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:5902', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59780', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61102', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64191', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:67531', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:73284',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57376', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21711', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21707', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:23063', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28684', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:12361', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19140', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:4235',
@@ -2523,10 +2594,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0033457')
 
 -- 24 record(s): Ardea cinerea jouyi (GBIF: Ardea cinerea) Ardea cinerea jouyi 蒼鷺 → Ardea cinerea jouyi 蒼鷺  [exact 24 → exact 24, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085281'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085281')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121957', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121955', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32021', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32259', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32494', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39463', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49632', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49659',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57209', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:50046', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57045', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20947', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30182', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32246', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9060', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57855',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59409', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:74185', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121962', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122229', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33639', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57213', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9056', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:3154'
@@ -2534,10 +2606,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0085281')
 
 -- 24 record(s): Turdus chrysolaus chrysolaus (GBIF: Turdus chrysolaus) Turdus chrysolaus chrysolaus 赤腹鶇 → Turdus chrysolaus chrysolaus 赤腹鶇  [exact 24 → exact 24, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086400'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086400')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122460', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32078', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32437', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33006', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31732', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31609', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8791', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9374',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19398', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20027', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20548', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7184', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7315', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58752', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60158', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58265',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122900', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123299', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49964', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57169', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57448', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7817', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9182', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7307'
@@ -2545,10 +2618,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0086400')
 
 -- 23 record(s): Crocidura rapax kurodai (GBIF: Crocidura rapax) Crocidura tadae 長尾麝鼩 → Crocidura tadae 長尾麝鼩  [exact 23 → exact 23, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085509'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085509')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33451', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37692', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20471', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26817', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7745', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7226', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61524', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64697',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:70700', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:72210', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:73649', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:73768', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62889', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64698', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64153', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:67844',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:67702', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:69695', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:72207', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:72972', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:74212', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:74211', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:74918'
@@ -2556,10 +2630,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0085509')
 
 -- 23 record(s): Cinclidium leucurum montium (GBIF: Myiomela leucura) Myiomela leucura montium 白尾鴝 → Myiomela leucura montium 白尾鴝  [coarse_10km 23 → coarse_10km 23, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085957'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085957')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62151', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64728', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:67300', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:74029', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33587', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38872', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21413', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25608',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26017', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31318', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:12373', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19391', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20582', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:65522', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34243', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33785',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25035', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:23329', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24690', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25599', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28336', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29168', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28295'
@@ -2567,10 +2642,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0085957')
 
 -- 22 record(s): Porzana fusca phaeopyga (GBIF: Porzana fusca) Zapornia fusca erythrothorax 緋秧雞 → Zapornia fusca erythrothorax 緋秧雞  [exact 22 → exact 22, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086446'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086446')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61586', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62891', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:68319', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:72106', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33115', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33416', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33774', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37661',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36504', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36791', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38466', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49451', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24951', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24072', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24020', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26857',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30841', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10001', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:13118', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14128', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20000', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:4073'
@@ -2578,10 +2654,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0086446')
 
 -- 21 record(s): Eptesicus serotinus horikawai (GBIF: Eptesicus pachyomus) Cnephaeus pachyomus horikawai 堀川氏棕蝠 → Cnephaeus pachyomus horikawai 堀川氏棕蝠  [coarse_10km 21 → coarse_10km 21, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085642'),
-                   precision_override = 'coarse_10km',
+                   precision_override = stricter_precision('coarse_10km', location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085642')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35022', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35682', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38574', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37545', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26279', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29227', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29225', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29238',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29239', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30272', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31444', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:11620', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:12121', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:4831', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:1078', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:1291',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:12902', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61913', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:67514', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:69272', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61915'
@@ -2589,10 +2666,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0085642')
 
 -- 20 record(s): Viverricula indica taivana (GBIF: Viverricula indica) Viverricula indica pallida 麝香貓 → Viverricula indica pallida 麝香貓  [coarse_10km 20 → coarse_10km 20, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086418'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086418')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33259', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:50123', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20481', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21028', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24582', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8466', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9886', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:13040',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9044', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:2661', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:6229', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:1935', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61353', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58617', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122327', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39800',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38998', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49430', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22870', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19447'
@@ -2600,10 +2678,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0086418')
 
 -- 19 record(s): Acridotheres cristatellus formosanus (GBIF: Acridotheres cristatellus) Acridotheres cristatellus formosanus 八哥（臺灣） → Acridotheres cristatellus formosanus 八哥（臺灣）  [coarse_10km 19 → coarse_10km 19, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085171'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085171')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32331', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32330', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32338', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32336', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37872', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37873', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21220', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24444',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26508', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:67143', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62309', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36150', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38520', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38519', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38790', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22193',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26072', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31790', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19615'
@@ -2611,10 +2690,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0085171')
 
 -- 18 record(s): Tachybaptus ruficollis philippensis (GBIF: Tachybaptus ruficollis) Tachybaptus ruficollis poggei 小鸊鷉 → Tachybaptus ruficollis poggei 小鸊鷉  [exact 18 → exact 18, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086319'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086319')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121809', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121980', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32187', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32091', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34295', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:50504', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21422', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22315',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26362', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31648', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:1884', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61064', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:63482', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:68591', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:74243', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49933',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:56989', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:6782'
@@ -2622,10 +2702,11 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0086319')
 
 -- 17 record(s): Achalinus formosanus formosanus (GBIF: Achalinus formosanus) Achalinus formosanus formosanus 臺灣標蛇 → Achalinus formosanus formosanus 臺灣標蛇  [exact 17 → exact 17, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0102403'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0102403')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33274', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38579', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24656', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25780', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30247', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27451', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27664', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10003',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:1254', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:70203', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35904', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27051', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27247', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:12205', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:3068', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:1230',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:1245'
@@ -2633,1178 +2714,1308 @@ update reports set taxon_id = (select id from taxa where taicol_id = 't0102403')
 
 -- 16 record(s): Lanius cristatus lucionensis (GBIF: Lanius cristatus) Lanius cristatus lucionensis 紅尾伯勞 → Lanius cristatus lucionensis 紅尾伯勞  [coarse_10km 16 → coarse_10km 16, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0027308'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0027308')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33882', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39709', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39791', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39664', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39862', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39924', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10172', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14418',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39704', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39707', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:40047', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:40252', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28571', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10236', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14936', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19188'
 );
 
 -- 15 record(s): Motacilla alba leucopsis (GBIF: Motacilla alba) Motacilla alba leucopsis 白鶺鴒 → Motacilla alba leucopsis 白鶺鴒  [exact 15 → exact 15, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0103446'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0103446')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34340', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49412', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21081', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21427', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21426', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10423', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19744', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58643',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58642', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33794', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36693', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22793', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10120', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:4188', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:2818'
 );
 
 -- 15 record(s): Lanius schach formosae (GBIF: Lanius schach) Lanius schach schach 棕背伯勞 → Lanius schach schach 棕背伯勞  [exact 15 → exact 15, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085117'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085117')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38409', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20624', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25016', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24906', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:4202', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:5836', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:67760', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:72029',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:74775', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57481', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7816', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8787', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:13533', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14766', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:4210'
 );
 
 -- 14 record(s): Canis lupus familiaris (GBIF: Canis lupus) Canis familiaris 犬 → Canis familiaris 犬  [exact 14 → coarse_10km 14, tightens, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085383'),
-                   precision_override = 'coarse_10km',
+                   precision_override = stricter_precision('coarse_10km', location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085383')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122238', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122109', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123799', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:6993', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64312', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:70966', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:71699', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:73191',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:74796', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61618', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:65587', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:67253', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:146154', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123157'
 );
 
 -- 14 record(s): Lithobates catesbeianus (GBIF: Lithobates catesbeianus) Aquarana catesbeiana 美洲牛蛙 → Aquarana catesbeiana 美洲牛蛙  [exact 14 → exact 14, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0027518'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0027518')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:68627', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:74776', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33694', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:23012', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27943', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28721', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9075', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9176',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10484', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10485', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:13641', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:1208', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:578', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:2141'
 );
 
 -- 13 record(s): Motacilla cinerea cinerea (GBIF: Motacilla cinerea) Motacilla cinerea cinerea 灰鶺鴒 → Motacilla cinerea cinerea 灰鶺鴒  [exact 13 → exact 13, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085939'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085939')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123095', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32594', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39370', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:40270', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29319', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29318', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29317', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32520',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20086', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:6960', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61066', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20623', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31472'
 );
 
 -- 13 record(s): Upupa epops epops (GBIF: Upupa epops) Upupa epops epops  → Upupa epops epops   [exact 13 → exact 13, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0102553'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0102553')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33816', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33100', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:40510', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27752', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30207', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30966', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31204', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32342',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35204', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35127', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36719', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20480', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21201'
 );
 
 -- 11 record(s): Pica pica serica (GBIF: Pica pica) Pica serica 喜鵲 → Pica serica 喜鵲  [exact 11 → exact 11, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0084390'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0084390')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123281', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123193', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21098', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21099', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30484', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61099', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:63487', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39660',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:56946', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21065', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26128'
 );
 
 -- 11 record(s): Treron sieboldii sororius (GBIF: Treron sieboldii) Treron sieboldii sieboldii 綠鳩 → Treron sieboldii sieboldii 綠鳩  [exact 11 → exact 11, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086376'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086376')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32062', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21424', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27754', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:12072', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20127', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:4416', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58810', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64454',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:68159', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31777', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10610'
 );
 
 -- 11 record(s): Petaurista alborufus lena (GBIF: Petaurista alborufus) Petaurista lena 白面鼯鼠 → Petaurista lena 白面鼯鼠  [exact 11 → exact 11, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086085'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086085')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33004', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21670', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22514', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26621', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14921', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:460', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:514', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:11617',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32189', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28201', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:425'
 );
 
 -- 11 record(s): Episoriculus fumidus (GBIF: Episoriculus fumidus) Pseudosoriculus fumidus 臺灣長尾鼩 → Pseudosoriculus fumidus 臺灣長尾鼩  [exact 11 → exact 11, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0028978'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0028978')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:69464', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:71880', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36489', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38916', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:23957', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24575', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28795', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:1988',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:3287', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:2867', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:69075'
 );
 
 -- 11 record(s): Accipiter virgatus fuscipectus (GBIF: Accipiter virgatus) Accipiter virgatus fuscipectus 松雀鷹 → Accipiter virgatus fuscipectus 松雀鷹  [coarse_10km 11 → coarse_10km 11, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0057538'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0057538')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57806', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59065', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61367', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58430', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58692', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58759', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59109', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:69635',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57622', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28704', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10635'
 );
 
 -- 10 record(s): Lutra lutra chinensis (GBIF: Lutra lutra) Lutra lutra chinensis 水獺 → Lutra lutra chinensis 水獺  [coarse_10km 10 → coarse_10km 10, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085866'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085866')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33280', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58575', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58573', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58572', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:16014', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58571', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58569', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58576',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58574', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:16011'
 );
 
 -- 10 record(s): Gallirallus striatus taiwanus (GBIF: Gallirallus striatus) Lewinia striata taiwana 灰胸秧雞 → Lewinia striata taiwana 灰胸秧雞  [exact 10 → exact 10, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0027446'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0027446')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:69277', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:72664', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20942', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31435', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10391', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:13789', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:559', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:12553',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:4245', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:72073'
 );
 
 -- 9 record(s): Calliope calliope calliope (GBIF: Luscinia calliope) Calliope calliope calliope 野鴝(指名亞種) → Calliope calliope calliope 野鴝(指名亞種)  [exact 9 → exact 9, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085366'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085366')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49647', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10491', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19509', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19321', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20094', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:6652', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:6896', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32170',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7247'
 );
 
 -- 9 record(s): Alauda gulgula wattersi (GBIF: Alauda gulgula) Alauda gulgula wattersi 小雲雀 → Alauda gulgula wattersi 小雲雀  [exact 9 → exact 9, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0057607'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0057607')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20269', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26008', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9644', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35713', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39466', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57662', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20418', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25097',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:11062'
 );
 
 -- 9 record(s): Mesophoyx intermedia intermedia (GBIF: Egretta intermedia) Ardea intermedia 中白鷺 → Ardea intermedia 中白鷺  [exact 9 → exact 9, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0072176'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0072176')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59020', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122865', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32266', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32267', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57071', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:15438', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:260', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:15425',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57864'
 );
 
 -- 9 record(s): Ardea alba modesta (GBIF: Ardea modesta) Ardea alba modesta 大白鷺 → Ardea alba modesta 大白鷺  [exact 9 → exact 9, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085280'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085280')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:74889', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32258', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38273', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39673', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21560', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28103', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31647', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31531',
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:73282'
 );
 
 -- 8 record(s): Charadrius dubius curonicus (GBIF: Charadrius dubius) Charadrius dubius curonicus 小環頸鴴 → Charadrius dubius curonicus 小環頸鴴  [exact 8 → exact 8, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085436'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085436')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123146', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123185', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123186', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123575', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32940', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38371', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:69514', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123591'
 );
 
 -- 8 record(s): Anas crecca crecca (GBIF: Anas crecca) Anas crecca crecca 小水鴨 → Anas crecca crecca 小水鴨  [exact 8 → exact 8, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085236'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085236')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123131', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31232', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7718', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59095', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59286', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59585', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31974', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37765'
 );
 
 -- 8 record(s): Nyctalus plancyi velutinus (GBIF: Nyctalus plancyi) Nyctalus plancyi velutinus 絨山蝠 → Nyctalus plancyi velutinus 絨山蝠  [exact 8 → coarse_10km 8, tightens, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085987'),
-                   precision_override = 'coarse_10km',
+                   precision_override = stricter_precision('coarse_10km', location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085987')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32566', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37422', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57174', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24983', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:16216', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9905', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33664', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27078'
 );
 
 -- 8 record(s): Hirundo rustica saturata (GBIF: Hirundo rustica) Hirundo rustica mandschurica 家燕 → Hirundo rustica mandschurica 家燕  [exact 8 → exact 8, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085753'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085753')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22735', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22524', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24216', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28206', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22832', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28202', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19760', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19503'
 );
 
 -- 8 record(s): Hirundo tahitica javanica (GBIF: Hirundo tahitica) Hirundo tahitica javanica 洋燕 → Hirundo tahitica javanica 洋燕  [exact 8 → exact 8, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085755'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085755')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22879', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9684', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10300', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10523', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7206', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9494', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:12558', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8044'
 );
 
 -- 8 record(s): Takydromus kuehnei kuehnei (GBIF: Takydromus kuehnei) Takydromus kuehnei kuehnei 古氏草蜥 → Takydromus kuehnei kuehnei 古氏草蜥  [exact 8 → exact 8, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0102402'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0102402')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26880', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:11221', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:2957', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:315', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60908', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61711', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:70867', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49362'
 );
 
 -- 8 record(s): Monticola solitarius philippensis (GBIF: Monticola solitarius) Monticola solitarius philippensis 藍磯鶇 → Monticola solitarius philippensis 藍磯鶇  [exact 8 → exact 8, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0028094'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0028094')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:71760', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60116', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60131', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60398', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:71762', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123680', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39737', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:50321'
 );
 
 -- 8 record(s): Locustella ochotensis (GBIF: Locustella ochotensis) Helopsaltes ochotensis 北蝗鶯 → Helopsaltes ochotensis 北蝗鶯  [exact 8 → exact 8, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0097239'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0097239')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61970', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:73734', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37643', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35613', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29569', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29879', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19028', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19169'
 );
 
 -- 7 record(s): Spizixos semitorques cinereicapillus (GBIF: Spizixos semitorques) Spizixos semitorques cinereicapillus 白環鸚嘴鵯 → Spizixos semitorques cinereicapillus 白環鸚嘴鵯  [exact 7 → exact 7, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0033003'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0033003')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36219', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30952', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:71299', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64580', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34596', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36787', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25038'
 );
 
 -- 7 record(s): Corvus macrorhynchos colonorum (GBIF: Corvus macrorhynchos) Corvus macrorhynchos colonorum 巨嘴鴉 → Corvus macrorhynchos colonorum 巨嘴鴉  [exact 7 → exact 7, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085499'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085499')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38976', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24378', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7081', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:65317', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64170', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64933', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30473'
 );
 
 -- 7 record(s): Glaucidium brodiei pardalotum (GBIF: Glaucidium brodiei) Taenioptynx brodiei pardalotus 鵂鶹 → Taenioptynx brodiei pardalotus 鵂鶹  [coarse_10km 7 → coarse_10km 7, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085109'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085109')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32015', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32947', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49928', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31747', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10599', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19612', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7332'
 );
 
 -- 6 record(s): Threskiornis aethiopicus aethiopicus (GBIF: Threskiornis aethiopicus) Threskiornis aethiopicus aethiopicus 埃及聖䴉 → Threskiornis aethiopicus aethiopicus 埃及聖䴉  [exact 6 → exact 6, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086360'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086360')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123255', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123188', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64913', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:63799', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38797', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:23021'
 );
 
 -- 6 record(s): Lonchura atricapilla formosana (GBIF: Lonchura atricapilla) Lonchura atricapilla formosana 黑頭文鳥 → Lonchura atricapilla formosana 黑頭文鳥  [coarse_10km 6 → coarse_10km 6, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0027553'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0027553')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31986', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31958', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31968', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31985', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21083', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31965'
 );
 
 -- 6 record(s): Monticola solitarius pandoo (GBIF: Monticola solitarius) Monticola solitarius pandoo 藍磯鶇 → Monticola solitarius pandoo 藍磯鶇  [exact 6 → exact 6, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0028093'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0028093')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33907', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34006', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29135', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29340', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28044', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:15504'
 );
 
 -- 6 record(s): Halcyon coromanda major (GBIF: Halcyon coromanda) Halcyon coromanda major 赤翡翠 → Halcyon coromanda major 赤翡翠  [exact 6 → exact 6, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085727'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085727')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:40509', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22420', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61983', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:71733', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34408', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10173'
 );
 
 -- 6 record(s): Cervus nippon taiouanus (GBIF: Cervus nippon) Cervus nippon taiouanus 臺灣梅花鹿 → Cervus nippon taiouanus 臺灣梅花鹿  [exact 6 → exact 6, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085426'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085426')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21180', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14917', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62260', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:63756', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:69423', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38596'
 );
 
 -- 6 record(s): Crocidura shantungensis hosletti (GBIF: Crocidura shantungensis) Crocidura shantungensis hosletti 小麝鼩 → Crocidura shantungensis hosletti 小麝鼩  [exact 6 → exact 6, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085512'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085512')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:4160', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:67426', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:67983', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:71120', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49492', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:15546'
 );
 
 -- 5 record(s): Calliope calliope (GBIF: Luscinia calliope) Calliope calliope 野鴝 → Calliope calliope 野鴝  [exact 5 → exact 5, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0097452'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0097452')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:122250', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31402', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57839', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58312', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32407'
 );
 
 -- 5 record(s): Spilornis cheela hoya (GBIF: Spilornis cheela) Spilornis cheela hoya 大冠鷲 → Spilornis cheela hoya 大冠鷲  [coarse_10km 5 → coarse_10km 5, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0032992'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0032992')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123772', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31730', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:6379', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:72934', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20068'
 );
 
 -- 5 record(s): Emberiza spodocephala spodocephala (GBIF: Emberiza spodocephala) Emberiza spodocephala spodocephala 灰頭黑臉鵐 → Emberiza spodocephala spodocephala 灰頭黑臉鵐  [exact 5 → exact 5, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0028848'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0028848')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32333', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32344', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32341', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37892', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10124'
 );
 
 -- 5 record(s): Cisticola juncidis tinnabulans (GBIF: Cisticola juncidis) Cisticola juncidis tinnabulans 棕扇尾鶯 → Cisticola juncidis tinnabulans 棕扇尾鶯  [exact 5 → exact 5, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085462'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085462')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20215', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32378', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9562', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:71528', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:71523'
 );
 
 -- 5 record(s): Dendrocopos canicapillus kaleensis (GBIF: Yungipicus canicapillus) Yungipicus canicapillus kaleensis 小啄木 → Yungipicus canicapillus kaleensis 小啄木  [exact 5 → exact 5, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0103451'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0103451')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27768', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:4950', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:2550', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60219', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22112'
 );
 
 -- 5 record(s): Coelops frithii formosanus (GBIF: Coelops frithii) Coelops frithii formosanus 臺灣無尾葉鼻蝠 → Coelops frithii formosanus 臺灣無尾葉鼻蝠  [coarse_10km 5 → coarse_50km 5, tightens, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085472'),
-                   precision_override = 'coarse_50km',
+                   precision_override = stricter_precision('coarse_50km', location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085472')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:6640', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:6848', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59441', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39651', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39899'
 );
 
 -- 5 record(s): Phoenicurus fuliginosus affinis (GBIF: Rhyacornis fuliginosa) Phoenicurus fuliginosus affinis 鉛色水鶇 → Phoenicurus fuliginosus affinis 鉛色水鶇  [coarse_10km 5 → coarse_10km 5, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0031833'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0031833')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:67825', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20465', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:16103', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:3474', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58412'
 );
 
 -- 5 record(s): Crocidura rapax lutaoensis (GBIF: Crocidura rapax) Crocidura tadae 長尾麝鼩 → Crocidura tadae 長尾麝鼩  [exact 5 → exact 5, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085509'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085509')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26711', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10903', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:12118', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:13781', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:12914'
 );
 
 -- 4 record(s): Fulica atra atra (GBIF: Fulica atra) Fulica atra atra 白冠雞 → Fulica atra atra 白冠雞  [exact 4 → exact 4, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085683'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085683')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121914', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123041', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20306', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19942'
 );
 
 -- 4 record(s): Ninox japonica japonica (GBIF: Ninox japonica) Ninox japonica japonica 褐鷹鴞 → Ninox japonica japonica 褐鷹鴞  [coarse_10km 4 → coarse_10km 4, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085970'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085970')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34629', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20642', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30445', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30307'
 );
 
 -- 4 record(s): Hypsipetes amaurotis harterti (GBIF: Hypsipetes amaurotis) Hypsipetes amaurotis harterti 棕耳鵯 → Hypsipetes amaurotis harterti 棕耳鵯  [exact 4 → exact 4, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0104373'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0104373')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21463', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28621', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:19320', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25393'
 );
 
 -- 4 record(s): Pericrocotus solaris griseogularis (GBIF: Pericrocotus solaris) Pericrocotus solaris griseogularis 灰喉山椒鳥 → Pericrocotus solaris griseogularis 灰喉山椒鳥  [exact 4 → exact 4, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086082'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086082')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22706', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59248', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49039', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:4344'
 );
 
 -- 4 record(s): Chlidonias hybrida hybrida (GBIF: Chlidonias hybrida) Chlidonias hybrida hybrida 黑腹燕鷗 → Chlidonias hybrida hybrida 黑腹燕鷗  [exact 4 → exact 4, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085448'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085448')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29677', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:18649', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:15456', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:74602'
 );
 
 -- 4 record(s): Locustella fasciolata (GBIF: Locustella fasciolata) Helopsaltes fasciolatus 蒼眉蝗鶯 → Helopsaltes fasciolatus 蒼眉蝗鶯  [exact 4 → exact 4, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0029575'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0029575')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22994', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:13651', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:13649', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:63134'
 );
 
 -- 4 record(s): Schoeniparus brunneus brunneus (GBIF: Alcippe brunnea) Schoeniparus brunneus brunneus 頭烏線 → Schoeniparus brunneus brunneus 頭烏線  [exact 4 → exact 4, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086236'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086236')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58284', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61048', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39966', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:12945'
 );
 
 -- 3 record(s): Turdus poliocephalus niveiceps (GBIF: Turdus poliocephalus) Turdus niveiceps 白頭鶇 → Turdus niveiceps 白頭鶇  [coarse_10km 3 → coarse_10km 3, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0048260'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0048260')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123494', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9895', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21197'
 );
 
 -- 3 record(s): Gallinago gallinago gallinago (GBIF: Gallinago gallinago) Gallinago gallinago gallinago 田鷸 → Gallinago gallinago gallinago 田鷸  [exact 3 → exact 3, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0029264'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0029264')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123574', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22445', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27171'
 );
 
 -- 3 record(s): Delichon dasypus nigrimentale (GBIF: Delichon dasypus) Delichon dasypus nigrimentale 東方毛腳燕 → Delichon dasypus nigrimentale 東方毛腳燕  [exact 3 → exact 3, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085556'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085556')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31991', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35648', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:10931'
 );
 
 -- 3 record(s): Passer domesticus domesticus (GBIF: Passer domesticus) Passer domesticus domesticus 家麻雀 → Passer domesticus domesticus 家麻雀  [exact 3 → exact 3, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086073'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086073')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33529', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33775', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31862'
 );
 
 -- 3 record(s): Horornis acanthizoides concolor (GBIF: Horornis acanthizoides) Horornis acanthizoides concolor 深山鶯 → Horornis acanthizoides concolor 深山鶯  [exact 3 → exact 3, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0029749'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0029749')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37645', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:64931', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:12127'
 );
 
 -- 3 record(s): Tarsiger cyanurus cyanurus (GBIF: Tarsiger cyanurus) Tarsiger cyanurus cyanurus 藍尾鴝 → Tarsiger cyanurus cyanurus 藍尾鴝  [exact 3 → exact 3, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086328'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086328')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49153', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49277', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30245'
 );
 
 -- 3 record(s): Calliope calliope camtschatkensis (GBIF: Luscinia calliope) Calliope calliope camtschatkensis 野鴝(勘察加亞種) → Calliope calliope camtschatkensis 野鴝(勘察加亞種)  [exact 3 → exact 3, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085367'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085367')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49923', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57100', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29223'
 );
 
 -- 3 record(s): Anas platyrhynchos platyrhynchos (GBIF: Anas platyrhynchos) Anas platyrhynchos platyrhynchos 綠頭鴨 → Anas platyrhynchos platyrhynchos 綠頭鴨  [exact 3 → exact 3, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085237'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085237')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31363', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:73251', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32191'
 );
 
 -- 3 record(s): Chloris sinica kawarahiba (GBIF: Chloris sinica) Chloris sinica kawarahiba 金翅雀 → Chloris sinica kawarahiba 金翅雀  [exact 3 → exact 3, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0103443'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0103443')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31571', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59278', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35795'
 );
 
 -- 3 record(s): Horornis canturians canturians (GBIF: Horornis diphone) Horornis canturians canturians 遠東樹鶯 → Horornis canturians canturians 遠東樹鶯  [exact 3 → exact 3, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0105575'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0105575')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8801', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:6638', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:6923'
 );
 
 -- 3 record(s): Sus scrofa taivanus (GBIF: Sus scrofa) Sus scrofa taivanus 臺灣野豬 → Sus scrofa taivanus 臺灣野豬  [exact 3 → exact 3, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086310'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086310')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:3043', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:13730', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61072'
 );
 
 -- 3 record(s): Anthus hodgsoni yunnanensis (GBIF: Anthus hodgsoni) Anthus hodgsoni yunnanensis 樹鷚 → Anthus hodgsoni yunnanensis 樹鷚  [exact 3 → exact 3, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085262'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085262')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22107', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29811', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30221'
 );
 
 -- 3 record(s): Otus elegans botelensis (GBIF: Otus elegans) Otus elegans botelensis 蘭嶼角鴞 → Otus elegans botelensis 蘭嶼角鴞  [coarse_10km 3 → coarse_10km 3, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086030'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086030')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20134', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61228', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9141'
 );
 
 -- 3 record(s): Motacilla flava taivana (GBIF: Motacilla tschutschensis) Motacilla tschutschensis taivana 東方黃鶺鴒 → Motacilla tschutschensis taivana 東方黃鶺鴒  [exact 3 → exact 3, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085943'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085943')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:1242', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59586', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:9731'
 );
 
 -- 3 record(s): Kerivoula titania (GBIF: Kerivoula titania) Kerivoula furva 玄彩蝠 → Kerivoula furva 玄彩蝠  [exact 3 → exact 3, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0066568'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0066568')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38178', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31096', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:14391'
 );
 
 -- 3 record(s): Sturnia malabarica nemoricola (GBIF: Sturnia malabarica) Sturnia malabarica nemoricola 灰頭椋鳥 → Sturnia malabarica nemoricola 灰頭椋鳥  [exact 3 → exact 3, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086306'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086306')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60248', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:60910', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49549'
 );
 
 -- 3 record(s): Butorides striata carcinophila (GBIF: Butorides striata) Butorides striata carcinophila 綠簑鷺 → Butorides striata carcinophila 綠簑鷺  [exact 3 → exact 3, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0029991'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0029991')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:63324', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:70978', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:15781'
 );
 
 -- 3 record(s): Ninox japonica totogo (GBIF: Ninox japonica) Ninox japonica japonica 褐鷹鴞 → Ninox japonica japonica 褐鷹鴞  [coarse_10km 3 → coarse_10km 3, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085970'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085970')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:6255', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57918', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:50298'
 );
 
 -- 2 record(s): Motacilla tschutschensis tschutschensis (GBIF: Motacilla tschutschensis) Motacilla tschutschensis tschutschensis 東方黃鶺鴒 → Motacilla tschutschensis tschutschensis 東方黃鶺鴒  [exact 2 → exact 2, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085127'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085127')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123595', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123673'
 );
 
 -- 2 record(s): Emberiza spodocephala sordida (GBIF: Emberiza spodocephala) Emberiza spodocephala sordida 灰頭黑臉鵐 → Emberiza spodocephala sordida 灰頭黑臉鵐  [exact 2 → exact 2, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085619'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085619')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31959', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31028'
 );
 
 -- 2 record(s): Sula leucogaster plotus (GBIF: Sula leucogaster) Sula leucogaster plotus 白腹鰹鳥 → Sula leucogaster plotus 白腹鰹鳥  [exact 2 → exact 2, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0033129'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0033129')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33571', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:40090'
 );
 
 -- 2 record(s): Mustela nivalis formosana (GBIF: Mustela nivalis) Mustela nivalis formosana 臺灣小黃鼠狼 → Mustela nivalis formosana 臺灣小黃鼠狼  [coarse_10km 2 → coarse_10km 2, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085949'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085949')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33908', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27270'
 );
 
 -- 2 record(s): Strix nivicola yamadae (GBIF: Strix nivicolum) Strix nivicolum yamadae 東方灰林鴞 → Strix nivicolum yamadae 東方灰林鴞  [coarse_10km 2 → coarse_10km 2, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0033094'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0033094')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34759', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:2967'
 );
 
 -- 2 record(s): Phaethon lepturus dorotheae (GBIF: Phaethon lepturus) Phaethon lepturus dorotheae 白尾熱帶鳥 → Phaethon lepturus dorotheae 白尾熱帶鳥  [exact 2 → exact 2, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086089'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086089')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37599', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26714'
 );
 
 -- 2 record(s): Pandion haliaetus haliaetus (GBIF: Pandion haliaetus) Pandion haliaetus haliaetus 魚鷹 → Pandion haliaetus haliaetus 魚鷹  [coarse_10km 2 → coarse_10km 2, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0031464'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0031464')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39827', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:15950'
 );
 
 -- 2 record(s): Haematopus ostralegus osculans (GBIF: Haematopus ostralegus) Haematopus ostralegus osculans 蠣鴴 → Haematopus ostralegus osculans 蠣鴴  [exact 2 → exact 2, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0029478'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0029478')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20477', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26520'
 );
 
 -- 2 record(s): Horornis canturians (GBIF: Horornis diphone) Horornis canturians 遠東樹鶯 → Horornis canturians 遠東樹鶯  [exact 2 → exact 2, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0097304'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0097304')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20700', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59282'
 );
 
 -- 2 record(s): Ianthocincla poecilorhyncha (GBIF: Garrulax poecilorhynchus) Pterorhinus poecilorhynchus 棕噪眉 → Pterorhinus poecilorhynchus 棕噪眉  [coarse_10km 2 → coarse_10km 2, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0066146'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0066146')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20771', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:11122'
 );
 
 -- 2 record(s): Asio otus otus (GBIF: Asio otus) Asio otus otus 長耳鴞 → Asio otus otus 長耳鴞  [coarse_10km 2 → coarse_10km 2, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0057779'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0057779')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20479', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30310'
 );
 
 -- 2 record(s): Sternula albifrons sinensis (GBIF: Sternula albifrons) Sternula albifrons sinensis 小燕鷗 → Sternula albifrons sinensis 小燕鷗  [coarse_10km 2 → coarse_10km 2, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086292'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086292')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25904', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:24408'
 );
 
 -- 2 record(s): Parus monticolus insperatus (GBIF: Parus monticolus) Parus monticolus insperatus 青背山雀 → Parus monticolus insperatus 青背山雀  [coarse_10km 2 → coarse_10km 2, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0031647'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0031647')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26955', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29115'
 );
 
 -- 2 record(s): Belomys pearsonii kaleensis (GBIF: Belomys pearsonii) Belomys pearsonii kaleensis 小鼯鼠 → Belomys pearsonii kaleensis 小鼯鼠  [exact 2 → exact 2, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085328'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085328')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:13415', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:3911'
 );
 
 -- 2 record(s): Otus sunia japonicus (GBIF: Otus sunia) Otus sunia japonicus 東方角鴞 → Otus sunia japonicus 東方角鴞  [coarse_10km 2 → coarse_10km 2, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085128'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085128')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:18853', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49783'
 );
 
 -- 2 record(s): Elanus caeruleus vociferus (GBIF: Elanus caeruleus) Elanus caeruleus vociferus 黑翅鳶 → Elanus caeruleus vociferus 黑翅鳶  [coarse_10km 2 → coarse_10km 2, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085607'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085607')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:7334', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22899'
 );
 
 -- 2 record(s): Crocidura rapax tadae (GBIF: Crocidura rapax) Crocidura tadae 長尾麝鼩 → Crocidura tadae 長尾麝鼩  [exact 2 → exact 2, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085509'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085509')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:15658', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:3790'
 );
 
 -- 2 record(s): Locustella pleskei (GBIF: Locustella pleskei) Helopsaltes pleskei 史氏蝗鶯 → Helopsaltes pleskei 史氏蝗鶯  [exact 2 → exact 2, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0029576'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0029576')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20019', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:15723'
 );
 
 -- 2 record(s): Numenius phaeopus variegatus (GBIF: Numenius phaeopus) Numenius phaeopus variegatus 中杓鷸 → Numenius phaeopus variegatus 中杓鷸  [exact 2 → exact 2, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0031207'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0031207')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:58634', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:72035'
 );
 
 -- 2 record(s): Phylloscopus borealis borealis (GBIF: Phylloscopus borealis) Phylloscopus borealis borealis 極北柳鶯(指名亞種) → Phylloscopus borealis borealis 極北柳鶯(指名亞種)  [exact 2 → exact 2, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086106'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086106')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:73554', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:71477'
 );
 
 -- 2 record(s): Charadrius leschenaultii leschenaultii (GBIF: Charadrius leschenaultii) Charadrius leschenaultii leschenaultii 鐵嘴鴴 → Charadrius leschenaultii leschenaultii 鐵嘴鴴  [exact 2 → exact 2, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085438'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085438')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:68538', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33657'
 );
 
 -- 2 record(s): Eophona migratoria migratoria (GBIF: Eophona migratoria) Eophona migratoria migratoria 小桑鳲 → Eophona migratoria migratoria 小桑鳲  [exact 2 → exact 2, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085631'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085631')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123000', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33817'
 );
 
 -- 1 record(s): Botaurus stellaris stellaris (GBIF: Botaurus stellaris) Botaurus stellaris stellaris 大麻鷺 → Botaurus stellaris stellaris 大麻鷺  [exact 1 → exact 1, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0029921'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0029921')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:123106'
 );
 
 -- 1 record(s): Garrulus glandarius taivanus (GBIF: Garrulus glandarius) Garrulus glandarius taivanus 松鴉 → Garrulus glandarius taivanus 松鴉  [exact 1 → coarse_10km 1, tightens, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0029283'),
-                   precision_override = 'coarse_10km',
+                   precision_override = stricter_precision('coarse_10km', location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0029283')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32184'
 );
 
 -- 1 record(s): Anthus richardi ussuriensis (GBIF: Anthus richardi) Anthus richardi ussuriensis 大花鷚 → Anthus richardi ussuriensis 大花鷚  [exact 1 → exact 1, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085265'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085265')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32332'
 );
 
 -- 1 record(s): Rusa unicolor swinhoii (GBIF: Rusa unicolor) Rusa unicolor swinhoii 臺灣水鹿 → Rusa unicolor swinhoii 臺灣水鹿  [coarse_10km 1 → coarse_10km 1, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086217'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086217')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:57827'
 );
 
 -- 1 record(s): Eudynamys scolopaceus chinensis (GBIF: Eudynamys scolopaceus) Eudynamys scolopaceus chinensis 噪鵑 → Eudynamys scolopaceus chinensis 噪鵑  [exact 1 → exact 1, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085646'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085646')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33262'
 );
 
 -- 1 record(s): Strix leptogrammica caligata (GBIF: Strix leptogrammica) Strix leptogrammica caligata 褐林鴞 → Strix leptogrammica caligata 褐林鴞  [coarse_10km 1 → coarse_10km 1, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0033093'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0033093')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:39106'
 );
 
 -- 1 record(s): Falco tinnunculus interstinctus (GBIF: Falco tinnunculus) Falco tinnunculus interstinctus 紅隼 → Falco tinnunculus interstinctus 紅隼  [coarse_10km 1 → coarse_10km 1, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085672'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085672')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20300'
 );
 
 -- 1 record(s): Horornis diphone cantans (GBIF: Horornis diphone) Horornis diphone cantans 日本樹鶯 → Horornis diphone cantans 日本樹鶯  [exact 1 → exact 1, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085766'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085766')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:20659'
 );
 
 -- 1 record(s): Halcyon smyrnensis fokiensis (GBIF: Halcyon smyrnensis) Halcyon smyrnensis fokiensis 蒼翡翠 → Halcyon smyrnensis fokiensis 蒼翡翠  [exact 1 → exact 1, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0029481'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0029481')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21086'
 );
 
 -- 1 record(s): Arenaria interpres interpres (GBIF: Arenaria interpres) Arenaria interpres interpres 翻石鷸 → Arenaria interpres interpres 翻石鷸  [exact 1 → exact 1, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0057745'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0057745')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:23324'
 );
 
 -- 1 record(s): Cisticola exilis volitans (GBIF: Cisticola exilis) Cisticola exilis volitans 黃頭扇尾鶯 → Cisticola exilis volitans 黃頭扇尾鶯  [exact 1 → exact 1, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0030559'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0030559')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:28203'
 );
 
 -- 1 record(s): Pyrrhula erythaca owstoni (GBIF: Pyrrhula erythaca) Pyrrhula owstoni 灰鷽 → Pyrrhula owstoni 灰鷽  [exact 1 → exact 1, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0032394'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0032394')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:29756'
 );
 
 -- 1 record(s): Apus pacificus pacificus (GBIF: Apus pacificus) Apus pacificus pacificus 叉尾雨燕 → Apus pacificus pacificus 叉尾雨燕  [exact 1 → exact 1, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085276'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085276')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31637'
 );
 
 -- 1 record(s): Sturnus vulgaris poltaratskyi (GBIF: Sturnus vulgaris) Sturnus vulgaris poltaratskyi 歐洲椋鳥 → Sturnus vulgaris poltaratskyi 歐洲椋鳥  [exact 1 → exact 1, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086307'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086307')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8664'
 );
 
 -- 1 record(s): Dicrurus aeneus braunianus (GBIF: Dicrurus aeneus) Dicrurus aeneus braunianus 小卷尾 → Dicrurus aeneus braunianus 小卷尾  [exact 1 → exact 1, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085571'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085571')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:18692'
 );
 
 -- 1 record(s): Porzana pusilla pusilla (GBIF: Porzana pusilla) Zapornia pusilla pusilla 小秧雞 → Zapornia pusilla pusilla 小秧雞  [exact 1 → exact 1, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086447'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086447')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:121993'
 );
 
 -- 1 record(s): Ixobrychus flavicollis flavicollis (GBIF: Dupetor flavicollis) Ixobrychus flavicollis flavicollis 黃頸黑鷺 → Ixobrychus flavicollis flavicollis 黃頸黑鷺  [exact 1 → exact 1, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085787'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085787')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34375'
 );
 
 -- 1 record(s): Hierococcyx hyperythrus (GBIF: Cuculus hyperythrus) Hierococcyx hyperythrus 北方鷹鵑 → Hierococcyx hyperythrus 北方鷹鵑  [exact 1 → exact 1, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0065578'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0065578')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:49026'
 );
 
 -- 1 record(s): Larvivora cyane bochaiensis (GBIF: Luscinia cyane) Larvivora cyane bochaiensis 藍歌鴝(東南亞種) → Larvivora cyane bochaiensis 藍歌鴝(東南亞種)  [exact 1 → exact 1, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085811'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085811')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:27798'
 );
 
 -- 1 record(s): Megapomatorhinus erythrocnemis (GBIF: Megapomatorhinus erythrocnemis) Erythrogenys erythrocnemis 大彎嘴 → Erythrogenys erythrocnemis 大彎嘴  [exact 1 → exact 1, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0103435'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0103435')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:1073'
 );
 
 -- 1 record(s): Aegithalos concinnus concinnus (GBIF: Aegithalos concinnus) Aegithalos concinnus concinnus 紅頭山雀 → Aegithalos concinnus concinnus 紅頭山雀  [exact 1 → exact 1, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085184'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085184')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:59788'
 );
 
 -- 1 record(s): Oriolus traillii ardens (GBIF: Oriolus traillii) Oriolus traillii ardens 朱鸝 → Oriolus traillii ardens 朱鸝  [coarse_10km 1 → coarse_10km 1, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086021'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086021')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:61739'
 );
 
 -- 1 record(s): Plestiodon chinensis chinensis (GBIF: Plestiodon chinensis) Plestiodon chinensis chinensis 中國石龍子指名亞種 → Plestiodon chinensis chinensis 中國石龍子指名亞種  [exact 1 → exact 1, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0102061'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0102061')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:62228'
 );
 
 -- 1 record(s): Ardea purpurea manilensis (GBIF: Ardea purpurea) Ardea purpurea manilensis 紫鷺 → Ardea purpurea manilensis 紫鷺  [exact 1 → exact 1, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085282'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085282')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:72953'
 );
 
 -- 1 record(s): Otus sunia stictonotus (GBIF: Otus sunia) Otus sunia stictonotus 東方角鴞 → Otus sunia stictonotus 東方角鴞  [coarse_10km 1 → coarse_10km 1, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086034'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086034')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32488'
 );
 
 -- 1 record(s): Charadrius mongolus stegmanni (GBIF: Charadrius mongolus) Anarhynchus mongolus stegmanni 蒙古鴴 → Anarhynchus mongolus stegmanni 蒙古鴴  [exact 1 → exact 1, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085440'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085440')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:34728'
 );
 
 -- 1 record(s): Hypsipetes amaurotis amaurotis (GBIF: Hypsipetes amaurotis) Hypsipetes amaurotis amaurotis 棕耳鵯 → Hypsipetes amaurotis amaurotis 棕耳鵯  [exact 1 → exact 1, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085778'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085778')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:35254'
 );
 
 -- 1 record(s): Myotis fimbriatus taiwanensis (GBIF: Myotis fimbriatus) Myotis fimbriatus taiwanensis 臺灣毛腿鼠耳蝠 → Myotis fimbriatus taiwanensis 臺灣毛腿鼠耳蝠  [exact 1 → exact 1, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0028153'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0028153')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:36708'
 );
 
 -- 1 record(s): Troglodytes troglodytes taivanus (GBIF: Troglodytes troglodytes) Troglodytes troglodytes taivanus 鷦鷯 → Troglodytes troglodytes taivanus 鷦鷯  [exact 1 → exact 1, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086390'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086390')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:37939'
 );
 
 -- 1 record(s): Bombycilla garrulus centralasiae (GBIF: Bombycilla garrulus) Bombycilla garrulus centralasiae 黃連雀 → Bombycilla garrulus centralasiae 黃連雀  [exact 1 → exact 1, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0029907'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0029907')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:21958'
 );
 
 -- 1 record(s): Myotis formosus flavus (GBIF: Myotis formosus) Myotis formosus flavus 金黃鼠耳蝠 → Myotis formosus flavus 金黃鼠耳蝠  [exact 1 → exact 1, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085958'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085958')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:26758'
 );
 
 -- 1 record(s): Accipiter gularis gularis (GBIF: Accipiter gularis) Accipiter gularis gularis 日本松雀鷹 → Accipiter gularis gularis 日本松雀鷹  [coarse_10km 1 → coarse_10km 1, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0057535'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0057535')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:30260'
 );
 
 -- 1 record(s): Eophona personata personata (GBIF: Eophona personata) Eophona personata personata 桑鳲 → Eophona personata personata 桑鳲  [exact 1 → exact 1, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0028921'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0028921')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31661'
 );
 
 -- 1 record(s): Tarsiger indicus formosanus (GBIF: Tarsiger indicus) Tarsiger formosanus 臺灣白眉林鴝 → Tarsiger formosanus 臺灣白眉林鴝  [coarse_10km 1 → coarse_10km 1, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0086329'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0086329')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8233'
 );
 
 -- 1 record(s): Anthus hodgsoni hodgsoni (GBIF: Anthus hodgsoni) Anthus hodgsoni hodgsoni 樹鷚 → Anthus hodgsoni hodgsoni 樹鷚  [exact 1 → exact 1, unchanged, via published]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0085261'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0085261')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:8220'
 );
 
 -- 1 record(s): Saxicola maurus stejnegeri (GBIF: Saxicola maurus) Saxicola stejnegeri 黑喉鴝 → Saxicola stejnegeri 黑喉鴝  [exact 1 → exact 1, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0032643'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0032643')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:18486'
 );
 
 -- 1 record(s): Pyrrhula nipalensis uchidae (GBIF: Pyrrhula nipalensis) Pyrrhula nipalensis uchidai 褐鷽 → Pyrrhula nipalensis uchidai 褐鷽  [exact 1 → exact 1, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0100976'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0100976')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:22888'
 );
 
 -- 1 record(s): Prinia crinigera striata (GBIF: Prinia crinigera) no taxon → no taxon  [coarse_10km 1 → coarse_10km 1, unchanged, via none]
 update reports set taxon_id = null,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = 'Prinia crinigera striata'
- where source = 'gbif' and source_id in (
+ where source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:25936'
 );
 
 -- 1 record(s): Porzana paykullii (GBIF: Porzana paykullii) Zapornia paykullii 斑脇秧雞 → Zapornia paykullii 斑脇秧雞  [exact 1 → exact 1, unchanged, via crosswalk]
 update reports set taxon_id = (select id from taxa where taicol_id = 't0049086'),
-                   precision_override = precision_override,
+                   precision_override = stricter_precision(precision_override, location_precision),
                    verbatim_name = null
  where exists (select 1 from taxa where taicol_id = 't0049086')
-   and source = 'gbif' and source_id in (
+   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')
+   and source_id in (
    'db09684b-0fd1-431e-b5fa-4c1532fbdb14:72280'
 );
 

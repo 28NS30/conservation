@@ -68,6 +68,30 @@ export async function deleteMyAccount(
   if (form.get("confirmDelete") !== "on") return { error: "confirm" };
 
   await sql.begin(async (tx) => {
+    // Before the reports lose their reporter, while they still say whose they
+    // are. A species confirmed on one's own report wrote the person's id into
+    // moderation_actions, which has no foreign key to clear it; Supabase's own
+    // audit log keeps a deleted user's id with their email, so the two joined
+    // tied each such report back to the address (security audit, 29 September
+    // 2026). A moderator's decisions on other people's reports keep their
+    // actor: they are the record of who decided.
+    await tx`
+      update moderation_actions m
+         set actor_id = null
+        from reports r
+       where m.report_id = r.id
+         and r.reporter_id = ${userId}::uuid
+         and m.actor_id = ${userId}::uuid`;
+    // Forum posts lose their author when the forum profile goes (on delete set
+    // null); their metadata row has no key to do the same. Except under a
+    // legal hold, which keeps what it holds.
+    await tx`
+      update forum_post_meta pm
+         set author_id = null
+       where pm.author_id = ${userId}::uuid
+         and not exists (
+               select 1 from forum_posts p join forum_threads t on t.id = p.thread_id
+                where p.id = pm.post_id and (p.legal_hold or t.legal_hold))`;
     await tx`
       update reports
          set reporter_id = null, contact_email = null

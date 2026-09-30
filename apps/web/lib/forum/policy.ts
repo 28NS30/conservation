@@ -138,9 +138,19 @@ export function canSetRole(
  * Whether a moderator may decide on this post. Nobody approves their own held
  * post or rules on flags against their own words: a moderator who posts a
  * location is held like anyone else, and it takes a second one to let it out.
+ *
+ * A post whose author cannot be told (they left, and the metadata that
+ * remembers them has been purged) is an admin's to decide, not any
+ * moderator's: "nobody wrote it" let its own author approve it (review of the
+ * security fixes, 30 September 2026).
  */
-export function canReview(actorId: string, authorId: string | null): boolean {
-  return authorId === null || actorId !== authorId;
+export function canReview(
+  actorId: string,
+  authorId: string | null,
+  actorRole: ForumRole | null = null,
+): boolean {
+  if (authorId === null) return actorRole === "admin";
+  return actorId !== authorId;
 }
 
 /** Trimmed text within bounds, or null. */

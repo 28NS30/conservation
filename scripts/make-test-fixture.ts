@@ -9,6 +9,20 @@
  * level, since those drive the location-privacy rules.
  *
  * Writes supabase/seed-test.sql, applied by `supabase db reset` in CI.
+ *
+ * The file is public, in the repository, so two rules (security audit, 29
+ * September 2026):
+ *   - Only published GBIF records, never a test or a person's report. The
+ *     sample used to take any report of a fixture taxon, and the fixture
+ *     taxa are the ones the report picker is built around.
+ *   - A record the site blurs is written at the centre of its blur cell, not
+ *     at its true point. The blur keys on the cell and the record's id
+ *     (obscure_point), so the test database publishes the same point as
+ *     before; only the point nobody sees is gone. It was committed for 17
+ *     rows, a 座標不開放 snake among them.
+ *
+ * And it reads only a local database: nothing here should be run against
+ * production.
  */
 import { writeFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
@@ -29,6 +43,12 @@ const lit = (v: unknown): string =>
       : `'${String(v).replace(/'/g, "''")}'`;
 
 async function main() {
+  const host = new URL(process.env.DATABASE_URL ?? "").hostname;
+  if (!["localhost", "127.0.0.1", "::1", "[::1]"].includes(host)) {
+    console.error(`make-test-fixture reads a local database only, not ${host}.`);
+    process.exit(1);
+  }
+
   // Taxa the privacy tests depend on by name or property, plus whatever the
   // sampled reports reference.
   const taxa = await sql<Record<string, unknown>[]>`
@@ -92,12 +112,23 @@ async function main() {
        -- Must be restricted to the taxa the fixture actually includes, or the
        -- inserts fail on a foreign key when loaded into a fresh database.
        where r.taxon_id = any(${sql.array(taxonIds)}::bigint[])
+         and r.source = 'gbif' and r.status = 'published' and not r.is_test
     )
     select e.id::text, e.category,
-           st_x(e.location::geometry) as lng, st_y(e.location::geometry) as lat,
+           -- The true point only where the site publishes it; otherwise the
+           -- centre of the blur cell (see the note at the top).
+           case when c.deg > 0
+                then floor(st_x(e.location::geometry) / c.deg) * c.deg + c.deg / 2
+                else st_x(e.location::geometry) end as lng,
+           case when c.deg > 0
+                then floor(st_y(e.location::geometry) / c.deg) * c.deg + c.deg / 2
+                else st_y(e.location::geometry) end as lat,
            e.observed_at, e.taxon_id, e.taxon_source, e.status, e.source, e.source_id,
            e.license, e.rights_holder
       from eligible e
+      cross join lateral (
+        select case when e.location_precision = 'exact' then 0
+                    else precision_cell_deg(e.location_precision) end as deg) c
      where e.rn % greatest(1, (e.total / ${REPORT_SAMPLE})::int) = 0
         -- Always keep a few 石虎 records. An even sample across the whole date
         -- range caught none of them, which left the species the privacy tests
@@ -108,6 +139,7 @@ async function main() {
           select id from reports
            where taxon_id = (select id from taxa
                               where scientific_name = 'Prionailurus bengalensis' limit 1)
+             and source = 'gbif' and status = 'published' and not is_test
            order by observed_at limit 4
         )
      order by e.observed_at
@@ -148,6 +180,13 @@ async function main() {
       .join(",\n") + ";",
     "",
   ];
+
+  // The rule above, checked on what is about to be written.
+  const stray = reports.filter((r) => r.source !== "gbif" || r.status !== "published");
+  if (stray.length) {
+    console.error(`refusing to write ${stray.length} record(s) that are not published GBIF records`);
+    process.exit(1);
+  }
 
   await writeFile(OUT, lines.join("\n"));
 

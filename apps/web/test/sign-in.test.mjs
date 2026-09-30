@@ -179,15 +179,25 @@ describe("the sign-in page", () => {
     assert.match(en, /<title>Sign in · /);
   });
 
-  test("says both ways the email can be used", async () => {
-    // The page cannot know which the email carries — that is Supabase's
-    // template — so the words that appear after sending must cover both. They
-    // are in the page's messages from the first load.
+  test("says what the email carries: a code, for as long as it lasts", async () => {
+    // The email is a code and no link (supabase/templates/sign-in-code.html),
+    // for both of Supabase's templates, and production is set from that file.
+    // So the page asks for the code alone, and its words and the file and the
+    // expiry have to agree.
+    const root = join(import.meta.dirname, "..", "..", "..");
     const en = JSON.parse(
       readFileSync(join(import.meta.dirname, "..", "messages", "en.json"), "utf8"),
     );
+    const template = readFileSync(join(root, "supabase", "templates", "sign-in-code.html"), "utf8");
+    const config = readFileSync(join(root, "supabase", "config.toml"), "utf8");
+    assert.match(template, /\{\{ \.Token \}\}/);
+    assert.doesNotMatch(template, /ConfirmationURL|TokenHash/, "a link in the email is spent by mail scanners");
+    for (const t of ["magic_link", "confirmation"])
+      assert.match(config, new RegExp(`\\[auth\\.email\\.template\\.${t}\\][^\\[]*sign-in-code\\.html`), t);
+    assert.match(config, /^otp_expiry = 900$/m);
     assert.match(en.login.codeHelp, /6-digit code/);
-    assert.match(en.login.codeHelp, /link/);
+    assert.match(en.login.codeHelp, /15 minutes/);
+    assert.match(template, /15 minutes/);
     assert.doesNotMatch(en.login.explain, /only gives you your own history/);
   });
 

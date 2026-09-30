@@ -462,11 +462,23 @@ async function main() {
   const names = await loadPublishedNames(refresh);
   const bySourceId = new Map(names.map((n) => [n.source_id, n]));
 
+  // Not a row a person has identified since the import: a moderator's fix
+  // ('expert') or the reporter's own ('user'). The remap used to take every
+  // GBIF row, so a re-run put the imported name back over a moderator's
+  // correction, dropped the blur that correction brought, and left the row
+  // marked 'expert' under the name the expert had rejected (security audit,
+  // 29 September 2026). Those rows are counted and left for a person.
   const dbRows = await sql<DbRow[]>`
     select source_id, taxon_id, location_precision
       from reports
-     where source = 'gbif' and source_id is not null`;
+     where source = 'gbif' and source_id is not null
+       and coalesce(taxon_source, 'imported') not in ('expert', 'user')`;
+  const [{ n: humanNamed }] = await sql<{ n: number }[]>`
+    select count(*)::int as n from reports
+     where source = 'gbif' and taxon_source in ('expert', 'user')`;
   console.log(`Records: ${dbRows.length.toLocaleString()} imported rows`);
+  if (humanNamed)
+    console.log(`  ${humanNamed.toLocaleString()} named by a person since the import: left as they are`);
 
   const missing = dbRows.filter((r) => !bySourceId.has(r.source_id!)).length;
   if (missing)
@@ -691,10 +703,15 @@ async function main() {
                -- so what this measures is what the owner would get. An override
                -- can only tighten (0003_reporting.sql), so a null here leaves
                -- whatever the row already had.
-               precision_override = coalesce(m.keep_blur, r.precision_override)
+               -- And never looser than the record is now: whatever the new
+               -- name's rule, a remap only tightens, as 0022 did. Loosening a
+               -- blur is the owner's decision, record by record.
+               precision_override = stricter_precision(
+                 coalesce(m.keep_blur, r.precision_override), r.location_precision)
           from remap m
          where r.source = 'gbif'
            and r.source_id = m.source_id
+           and coalesce(r.taxon_source, 'imported') not in ('expert', 'user')
            -- Also when only the override needs setting. A row can already carry
            -- the right taxon and still be missing the blur that taxon's parent
            -- rating demands — which is exactly the state a previous run of this
@@ -1152,20 +1169,24 @@ function writeSql(idx: TaxonIndex, groups: Map<string, Group>) {
       const keepBlur = g.keepBlur;
       out.push(
         `update reports set taxon_id = (select id from taxa where taicol_id = ${lit(g.newTaxon.taicol_id)}),`,
+        // Never looser than the record is now (see the direct UPDATE).
         keepBlur
-          ? `                   precision_override = ${lit(keepBlur)},`
-          : `                   precision_override = precision_override,`,
+          ? `                   precision_override = stricter_precision(${lit(keepBlur)}, location_precision),`
+          : `                   precision_override = stricter_precision(precision_override, location_precision),`,
         `                   verbatim_name = null`,
         // Without this guard a taicol_id the target database happens not to hold
         // would make the subquery NULL and quietly un-identify every row below.
         ` where exists (select 1 from taxa where taicol_id = ${lit(g.newTaxon.taicol_id)})`,
-        `   and source = 'gbif' and source_id in (`,
+        `   and source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')`,
+        `   and source_id in (`,
       );
     } else {
       out.push(
         `update reports set taxon_id = null,`,
+        `                   precision_override = stricter_precision(precision_override, location_precision),`,
         `                   verbatim_name = ${g.verbatim ? lit(g.verbatim) : "null"}`,
-        ` where source = 'gbif' and source_id in (`,
+        ` where source = 'gbif' and coalesce(taxon_source, 'imported') not in ('expert', 'user')`,
+        `   and source_id in (`,
       );
     }
     const ids = g.sourceIds.map((s) => `'${s.replaceAll("'", "''")}'`);
