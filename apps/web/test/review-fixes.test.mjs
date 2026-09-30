@@ -173,7 +173,7 @@ describe("a Storage hiccup is not a missing photo", () => {
 describe("a moderator's test shows what the model said", () => {
   test("its suggestions are read with the view's rules, tests aside", () => {
     const page = read("app", "[locale]", "(site)", "reports", "[id]", "page.tsx");
-    assert.match(page, /const suggestions = publicRow\s+\? await asPublic/);
+    assert.match(page, /const readSuggestions = \(\) =>\s+publicRow\s+\? asPublic/);
     assert.match(page, /and r\.is_test\s+and suggestions_within_blur\(r\.id, r\.location_precision\)/);
   });
 });

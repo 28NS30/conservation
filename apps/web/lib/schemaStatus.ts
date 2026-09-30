@@ -172,6 +172,16 @@ export const REQUIRED_SCHEMA: SchemaCheck[] = [
                and prosrc not like '%precision_from_redlist(%') as ok`,
   },
   {
+    // 0028's index on binomial_of() went unused in any session where web_anon
+    // planned a query on taxa first, and a record page's suggestions check
+    // could then time out. Re-running 0028 alone would put that index back.
+    name: "0031 the binomial index is on the expression",
+    sql: `select exists (
+            select 1 from pg_indexes
+             where indexname = 'taxa_binomial_idx'
+               and indexdef not like '%binomial_of%') as ok`,
+  },
+  {
     // Read, not written, but read by every public surface at once: the map's
     // tiles, the record list, the record page, /stats and the three
     // collection pages all select it. Without it they 500 together.
