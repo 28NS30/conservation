@@ -343,6 +343,19 @@ warm, against 0.45 s for an imported record.
 **Every page now carries only the messages its browser code reads (#133)**:
 the roadkill report page's HTML fell from 35 KB to 21 KB compressed.
 
+**English names rebuilt (#137) and applied**, 30 September, after the
+sources were reachable again. The import's own SQL was run through the
+Management API from `resolveNames(file, overrides)`, dry-run first:
+- 0 unknown taxa, 106 rows changed, and 9 retired taxa cleared;
+- 2,574 taxa are named;
+- no recorded species' displayed name changed;
+- 7,253 blurred records before and after.
+
+Three overrides keep names that TaiCOL's refresh would otherwise have
+blanked or moved: 紅嘴黑鵯 Black Bulbul, 灰喉山椒鳥 Gray-chinned Minivet and
+東方金腰燕 Striated Swallow. Vercel skipped the deploy for #137 ("not
+affected"), so prerendered pages took the new alternates with the next deploy.
+
 **From this machine:** for some hours on 29–30 September the network's DNS
 answered every `*.vercel.app` name with a local address. GitHub's deployment
 records showed production healthy throughout, and it cleared by itself.
