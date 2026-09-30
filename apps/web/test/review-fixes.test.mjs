@@ -14,7 +14,7 @@ import { test, describe, after } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { sql } from "./helpers.mjs";
+import { sql, inRollback } from "./helpers.mjs";
 import { storedSessionUserId } from "../lib/supabase/storedSession.ts";
 
 after(() => sql.end());
@@ -36,9 +36,16 @@ describe("0028: the binomial lookups are indexed, and the trigger functions pinn
     for (const r of rows) assert.deepEqual(r.proconfig, ["search_path=public"], r.proname);
   });
 
-  test("a binomial lookup uses the index", async () => {
-    const plan = (await sql`
-      explain select 1 from taxa where binomial_of(scientific_name) = 'paguma larvata'`).map((r) => r["QUERY PLAN"]).join("\n");
+  test("a binomial lookup can use the index", async () => {
+    // Whether it does depends on the table's size: CI's fixture has a few
+    // hundred taxa, which a scan reads faster. With scans priced out, the
+    // plan shows whether an index can serve the lookup at all.
+    let plan = "";
+    await inRollback(async (tx) => {
+      await tx`set local enable_seqscan = off`;
+      plan = (await tx`
+        explain select 1 from taxa where binomial_of(scientific_name) = 'paguma larvata'`).map((r) => r["QUERY PLAN"]).join("\n");
+    });
     assert.match(plan, /taxa_binomial_idx/);
   });
 });
