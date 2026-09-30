@@ -70,10 +70,16 @@ describe("a session opened with a password is not one this site recognises", () 
     assert.doesNotMatch(route, /auth\.getUser\(\)/);
   });
 
-  test("the owner's moderator SQL refuses an account with a password", () => {
+  test("the owner's moderator SQL replaces any password before it grants a role", () => {
+    // Every account made through the emailed code has a password nobody was
+    // told (GoTrue sets one), so refusing accounts with a password refused
+    // them all. It is replaced with a random one instead, and any session
+    // opened with a password is ended.
     const doc = readFileSync(join(ROOT, "docs", "owner-setup.md"), "utf8");
-    assert.match(doc, /and coalesce\(encrypted_password, ''\) = ''/);
+    assert.match(doc, /set encrypted_password = extensions\.crypt\(gen_random_uuid\(\)::text, extensions\.gen_salt\('bf'\)\)/);
+    assert.match(doc, /c\.authentication_method = 'password'/);
     assert.match(doc, /and email_confirmed_at is not null/);
+    assert.doesNotMatch(doc, /coalesce\(encrypted_password, ''\) = ''/);
   });
 });
 
@@ -82,7 +88,9 @@ describe("a sign-in email needs the browser check", () => {
     const form = read("components", "auth", "SignInForm.tsx");
     assert.match(form, /captchaToken: captcha/);
     assert.match(form, /resetCaptcha\.current\?\.\(\);/);
-    assert.match(form, /needsCaptcha/);
+    // Never held back for want of a token (a blocked widget must not block
+    // sign-in); a send without one is answered captcha_failed once enforced.
+    assert.doesNotMatch(form, /needsCaptcha/);
   });
 
   test("a refused check has its own sentence, in both languages", () => {

@@ -326,7 +326,7 @@
     "send": "Send me a sign-in email",
     "sending": "Sending…",
     "sentTo": "We have sent an email to {email}.",
-    "codeHelp": "Enter the 6-digit code from the email. It works for 15 minutes, and only the code in the newest email works.",
+    "codeHelp": "Enter the 6-digit code from the email; it works for 15 minutes. If the email has a link instead, open it on this device.",
     "codeLabel": "Code from the email, if it has one",
     "verify": "Sign in",
     "verifying": "Checking…",

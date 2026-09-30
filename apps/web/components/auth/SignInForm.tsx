@@ -62,10 +62,14 @@ export default function SignInForm({
    * that sent no token would then fail every sign-in, so the form sends one
    * first; Supabase ignores it until the owner switches the check on
    * (docs/owner-setup.md). Single-use: reset after every send.
+   *
+   * Sending is never held back for want of one: until the check is on, the
+   * token is not needed, and a school filter that blocks Cloudflare's widget
+   * would otherwise block sign-in with no word said. Once it is on, a send
+   * without a token comes back captcha_failed, which says what to do.
    */
   const [captcha, setCaptcha] = useState<string | null>(null);
   const resetCaptcha = useRef<(() => void) | null>(null);
-  const needsCaptcha = turnstileEnabled && !captcha;
   const [email, setEmail] = useState("");
   /** The address the last email actually went to, or null while choosing one. */
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -230,7 +234,7 @@ export default function SignInForm({
             <button
               type="button"
               onClick={() => void send(sentTo)}
-              disabled={busy !== null || wait > 0 || needsCaptcha}
+              disabled={busy !== null || wait > 0}
               className={quiet}
             >
               {wait > 0 ? t("resendIn", { seconds: wait }) : t("resend")}
@@ -298,7 +302,7 @@ export default function SignInForm({
             {alert(error)}
             <button
               type="submit"
-              disabled={busy !== null || !email.includes("@") || needsCaptcha}
+              disabled={busy !== null || !email.includes("@")}
               className={primary}
             >
               {busy === "send" ? t("sending") : t("send")}
