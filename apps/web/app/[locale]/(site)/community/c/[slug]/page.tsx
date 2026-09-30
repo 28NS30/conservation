@@ -1,24 +1,25 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getFormatter, getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { forumViewer, requireForum } from "@/lib/forum/server";
-import { categoryBySlug, listThreads, ownUnpublishedThreads, type ThreadRow } from "@/lib/forum/queries";
+import { categoryBySlug, listCategories, listThreads, myVotes, ownUnpublishedThreads } from "@/lib/forum/queries";
 import { queueCounts } from "@/lib/forum/moderation";
-import { THREADS_PER_PAGE } from "@/lib/forum/policy";
-import { pageWindow } from "@/lib/paging";
+import { feedQuery, parseFeedSort } from "@/lib/forum/rank";
 import ForumHeading from "@/components/forum/ForumHeading";
 import MemberStatus from "@/components/forum/MemberStatus";
-import { StartedBy } from "@/components/forum/Nickname";
 import { ThreadComposer } from "@/components/forum/Composer";
 import ForumPager from "@/components/forum/ForumPager";
-import { badge, btnPrimary } from "@/components/forum/styles";
+import { FeedSortNav } from "@/components/forum/SortNav";
+import ThreadList from "@/components/forum/ThreadList";
+import { CommunityChips, CommunitySidebar } from "@/components/forum/CommunityNav";
+import { btnPrimary, link } from "@/components/forum/styles";
 
 export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ locale: string; slug: string }>;
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; sort?: string; t?: string }>;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -30,11 +31,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 /**
- * One topic: its threads, pinned first and then by newest activity, twenty to
- * a page, and a place to start a new one.
+ * One community, like a subreddit: what it is for, a link to the rules, its
+ * own feed (Hot, New or Top, twenty to a page, pinned threads first), and a
+ * place to start a thread in it. The other communities are beside it.
  *
  * A member's own threads that are waiting for a moderator are listed above the
  * rest, marked, so a held first post does not look like one that vanished.
+ * Announcements is read by everyone and started only by moderators.
  */
 export default async function CategoryPage({ params, searchParams }: Props) {
   requireForum();
@@ -45,53 +48,26 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const category = await categoryBySlug(slug);
   if (!category) notFound();
 
-  const { page: requested } = await searchParams;
-  const paging = pageWindow(requested, category.thread_count, THREADS_PER_PAGE);
+  const { page, sort: rawSort, t: rawWindow } = await searchParams;
+  const { sort, window } = parseFeedSort(rawSort, rawWindow);
 
-  const [t, format, viewer, threads] = await Promise.all([
+  const [t, viewer, feed, categories] = await Promise.all([
     getTranslations("forum"),
-    getFormatter(),
     forumViewer(),
-    listThreads(category.id, paging.offset),
+    listThreads({ categoryId: category.id, sort, window, page }),
+    listCategories(),
   ]);
-  const [mine, counts] = await Promise.all([
+  const [mine, counts, votes] = await Promise.all([
     viewer.userId && viewer.member ? ownUnpublishedThreads(category.id, viewer.userId) : Promise.resolve([]),
     viewer.canModerate ? queueCounts() : Promise.resolve(null),
+    viewer.userId && viewer.member
+      ? myVotes(viewer.userId, feed.rows.flatMap((th) => (th.opener_id ? [th.opener_id] : [])))
+      : Promise.resolve(new Map<string, 1 | -1>()),
   ]);
 
   const name = zh ? category.name_zh : category.name_en;
   const mayStart = viewer.canPost && (!category.moderators_only_post || viewer.isModerator);
-
-  const row = (th: ThreadRow) => (
-    // The title and the author are two links, side by side rather than one
-    // inside the other: a link cannot hold a link.
-    <li key={th.id} className="border-b border-ink-900/10 px-1 py-3">
-        {(th.pinned_at || th.locked || th.status !== "visible") && (
-          <span className="mb-1.5 flex flex-wrap gap-2">
-            {th.status !== "visible" && (
-              <span className={`${badge} bg-ember-500 text-ink-950`}>
-                {th.status === "hidden" ? t("hiddenTitle") : t("awaitingReview")}
-              </span>
-            )}
-            {th.pinned_at && <span className={`${badge} bg-forest-900 text-paper-50`}>{t("pinned")}</span>}
-            {th.locked && <span className={`${badge} border border-ink-900/25 text-ink-700`}>{t("locked")}</span>}
-          </span>
-        )}
-        <Link
-          href={`/community/t/${th.id}`}
-          className="block py-2.5 text-[18px] font-semibold leading-snug text-forest-900 [overflow-wrap:anywhere] hover:underline"
-        >
-          {th.title}
-        </Link>
-        <span className="block text-[14px] text-ink-600">
-          <StartedBy handle={th.author_handle} locale={locale} />
-          {" · "}
-          {t("replyCount", { count: th.reply_count })}
-          {" · "}
-          {t("lastActivity", { date: format.dateTime(th.last_activity_at, { dateStyle: "medium", timeStyle: "short" }) })}
-        </span>
-    </li>
-  );
+  const path = `/community/c/${slug}`;
 
   return (
     <main>
@@ -102,55 +78,76 @@ export default async function CategoryPage({ params, searchParams }: Props) {
         crumbLabel={t("breadcrumb")}
         zh={zh}
       >
-        <p className="mt-3 text-[14px] text-ink-600">
-          {t("threadCount", { count: category.thread_count })} · {t("postCount", { count: category.post_count })}
+        <p className="mt-3 flex flex-wrap items-center gap-x-2 text-[14px] text-ink-600">
+          <span>
+            {t("threadCount", { count: category.thread_count })} · {t("postCount", { count: category.post_count })}
+          </span>
+          <span aria-hidden>·</span>
+          <Link href="/community/guidelines" className={`${link} inline-flex min-h-11 items-center`}>
+            {t("guidelines")}
+          </Link>
         </p>
       </ForumHeading>
 
       <MemberStatus
         viewer={viewer}
         locale={locale}
-        path={`/community/c/${slug}`}
+        path={path}
         waiting={counts ? counts.held + counts.flagged : undefined}
       />
 
-      {mayStart && (
-        <p className="mb-8">
-          <a href="#new-thread" className={btnPrimary}>
-            {t("newThread")}
-          </a>
-        </p>
-      )}
-      {category.moderators_only_post && !viewer.isModerator && (
-        <p className="mb-6 text-[15px] text-ink-700">{t("moderatorsOnlyPost")}</p>
-      )}
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_15rem] lg:gap-10">
+        <div className="min-w-0">
+          <CommunityChips categories={categories} current={slug} zh={zh} />
 
-      {mine.length > 0 && (
-        <section aria-labelledby="mine" className="mb-10">
-          <h2 id="mine" className="text-[18px] font-semibold text-ink-900">
-            {t("yourUnpublished")}
-          </h2>
-          <ul className="mt-2 border-t border-ink-900/10">{mine.map(row)}</ul>
-        </section>
-      )}
+          {mayStart && (
+            <p className="mb-6">
+              <a href="#new-thread" className={btnPrimary}>
+                {t("newThread")}
+              </a>
+            </p>
+          )}
+          {category.moderators_only_post && !viewer.isModerator && (
+            <p className="mb-6 text-[15px] text-ink-700">{t("moderatorsOnlyPost")}</p>
+          )}
 
-      <section aria-label={t("categories")}>
-        {threads.rows.length === 0 ? (
-          <p className="border border-ink-900/10 bg-white/50 px-5 py-8 text-center text-[16px] text-ink-700">
-            {t("noThreads")}
-          </p>
-        ) : (
-          <ul className="border-t border-ink-900/10">{threads.rows.map(row)}</ul>
-        )}
-        <ForumPager
-          page={paging.page}
-          hasPrev={paging.hasPrev}
-          hasNext={paging.hasNext}
-          path={`/community/c/${slug}`}
-        />
-      </section>
+          {mine.length > 0 && (
+            <section aria-labelledby="mine" className="mb-10">
+              <h2 id="mine" className="text-[18px] font-semibold text-ink-900">
+                {t("yourUnpublished")}
+              </h2>
+              <div className="mt-2">
+                <ThreadList threads={mine} votes={votes} viewer={viewer} locale={locale} />
+              </div>
+            </section>
+          )}
 
-      {mayStart && <ThreadComposer categorySlug={category.slug} categoryName={name} />}
+          <section aria-labelledby="feed-title">
+            <h2 id="feed-title" className="sr-only">
+              {t("threads")}
+            </h2>
+            <FeedSortNav path={path} sort={sort} window={window} />
+            {feed.rows.length === 0 ? (
+              <p className="border border-ink-900/10 bg-white/50 px-5 py-8 text-center text-[16px] text-ink-700">
+                {sort === "top" && window !== "all" ? t("noThreadsInWindow") : t("noThreads")}
+              </p>
+            ) : (
+              <ThreadList threads={feed.rows} votes={votes} viewer={viewer} locale={locale} />
+            )}
+            <ForumPager
+              page={feed.paging.page}
+              hasPrev={feed.paging.hasPrev}
+              hasNext={feed.paging.hasNext}
+              path={path}
+              query={feedQuery(sort, window)}
+            />
+          </section>
+
+          {mayStart && <ThreadComposer categorySlug={category.slug} categoryName={name} />}
+        </div>
+
+        <CommunitySidebar categories={categories} current={slug} zh={zh} />
+      </div>
     </main>
   );
 }

@@ -1,7 +1,9 @@
 import "server-only";
 
 import { asPublic, sql } from "@/lib/db";
-import { POSTS_PER_PAGE, THREADS_PER_PAGE } from "./policy";
+import { pageWindow, type PageWindow } from "@/lib/paging";
+import { THREADS_PER_PAGE } from "./policy";
+import { TOP_WINDOW_DAYS, type FeedSort, type TopWindow } from "./rank";
 import type { HoldReason } from "./screen";
 
 /**
@@ -18,7 +20,9 @@ import type { HoldReason } from "./screen";
  *   - everything, for a moderator, who has to read what they are deciding on.
  *
  * Nothing here selects an email address, and nothing returns an author's user
- * id to a page: people are their nickname handle and nothing else.
+ * id to a page: people are their nickname handle and nothing else. Votes are
+ * read as totals from the views; the one read of forum_votes itself is the
+ * viewer's own (myVotes), so their arrows show what they chose.
  */
 
 export type Category = {
@@ -52,6 +56,8 @@ export type ThreadRow = {
   id: string;
   category_id: number;
   category_slug: string;
+  category_name_zh: string;
+  category_name_en: string;
   title: string;
   locked: boolean;
   pinned_at: Date | null;
@@ -59,44 +65,85 @@ export type ThreadRow = {
   last_activity_at: Date;
   reply_count: number;
   author_handle: string | null;
+  /** The opening post, which is what a vote on the thread is a vote on. */
+  opener_id: string | null;
+  /** The opening post's score: the thread's. */
+  score: number;
+  /** Its place in the Hot feed (migration 0030, lib/forum/rank.ts hotRank). */
+  hot: number;
   /** 'visible' for everything read through the public view. */
   status: ThreadStatus;
 };
 
-/** One page of a category's public threads: pinned first, then newest activity. */
-export async function listThreads(
-  categoryId: number,
-  offset: number,
-): Promise<{ rows: ThreadRow[]; total: number }> {
+export type FeedOptions = {
+  /** One community's feed, or null for the front page's feed of all of them. */
+  categoryId: number | null;
+  sort: FeedSort;
+  window: TopWindow;
+  /** The page asked for, unparsed; lib/paging.ts clamps it. */
+  page: string | undefined;
+};
+
+/**
+ * One page of a feed of public threads.
+ *
+ * Hot by the view's `hot`, New by when the thread was started, Top by score
+ * within the window. In a community's own feed its pinned threads come first
+ * whatever the order, and are there whatever the window: pinning is how a
+ * moderator makes sure everyone sees something. The front page does not pin:
+ * a pin belongs to the community that made it.
+ *
+ * Built per call, fragments included: see moderation.ts on reusing a
+ * postgres.js query.
+ */
+export async function listThreads(opts: FeedOptions): Promise<{ rows: ThreadRow[]; paging: PageWindow }> {
+  const { categoryId, sort, window } = opts;
+  const pinnedFirst = categoryId !== null;
   return asPublic(async (tx) => {
-    const rows = await tx<ThreadRow[]>`
-      select *, 'visible' as status from forum_threads_public
-       where category_id = ${categoryId}
-       order by pinned_at desc nulls last, last_activity_at desc, id
-       limit ${THREADS_PER_PAGE} offset ${offset}`;
+    const where = () => tx`
+      ${categoryId === null ? tx`true` : tx`t.category_id = ${categoryId}`}
+      ${sort === "top" && window !== "all"
+        ? tx`and (t.created_at > now() - ${TOP_WINDOW_DAYS[window]} * interval '1 day'
+                  ${pinnedFirst ? tx`or t.pinned_at is not null` : tx``})`
+        : tx``}`;
     const [{ n }] = await tx<{ n: number }[]>`
-      select count(*)::int as n from forum_threads_public where category_id = ${categoryId}`;
-    return { rows, total: n };
+      select count(*)::int as n from forum_threads_public t where ${where()}`;
+    const paging = pageWindow(opts.page, n, THREADS_PER_PAGE);
+    const order =
+      sort === "new" ? tx`t.created_at desc` : sort === "top" ? tx`t.score desc, t.created_at desc` : tx`t.hot desc`;
+    const rows = await tx<ThreadRow[]>`
+      select t.*, 'visible' as status, c.name_zh as category_name_zh, c.name_en as category_name_en
+        from forum_threads_public t
+        join forum_categories_public c on c.id = t.category_id
+       where ${where()}
+       order by ${pinnedFirst ? tx`t.pinned_at desc nulls last,` : tx``} ${order}, t.id
+       limit ${THREADS_PER_PAGE} offset ${paging.offset}`;
+    return { rows, paging };
   });
 }
 
-/** The viewer's own threads in a category that the public cannot see yet. */
-export async function ownUnpublishedThreads(categoryId: number, userId: string): Promise<ThreadRow[]> {
+/**
+ * The viewer's own threads that the public cannot see yet, in one community
+ * or, for the front page, in all of them.
+ */
+export async function ownUnpublishedThreads(categoryId: number | null, userId: string): Promise<ThreadRow[]> {
   return sql<ThreadRow[]>`
-    select t.id, t.category_id, c.slug as category_slug, t.title, t.locked, t.pinned_at,
+    select t.id, t.category_id, c.slug as category_slug, c.name_zh as category_name_zh,
+           c.name_en as category_name_en, t.title, t.locked, t.pinned_at,
            t.created_at, t.last_activity_at, t.visible_reply_count as reply_count,
-           fp.handle as author_handle, t.status
+           fp.handle as author_handle, null::uuid as opener_id, 0 as score, 0::float8 as hot, t.status
       from forum_threads t
       join forum_categories c on c.id = t.category_id
       left join forum_profiles fp on fp.user_id = t.author_id
-     where t.category_id = ${categoryId}
+     where ${categoryId === null ? sql`true` : sql`t.category_id = ${categoryId}`}
        and t.author_id = ${userId}::uuid
        and t.status in ('held', 'hidden')
      order by t.created_at desc
      limit 20`;
 }
 
-export type ThreadDetail = ThreadRow & { category_name_zh: string; category_name_en: string };
+/** A thread page's thread: the same row a feed shows, read for one viewer. */
+export type ThreadDetail = ThreadRow;
 
 /**
  * A thread, as this viewer may see it.
@@ -124,10 +171,12 @@ export async function threadForViewer(
     select t.id, t.category_id, c.slug as category_slug, t.title, t.locked, t.pinned_at,
            t.created_at, t.last_activity_at, t.visible_reply_count as reply_count,
            fp.handle as author_handle, t.status, t.author_id,
-           c.name_zh as category_name_zh, c.name_en as category_name_en
+           c.name_zh as category_name_zh, c.name_en as category_name_en,
+           op.id as opener_id, coalesce(op.score, 0) as score, 0::float8 as hot
       from forum_threads t
       join forum_categories c on c.id = t.category_id
       left join forum_profiles fp on fp.user_id = t.author_id
+      left join forum_posts op on op.thread_id = t.id and op.is_opener
      where t.id = ${id}::uuid`;
   if (!row) return null;
   const own = row.author_id === viewer.userId && (row.status === "held" || row.status === "hidden");
@@ -149,59 +198,63 @@ export type PostRow = {
   status: ThreadStatus;
   held_reasons: HoldReason[];
   moderator_note: string | null;
-  /** Whether the viewer wrote it: for "delete my post" and "awaiting review". */
+  /** Whether the viewer wrote it: for "delete my post", "awaiting review", and no vote buttons. */
   mine: boolean;
+  /** The reply it answers, and where it sits in the tree (migration 0030). */
+  parent_id: string | null;
+  path: string[];
+  score: number;
 };
 
 /**
- * A page of a thread's posts for this viewer: the public ones, plus the
+ * Every post in a thread that this viewer may see: the public ones, plus the
  * viewer's own posts that are waiting or were hidden (so they can see why), or
  * every post for a moderator.
+ *
+ * All of them, not a page: a page of a thread is a page of its top-level
+ * replies with everything under them, so the tree has to be built before it
+ * can be cut (lib/forum/tree.ts). The public half always read the whole
+ * thread; the moderator's now does too.
  */
 export async function postsForViewer(
   threadId: string,
-  offset: number,
   viewer: { userId: string | null; isModerator: boolean },
-): Promise<{ rows: PostRow[]; total: number }> {
+): Promise<PostRow[]> {
   if (viewer.isModerator) {
-    const rows = await sql<PostRow[]>`
+    return sql<PostRow[]>`
       select p.id, p.thread_id, p.is_opener, p.body, p.created_at, p.edited_at,
              p.edited_by_moderator, fp.handle as author_handle,
              coalesce(pr.role in ('moderator', 'admin'), false) as author_is_moderator,
              p.status, p.held_reasons, p.moderator_note,
-             (p.author_id is not distinct from ${viewer.userId}::uuid) as mine
+             (p.author_id is not distinct from ${viewer.userId}::uuid) as mine,
+             p.parent_id, p.path, p.score
         from forum_posts p
         left join forum_profiles fp on fp.user_id = p.author_id
         left join profiles pr on pr.id = p.author_id and fp.user_id is not null
        where p.thread_id = ${threadId}::uuid
-       order by p.created_at, p.id
-       limit ${POSTS_PER_PAGE} offset ${offset}`;
-    const [{ n }] = await sql<{ n: number }[]>`
-      select count(*)::int as n from forum_posts where thread_id = ${threadId}::uuid`;
-    return { rows, total: n };
+       order by p.created_at, p.id`;
   }
 
   const publicRows = await asPublic((tx) => tx<PostRow[]>`
     select id, thread_id, is_opener, body, created_at, edited_at, edited_by_moderator,
            author_handle, author_is_moderator,
            'visible' as status, '{}'::text[] as held_reasons, null as moderator_note,
-           false as mine
+           false as mine, parent_id, path, score
       from forum_posts_public
      where thread_id = ${threadId}::uuid`);
 
-  let own: (PostRow & { id: string })[] = [];
-  const mineIds = new Set<string>();
+  let own: PostRow[] = [];
   if (viewer.userId) {
     own = await sql<PostRow[]>`
       select p.id, p.thread_id, p.is_opener, p.body, p.created_at, p.edited_at,
              p.edited_by_moderator, fp.handle as author_handle, false as author_is_moderator,
-             p.status, p.held_reasons, p.moderator_note, true as mine
+             p.status, p.held_reasons, p.moderator_note, true as mine,
+             p.parent_id, p.path, p.score
         from forum_posts p
         left join forum_profiles fp on fp.user_id = p.author_id
        where p.thread_id = ${threadId}::uuid
          and p.author_id = ${viewer.userId}::uuid
          and p.status <> 'deleted'`;
-    for (const r of own) mineIds.add(r.id);
   }
 
   // The viewer's own rows replace their public twins (same post, with
@@ -212,10 +265,21 @@ export async function postsForViewer(
     const pub = merged.get(r.id);
     merged.set(r.id, pub ? { ...pub, mine: true } : r);
   }
-  const all = [...merged.values()].sort(
+  return [...merged.values()].sort(
     (a, b) => a.created_at.getTime() - b.created_at.getTime() || a.id.localeCompare(b.id),
   );
-  return { rows: all.slice(offset, offset + POSTS_PER_PAGE), total: all.length };
+}
+
+/**
+ * The viewer's own votes on these posts, so each arrow shows what they chose.
+ * Only ever their own: nobody's vote is shown to anyone else, only totals.
+ */
+export async function myVotes(userId: string, postIds: string[]): Promise<Map<string, 1 | -1>> {
+  if (postIds.length === 0) return new Map();
+  const rows = await sql<{ post_id: string; value: 1 | -1 }[]>`
+    select post_id, value from forum_votes
+     where voter_id = ${userId}::uuid and post_id = any(${postIds}::uuid[])`;
+  return new Map(rows.map((r) => [r.post_id, r.value]));
 }
 
 export type PublicProfile = {

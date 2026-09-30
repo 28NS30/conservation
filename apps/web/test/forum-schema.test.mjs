@@ -1,5 +1,6 @@
 /**
- * The forum's wall, asserted against the live database (migration 0019).
+ * The forum's wall, asserted against the live database (migrations 0019 and
+ * 0030).
  *
  * The same boundary as reports: the public roles get nothing on a forum base
  * table, `web_anon` reads four *_public views and nothing else, and those views
@@ -27,6 +28,7 @@ const BASE_TABLES = [
   "forum_sanctions",
   "forum_watched_words",
   "forum_mod_actions",
+  "forum_votes",
 ];
 const VIEWS = ["forum_categories_public", "forum_threads_public", "forum_posts_public", "forum_profiles_public"];
 
@@ -155,7 +157,8 @@ describe("what the public views may say", () => {
       select viewname from pg_views
        where schemaname = 'public'
          and (definition ilike '%forum_post_meta%' or definition ilike '%forum_post_revisions%'
-              or definition ilike '%forum_flags%' or definition ilike '%forum_sanctions%')`;
+              or definition ilike '%forum_flags%' or definition ilike '%forum_sanctions%'
+              or definition ilike '%forum_votes%')`;
     assert.deepEqual(rows.map((r) => r.viewname), []);
   });
 
