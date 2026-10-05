@@ -14,6 +14,8 @@
  */
 import { test, describe, after } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   sql,
   inRollback,
@@ -34,10 +36,26 @@ const CELL_M = 5000;
  * change this too — these tests are the only thing standing between the site's
  * one call-to-action number and a silent lie.
  */
+/**
+ * The start of the season as an instant: midnight in Taipei on the quarter's
+ * first day. Written once and checked against the shipped query below, since
+ * this file can only mirror it.
+ */
+const SEASON_START =
+  "date_trunc('quarter', now() at time zone 'Asia/Taipei') at time zone 'Asia/Taipei'";
+
+/**
+ * The same instant, for fixtures, spelled out on its own rather than taken
+ * from SEASON_START: a fixture built from the expression under test would
+ * move with it, and prove nothing.
+ */
+const TAIPEI_QUARTER_START =
+  "(date_trunc('quarter', timezone('Asia/Taipei', now())) at time zone 'Asia/Taipei')";
+
 async function newThisSeason(tx) {
   const [row] = await tx`
     with bounds as (
-      select date_trunc('quarter', now() at time zone 'Asia/Taipei') as ss
+      select ${tx.unsafe(SEASON_START)} as ss
     ),
     cells as (
       select floor(st_x(geom_3857) / ${CELL_M})::int as gx,
@@ -178,6 +196,46 @@ describe("map coverage", () => {
       await insertReport(tx, { lng: 119.2, lat: 24.1, taxonId });
       assert.equal(await newThisSeason(tx), before + 1);
     });
+  });
+
+  test("a report in a Taipei quarter's first hours counts, whatever zone the database keeps", async () => {
+    // The quarter starts at midnight in Taipei, 16:00 UTC the day before. The
+    // start used to be a wall-clock time compared as if it were in the
+    // session's zone, UTC in production and in CI: eight hours late, so a
+    // report made in those hours counted in no season at all. CI caught it by
+    // running at 00:02 Taipei time on 1 October 2026.
+    await inRollback(async (tx) => {
+      await tx`set local time zone 'UTC'`;
+      const taxonId = await plain();
+      const before = await newThisSeason(tx);
+      const r = await insertReport(tx, { lng: 119.2, lat: 24.1, taxonId });
+      await tx`
+        update reports
+           set created_at = ${tx.unsafe(TAIPEI_QUARTER_START)} + interval '1 hour'
+         where id = ${r.id}`;
+      assert.equal(await newThisSeason(tx), before + 1);
+    });
+  });
+
+  test("and one from the hour before the quarter does not", async () => {
+    await inRollback(async (tx) => {
+      await tx`set local time zone 'UTC'`;
+      const taxonId = await plain();
+      const before = await newThisSeason(tx);
+      const r = await insertReport(tx, { lng: 119.2, lat: 24.1, taxonId });
+      await tx`
+        update reports
+           set created_at = ${tx.unsafe(TAIPEI_QUARTER_START)} - interval '1 hour'
+         where id = ${r.id}`;
+      assert.equal(await newThisSeason(tx), before);
+    });
+  });
+
+  test("the shipped query starts the season at the same instant", () => {
+    const shipped = readFileSync(join(import.meta.dirname, "..", "lib", "coverage.ts"), "utf8").replace(/\s+/g, " ");
+    assert.ok(shipped.includes(`select ${SEASON_START} as season_start`), "lib/coverage.ts computes the season's start differently");
+    // And shows its dates in Taipei's calendar, not the session's.
+    assert.match(shipped, /\(\(select season_start from bounds\) at time zone 'Asia\/Taipei'\)::text as "seasonStart"/);
   });
 
   test("the season page states the figure and the exclusion", async () => {
