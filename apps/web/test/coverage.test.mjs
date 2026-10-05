@@ -239,17 +239,30 @@ describe("map coverage", () => {
   });
 
   test("the season page states the figure and the exclusion", async () => {
-    const res = await fetch(`${BASE_URL}/en/season`);
-    assert.equal(res.status, 200);
-    const html = await res.text();
-    // The number the page leads with has to be the one this file describes.
-    const n = await covered(sql);
-    assert.ok(
-      html.includes(n.toLocaleString("en-US")),
-      `expected the covered-square count (${n}) on the page`,
-    );
+    // The page is rendered on demand, so its figure is the count at that
+    // moment, and other test files file and remove reports while this one
+    // runs: a count taken a moment later can be a square off. Main's run
+    // failed on that on 5 October 2026, with nothing wrong on the page. So
+    // the page and the count are read together, and read again, until one
+    // reading finds them agreeing; a page that states some other number
+    // never does.
+    let shown = "";
+    let n = -1;
+    let agreed = false;
+    for (let attempt = 0; attempt < 8 && !agreed; attempt++) {
+      if (attempt) await new Promise((r) => setTimeout(r, 300));
+      const res = await fetch(`${BASE_URL}/en/season`);
+      assert.equal(res.status, 200);
+      // What the page shows: its markup without the scripts, whose chunk
+      // names and message catalogue could hold any digits by chance.
+      shown = (await res.text()).replace(/<script\b[\s\S]*?<\/script>/g, "");
+      // The number the page leads with has to be the one this file describes.
+      n = await covered(sql);
+      agreed = new RegExp(`(?<![\\d,])${n.toLocaleString("en-US")}(?![\\d,])`).test(shown);
+    }
+    assert.ok(agreed, `expected the covered-square count (${n}) on the page`);
     assert.match(
-      html,
+      shown,
       /left out of the squares above/,
       "the page must say that obscured records are excluded",
     );
