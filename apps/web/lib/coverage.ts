@@ -89,7 +89,16 @@ export async function coverage(): Promise<Coverage> {
   const [row] = await asPublic(
     (tx) => tx<Coverage[]>`
       with bounds as (
-        select date_trunc('quarter', now() at time zone 'Asia/Taipei') as season_start
+        -- Midnight in Taipei on the quarter's first day, as an instant. The
+        -- inner "at time zone" gives Taipei's wall clock for date_trunc to cut
+        -- to the quarter, and the outer one turns that wall-clock time back
+        -- into an instant. Without the outer one the comparisons below read
+        -- it in the session's zone, UTC in production, eight hours late: for
+        -- the first eight hours of every quarter no report counted, and those
+        -- reports never counted in any season afterwards (CI failed on it at
+        -- 00:02 Taipei time on 1 October 2026).
+        select date_trunc('quarter', now() at time zone 'Asia/Taipei') at time zone 'Asia/Taipei'
+                 as season_start
       ),
       cells as (
         select floor(st_x(geom_3857) / ${COVERAGE_CELL_M})::int as gx,
@@ -120,8 +129,10 @@ export async function coverage(): Promise<Coverage> {
           where first_at >= (select season_start from bounds) and fresh > 0)
           as "newThisSeason",
         (select count(*)::int from reports_public where is_obscured) as unplaceable,
-        (select season_start from bounds)::text as "seasonStart",
-        ((select season_start from bounds) + interval '3 months' - interval '1 day')::date::text
+        -- The two dates are Taipei's calendar, whatever the session's zone.
+        ((select season_start from bounds) at time zone 'Asia/Taipei')::text as "seasonStart",
+        (((select season_start from bounds) at time zone 'Asia/Taipei')
+           + interval '3 months' - interval '1 day')::date::text
           as "seasonEnd"`,
   );
   return row;
