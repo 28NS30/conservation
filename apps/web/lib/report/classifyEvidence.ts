@@ -1,6 +1,7 @@
 import "server-only";
 import { sql } from "@/lib/db";
 import {
+  holdAtModelsBlur,
   photoIdentificationOverride,
   suggestionOverride,
 } from "@/lib/report/precision";
@@ -27,7 +28,9 @@ import {
  *   assign   the species becomes the record's, and its blur is at least the
  *            strictest of every row sharing its binomial
  *            (photoIdentificationOverride), exactly as before;
- *   record   a person named it; the model's view is noted beside theirs;
+ *   record   a person named it; the model's view is noted beside theirs, and
+ *            when the model is sure of a different species the record is
+ *            held at that species' blur (holdAtModelsBlur), never looser;
  *   suggest  the record stays unidentified, blurred at least as hard as the
  *            strictest species it is shown with (suggestionOverride).
  *
@@ -103,16 +106,20 @@ export async function recordEvidence(
            and taxon_id is not distinct from ${job.taxon_id}::bigint
            and taxon_source is not distinct from ${job.taxon_source}::text`;
     } else if (decision.action === "record") {
+      // The species stays the person's; the blur follows the model's when it
+      // is sure of another (see classifyWorker.ts and holdAtModelsBlur).
+      const disagrees = disagreesWithPerson(decision, job.taxon_name);
       await tx`
         update reports
            set ai_confidence = ${best?.score ?? null},
                ai_band = ${band},
                flagged_reason = coalesce(flagged_reason, ${
-                 disagreesWithPerson(decision, job.taxon_name)
+                 disagrees
                    ? "the model and the reporter name different species"
                    : null
                })
          where id = ${job.report_id}::uuid`;
+      if (disagrees && best) await holdAtModelsBlur(tx, job.report_id, best.taxonId);
     } else {
       // Unidentified, and blurred at least as hard as the strictest species it
       // is shown with. On an invasive report this is every answer: the model

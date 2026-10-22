@@ -439,12 +439,17 @@ export function binomialOf(name: string): string {
  *
  * At the binomial: the model names species, and a reporter who picked
  * 白頭翁's subspecies agrees with a model that says 白頭翁.
+ *
+ * Confident means a band the model may name a species in by itself, the same
+ * set the legacy worker asks. It is not only a note any more: a record the
+ * model disagrees with is held at the model's species' blur
+ * (holdAtModelsBlur, lib/report/precision.ts).
  */
 export function disagreesWithPerson(decision: EvidenceDecision, personName: string | null): boolean {
   return (
     decision.best !== null &&
     personName !== null &&
-    decision.band === "high" &&
+    AUTO_ASSIGN_BANDS.has(decision.band) &&
     binomialOf(decision.best.scientificName) !== binomialOf(personName)
   );
 }

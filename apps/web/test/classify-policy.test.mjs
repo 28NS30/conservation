@@ -363,3 +363,185 @@ describe("a record the model only made suggestions for", () => {
     });
   });
 });
+
+describe("a record the model, confident, says is another species", () => {
+  // A person who names the species is only ever recorded beside, and that was
+  // the whole of it: a dead 石虎 filed as 家貓 was published at the cat's blur,
+  // to the metre, with a flag on a published record that no page showed. Now
+  // the record keeps the reporter's species and takes the model's species'
+  // blur, in both workers, through holdAtModelsBlur.
+  const EVIDENCE = read("lib", "report", "classifyEvidence.ts");
+  let seq = 0;
+  const genus = () => `Testudofixtura d${process.pid}x${Date.now()}x${seq++}`;
+  async function row(tx, { name = genus(), rank = "Species", sensitivity = null, protectedStatus = null } = {}) {
+    const [t] = await tx`
+      insert into taxa (taicol_id, scientific_name, rank, is_in_taiwan, taxon_status,
+                        sensitivity, protected_status)
+      values (${`test-dg-${process.pid}-${Date.now()}-${seq++}`}, ${name}, ${rank},
+              true, 'accepted', ${sensitivity}, ${protectedStatus})
+      returning id, scientific_name`;
+    return t;
+  }
+
+  /**
+   * holdAtModelsBlur's statement, read out of precision.ts and run as written,
+   * so the test cannot drift from what the workers send.
+   */
+  const HOLD = (() => {
+    const from = PRECISION.slice(PRECISION.indexOf("export const holdAtModelsBlur"));
+    const body = from.slice(from.indexOf("tx`") + 3, from.indexOf("`;"));
+    return body.replaceAll("${reportId}", "$1").replaceAll("${modelTaxonId}", "$2");
+  })();
+  const hold = (tx, reportId, modelTaxonId) => tx.unsafe(HOLD, [reportId, modelTaxonId]);
+
+  /** A record the reporter named, as POST /api/reports writes one. */
+  async function named(tx, taxonId, override = null) {
+    const r = await insertReport(tx, { taxonId, override });
+    await tx`update reports set taxon_source = 'user' where id = ${r.id}`;
+    return r;
+  }
+  const state = async (tx, id) =>
+    (await tx`select taxon_id, precision_override, location_precision,
+                     st_distance(location, location_public) as offset_m
+                from reports where id = ${id}`)[0];
+
+  test("both workers hold the record when the model disagrees, and only then", () => {
+    assert.doesNotMatch(HOLD, /\$\{/, "the statement interpolates something the test does not supply");
+    const route = code(ROUTE);
+    const evidence = code(EVIDENCE);
+    assert.match(route, /AUTO_ASSIGN_BANDS\.has\(result\.band\) &&\s*best\.taxon_id !== job\.taxon_id/);
+    assert.match(route, /if \(disagrees\) await holdAtModelsBlur\(tx, job\.report_id, best\.taxon_id\);/);
+    assert.match(evidence, /const disagrees = disagreesWithPerson\(decision, job\.taxon_name\);/);
+    assert.match(evidence, /if \(disagrees && best\) await holdAtModelsBlur\(tx, job\.report_id, best\.taxonId\);/);
+    // In the record branch, beside the flag, not in another branch.
+    for (const src of [route, evidence]) {
+      const branch = src.slice(src.indexOf('=== "record"'));
+      assert.ok(
+        branch.indexOf("holdAtModelsBlur(") < branch.indexOf("} else {"),
+        "the hold is not in the record branch",
+      );
+    }
+  });
+
+  test("a reporter names an unrated species, the model is sure of a 10 km one: 10 km", async () => {
+    await inRollback(async (tx) => {
+      const cat = await row(tx);
+      const protectedOne = await row(tx, { protectedStatus: "II" });
+      const r = await named(tx, cat.id);
+      assert.equal(r.location_precision, "exact", "fixture: the reporter's species is unrated");
+
+      await hold(tx, r.id, protectedOne.id);
+      const after_ = await state(tx, r.id);
+      assert.equal(after_.location_precision, "coarse_10km",
+        "the model's protected species was published at the reporter's exact point");
+      assert.equal(Number(after_.taxon_id), Number(cat.id), "the reporter's species is kept");
+      assert.equal(after_.precision_override, "coarse_10km");
+      assert.ok(after_.offset_m > 0, "the public point moved off the true one");
+    });
+  });
+
+  test("at the binomial's strictest, as when the model names a species itself", async () => {
+    // 環頸雉: the model says the species; its endemic subspecies is the 重度 one.
+    await inRollback(async (tx) => {
+      const cat = await row(tx);
+      const species = await row(tx);
+      await row(tx, { name: `${species.scientific_name} endemica`, rank: "Subspecies", sensitivity: "重度" });
+      const r = await named(tx, cat.id);
+      await hold(tx, r.id, species.id);
+      assert.equal((await state(tx, r.id)).location_precision, "coarse_50km");
+    });
+  });
+
+  test("and no later naming loosens it", async () => {
+    await inRollback(async (tx) => {
+      const cat = await row(tx);
+      const dog = await row(tx);
+      const protectedOne = await row(tx, { protectedStatus: "II" });
+      const r = await named(tx, cat.id);
+      await hold(tx, r.id, protectedOne.id);
+
+      // A moderator's correction to another unrated species (setReportTaxon
+      // and a moderator's confirmSpecies: photoIdentificationOverride).
+      await tx`
+        update reports
+           set taxon_id = ${dog.id}, taxon_source = 'expert',
+               precision_override = stricter_precision(
+                 case when taxon_id is null
+                      then case when precision_rank(precision_override)
+                                     > precision_rank('coarse_10km'::text)
+                                then precision_override end
+                      else precision_override end,
+                 binomial_precision_floor(${dog.id}))
+         where id = ${r.id}`;
+      assert.equal((await state(tx, r.id)).location_precision, "coarse_10km",
+        "a correction to an unrated species dropped the model's blur");
+
+      // The reporter re-picking (confirmSpecies, a record already named).
+      await tx`
+        update reports
+           set taxon_id = ${cat.id}, taxon_source = 'user',
+               precision_override = stricter_precision(
+                 stricter_precision(precision_override, binomial_precision_floor(${cat.id})),
+                 location_precision)
+         where id = ${r.id}`;
+      assert.equal((await state(tx, r.id)).location_precision, "coarse_10km");
+
+      // And the model running again over the same report.
+      await hold(tx, r.id, protectedOne.id);
+      assert.equal((await state(tx, r.id)).location_precision, "coarse_10km");
+    });
+  });
+
+  test("an unrated species from the model writes nothing", async () => {
+    await inRollback(async (tx) => {
+      const cat = await row(tx);
+      const dog = await row(tx);
+      const r = await named(tx, cat.id);
+      await hold(tx, r.id, dog.id);
+      const after_ = await state(tx, r.id);
+      assert.equal(after_.precision_override, null, "an 'exact' stamp says nothing and outlives corrections");
+      assert.equal(after_.location_precision, "exact");
+    });
+  });
+
+  test("never lower than the override already there", async () => {
+    await inRollback(async (tx) => {
+      const cat = await row(tx);
+      const protectedOne = await row(tx, { protectedStatus: "II" });
+      const r = await named(tx, cat.id, "coarse_50km");
+      await hold(tx, r.id, protectedOne.id);
+      const after_ = await state(tx, r.id);
+      assert.equal(after_.precision_override, "coarse_50km");
+      assert.equal(after_.location_precision, "coarse_50km");
+    });
+  });
+
+  test("nor than the reporter's own species asks", async () => {
+    await inRollback(async (tx) => {
+      const owl = await row(tx, { sensitivity: "重度" });
+      const protectedOne = await row(tx, { protectedStatus: "II" });
+      const r = await named(tx, owl.id);
+      await hold(tx, r.id, protectedOne.id);
+      assert.equal((await state(tx, r.id)).location_precision, "coarse_50km");
+    });
+  });
+
+  test("and a record held harder than its rules now say is left as it is", async () => {
+    // Writing the override re-runs the blur trigger, which derives the blur
+    // afresh. A record whose rating was withdrawn keeps its old blur (the
+    // re-blur only tightens), so a fresh derivation would loosen it.
+    await inRollback(async (tx) => {
+      const once = await row(tx, { sensitivity: "重度" });
+      const protectedOne = await row(tx, { protectedStatus: "II" });
+      const r = await named(tx, once.id);
+      await tx`update taxa set sensitivity = null where id = ${once.id}`;
+      assert.equal((await state(tx, r.id)).location_precision, "coarse_50km",
+        "fixture: the withdrawn rating's blur is kept");
+
+      await hold(tx, r.id, protectedOne.id);
+      const after_ = await state(tx, r.id);
+      assert.equal(after_.location_precision, "coarse_50km", "the hold loosened a record");
+      assert.equal(after_.precision_override, null, "nothing was written");
+    });
+  });
+});

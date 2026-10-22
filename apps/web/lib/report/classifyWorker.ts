@@ -2,6 +2,7 @@ import { sql } from "@/lib/db";
 import { downloadPhoto } from "@/lib/supabase/service";
 import { UNIDENTIFIED_PRECISION } from "@conservation/shared";
 import {
+  holdAtModelsBlur,
   photoIdentificationOverride,
   suggestionOverride,
 } from "@/lib/report/precision";
@@ -245,10 +246,12 @@ export async function classifyQueued({ reportId = null }: { reportId?: string | 
                and taxon_id is not distinct from ${job.taxon_id}::bigint
                and taxon_source is not distinct from ${job.taxon_source}::text`;
         } else if (action === "record") {
-          // Keep their identification and the precision it implies; record what
-          // the model thought, and say so if the two disagree. Nothing here
-          // changes what is published — a disagreement is a note for a reviewer,
-          // not grounds for overriding the person who was there.
+          // Keep their identification; record what the model thought, and say
+          // so if the two disagree. The species stays theirs. The blur does
+          // not, when the model is confident: a protected animal filed as an
+          // unrated one was published to the metre on the reporter's word,
+          // flagged where nobody looked. holdAtModelsBlur blurs the record as
+          // the model's species would be, and only ever more than it is now.
           const disagrees =
             Boolean(best) &&
             AUTO_ASSIGN_BANDS.has(result.band) &&
@@ -263,6 +266,7 @@ export async function classifyQueued({ reportId = null }: { reportId?: string | 
                        : null
                    })
              where id = ${job.report_id}::uuid`;
+          if (disagrees) await holdAtModelsBlur(tx, job.report_id, best.taxon_id);
         } else {
           // Not a species the model may name: either it is not confident enough,
           // or this is a report whose answer can only ever be a suggestion (an
