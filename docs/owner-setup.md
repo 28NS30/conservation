@@ -166,6 +166,31 @@ opens to everyone.
 
 ---
 
+## 6. Confirm the domain's spelling
+
+The domain the site lives on is `biowatchitnl.org`, **i-t-n-l**:
+https://formosawatch.biowatchitnl.org. Until October 2026 the repository spelled
+it `biowatchintl.org`, **i-n-t-l** as in "international", a name that does not
+resolve. The code and docs now follow the live domain. Confirm `itnl` is the
+spelling you meant. If it is not, register the other one and say so, and the
+code moves with it.
+
+Two things to keep while the old address still serves:
+
+- **Cloudflare → Turnstile → the widget → Hostnames:** keep
+  `preservation-web-one.vercel.app` listed beside the new domain. A report
+  saved on a phone under the old address is sent from a page there, and the
+  challenge it needs works only on listed hostnames.
+- Tell the team that anyone who added the old address to their home screen
+  should add the new one instead. The old icon still opens, and is redirected,
+  but the pages saved for use without a signal belong to the address they were
+  saved under.
+
+**Check:** `node scripts/verify-deploy.mjs https://preservation-web-one.vercel.app`
+passes: pages answer 308 to the new address, and `/api/health` still answers.
+
+---
+
 ## Also on the owner's list
 
 These need people or agreements rather than settings: the legal review, contacting
