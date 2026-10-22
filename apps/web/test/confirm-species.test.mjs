@@ -281,3 +281,42 @@ describe("what clearing precision_override is allowed to undo", () => {
     });
   });
 });
+
+describe("setReportTaxon takes only a name a report can be filed under", () => {
+  // A public endpoint like every action, and it took any row of `taxa`: a
+  // retired duplicate unrated beside the row the law protects, or a genus.
+  // POST /api/reports takes only OFFERED names; so does this now.
+  const set = ADMIN.slice(ADMIN.indexOf("export async function setReportTaxon("));
+  const OFFERED = (() => {
+    const species = readFileSync(join(import.meta.dirname, "..", "lib", "species.ts"), "utf8");
+    const m = /export const OFFERED = `([\s\S]*?)`;/.exec(species);
+    assert.ok(m, "OFFERED is not where this test reads it");
+    return m[1];
+  })();
+  let seq = 0;
+  const name = () => `Testudofixtura o${process.pid}x${Date.now()}x${seq++}`;
+
+  test("it asks OFFERED before it writes", () => {
+    assert.match(set, /select \$\{sql\.unsafe\(OFFERED\)\} as offered from taxa t where t\.id = \$\{taxonId\}/);
+    assert.match(set, /if \(!taxon\.offered\) throw/);
+    assert.ok(set.indexOf("taxon.offered") < set.indexOf("update reports"), "the check must run before the write");
+    // Removing a name is still allowed: there is nothing to check.
+    assert.match(set, /if \(taxonId !== null\) \{/);
+  });
+
+  test("OFFERED refuses a genus and a retired row, and takes a species", async () => {
+    await inRollback(async (tx) => {
+      const row = async (rank, status) =>
+        (await tx`
+          insert into taxa (taicol_id, scientific_name, rank, is_in_taiwan, taxon_status)
+          values (${`test-fo-${process.pid}-${seq++}`}, ${name()}, ${rank}, true, ${status})
+          returning id`)[0].id;
+      const offered = async (id) =>
+        (await tx.unsafe(`select ${OFFERED} as offered from taxa t where t.id = $1`, [id]))[0].offered;
+      assert.equal(await offered(await row("Species", "accepted")), true);
+      assert.equal(await offered(await row("Subspecies", "accepted")), true);
+      assert.equal(await offered(await row("Genus", "accepted")), false);
+      assert.equal(await offered(await row("Species", "deleted")), false);
+    });
+  });
+});

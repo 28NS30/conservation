@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { sql } from "@/lib/db";
 import { currentRole } from "@/lib/auth";
+import { OFFERED } from "@/lib/species";
 import {
   keepDeliberateOverride,
   photoIdentificationOverride,
@@ -109,6 +110,13 @@ export async function rejectReport(reportId: string, reason: string) {
  * binomial. A moderator works from the same photograph the model did, and the
  * names they can type include subspecies and species rows that need not carry
  * the same rating. Removing a name (null) has no binomial to consult.
+ *
+ * Only a name a report can be filed under (OFFERED, lib/species.ts), as
+ * POST /api/reports accepts. No page calls this today, but an action is a
+ * public endpoint whether or not a page calls it, and this one took any of
+ * the ~136k rows in `taxa`: a retired duplicate, unrated beside the row the
+ * law protects, or a genus, which no rating names. Either could publish a
+ * protected animal more exactly than its own name would.
  */
 export async function setReportTaxon(reportId: string, taxonId: number | null) {
   const actor = await requireModerator();
@@ -116,6 +124,13 @@ export async function setReportTaxon(reportId: string, taxonId: number | null) {
     const [report] = await tx<{ id: string }[]>`
       select id from reports where id = ${reportId}::uuid`;
     if (!report) throw new Error("report not found");
+
+    if (taxonId !== null) {
+      const [taxon] = await tx<{ offered: boolean }[]>`
+        select ${sql.unsafe(OFFERED)} as offered from taxa t where t.id = ${taxonId}`;
+      if (!taxon) throw new Error("taxon not found");
+      if (!taxon.offered) throw new Error("not a name a report can be filed under");
+    }
 
     await tx`update reports
                 set taxon_id = ${taxonId}, taxon_source = 'expert',
