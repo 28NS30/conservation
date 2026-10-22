@@ -228,8 +228,9 @@ describe("what clearing precision_override is allowed to undo", () => {
         category: "sighting",
         override: "coarse_10km",
       });
+      // A species: a name above one is blurred whatever its rating (0033).
       const taxonId = await taxonWhere(
-        "sensitivity is null and protected_status is null and is_in_taiwan",
+        "sensitivity is null and protected_status is null and is_in_taiwan and rank = 'Species'",
       );
       // The action's own statement, reduced to the columns under test.
       await tx`update reports
