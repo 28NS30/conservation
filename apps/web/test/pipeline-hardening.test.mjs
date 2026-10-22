@@ -275,6 +275,13 @@ describe("/me counts every report", () => {
 
 describe("the public role's queries have a time limit", () => {
   test("asPublic sets a statement timeout", () => {
-    assert.match(read("lib", "db.ts"), /set local statement_timeout = '\d+s'/);
+    assert.match(read("lib", "db.ts"), /set_config\('statement_timeout', '\d+s', true\)/);
+  });
+
+  test("…and the role, both for the transaction only", () => {
+    // `true` is set_config's is_local: the same as `set local`, so neither
+    // outlives the transaction on a pooled connection.
+    assert.match(read("lib", "db.ts"), /set_config\('role', 'web_anon', true\)/);
+    assert.doesNotMatch(read("lib", "db.ts"), /set_config\('[a-z_]+', '[^']*', false\)/);
   });
 });

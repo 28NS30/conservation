@@ -66,19 +66,25 @@ if (process.env.NODE_ENV !== "production") g.__sql = sql;
  * `reports` base table, so a public code path that accidentally selects a true
  * coordinate fails loudly instead of leaking one.
  *
- * `set local` is scoped to the transaction, so the role reverts on commit and the
- * pooled connection is never left in a restricted state.
+ * Both settings are local to the transaction (`set_config`'s third argument is
+ * `is_local`, the same as `set local`), so the role reverts on commit and the
+ * pooled connection is never left in a restricted state. They are made in one
+ * statement rather than two `set local`s: every public read paid a round trip
+ * to the database for each, and a page makes several such reads.
+ * `set_config('role', …)` is what `set role` does underneath, membership check
+ * included; PostgREST switches roles the same way.
  */
 export async function asPublic<T>(
   fn: (tx: postgres.TransactionSql) => Promise<T>,
 ): Promise<T> {
   return sql.begin(async (tx) => {
-    await tx`set local role web_anon`;
-    // No public read may hold a pooled connection for long. Neither role had a
-    // timeout, and a long search term made one directory request cost 2-4 s
-    // of database time (security audit, 29 September 2026). The slowest real
-    // public read, the country-wide map tile, takes tens of milliseconds.
-    await tx`set local statement_timeout = '8s'`;
+    // The role, and a time limit. No public read may hold a pooled connection
+    // for long. Neither role had a timeout, and a long search term made one
+    // directory request cost 2-4 s of database time (security audit, 29
+    // September 2026). The slowest real public read, the country-wide map
+    // tile, takes tens of milliseconds.
+    await tx`select set_config('role', 'web_anon', true),
+                    set_config('statement_timeout', '8s', true)`;
     return fn(tx);
   }) as Promise<T>;
 }
