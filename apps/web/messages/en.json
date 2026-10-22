@@ -116,6 +116,13 @@
     "observedAt": "When did you see it?",
     "observedFromPhoto": "(from the photo)",
     "notes": "Notes",
+    "notesPublic": "Notes are shown publicly on the record page. Please don't include names, schools, addresses or contact details.",
+    "notesWarning": {
+      "location": "Your notes seem to include coordinates or a map link. Mark the place on the map above instead: a report whose notes give a location is checked by a person before it is published.",
+      "contact": "Your notes seem to include contact details, an account or a link. Notes are public, so please take it out; if you'd like us to be able to reach you, use the contact email below.",
+      "address": "Your notes seem to include a street address. Notes are public; if it is yours, please take it out.",
+      "school": "Your notes seem to name a school. Notes are public; if it is yours, please take it out."
+    },
     "email": "Email",
     "optional": "optional",
     "emailHelp": "Used only to follow up. Never shown publicly.",

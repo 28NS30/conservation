@@ -20,6 +20,7 @@ import { preparePhoto, type PreparedPhoto } from "@/lib/image";
 import { storedSessionUserId } from "@/lib/supabase/storedSession";
 import { uploadPhoto } from "@/lib/report/upload";
 import { checkFields, observedInstant, sendableAccuracy } from "@/lib/report/fieldChecks";
+import { notesConcerns } from "@/lib/report/notesCheck";
 import { enqueue } from "@/lib/offline/queue";
 import { useOnline } from "@/lib/offline/online";
 import { outcomeOf } from "@/lib/report/outcome";
@@ -865,6 +866,8 @@ function ReportFormFields({
 
   const heldForReview =
     category !== null && CATEGORIES[category].classifiable && photos.length === 0;
+  /** The most serious thing noticed in the notes, if anything. */
+  const notesConcern = notesConcerns(notes)[0] ?? null;
 
   const busy = phase === "submitting";
   const controls = sendControls({
@@ -1239,8 +1242,24 @@ function ReportFormFields({
             maxLength={MAX_NOTES}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
+            aria-describedby={notesConcern ? "notes-hint notes-warning" : "notes-hint"}
             className="w-full rounded-lg border border-ink-900/20 bg-paper-100 px-3 py-2 text-base text-ink-900"
           />
+          {/*
+            Said before anything is typed, because the notes are public on
+            every record shown at its exact place, and that is every report
+            naming an invasive animal. The warning under it is what the form
+            noticed in what was typed; it never stops the report, and the
+            server's own screen still holds one whose notes give a location.
+          */}
+          <p id="notes-hint" className="mt-1 text-sm text-ink-600">
+            {t("notesPublic")}
+          </p>
+          {notesConcern && (
+            <p id="notes-warning" role="status" className={`mt-2 ${ALERT}`}>
+              {t(`notesWarning.${notesConcern}`)}
+            </p>
+          )}
         </div>
 
         <div>
