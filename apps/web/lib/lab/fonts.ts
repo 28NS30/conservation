@@ -103,6 +103,3 @@ export function inLabCharset(text: string): boolean {
 export function labFaceClass(text: string): "" | "face-system" {
   return inLabCharset(text) ? "" : "face-system";
 }
-
-/** For tests and for anyone checking what the subsets actually cover. */
-export const LAB_CHARSET_SIZE = charset.coveredCount;
