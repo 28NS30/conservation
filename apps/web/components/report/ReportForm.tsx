@@ -403,12 +403,13 @@ function ReportFormFields({
           }
         }
 
-        // The time IS applied, where the coordinate is only offered, and the
-        // asymmetry is deliberate. A photograph taken somewhere else is an
-        // ordinary thing — a picture from last week's trip, a screenshot — and
-        // filing it at the wrong place puts a wrong dot on a public map. A
-        // photograph taken at another TIME is the same photograph, and the time
-        // it was taken is simply when the animal was seen. Someone who
+        // The time is applied too, and over the form's default of "now" as
+        // well as an empty field, where the place is only offered once one is
+        // chosen. A photograph taken somewhere else is an ordinary thing — a
+        // picture from last week's trip, a screenshot — and filing it at the
+        // wrong place puts a wrong dot on a public map. A photograph taken at
+        // another TIME is the same photograph, and the time it was taken is
+        // simply when the animal was seen. Someone who
         // photographs a dead animal at 07:32 on a mountain road and files it at
         // 19:40 when they reach signal would otherwise have the record moved
         // half a day, which on a dataset about when animals are found is enough

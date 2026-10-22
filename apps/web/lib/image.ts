@@ -7,15 +7,24 @@ export type PreparedPhoto = {
   blob: Blob;
   width: number;
   height: number;
-  /** GPS from the original EXIF, if present. A *suggestion* only — never applied silently. */
+  /**
+   * GPS from the original EXIF, if present.
+   *
+   * The form fills the location with it when none has been chosen yet, since
+   * the team asked that the place come from the photo (#131), and says on the
+   * map that it did, so a picture taken somewhere else is one tap to correct.
+   * Over a place already chosen it is offered, not applied. Either way it is
+   * never sent with the photo: the re-encode strips it (stripAndDownscale).
+   */
   gps: { lat: number; lng: number } | null;
   /**
    * When the photograph was taken, if EXIF says and the reading is credible.
    *
-   * Unlike `gps` this IS applied rather than offered: a reporter who has just
-   * taken a photograph of an animal is telling us when they saw it, and asking
-   * them to confirm the time on their own photo is a question with one answer.
-   * The Send screen shows which time it is using and lets them change it.
+   * Applied like `gps`, and over the form's default time as well: a reporter
+   * who has just taken a photograph of an animal is telling us when they saw
+   * it, and asking them to confirm the time on their own photo is a question
+   * with one answer. The form says which time it is using and lets them
+   * change it.
    */
   takenAt: Date | null;
 };
@@ -23,9 +32,8 @@ export type PreparedPhoto = {
 /**
  * Read EXIF GPS from the original file.
  *
- * Must run before `stripAndDownscale`, which destroys all metadata. We surface the
- * coordinate as a suggestion rather than applying it, because the photo may have
- * been taken somewhere other than where it is being reported.
+ * Must run before `stripAndDownscale`, which destroys all metadata. What the
+ * form does with it is the form's decision; see `PreparedPhoto.gps`.
  */
 async function readGps(file: File): Promise<{ lat: number; lng: number } | null> {
   try {
