@@ -69,6 +69,11 @@ const config: NextConfig = {
     // there is no single layout Next can compose a global 404 from — the case
     // the docs name for this flag.
     globalNotFound: true,
+    // Pages each build worker renders at once; Next's default is 8. A worker
+    // has two database connections while building (lib/db.ts), and pages
+    // beyond what those can serve only wait on them, each with its own
+    // 60-second prerender timeout running.
+    staticGenerationMaxConcurrency: 4,
   },
   // The shared package ships TypeScript source rather than a build artifact.
   transpilePackages: ["@conservation/shared"],

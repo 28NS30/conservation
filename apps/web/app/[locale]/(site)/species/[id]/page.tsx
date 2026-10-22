@@ -26,9 +26,25 @@ const HEATMAP_MIN_RECORDS = 6;
 const LIST_MAX_RECORDS = 5;
 
 /**
- * Only the ~354 species that actually have records are pre-rendered. The other
- * ~65,850 render on demand — generating 66k static pages would be absurd for
- * content that is mostly "no reports yet".
+ * Rendered once, then served from the cache and rebuilt in the background at
+ * most every five minutes, so a new record reaches its species page within
+ * that. Until the header stopped reading cookies (components/auth/AccountLink)
+ * every species page rendered per request and this had nothing to act on.
+ */
+export const revalidate = 300;
+
+/**
+ * The 50 most-recorded species are rendered at build; every other species
+ * page, recorded or not, renders on its first visit and is cached from then
+ * on, on the same five-minute rule.
+ *
+ * It was the 400 most-recorded: 800 of the build's 884 pages, each three or
+ * four database reads, with every build worker holding its own pool of
+ * connections. That is what exhausted a local Postgres, and it bought
+ * nothing, because the pages were rendered per request anyway (see
+ * `revalidate`). Built or not, a page costs one render and is then the
+ * cache's; building the rest only moves that render from the page's first
+ * visitor into every deploy.
  */
 export async function generateStaticParams() {
   try {
@@ -36,19 +52,20 @@ export async function generateStaticParams() {
       (tx) => tx<{ id: number; scientific_name: string }[]>`
         select t.id, t.scientific_name
           from taxa t join species_report_stats s on s.taxon_id = t.id
-         order by s.report_count desc limit 400`,
+         -- t.id settles ties, so the same fifty are chosen on every build.
+         order by s.report_count desc, t.id limit 50`,
     );
     return rows.map((r) => ({
       id: speciesSlug({ id: r.id, scientificName: r.scientific_name }),
     }));
   } catch (e) {
     // Prerendering is an optimisation, not a correctness requirement: every one
-    // of these pages already renders on demand, which is how the other ~65,850
+    // of these pages already renders on demand, which is how the other ~68,000
     // taxa work. Letting an unreachable database abort the whole build meant a
     // wrong password — or a Supabase maintenance window — blocked deploying
     // anything at all, including the fix for the password.
     //
-    // Loud on purpose. A deploy that silently stops prerendering 400 pages is a
+    // Loud on purpose. A deploy that silently stops prerendering 100 pages is a
     // performance regression nobody would notice otherwise, and the runtime
     // health of the database is checked separately by /api/health and
     // `npm run verify:deploy`.

@@ -21,16 +21,23 @@ if (!url)
  */
 const g = globalThis as unknown as { __sql?: postgres.Sql };
 
+/**
+ * Whether this process is one of `next build`'s workers. Next sets NEXT_PHASE
+ * before it starts them, and they inherit it.
+ */
+const building = process.env.NEXT_PHASE === "phase-production-build";
+
 export const sql =
   g.__sql ??
   postgres(url, {
-    // Per process, not per build. `next build` prerenders ~834 species pages
-    // across 9 workers, so this is really up to 72 concurrent connections — it
-    // exhausted a local Postgres (max_connections 100) once the dev server's own
-    // 32 were also open. Supabase's transaction pooler absorbs that comfortably,
-    // but if a production build ever fails with SQLSTATE 53300 rather than an
-    // auth error, this number is why.
-    max: 8,
+    // Per process, not per build. `next build` runs one worker per core, each
+    // with a pool of its own, so 8 here was up to 72 connections from a build
+    // on a 10-core machine. That exhausted a local Postgres (max_connections
+    // 100) whenever a server or a test run was also connected, and a page
+    // that timed out connecting was a page that built broken (exit 0, then a
+    // 500). Two per worker keeps a build to about 20; the pages queue on them,
+    // which costs a build seconds rather than connections. A server keeps 8.
+    max: building ? 2 : 8,
     idle_timeout: 20,
     connect_timeout: 10,
     prepare: false,
