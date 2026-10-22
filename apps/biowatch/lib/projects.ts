@@ -8,13 +8,13 @@ import type { Project } from "@/components/Project";
  */
 export const FORMOSAWATCH =
   process.env.NEXT_PUBLIC_FORMOSAWATCH_URL ??
-  "https://formosawatch.biowatchintl.org";
+  "https://formosawatch.biowatchitnl.org";
 // FlamaWatch is the same Colombian project, renamed. It is run by a separate
 // organisation now, so this is a link to someone else's site rather than a
 // sibling of this repo — confirm the address with them before launch.
 const FLAMAWATCH =
   process.env.NEXT_PUBLIC_FLAMAWATCH_URL ??
-  "https://flamawatch.biowatchintl.org";
+  "https://flamawatch.biowatchitnl.org";
 
 /** What came back from FormosaWatch. A null field was not read, not zero. */
 export type FormosaCounts = { reports: number | null; species: number | null };
