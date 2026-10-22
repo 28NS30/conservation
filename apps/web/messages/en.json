@@ -325,7 +325,18 @@
     },
     "actionFailed": "That did not save. Try again.",
     "confirmReject": "Reject it",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "flagged": {
+      "heading": "Published, with a flag",
+      "body": "These records are on the map but carry a reason to look at them. Most often the model is sure of a different species from the reporter: the record keeps the reporter's species and is blurred as the model's species would be. OK takes it off this list and changes nothing else. To correct the species, open the record.",
+      "count": "{count, number} flagged",
+      "empty": "No published record is flagged.",
+      "named": "Published as: {name}",
+      "model": "The model's first answer: {name}",
+      "ok": "OK",
+      "cleared": "Marked OK",
+      "open": "Open the record"
+    }
   },
   "login": {
     "title": "Sign in",
@@ -1230,6 +1241,7 @@
     "held": "A report waits here when a person has to look at it first: it has no photo, its location is outside Taiwan, its notes contain a link, or the identification model failed on it. Each one says which. A report with a photo also waits here until the model has tried to identify it, usually a few minutes.",
     "publish": "Publish puts it on the map, at the location its species allows. Protected and sensitive species stay blurred whatever is decided here.",
     "reject": "Reject keeps it off the map for good. Write why: the reporter only sees that it was not used, and the reason stays in the moderation log. The map catches up with a decision within about five minutes.",
+    "flagged": "Published records that carry a flag are listed after the queue. Most often the reporter and the model name different species: the record stays on the map under the reporter's species, blurred as the model's species would be. OK only takes it off the list; the blur stays as it is.",
     "tests": "To try every step without anything being shown, use the test links further down."
   }
 }

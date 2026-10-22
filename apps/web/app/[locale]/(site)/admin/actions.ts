@@ -145,3 +145,40 @@ export async function setReportTaxon(reportId: string, taxonId: number | null) {
   });
   revalidatePath("/admin");
 }
+
+/**
+ * Say a published record's flag has been looked at, and take it off the list.
+ *
+ * A record can be published and still carry a reason a person should look:
+ * the classifier writes one when the model, confident, names a different
+ * species from the reporter, and the record goes on being shown under the
+ * reporter's name. Until the queue listed them nobody saw those flags at all.
+ *
+ * It clears the flag and nothing else. The species, the blur and the status
+ * stay as they are, because "this is fine" is not a decision to publish a
+ * location more exactly: a record held at the model's blur stays held, and a
+ * moderator who thinks the species is wrong corrects it on the record's page.
+ * `flagged_reason` fires no blur trigger, so this cannot move the point.
+ *
+ * Only a published record with a flag, so a stale screen cannot clear one
+ * twice or touch a record that has since been rejected. The reason cleared is
+ * kept in the log, which is the only place it survives. `flag` is the log's
+ * own word for a flag decision (0003), so no migration is needed for it.
+ */
+export async function clearFlag(reportId: string) {
+  const actor = await requireModerator();
+  await sql.begin(async (tx) => {
+    const [row] = await tx<{ flagged_reason: string }[]>`
+      select flagged_reason from reports
+       where id = ${reportId}::uuid
+         and status = 'published'
+         and flagged_reason is not null
+       for update`;
+    if (!row) throw new Error("already decided");
+    await tx`update reports set flagged_reason = null where id = ${reportId}::uuid`;
+    await tx`insert into moderation_actions (report_id, actor_id, action, reason)
+             values (${reportId}::uuid, ${actor}::uuid, 'flag',
+                     ${`cleared: ${row.flagged_reason}`.slice(0, 500)})`;
+  });
+  revalidatePath("/admin");
+}

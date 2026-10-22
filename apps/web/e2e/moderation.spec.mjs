@@ -3,12 +3,14 @@
  *
  *   node e2e/moderation.spec.mjs         # TEST_BASE_URL, default localhost:3000
  *
- * A throwaway moderator, two held reports and one unnamed record:
+ * A throwaway moderator, two held reports, a flagged record and an unnamed one:
  *
  *   the reason each was held reads as a sentence, not the stored code;
  *   publishing one publishes it, and logs who did;
  *   rejecting asks why on the page, will not send without a reason,
  *   and stores the reason in the log;
+ *   a published record with a flag is listed below the queue, and OK
+ *   clears the flag without moving the record or loosening its blur;
  *   on a published record the model could not name, a moderator can
  *   name any species, stored as an expert's, and the blur does not loosen.
  *
@@ -131,6 +133,54 @@ try {
      where report_id = ${ids.reject} and actor_id = ${userId}::uuid and action = 'reject'`;
   check("and the log keeps the reason", rejLog?.reason === "the photo shows a toy, not an animal", rejLog?.reason);
 
+  // -- A published record with a flag ------------------------------------
+  // As the classifier leaves one the model disagreed with: published under
+  // the reporter's species, held at the model's blur, flagged. The queue
+  // lists it below the held reports; OK clears the flag and nothing else.
+  const [plain] = await sql`select id from taxa where scientific_name = 'Paguma larvata' and rank = 'Species' limit 1`;
+  const [cat] = await sql`select id from taxa where scientific_name = 'Prionailurus bengalensis' and rank = 'Species' limit 1`;
+  const [flaggedRecord] = await sql`
+    insert into reports (category, location, location_public, observed_at, status, source,
+                         taxon_id, taxon_source, precision_override, ai_band, flagged_reason)
+    values ('roadkill',
+            st_setsrid(st_makepoint(120.95, 23.9), 4326)::geography,
+            st_setsrid(st_makepoint(120.95, 23.9), 4326)::geography,
+            now(), 'published', 'user', ${plain.id}, 'user', 'coarse_10km', 'high',
+            'the model and the reporter name different species')
+    returning id, location_precision, st_astext(location_public::geometry) as point`;
+  ids.flagged = flaggedRecord.id;
+  await sql`insert into classifications (report_id, taxon_id, score, rank, model_version)
+            values (${ids.flagged}, ${cat.id}, 0.98, 1, 'e2e')`;
+  await page.goto(`${BASE}/en/admin`, { waitUntil: "networkidle" });
+  const flaggedRow = page.locator("li", { has: page.locator(`a[href$="/reports/${ids.flagged}"]`) });
+  check("a published record with a flag is listed", (await flaggedRow.count()) === 1);
+  check(
+    "below the held reports, under its own heading",
+    await page.getByRole("heading", { name: "Published, with a flag" }).isVisible(),
+  );
+  check(
+    "its reason reads as a sentence",
+    await flaggedRow.getByText("The model and the reporter name different species.").isVisible(),
+  );
+  check("and the model's answer is beside the reporter's", (await flaggedRow.getByText(/The model's first answer:/).count()) === 1);
+  await flaggedRow.getByRole("button", { name: "OK" }).click();
+  await flaggedRow.getByText("Marked OK").waitFor({ timeout: 10000 }).catch(() => {});
+  const [cleared] = await sql`
+    select flagged_reason, location_precision, status, st_astext(location_public::geometry) as point
+      from reports where id = ${ids.flagged}`;
+  check("OK clears the flag", cleared.flagged_reason === null, cleared.flagged_reason);
+  check(
+    "and nothing else: the record stays published, where it was, as blurred",
+    cleared.status === "published" &&
+      cleared.location_precision === flaggedRecord.location_precision &&
+      cleared.point === flaggedRecord.point,
+    `${cleared.status} ${cleared.location_precision}`,
+  );
+  const [okLog] = await sql`
+    select reason from moderation_actions
+     where report_id = ${ids.flagged} and actor_id = ${userId}::uuid and action = 'flag'`;
+  check("the log keeps the reason it cleared", okLog?.reason === "cleared: the model and the reporter name different species", okLog?.reason);
+
   // -- Naming a species the model never offered (#117) -------------------
   // An unidentified record, published, as the classifier leaves one it could
   // not name. The moderator searches, chooses, saves.
@@ -160,6 +210,7 @@ try {
 } finally {
   await browser?.close();
   for (const id of Object.values(ids)) {
+    await sql`delete from classifications where report_id = ${id}`.catch(() => {});
     await sql`delete from moderation_actions where report_id = ${id}`.catch(() => {});
     await sql`delete from reports where id = ${id}`.catch(() => {});
   }
