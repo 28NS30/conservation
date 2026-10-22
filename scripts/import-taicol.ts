@@ -43,7 +43,8 @@ async function upsert(rows: ReturnType<typeof toRow>[]) {
       is_freshwater    = excluded.is_freshwater,
       is_brackish      = excluded.is_brackish,
       is_marine        = excluded.is_marine,
-      updated_at       = excluded.updated_at`;
+      updated_at       = excluded.updated_at,
+      new_taicol_id    = excluded.new_taicol_id`;
 }
 
 /**

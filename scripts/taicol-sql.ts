@@ -11,8 +11,9 @@
  * taicol-rows.ts, shared with the importer, so the local check and the
  * production write cannot differ.
  *
- * Apply migration 0023 first: it adds the column the snapshot now carries, and
- * the floors that hold every rating the refresh would weaken.
+ * Apply migrations 0023 and 0034 first: they add the columns the snapshot now
+ * carries (0023 also the floors that hold every rating the 29 September 2026
+ * refresh would weaken).
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -36,7 +37,7 @@ const TYPES: Record<(typeof COLUMNS)[number], string> = {
   is_invasive: "boolean", protected_status: "text", cites: "text", iucn: "text",
   redlist: "text", sensitivity: "text", is_terrestrial: "boolean",
   is_freshwater: "boolean", is_brackish: "boolean", is_marine: "boolean",
-  updated_at: "timestamptz",
+  updated_at: "timestamptz", new_taicol_id: "text",
 };
 
 function upsertSql(rows: ReturnType<typeof toRow>[]): string {
