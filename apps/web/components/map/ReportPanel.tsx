@@ -10,6 +10,7 @@ import HabitatChips, {
 } from "@/components/species/HabitatChips";
 import InvasiveBadge from "@/components/collections/InvasiveBadge";
 import SpeciesName from "@/components/species/SpeciesName";
+import { formatTaipeiDate } from "@/lib/dates";
 
 type Report = {
   id: string;
@@ -183,8 +184,11 @@ export default function ReportPanel({
 
             <div>
               <dt className="text-parchment-500">{t("map.observedOn")}</dt>
+              {/* On Taiwan's calendar, as the record page says it: the
+                  first ten characters of the timestamp were the day in UTC,
+                  the day before for anything seen before 08:00. */}
               <dd className="tabular-nums text-parchment-100">
-                {report.observedAt.slice(0, 10)}
+                {formatTaipeiDate(report.observedAt, locale, { dateStyle: "medium" })}
               </dd>
             </div>
 

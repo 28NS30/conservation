@@ -24,6 +24,7 @@ import Pager from "@/components/site/Pager";
 import { alternates } from "@/lib/alternates";
 import SpeciesName from "@/components/species/SpeciesName";
 import { speciesLabel } from "@/lib/speciesNames";
+import { formatTaipeiDate } from "@/lib/dates";
 
 export const revalidate = 120;
 
@@ -279,8 +280,7 @@ export default async function ReportsListPage({
    * here. When that lookup answers nothing, the line simply omits the name.
    */
   const named = taxonId ? await publicSpeciesName(taxonId) : null;
-  const day = (d: string) =>
-    new Date(d).toLocaleDateString(locale, { timeZone: "Asia/Taipei" });
+  const day = (d: string) => formatTaipeiDate(d, locale);
   const dates =
     from && to
       ? t("dateRange", { from: day(from), to: day(to) })
@@ -500,9 +500,7 @@ export default async function ReportsListPage({
                       prefetch={false}
                       className="flex min-h-11 items-center pr-3 text-ink-800 underline underline-offset-2 hover:text-ember-700"
                     >
-                      {new Date(r.observedAt).toLocaleDateString(locale, {
-                        timeZone: "Asia/Taipei",
-                      })}
+                      {day(r.observedAt)}
                     </Link>
                   </td>
                   <td className="py-1.5 pr-3 text-ink-500">{tc(r.category)}</td>

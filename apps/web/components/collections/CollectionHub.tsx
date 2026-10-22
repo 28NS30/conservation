@@ -21,6 +21,7 @@ import UnverifiedBadge from "@/components/report/UnverifiedBadge";
 import { awaitingVerification } from "@/lib/report/verification";
 import { alternates } from "@/lib/alternates";
 import SpeciesName from "@/components/species/SpeciesName";
+import { formatTaipeiDate } from "@/lib/dates";
 
 /**
  * One page per collection: /roadkill, /invasive and /wildlife.
@@ -93,10 +94,7 @@ export default async function CollectionHub({
 
   const n = (v: number) => v.toLocaleString(locale);
   const day = (d: Date | string) =>
-    new Date(d).toLocaleDateString(locale, {
-      timeZone: "Asia/Taipei",
-      dateStyle: "medium",
-    });
+    formatTaipeiDate(d, locale, { dateStyle: "medium" });
   const photo = PHOTOS[PHOTO[collection]];
   const name = t(`name.${collection}`);
   const empty = summary.records === 0;
