@@ -380,6 +380,8 @@
     "nameUnderReview": "Name under review. These records were published under this name, which does not apply in Taiwan; they probably belong to a Taiwanese species, and a biologist will decide which. Until then they stay here, blurred as before.",
     "coordinatesWithheld": "Under the Taiwan species checklist's sensitivity rating, coordinates for this species are not published, so no records are shown on the map.",
     "metaDescription": "Records and distribution of {name} in Taiwan ({count, plural, one {# record} other {# records}}).",
+    "metaDescriptionWithheld": "{name} in Taiwan. Under the Taiwan species checklist's sensitivity rating, coordinates for this species are not published.",
+    "metaDescriptionNone": "{name} in Taiwan. Nobody has reported this species here yet.",
     "habitat": {
       "terrestrial": "Terrestrial",
       "freshwater": "Freshwater",

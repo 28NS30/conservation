@@ -380,6 +380,8 @@
     "nameUnderReview": "名稱待確認。這些紀錄以這個名稱發布，但這個名稱不適用於臺灣；牠們很可能屬於某個臺灣的物種，將由生物學者判定。在那之前，紀錄仍留在這裡，並維持原本的模糊化。",
     "coordinatesWithheld": "依據臺灣物種名錄的敏感度分級，此物種的座標不予公開，因此地圖上不會顯示任何紀錄。",
     "metaDescription": "{name} 在臺灣的紀錄與分布（{count, number} 筆）。",
+    "metaDescriptionWithheld": "{name} 在臺灣的物種資料。依據臺灣物種名錄的敏感度分級，此物種的座標不予公開。",
+    "metaDescriptionNone": "{name} 在臺灣的物種資料。這裡還沒有人通報過這個物種。",
     "habitat": {
       "terrestrial": "陸域",
       "freshwater": "淡水",
