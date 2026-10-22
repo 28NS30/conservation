@@ -1171,6 +1171,7 @@
   "terms": {
     "title": "Terms for contributors",
     "lede": "What you agree to when you file a report here, in plain words. Version {version}.",
+    "metaDescription": "What you agree to when you report to Project FormosaWatch: records are published under CC0, which locations are blurred, sharing with TaiRON, and how to take a report back.",
     "whatTitle": "What a report is",
     "whatBody": "A report is the animal you saw, where and when, any photos you add, and any notes. We publish it on the map, in the list of records and in the statistics, so that anyone working to protect Taiwan's wildlife can use it.",
     "licenceTitle": "How others may use it",

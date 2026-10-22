@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { CONSENT_VERSION } from "@conservation/shared";
 import PageHeader, { ProseSection } from "@/components/site/PageHeader";
+import { alternates } from "@/lib/alternates";
 
 export async function generateMetadata({
   params,
@@ -10,7 +11,14 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "terms" });
-  return { title: t("title") };
+  // Its own description, and its address in both languages, as every other
+  // page has (lib/alternates.ts): without them a search result for the terms
+  // showed the site-wide description and nothing tied /terms to /en/terms.
+  return {
+    title: t("title"),
+    description: t("metaDescription"),
+    alternates: alternates(locale, "/terms"),
+  };
 }
 
 /**
