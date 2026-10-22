@@ -1,7 +1,8 @@
 /**
  * Post-deploy smoke test. Run it against production the moment a deploy lands.
  *
- *   node scripts/verify-deploy.mjs https://your-domain
+ *   node scripts/verify-deploy.mjs https://formosawatch.biowatchitnl.org
+ *   node scripts/verify-deploy.mjs https://preservation-web-one.vercel.app
  *   node scripts/verify-deploy.mjs            # defaults to localhost:3000
  *
  * This exists because "the deploy went green" and "the new site is live" are
@@ -10,12 +11,30 @@
  * credentials are months out of date — both of which happened on this project.
  * Every check here is one someone had to run by hand to notice that.
  *
+ * Pointed at the old host it checks the move instead (see below).
+ *
  * Exits non-zero on failure so it can gate anything that follows.
  */
 
 const BASE = (process.argv[2] ?? "http://localhost:3000").replace(/\/$/, "");
 const pass = [];
 const fail = [];
+
+/** apps/web/lib/siteUrl.ts and apps/web/proxy.ts, which this cannot import. */
+const CANONICAL = "https://formosawatch.biowatchitnl.org";
+const OLD_HOST = "preservation-web-one.vercel.app";
+
+/**
+ * The origin this deployment must name in its canonical links and sitemap.
+ * Locally, what lib/siteUrl.ts names off Vercel, whatever port the server is
+ * on. Anywhere else, the site's own address, whatever host answered: a
+ * preview's canonical names production, and so must every page however it
+ * was reached.
+ */
+const LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(new URL(BASE).hostname);
+const EXPECTED_ORIGIN = LOCAL
+  ? new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").origin
+  : CANONICAL;
 
 function check(name, ok, detail = "") {
   (ok ? pass : fail).push({ name, detail });
@@ -30,6 +49,58 @@ async function get(path, opts = {}) {
     ...opts,
   });
   return res;
+}
+
+/* ---------------- the old host, which only moves ----------------
+ * The site moved to CANONICAL in October 2026, and the old host answers every
+ * page with a 308 to the same path and query there. Everything else still
+ * answers on it, because a phone may hold reports saved under the old origin
+ * that can only be sent from it, to its own /api (apps/web/proxy.ts). So
+ * against the old host, check that, and nothing more: none of the checks
+ * further down could pass on a host that redirects its pages. */
+
+if (new URL(BASE).hostname === OLD_HOST) {
+  try {
+    for (const path of ["/", "/species?filter=protected", "/en/about"]) {
+      const res = await get(path);
+      const to = res.headers.get("location") ?? "";
+      check(
+        `GET ${path} moves to ${new URL(CANONICAL).hostname}`,
+        res.status === 308 && to === `${CANONICAL}${path}`,
+        `${res.status}${to ? ` -> ${to}` : ""}`,
+      );
+    }
+
+    const health = await get("/api/health");
+    const body = await health.json().catch(() => ({}));
+    check(
+      "/api/health still answers here",
+      health.status === 200 && body.ok === true,
+      `${health.status}`,
+    );
+
+    for (const path of ["/sw.js", "/manifest.webmanifest"]) {
+      const res = await get(path);
+      check(`GET ${path} still answers here`, res.status === 200, `${res.status}`);
+    }
+
+    // The way out for a phone with reports still queued under this origin:
+    // its service worker asks for the page itself (apps/web/public/sw.js).
+    const stay = await get("/report", { headers: { "x-unsent-reports": "1" } });
+    check(
+      "a phone with unsent reports keeps the page",
+      stay.status === 200,
+      `${stay.status}`,
+    );
+  } catch (e) {
+    check(`reach ${BASE}`, false, e.message.slice(0, 60));
+  }
+
+  console.log(
+    `\n  ${pass.length}/${pass.length + fail.length} passed against ${BASE} (the old host)` +
+      (fail.length ? `, ${fail.length} FAILURE(S)\n` : "\n"),
+  );
+  process.exit(fail.length ? 1 : 0);
 }
 
 /* ---------------- is anything there at all ---------------- */
@@ -294,44 +365,82 @@ try {
   );
 }
 
-/* ---------------- the sitemap has to name this site ----------------
+/* ---------------- every absolute URL has to name the site ----------------
  * Production served `Sitemap: http://localhost:3000/sitemap.xml` and a sitemap
  * whose every <loc> was a localhost URL, because NEXT_PUBLIC_SITE_URL was never
  * set and the fallback was localhost. Nothing errored and no test could see it:
  * in every environment a test runs in, localhost IS the right answer. Only a
- * check made from outside, against the host actually being served, can tell. */
+ * check made from outside, against the host actually being served, can tell.
+ *
+ * Since the move the same mistake has a second shape: an address that answers,
+ * but only with a redirect. The bare apex does that, and it is what Vercel's own
+ * production hostname variable can hold now. So each of these must name
+ * EXPECTED_ORIGIN exactly, not merely some host that responds. */
+
+const originOf = (u) => {
+  try {
+    return new URL(u).origin;
+  } catch {
+    return "";
+  }
+};
 
 const robotsTxt = await get("/robots.txt")
   .then((r) => (r.status === 200 ? r.text() : ""))
   .catch(() => "");
 const sitemapLine = /^Sitemap:\s*(\S+)/m.exec(robotsTxt)?.[1] ?? "";
-let sitemapOk = false;
-try {
-  sitemapOk = new URL(sitemapLine).origin === new URL(BASE).origin;
-} catch {
-  sitemapOk = false;
-}
+const sitemapOk = originOf(sitemapLine) === EXPECTED_ORIGIN;
 check(
-  "robots.txt points at this host",
+  "robots.txt points at the site's address",
   sitemapOk,
-  sitemapOk ? sitemapLine : `${sitemapLine || "no Sitemap line"} (expected ${BASE})`,
+  sitemapOk ? sitemapLine : `${sitemapLine || "no Sitemap line"} (expected ${EXPECTED_ORIGIN})`,
 );
 
-const firstLoc = await get("/sitemap.xml")
+const sitemapXml = await get("/sitemap.xml")
   .then((r) => (r.status === 200 ? r.text() : ""))
-  .then((x) => /<loc>([^<]+)<\/loc>/.exec(x)?.[1] ?? "")
   .catch(() => "");
-let locOk = false;
-try {
-  locOk = new URL(firstLoc).origin === new URL(BASE).origin;
-} catch {
-  locOk = false;
-}
+const locs = [...sitemapXml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+const strayLoc = locs.find((u) => originOf(u) !== EXPECTED_ORIGIN);
 check(
-  "sitemap URLs are absolute and on this host",
-  locOk,
-  locOk ? firstLoc : `${firstLoc || "no <loc>"} (expected ${BASE})`,
+  "sitemap URLs are absolute and on the site's address",
+  locs.length > 0 && !strayLoc,
+  !locs.length
+    ? `no <loc> (expected ${EXPECTED_ORIGIN})`
+    : strayLoc
+      ? `${strayLoc} (expected ${EXPECTED_ORIGIN})`
+      : `${locs.length} URLs, e.g. ${locs[0]}`,
 );
+
+for (const path of ["/", "/en", "/species"]) {
+  const page = path === "/" ? html : await get(path).then((r) => (r.status === 200 ? r.text() : ""));
+  const canonical = /<link rel="canonical" href="([^"]+)"/.exec(page)?.[1] ?? "";
+  check(
+    `canonical link on ${path} names the site's address`,
+    originOf(canonical) === EXPECTED_ORIGIN,
+    `${canonical || "no canonical link"}` +
+      (originOf(canonical) === EXPECTED_ORIGIN ? "" : ` (expected ${EXPECTED_ORIGIN})`),
+  );
+}
+
+/* ---------------- a shared link's card is an image, not a redirect ----------------
+ * Every Chinese share card answered 307: Next names the card with the locale in
+ * its path, /zh-TW/opengraph-image, and the locale routing dropped the prefix.
+ * Asked of this host, by path, since the URL itself names the site's address. */
+
+for (const path of ["/", "/en"]) {
+  const page = path === "/" ? html : await get(path).then((r) => (r.status === 200 ? r.text() : ""));
+  const og = /<meta property="og:image" content="([^"]+)"/.exec(page)?.[1] ?? "";
+  let detail = "no og:image";
+  let ok = false;
+  if (og) {
+    const u = new URL(og, BASE);
+    const res = await get(u.pathname + u.search).catch(() => null);
+    const type = res?.headers.get("content-type") ?? "";
+    ok = res?.status === 200 && type.startsWith("image/png");
+    detail = `${res?.status ?? "no answer"} ${type} ${u.pathname}`;
+  }
+  check(`share card for ${path} answers 200 with no redirect`, ok, detail);
+}
 
 /* ---------------- report ---------------- */
 
