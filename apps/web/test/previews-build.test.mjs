@@ -1,9 +1,10 @@
 /**
  * One throw during prerender ends the whole build.
  *
- * `SiteHeader` asks `currentUserId()` on every page, so it runs inside the
- * prerender of every static page. `serverSupabase()` throws when Supabase is not
- * configured, and Next does not skip that page and carry on — it stops:
+ * `SiteHeader` asked `currentUserId()` on every page, so it ran inside the
+ * prerender of every static page. (It decides in the browser now; /login and
+ * the per-request pages still ask.) `serverSupabase()` throws when Supabase is
+ * not configured, and Next does not skip that page and carry on — it stops:
  *
  *     Error occurred prerendering page "/zh-TW"
  *     Error: NEXT_PUBLIC_SUPABASE_URL / _ANON_KEY are not set
