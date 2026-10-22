@@ -393,7 +393,15 @@ async function main() {
   const gh = github();
   const runUrl = `${process.env.GITHUB_SERVER_URL ?? "https://github.com"}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
   const workflow = process.env.WATCH_WORKFLOW ?? "production-watch.yml";
-  const { workflow_runs: runs } = await gh(`/actions/workflows/${workflow}/runs?per_page=30&exclude_pull_requests=true`);
+  // Asked per event: every preview deployment's status starts a run of this
+  // workflow too (skipped), and an afternoon of pushes would push the last
+  // scheduled run off any single page of all runs.
+  const runs = [];
+  for (const event of ["schedule", "workflow_dispatch"]) {
+    const page = await gh(`/actions/workflows/${workflow}/runs?event=${event}&per_page=10&exclude_pull_requests=true`);
+    runs.push(...page.workflow_runs);
+  }
+  runs.sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
   const previousFailed = previousConclusion(runs, process.env.GITHUB_RUN_ID) === "failure";
   const issue = await openIssue(gh);
   const action = decide({ failures, previousFailed, issue, now: Date.now() });
