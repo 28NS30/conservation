@@ -3,6 +3,7 @@
  *
  *   node e2e/contrast.spec.mjs
  *   ONLY=map,home node e2e/contrast.spec.mjs
+ *   ONLY=map,report WIDTHS=390 node e2e/contrast.spec.mjs   # what CI runs per PR
  *   UPDATE_CONTRAST=1 node e2e/contrast.spec.mjs   # re-record the known issues
  *
  * This is `_contrast.mjs` promoted. The measuring was sound and is kept almost
@@ -29,6 +30,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { BASE, LOCALES, ROUTES, pathFor, resolveIds, routesFor } from "./routes.mjs";
+import { subsetOf } from "./a11y.spec.mjs";
 
 /** The phone and the laptop. A page is two different documents at these widths. */
 export const CONTRAST_WIDTHS = [390, 1440];
@@ -239,7 +241,14 @@ export function ratchet(found, known) {
 }
 
 async function main() {
-  const only = (process.env.ONLY ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  // Read the way a11y.spec.mjs reads them, and refused the same way.
+  const { only, widths, partial, errors } = subsetOf(process.env, ROUTES, CONTRAST_WIDTHS);
+  if (partial && process.env.UPDATE_CONTRAST === "1")
+    errors.push("UPDATE_CONTRAST=1 records the whole site: run it without ONLY or WIDTHS.");
+  if (errors.length) {
+    for (const e of errors) console.error(`  ${e}`);
+    return 1;
+  }
   const { ids, notes } = await resolveIds();
   for (const n of notes) console.log(`  id   ${n}`);
   const { run, skipped } = routesFor("contrast", ids);
@@ -253,7 +262,7 @@ async function main() {
   const unreachable = [];
   for (const route of routes) {
     for (const locale of LOCALES) {
-      for (const width of CONTRAST_WIDTHS) {
+      for (const width of widths) {
         const ctx = await browser.newContext({
           viewport: { width, height: width < 500 ? 844 : 900 },
           locale: locale.locale,
@@ -318,8 +327,10 @@ async function main() {
     return 0;
   }
 
-  for (const f of fallen)
-    console.log(`  fixed  ${f.key}: ${f.was} -> ${f.now}. Lower it: UPDATE_CONTRAST=1 node e2e/contrast.spec.mjs`);
+  // A part of the site cannot say what was fixed in the rest of it.
+  if (!partial)
+    for (const f of fallen)
+      console.log(`  fixed  ${f.key}: ${f.was} -> ${f.now}. Lower it: UPDATE_CONTRAST=1 node e2e/contrast.spec.mjs`);
 
   if (risen.length) {
     console.error("\n  contrast REGRESSED:");

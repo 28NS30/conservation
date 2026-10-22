@@ -4,6 +4,7 @@
  *
  *   node e2e/a11y.spec.mjs
  *   ONLY=login node e2e/a11y.spec.mjs
+ *   ONLY=map,report WIDTHS=390 node e2e/a11y.spec.mjs    # what CI runs per PR
  *   UPDATE_A11Y=1 node e2e/a11y.spec.mjs    # re-record e2e/a11y-known.json
  *
  * Before this, accessibility was checked in exactly one place: pages.spec.mjs
@@ -30,7 +31,7 @@ import { createRequire } from "node:module";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { AXE_WIDTHS, BASE, LOCALES, pathFor, resolveIds, routesFor } from "./routes.mjs";
+import { AXE_WIDTHS, BASE, LOCALES, ROUTES, pathFor, resolveIds, routesFor } from "./routes.mjs";
 
 const require = createRequire(import.meta.url);
 /** The bundled build, not the source entry: one file, no module resolution in the page. */
@@ -106,8 +107,33 @@ export function ratchet(found, known) {
   return { cells, nodes, risen, fallen };
 }
 
+/**
+ * ONLY and WIDTHS, read strictly.
+ *
+ * A route name that matches no row, or a width that is not a number, would
+ * measure nothing and pass: a subset run in CI would go quiet the day a route
+ * was renamed. And recording from a subset would write a known-issues file
+ * holding that subset alone, dropping every line it did not visit.
+ */
+export function subsetOf(env, routes, defaults) {
+  const only = (env.ONLY ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const raw = (env.WIDTHS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const widths = raw.map(Number);
+  const errors = [];
+  const unknown = only.filter((name) => !routes.some((r) => r.name === name));
+  if (unknown.length) errors.push(`ONLY names no route: ${unknown.join(", ")}`);
+  if (widths.some((w) => !Number.isInteger(w) || w <= 0)) errors.push(`WIDTHS is not a list of widths: ${env.WIDTHS}`);
+  return { only, widths: widths.length ? widths : defaults, partial: only.length > 0 || widths.length > 0, errors };
+}
+
 async function main() {
-  const only = (process.env.ONLY ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const { only, widths, partial, errors } = subsetOf(process.env, ROUTES, AXE_WIDTHS);
+  if (partial && process.env.UPDATE_A11Y === "1")
+    errors.push("UPDATE_A11Y=1 records the whole site: run it without ONLY or WIDTHS.");
+  if (errors.length) {
+    for (const e of errors) console.error(`  ${e}`);
+    return 1;
+  }
   const { ids, notes } = await resolveIds();
   for (const n of notes) console.log(`  id   ${n}`);
   const { run, skipped } = routesFor("axe", ids);
@@ -121,7 +147,7 @@ async function main() {
   const unreachable = [];
   for (const route of routes) {
     for (const locale of LOCALES) {
-      for (const width of AXE_WIDTHS) {
+      for (const width of widths) {
         const ctx = await browser.newContext({
           viewport: { width, height: width < 500 ? 844 : 900 },
           locale: locale.locale,
@@ -191,8 +217,10 @@ async function main() {
     return 0;
   }
 
-  for (const f of fallen)
-    console.log(`  fixed  ${f.key}: ${f.was} -> ${f.now}. Lower it: UPDATE_A11Y=1 node e2e/a11y.spec.mjs`);
+  // A part of the site cannot say what was fixed in the rest of it.
+  if (!partial)
+    for (const f of fallen)
+      console.log(`  fixed  ${f.key}: ${f.was} -> ${f.now}. Lower it: UPDATE_A11Y=1 node e2e/a11y.spec.mjs`);
 
   if (risen.length) {
     console.error("\n  accessibility REGRESSED:");
@@ -203,7 +231,7 @@ async function main() {
     );
     return 1;
   }
-  console.log(`\n  no new axe violations (${cells.size} known, ${routes.length} routes × ${LOCALES.length} locales × ${AXE_WIDTHS.length} widths)`);
+  console.log(`\n  no new axe violations (${cells.size} known, ${routes.length} routes × ${LOCALES.length} locales × ${widths.length} widths)`);
   return 0;
 }
 
