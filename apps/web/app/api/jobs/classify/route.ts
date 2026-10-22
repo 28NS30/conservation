@@ -1,4 +1,5 @@
 import { classifyQueued } from "@/lib/report/classifyWorker";
+import { reportsChanged } from "@/lib/siteFigures";
 
 /**
  * Classification worker, driven by Vercel Cron (see apps/web/vercel.json).
@@ -67,5 +68,9 @@ async function run(req: Request) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   // Deliberately small. This is read by a cron service, not a human, and a large
   // body is what made a timeout look like a broken endpoint.
-  return Response.json(await classifyQueued());
+  const answer = Response.json(await classifyQueued());
+  // The run may have published reports or named their animals, and the counts
+  // every page states are cached for everybody (lib/siteFigures.ts).
+  reportsChanged();
+  return answer;
 }

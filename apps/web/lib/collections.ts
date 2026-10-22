@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { asPublic } from "@/lib/db";
 import { OFFERED, countSpecies } from "@/lib/species";
+import { siteFigure } from "@/lib/siteFigures";
 import {
   RECORD_CONDITIONS,
   selectionFor,
@@ -79,21 +80,23 @@ export async function collectionSummary(
 /**
  * How many public records each collection holds, and how many there are in
  * all, for /stats. One pass over the view; the collections overlap, so the
- * three do not add up to the total and are not meant to.
+ * three do not add up to the total and are not meant to. A site-wide figure,
+ * cached for everybody (lib/siteFigures.ts).
  */
-export async function collectionTotals(): Promise<
-  { all: number } & Record<Collection, number>
-> {
-  const [row] = await asPublic(
-    (tx) => tx<({ all: number } & Record<Collection, number>)[]>`
+export const collectionTotals = siteFigure(
+  "collectionTotals",
+  async (): Promise<{ all: number } & Record<Collection, number>> => {
+    const [row] = await asPublic(
+      (tx) => tx<({ all: number } & Record<Collection, number>)[]>`
       select count(*)::int                                            as "all",
              count(*) filter (where ${where(tx, "roadkill")})::int    as roadkill,
              count(*) filter (where ${where(tx, "invasive")})::int    as invasive,
              count(*) filter (where ${where(tx, "wildlife")})::int    as wildlife
         from reports_public rp`,
-  );
-  return row;
-}
+    );
+    return row;
+  },
+);
 
 export type CollectionRecord = {
   id: string;

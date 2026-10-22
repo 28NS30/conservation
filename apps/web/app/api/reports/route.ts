@@ -14,6 +14,7 @@ import {
 } from "@/lib/abuse";
 import { addressKey, clientIp } from "@/lib/request";
 import { OFFERED, inPageScope } from "@/lib/species";
+import { reportsChanged } from "@/lib/siteFigures";
 import {
   reportSubmissionSchema,
   requiresClassification,
@@ -397,6 +398,11 @@ export async function POST(req: Request) {
       };
     });
 
+    // Published on arrival, so it is in the counts every page states, which
+    // are cached for everybody (lib/siteFigures.ts). A test report is in none
+    // of them, and a held one joins them when it is published.
+    if (!result.duplicate && result.status === "published" && !result.test) reportsChanged();
+
     // Identify the photo now, after the reporter has their answer, rather than
     // at 03:00 tomorrow: the daily cron was the only thing that ran the model,
     // three reports a night. The job is committed above, so if this is cut
@@ -412,6 +418,8 @@ export async function POST(req: Request) {
       after(async () => {
         try {
           await classifyQueued({ reportId: id });
+          // The model may have published the report or named its animal.
+          reportsChanged();
         } catch (e) {
           console.error(`[reports] classify after submit ${id}:`, (e as Error).message);
         }

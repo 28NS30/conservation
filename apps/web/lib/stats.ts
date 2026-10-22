@@ -1,5 +1,6 @@
 import { asPublic } from "@/lib/db";
 import { countSpecies } from "@/lib/species";
+import { siteFigure } from "@/lib/siteFigures";
 
 /**
  * Aggregates behind /stats.
@@ -9,6 +10,11 @@ import { countSpecies } from "@/lib/species";
  * record volume and true coordinates of 敏感 taxa, which is precisely what the
  * obscuring design exists to prevent. A hotspot list is a particularly effective
  * way to leak a location, so it gets the extra restriction below.
+ *
+ * The site-wide figures are cached for everybody (lib/siteFigures.ts): the
+ * same for every reader, full passes over the view, and changed only by a
+ * new or re-identified record. The anniversary ledger is not, because it
+ * moves with the date.
  */
 
 /**
@@ -28,9 +34,10 @@ import { countSpecies } from "@/lib/species";
  * lib/species.ts, and this is how everything else asks it. Subspecies count as
  * their own rows there, as they do in the directory's list.
  */
-export async function recordedSpeciesCount(): Promise<number> {
-  return countSpecies({ filter: "recorded" });
-}
+export const recordedSpeciesCount = siteFigure(
+  "recordedSpeciesCount",
+  (): Promise<number> => countSpecies({ filter: "recorded" }),
+);
 
 /**
  * The denominator /season sets beside recordedSpeciesCount(): every animal
@@ -48,9 +55,10 @@ export async function recordedSpeciesCount(): Promise<number> {
  * plants, fungi and bacteria included — made the site look 0.8% done at
  * recording things it never set out to record.
  */
-export async function checklistAnimalTaxaCount(): Promise<number> {
-  return countSpecies({ filter: "all", kingdom: "Animalia" });
-}
+export const checklistAnimalTaxaCount = siteFigure(
+  "checklistAnimalTaxaCount",
+  (): Promise<number> => countSpecies({ filter: "all", kingdom: "Animalia" }),
+);
 
 export type Overview = {
   reports: number;
@@ -60,7 +68,13 @@ export type Overview = {
   lastYear: number | null;
 };
 
-export async function overview(): Promise<Overview> {
+/**
+ * The size and span of the public record. One pass, and the one source for
+ * every page that states these: /stats, the map's header and footer, the
+ * home page's blurred-record count and the list's lede, which each asked
+ * the same question of the same view with a query of their own.
+ */
+export const overview = siteFigure("overview", async (): Promise<Overview> => {
   const [row] = await asPublic(
     (tx) => tx<Overview[]>`
       select count(*)::int                                         as reports,
@@ -71,10 +85,10 @@ export async function overview(): Promise<Overview> {
         from reports_public`,
   );
   return row;
-}
+});
 
 /** Twelve buckets, Jan–Dec, zero-filled. Roadkill is strongly seasonal. */
-export async function monthlyTotals(): Promise<number[]> {
+export const monthlyTotals = siteFigure("monthlyTotals", async (): Promise<number[]> => {
   const rows = await asPublic(
     (tx) => tx<{ m: number; n: number }[]>`
       select extract(month from observed_at at time zone 'Asia/Taipei')::int as m, count(*)::int as n
@@ -83,15 +97,17 @@ export async function monthlyTotals(): Promise<number[]> {
   const out = Array<number>(12).fill(0);
   for (const r of rows) out[r.m - 1] = r.n;
   return out;
-}
+});
 
-export async function yearlyTotals(): Promise<{ year: number; n: number }[]> {
-  return asPublic(
-    (tx) => tx<{ year: number; n: number }[]>`
+export const yearlyTotals = siteFigure(
+  "yearlyTotals",
+  (): Promise<{ year: number; n: number }[]> =>
+    asPublic(
+      (tx) => tx<{ year: number; n: number }[]>`
       select extract(year from observed_at at time zone 'Asia/Taipei')::int as year, count(*)::int as n
         from reports_public group by 1 order by 1`,
-  );
-}
+    ),
+);
 
 export type TopSpecies = {
   id: number;
@@ -105,8 +121,8 @@ export type TopSpecies = {
   isEndemic: boolean;
 };
 
-export async function topSpecies(limit = 15): Promise<TopSpecies[]> {
-  return asPublic(
+export const topSpecies = siteFigure("topSpecies", (limit: number = 15): Promise<TopSpecies[]> =>
+  asPublic(
     (tx) => tx<TopSpecies[]>`
       select t.id, t.scientific_name as "scientificName",
              t.common_name_zh as "commonNameZh", s.report_count as "reportCount",
@@ -117,8 +133,8 @@ export async function topSpecies(limit = 15): Promise<TopSpecies[]> {
         join taxa t on t.id = s.taxon_id
        order by s.report_count desc, t.scientific_name
        limit ${limit}`,
-  );
-}
+  ),
+);
 
 export type EntrySpecies = {
   id: number;
@@ -136,8 +152,8 @@ export type EntrySpecies = {
  * straight to where a sensitive animal is found would be a strange thing to
  * build, blurred or not. Chinese name required, because the button is the name.
  */
-export async function mapEntrySpecies(limit = 3): Promise<EntrySpecies[]> {
-  return asPublic(
+export const mapEntrySpecies = siteFigure("mapEntrySpecies", (limit: number = 3): Promise<EntrySpecies[]> =>
+  asPublic(
     (tx) => tx<EntrySpecies[]>`
       select t.id, t.scientific_name as "scientificName",
              t.common_name_zh as "commonNameZh",
@@ -149,8 +165,8 @@ export async function mapEntrySpecies(limit = 3): Promise<EntrySpecies[]> {
          and t.common_name_zh is not null
        order by s.report_count desc, t.scientific_name
        limit ${limit}`,
-  );
-}
+  ),
+);
 
 export type LedgerRow = {
   id: string;
@@ -254,8 +270,8 @@ const HOTSPOT_CELL_M = 5000;
  * Grouping is on integer cell indices rather than a snapped geometry so the
  * aggregation never depends on PostGIS geometry equality.
  */
-export async function hotspots(limit = 8): Promise<Hotspot[]> {
-  return asPublic(
+export const hotspots = siteFigure("hotspots", (limit: number = 8): Promise<Hotspot[]> =>
+  asPublic(
     (tx) => tx<Hotspot[]>`
       with cells as (
         select floor(st_x(geom_3857) / ${HOTSPOT_CELL_M})::int as gx,
@@ -294,5 +310,5 @@ export async function hotspots(limit = 8): Promise<Hotspot[]> {
         left join dominant d on d.gx = t.gx and d.gy = t.gy
         left join taxa tx_ on tx_.id = d.taxon_id
        order by t.n desc`,
-  );
-}
+  ),
+);
