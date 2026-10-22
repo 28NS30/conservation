@@ -119,3 +119,22 @@ describe("the form's words", () => {
     assert.equal(en.report.needChallenge, "Complete the bot check at the end of the form");
   });
 });
+
+describe("the yearly chart", () => {
+  test("a year with no records is a zero, not a missing column", async () => {
+    const { everyYear } = await import("../lib/yearSeries.ts");
+    assert.deepEqual(
+      everyYear([{ year: 2016, n: 5 }, { year: 2017, n: 3 }, { year: 2026, n: 2 }]).map((y) => [y.year, y.n]),
+      [[2016, 5], [2017, 3], ...[2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025].map((y) => [y, 0]), [2026, 2]],
+    );
+    assert.deepEqual(everyYear([]), []);
+    assert.deepEqual(everyYear([{ year: 2017, n: 1 }]), [{ year: 2017, n: 1 }]);
+  });
+
+  test("the query is filled before the page draws it, and the page says why", () => {
+    assert.match(read("lib", "stats.ts"), /return everyYear\(rows\)/);
+    assert.match(read("app", "[locale]", "(site)", "stats", "page.tsx"), /t\("byYearSource"\)/);
+    assert.match(catalogue("zh-TW").statsPage.byYearSource, /2017/);
+    assert.match(catalogue("en").statsPage.byYearSource, /2017/);
+  });
+});

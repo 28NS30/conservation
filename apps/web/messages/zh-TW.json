@@ -589,6 +589,7 @@
     "peakMonth": "{month}最多。",
     "byYear": "逐年紀錄",
     "byYearHint": "數量變化同時反映實際狀況與調查投入，兩者不易分離。",
+    "byYearSource": "經 GBIF 取得的路殺社（TaiRON）紀錄只到 2017 年；之後的年份只有在本站送出的通報。",
     "topSpecies": "紀錄最多的物種",
     "topSpeciesHint": "點擊可查看該物種的分布圖與詳細資料。",
     "protected": "保育類",

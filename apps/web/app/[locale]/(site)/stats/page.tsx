@@ -247,6 +247,11 @@ export default async function StatsPage({
               table={yearTable}
               data={years.map((y) => ({ key: String(y.year), n: y.n }))}
             />
+            {/* Why empty years follow 2017: the imported records end there,
+                and this site's own reports begin the year it opened. */}
+            <p className="mt-2 text-sm leading-relaxed text-ink-700">
+              {t("byYearSource")}
+            </p>
           </Section>
         )}
 

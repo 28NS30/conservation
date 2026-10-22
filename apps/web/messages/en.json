@@ -589,6 +589,7 @@
     "peakMonth": "Peaks in {month}.",
     "byYear": "By year",
     "byYearHint": "Changes reflect both what happened and how much surveying was done; the two are hard to separate.",
+    "byYearSource": "TaiRON's records, imported through GBIF, end in 2017; the years after hold only reports filed on this site.",
     "topSpecies": "Most recorded species",
     "topSpeciesHint": "Follow a species for its distribution map and details.",
     "protected": "Protected",
