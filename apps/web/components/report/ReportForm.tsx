@@ -750,10 +750,20 @@ function ReportFormFields({
 
   const errorIn = (slot: ErrorSlot) =>
     error?.slot === slot ? (
-      <p role="alert" className={`mt-2 ${ALERT}`}>
+      <p id={`${slot}-error`} role="alert" className={`mt-2 ${ALERT}`}>
         {t(`errors.${error.key}`)}
       </p>
     ) : null;
+
+  /**
+   * The help and error lines a field is described by, for `aria-describedby`.
+   * An alert is announced once, when it appears; a reader who comes back to
+   * the field later heard only its label, not what was wrong with it, nor the
+   * line under it saying what the email is for.
+   */
+  const describedBy = (...ids: (string | false)[]) =>
+    ids.filter(Boolean).join(" ") || undefined;
+  const errorId = (slot: ErrorSlot) => error?.slot === slot && `${slot}-error`;
 
   // A function, not a value: the editing phase renders neither card, and
   // resolving a message it will not show is work done on every keystroke.
@@ -886,6 +896,12 @@ function ReportFormFields({
       multiple
       className="sr-only"
       disabled={preparing}
+      aria-invalid={error?.slot === "photo" || undefined}
+      aria-describedby={describedBy(
+        "photo-help",
+        heldForReview && "photo-warning",
+        errorId("photo"),
+      )}
       onChange={(e) => {
         void addFiles(e.target.files);
         e.target.value = "";
@@ -1011,12 +1027,12 @@ function ReportFormFields({
           </div>
         )}
 
-        <p className="mt-2 text-sm leading-relaxed text-ink-600">
+        <p id="photo-help" className="mt-2 text-sm leading-relaxed text-ink-600">
           {preparing ? t("photoProcessing") : t("photoHelp")}
         </p>
 
         {heldForReview && (
-          <p className="mt-2 text-sm leading-relaxed text-ink-800">
+          <p id="photo-warning" className="mt-2 text-sm leading-relaxed text-ink-800">
             {t("noPhotoWarning")}
           </p>
         )}
@@ -1202,6 +1218,7 @@ function ReportFormFields({
               setTimeFromPhoto(false);
             }}
             aria-invalid={error?.slot === "time" || undefined}
+            aria-describedby={describedBy(errorId("time"))}
             className="min-h-12 w-full rounded-lg border border-ink-900/20 bg-paper-100 px-3 py-2 text-base text-ink-900"
           />
           {errorIn("time")}
@@ -1236,13 +1253,15 @@ function ReportFormFields({
           <input
             id="email"
             type="email"
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
             aria-invalid={error?.slot === "contact" || undefined}
+            aria-describedby={describedBy("email-help", errorId("contact"))}
             className="min-h-12 w-full rounded-lg border border-ink-900/20 bg-paper-100 px-3 py-2 text-base text-ink-900"
           />
-          <p className="mt-1 text-sm text-ink-600">{t("emailHelp")}</p>
+          <p id="email-help" className="mt-1 text-sm text-ink-600">{t("emailHelp")}</p>
           {errorIn("contact")}
         </div>
       </section>

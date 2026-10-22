@@ -9,10 +9,12 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createTranslator } from "next-intl";
 import { speciesDescription } from "../lib/speciesMeta.ts";
+import { BASE_URL } from "./helpers.mjs";
 
 const WEB = join(import.meta.dirname, "..");
 const read = (...p) => readFileSync(join(WEB, ...p), "utf8");
 const catalogue = (l) => JSON.parse(read("messages", `${l}.json`));
+const up = async () => Boolean(await fetch(BASE_URL).catch(() => null));
 
 describe("fields a phone does not zoom into", () => {
   // iOS Safari zooms the page into a focused field set under 16px.
@@ -136,5 +138,30 @@ describe("the yearly chart", () => {
     assert.match(read("app", "[locale]", "(site)", "stats", "page.tsx"), /t\("byYearSource"\)/);
     assert.match(catalogue("zh-TW").statsPage.byYearSource, /2017/);
     assert.match(catalogue("en").statsPage.byYearSource, /2017/);
+  });
+});
+
+describe("the report form's fields say what describes them", () => {
+  test("as rendered: the email autocompletes, and the email and photo inputs name their help", async (t) => {
+    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    const html = await (await fetch(`${BASE_URL}/report/roadkill`)).text();
+    const tag = (id) => new RegExp(`<input[^>]*\\bid="${id}"[^>]*>`).exec(html)?.[0] ?? "";
+    const email = tag("email");
+    assert.match(email, /autoComplete="email"|autocomplete="email"/i);
+    assert.match(email, /aria-describedby="email-help"/);
+    assert.match(html, /id="email-help"/);
+    const file = /<input[^>]*type="file"[^>]*>/.exec(html)?.[0] ?? "";
+    assert.match(file, /aria-describedby="photo-help"/);
+    assert.match(html, /id="photo-help"/);
+    // No error is showing, so the time field names nothing.
+    assert.doesNotMatch(tag("observedAt"), /aria-describedby/);
+  });
+
+  test("and an error, once shown, is one of the lines described", () => {
+    const form = read("components", "report", "ReportForm.tsx");
+    assert.match(form, /<p id=\{`\$\{slot\}-error`\} role="alert"/);
+    assert.match(form, /aria-describedby=\{describedBy\(errorId\("time"\)\)\}/);
+    assert.match(form, /aria-describedby=\{describedBy\("email-help", errorId\("contact"\)\)\}/);
+    assert.match(form, /errorId\("photo"\)/);
   });
 });
