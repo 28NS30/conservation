@@ -77,22 +77,29 @@ export default async function SpeciesDirectory({
   const q = normaliseQuery(rawQ);
 
   /*
-   * Counted before it is listed, because the list is now a window onto the
-   * result set rather than the whole of it. The directory asked for 80 rows and
+   * Counted as well as listed, because the list is a window onto the result
+   * set rather than the whole of it. The directory asked for 80 rows and
    * showed whatever came back, so 442 recorded species were a list of 80 with
    * nothing on the page admitting the other 362 existed — no count, no pager,
    * no truncation notice. It simply stopped, in alphabetical order, at a place
    * that looked like an ending.
+   *
+   * The two are read together, the list at the page asked for. Only the
+   * count can say whether that page exists; when it does not (a stale
+   * bookmark, ?page=99), the last page is read once the count is in, so the
+   * rare request pays for a second read and the usual one never waits for
+   * the count before starting the list.
    */
-  const total = await countSpecies({ q, filter });
+  const asked = pageWindow(rawPage, Number.MAX_SAFE_INTEGER, PER_PAGE);
+  const [total, askedRows] = await Promise.all([
+    countSpecies({ q, filter }),
+    listSpecies({ q, filter, limit: asked.perPage, offset: asked.offset }),
+  ]);
   const win = pageWindow(rawPage, total, PER_PAGE);
-
-  const species = await listSpecies({
-    q,
-    filter,
-    limit: win.perPage,
-    offset: win.offset,
-  });
+  const species =
+    win.offset === asked.offset
+      ? askedRows
+      : await listSpecies({ q, filter, limit: win.perPage, offset: win.offset });
 
   /*
    * When a search inside a filter finds nothing, ask whether the filter is what

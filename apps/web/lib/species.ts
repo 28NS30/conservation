@@ -1,4 +1,5 @@
 import type postgres from "postgres";
+import { cache } from "react";
 import {
   REPORT_PAGES,
   REPORT_PAGE_KEYS,
@@ -118,22 +119,7 @@ export function inPageScope(scope: SpeciesScope): string {
   })`;
 }
 
-/** URL slug: `32116-prionailurus-bengalensis`. Ids stay stable; humans get a hint. */
-export function speciesSlug(s: { id: number; scientificName: string }): string {
-  const name = s.scientificName
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-  return name ? `${s.id}-${name}` : String(s.id);
-}
-
-/** Accepts `32116` or `32116-anything`; anything else is not a species id. */
-export function parseSpeciesId(param: string): number | null {
-  const m = /^(\d+)(?:-|$)/.exec(param);
-  if (!m) return null;
-  const id = Number(m[1]);
-  return Number.isSafeInteger(id) && id > 0 ? id : null;
-}
+export { speciesSlug, parseSpeciesId } from "@/lib/speciesSlug";
 
 /**
  * Whether a species page carries something a searcher could actually want.
@@ -181,7 +167,14 @@ export function isIndexworthy(s: {
   );
 }
 
-export async function getSpecies(id: number): Promise<SpeciesDetail | null> {
+/**
+ * One taxon, as its species page and a record's species card show it.
+ *
+ * Read once per request however many times it is asked for (React's
+ * `cache`): a page and its `generateMetadata` both need it, and each asked
+ * the database separately.
+ */
+export const getSpecies = cache(async (id: number): Promise<SpeciesDetail | null> => {
   const rows = await asPublic(
     (tx) => tx<SpeciesDetail[]>`
       select ${tx.unsafe(SUMMARY_COLS)},
@@ -196,7 +189,7 @@ export async function getSpecies(id: number): Promise<SpeciesDetail | null> {
        where t.id = ${id}`,
   );
   return rows[0] ?? null;
-}
+});
 
 /**
  * A species a "report this species" link may carry, and the report pages that

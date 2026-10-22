@@ -10,6 +10,7 @@ import HabitatChips, {
 } from "@/components/species/HabitatChips";
 import InvasiveBadge from "@/components/collections/InvasiveBadge";
 import SpeciesName from "@/components/species/SpeciesName";
+import { speciesSlug } from "@/lib/speciesSlug";
 
 type Report = {
   id: string;
@@ -145,8 +146,11 @@ export default function ReportPanel({
               <dd className="flex flex-wrap items-center gap-x-2 gap-y-1 text-parchment-100">
                 {name ? (
                   report.taxonId ? (
+                    // The species page's own address. The bare id answers
+                    // with a redirect to it, which cost a phone a second
+                    // round trip and the server a second render.
                     <Link
-                      href={`/species/${report.taxonId}`}
+                      href={`/species/${speciesSlug({ id: report.taxonId, scientificName: report.scientificName ?? "" })}`}
                       className="underline decoration-parchment-200/30 underline-offset-2 hover:decoration-parchment-200"
                     >
                       {name}

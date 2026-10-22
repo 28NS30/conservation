@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { notFound } from "next/navigation";
 import type postgres from "postgres";
 import { asPublic, sql } from "@/lib/db";
 import { receiptState } from "@/lib/receipt";
-import { signedPhotoUrl } from "@/lib/supabase/service";
+import { signedPhotoUrls } from "@/lib/supabase/service";
 import {
   CATEGORIES,
   type Category,
   type LocationPrecision,
 } from "@conservation/shared";
-import { currentRole } from "@/lib/auth";
+import { currentRole as readRole } from "@/lib/auth";
 import { licenseLabel, isCc0 } from "@/lib/license";
 import ReportMap from "@/components/report/ReportMap";
 import SpeciesCard from "@/components/species/SpeciesCard";
@@ -24,6 +25,7 @@ import InvasiveBadge from "@/components/collections/InvasiveBadge";
 import { alternates } from "@/lib/alternates";
 import { speciesLabel } from "@/lib/speciesNames";
 import SpeciesName from "@/components/species/SpeciesName";
+import { serverTiming } from "@/lib/serverTiming";
 
 export const dynamic = "force-dynamic";
 
@@ -73,6 +75,8 @@ function seenOn(observedAt: string, source: string, locale: string) {
  * nothing else: a rejection is disclosed only to its own reporter, and that
  * page keeps the neutral title rather than asking who is looking. See
  * lib/receipt.ts for why confirming a pending id to its holder is safe.
+ *
+ * The record is the page's own read (publicRecord, below), made once for both.
  */
 export async function generateMetadata({
   params,
@@ -82,27 +86,7 @@ export async function generateMetadata({
   const { locale, id } = await params;
   if (!UUID.test(id)) return {};
 
-  const [pub] = await asPublic(
-    (tx) => tx<
-      {
-        observedAt: string;
-        source: string;
-        category: Category;
-        scientificName: string | null;
-        commonNameZh: string | null;
-        commonNameEn: string | null;
-        taicolId: string | null;
-      }[]
-    >`
-      select rp.observed_at as "observedAt", rp.source, rp.category,
-             t.scientific_name as "scientificName",
-             t.common_name_zh as "commonNameZh",
-             t.common_name_en as "commonNameEn",
-             t.taicol_id as "taicolId"
-        from reports_public rp
-        left join taxa t on t.id = rp.taxon_id
-       where rp.id = ${id}::uuid`,
-  );
+  const pub = await publicRecord(id);
 
   const t = await getTranslations({ locale });
   if (!pub) {
@@ -122,11 +106,19 @@ export async function generateMetadata({
 
   // Both names, the page's language first (lib/speciesNames.ts); the
   // category when nobody has named the animal.
-  const name = pub.scientificName
-    ? speciesLabel({ ...pub, scientificName: pub.scientificName }, locale)
+  const name = pub.scientific_name
+    ? speciesLabel(
+        {
+          scientificName: pub.scientific_name,
+          commonNameZh: pub.common_name_zh,
+          commonNameEn: pub.common_name_en,
+          taicolId: pub.taicol_id,
+        },
+        locale,
+      )
     : t(`categories.${pub.category}`);
   return {
-    title: `${name} · ${seenOn(pub.observedAt, pub.source, locale)}`,
+    title: `${name} · ${seenOn(pub.observed_at, pub.source, locale)}`,
     alternates: alternates(locale, `/reports/${id}`),
   };
 }
@@ -240,6 +232,25 @@ function recordQuery(
 }
 
 /**
+ * The record as anybody may see it, or null. Read once per request (React's
+ * `cache`): the tab's title and the page both need it, and each used to read
+ * it with a query of its own.
+ */
+const publicRecord = cache(async (id: string): Promise<Row | null> => {
+  const [row] = await asPublic((tx) => recordQuery(tx, id, "public"));
+  return row ?? null;
+});
+
+/**
+ * Who is looking, asked of Supabase once per request for the same reason:
+ * the title asks it of a test report, and the page of every record.
+ */
+const currentRole = cache(readRole);
+
+/** A page slower than this logs where its time went (lib/serverTiming.ts). */
+const SLOW_MS = 500;
+
+/**
  * A read the record page can do without: if it fails, most likely by running
  * past the public statement timeout, the page renders without it rather than
  * answering 500. The model's suggestions once took long enough on a cold
@@ -261,13 +272,14 @@ export default async function ReportPage({
 }) {
   const { locale, id } = await params;
   setRequestLocale(locale);
+  const timing = serverTiming();
   const t = await getTranslations();
   if (!UUID.test(id)) notFound();
 
   // Read through `reports_public` as web_anon. Reports that are unpublished, or
   // whose taxon is rated 座標不開放, are absent from that view — so this page
   // cannot render them at all, rather than relying on a check we might forget.
-  const [publicRow] = await asPublic((tx) => recordQuery(tx, id, "public"));
+  const publicRow = await timing.time("record", publicRecord(id));
 
   // A moderator's test report (migration 0018): published, and deliberately
   // absent from the view above. Its sender needs to see what the public
@@ -296,12 +308,15 @@ export default async function ReportPage({
 
   // Safe to read photo paths with the privileged connection: the row above
   // already proved this report is publicly visible, or is a test report and
-  // the viewer a moderator.
-  const photos = await sql<{ storage_path: string }[]>`
-    select storage_path from report_photos where report_id = ${id}::uuid order by created_at`;
-  const urls = (
-    await Promise.all(photos.map((p) => signedPhotoUrl(p.storage_path, 900)))
-  ).filter((u): u is string => !!u);
+  // the viewer a moderator. Signed in one request to Storage, not one each.
+  const readPhotos = async () => {
+    const paths = (
+      await sql<{ storage_path: string }[]>`
+        select storage_path from report_photos where report_id = ${id}::uuid order by created_at`
+    ).map((p) => p.storage_path);
+    const signed = await signedPhotoUrls(paths, 900);
+    return paths.map((p) => signed.get(p)).filter((u): u is string => !!u);
+  };
 
   // Top-k AI suggestions. `report_ai_suggestions` is itself joined to published,
   // non-suppressed reports, so it cannot expose anything the page shouldn't.
@@ -341,15 +356,32 @@ export default async function ReportPage({
            where c.report_id = ${id}::uuid
            order by c.rank`;
 
+  // Only the report's author or a moderator may change an identification.
+  // Whose report it is matters only to someone signed in who is not a
+  // moderator, so nobody else's view asks.
+  const readEditor = async () => {
+    const { userId, role } = viewer ?? (await currentRole());
+    const moderator = role === "moderator" || role === "admin";
+    const [owner] =
+      userId && !moderator
+        ? await sql<{ reporter_id: string | null }[]>`
+            select reporter_id from reports where id = ${id}::uuid`
+        : [];
+    return { userId, role, owner };
+  };
+
   // The species card, when this report has a species. Two small reads rather
   // than widening the query above: the page renders without either of them, and
-  // neither can fail the page. The three reads are independent, so they run at
-  // once.
+  // neither can fail the page. Every read from here on needs only the record,
+  // so they all run at once: the photographs, the model's suggestions, the
+  // card, the counts and who is looking.
   const taxonId = row.taxon_id;
-  const [suggestions, card, months] = await Promise.all([
-    optional("the model's suggestions", readSuggestions, [] as Suggestion[]),
-    taxonId ? optional("the species card", () => getSpecies(taxonId), null) : null,
-    taxonId ? optional("the monthly counts", () => monthlyCounts(taxonId), null) : null,
+  const [urls, suggestions, card, months, { userId, role, owner }] = await Promise.all([
+    timing.time("photos", readPhotos()),
+    timing.time("suggestions", optional("the model's suggestions", readSuggestions, [] as Suggestion[])),
+    taxonId ? timing.time("species", optional("the species card", () => getSpecies(taxonId), null)) : null,
+    taxonId ? timing.time("months", optional("the monthly counts", () => monthlyCounts(taxonId), null)) : null,
+    timing.time("viewer", readEditor()),
   ]);
   // A peak only means something with enough records to have a shape. Below
   // that, the "peak" is whichever month happened to catch two instead of one.
@@ -357,10 +389,6 @@ export default async function ReportPage({
   const peakMonth =
     months && total >= 12 ? months.indexOf(Math.max(...months)) + 1 : null;
 
-  // Only the report's author or a moderator may change an identification.
-  const { userId, role } = viewer ?? (await currentRole());
-  const [owner] = await sql<{ reporter_id: string | null }[]>`
-    select reporter_id from reports where id = ${id}::uuid`;
   // A moderator's identification is final for the reporter (confirmSpecies
   // refuses it too), so the owner is not offered buttons that would fail.
   const canEdit =
@@ -368,6 +396,7 @@ export default async function ReportPage({
     (role === "moderator" ||
       role === "admin" ||
       (owner?.reporter_id === userId && row.taxon_source !== "expert"));
+  timing.logIfSlow(`record ${id}`, SLOW_MS);
 
   return (
     <main className="mx-auto w-full max-w-xl px-6 pb-24 pt-12">
