@@ -1,0 +1,295 @@
+/**
+ * What /api/health answers, what a job records about its runs and what an
+ * error row may hold (lib/monitoring.ts, migration 0036).
+ *
+ * Health is read by four things that each break differently when it changes:
+ * CI waits on its status before testing anything, verify-deploy and the
+ * hourly watch read its fields, and the parent site prints its counts. So the
+ * shape is pinned here, field by field, and so is when it may be cached: the
+ * operator's answer names which privacy rule is missing, and a shared cache
+ * that kept it would hand that to the next visitor.
+ *
+ * The runtime half asks the running server, and skips when there is none.
+ *
+ *   node --test test/monitoring.test.mjs
+ */
+import { test, describe, after } from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+import { sql, BASE_URL } from "./helpers.mjs";
+import {
+  JOBS,
+  activeJobs,
+  errorDetail,
+  healthResponse,
+  healthUnreachable,
+  hours,
+  jobDetail,
+  requestErrorKey,
+} from "../lib/monitoring.ts";
+import { ledgerCheck, ledgerKept } from "../lib/migrationLedger.ts";
+import { LATEST_MIGRATION } from "../lib/latestMigration.ts";
+import { latestMigration } from "../scripts/latest-migration.mjs";
+
+after(() => sql.end());
+
+const WEB = join(import.meta.dirname, "..");
+const REPO = join(WEB, "..", "..");
+const read = (...p) => readFileSync(join(WEB, ...p), "utf8");
+const up = async () => Boolean(await fetch(BASE_URL).catch(() => null));
+
+const input = (over = {}) => ({
+  counts: { reports: 46_334, taxa: 136_680, species: 506 },
+  schema: { current: true, missing: [] },
+  operator: false,
+  authorization: false,
+  jobs: ["classify", "cleanup-orphans"],
+  jobSeconds: { classify: 3 * 3600 + 7 * 60 },
+  queue: { waiting: 2, oldestSeconds: 14 * 60 + 20 },
+  storageOk: true,
+  dbSizeMb: 412,
+  latencyMs: 61,
+  ...over,
+});
+
+describe("the health answer", () => {
+  test("keeps every field its readers read, and adds aggregates only", () => {
+    const { status, body } = healthResponse(input());
+    assert.equal(status, 200);
+    assert.deepEqual(body, {
+      ok: true,
+      schemaCurrent: true,
+      reports: 46_334,
+      taxa: 136_680,
+      species: 506,
+      jobs: { classify: { hoursSinceOk: 3.1 }, "cleanup-orphans": { hoursSinceOk: null } },
+      queue: { waiting: 2, oldestMinutes: 14 },
+      storage: { ok: true },
+      dbSizeMb: 412,
+      dbLatencyMs: 61,
+    });
+  });
+
+  test("a schema that is not current answers 503, still saying the database answered", () => {
+    const { status, body, headers } = healthResponse(
+      input({ schema: { current: false, missing: ["0036 job runs and request errors are recorded"] } }),
+    );
+    assert.equal(status, 503);
+    assert.equal(body.ok, true);
+    assert.equal(body.schemaCurrent, false);
+    assert.equal("schemaMissing" in body, false, "a visitor is never told which rule is missing");
+    assert.equal(headers["cache-control"], "private, no-store");
+  });
+
+  test("names what is missing to the operator only, and never lets that be cached", () => {
+    const { body, headers } = healthResponse(
+      input({ operator: true, authorization: true, schema: { current: false, missing: ["0011 x"] } }),
+    );
+    assert.deepEqual(body.schemaMissing, ["0011 x"]);
+    assert.equal(headers["cache-control"], "private, no-store");
+  });
+
+  test("is cached by the CDN for 30 seconds only as a plain public 200", () => {
+    const pub = healthResponse(input()).headers;
+    assert.equal(pub["cache-control"], "public, max-age=0, s-maxage=30");
+    assert.equal(pub.vary, "authorization", "a cached public answer must not be served to the operator");
+    // Any Authorization header at all, right or wrong, goes to the server.
+    assert.equal(healthResponse(input({ authorization: true })).headers["cache-control"], "private, no-store");
+    assert.equal(
+      healthResponse(input({ operator: true, authorization: true })).headers["cache-control"],
+      "private, no-store",
+    );
+  });
+
+  test("an unreadable part is null or false, not a failure of the whole", () => {
+    const { status, body } = healthResponse(input({ jobSeconds: null, queue: null, dbSizeMb: null, storageOk: false }));
+    assert.equal(status, 200);
+    assert.equal(body.jobs, null);
+    assert.equal(body.queue, null);
+    assert.equal(body.dbSizeMb, null);
+    assert.deepEqual(body.storage, { ok: false });
+  });
+
+  test("an empty queue has no oldest", () => {
+    assert.deepEqual(healthResponse(input({ queue: { waiting: 0, oldestSeconds: null } })).body.queue, {
+      waiting: 0,
+      oldestMinutes: null,
+    });
+  });
+
+  test("an unreachable database answers as it always has, uncached", () => {
+    const res = healthUnreachable();
+    assert.equal(res.status, 503);
+    assert.deepEqual(res.body, { ok: false, error: "database_unreachable" });
+    assert.equal(res.headers["cache-control"], "private, no-store");
+  });
+
+  test("hours are to one decimal, and nothing is a number it is not", () => {
+    assert.equal(hours(0), 0);
+    assert.equal(hours(5400), 1.5);
+    assert.equal(hours(null), null);
+    assert.equal(hours(Number.NaN), null);
+  });
+});
+
+describe("the jobs", () => {
+  const crons = JSON.parse(read("vercel.json")).crons.map((c) => c.path.replace("/api/jobs/", ""));
+
+  test("are the crons, by the names they record", () => {
+    assert.deepEqual([...JOBS].sort(), [...crons].sort());
+  });
+
+  test("the forum's is asked after only while the forum is on", () => {
+    assert.deepEqual(activeJobs({}), ["classify", "cleanup-orphans"]);
+    assert.deepEqual(activeJobs({ FORUM_ENABLED: "1" }), [...JOBS]);
+  });
+
+  for (const job of JOBS) {
+    test(`${job} records its run, after the secret is checked`, () => {
+      const src = read("app", "api", "jobs", job, "route.ts");
+      const at = src.indexOf(`withJobRun("${job}"`);
+      assert.notEqual(at, -1, `${job} does not record its run`);
+      assert.ok(src.indexOf("if (!authorised(req))") < at, "a row must never be written for a caller without the secret");
+    });
+  }
+
+  test("the queue counts what the worker would still claim", () => {
+    // app/api/health/route.ts says `attempts < 5`; the worker gives up at MAX_ATTEMPTS.
+    assert.match(read("lib", "report", "classifyWorker.ts"), /^const MAX_ATTEMPTS = 5;$/m);
+    assert.match(read("app", "api", "health", "route.ts"), /status in \('queued', 'failed'\) and attempts < 5/);
+  });
+
+  test("cleanup-orphans states its limit and clears the monitoring tables", () => {
+    const src = read("app", "api", "jobs", "cleanup-orphans", "route.ts");
+    assert.match(src, /^export const maxDuration = 60;$/m);
+    assert.match(src, /delete from app_errors where hour < now\(\) - \$\{APP_ERRORS_RETENTION\}::interval/);
+    assert.match(src, /delete from job_runs where started_at < now\(\) - \$\{JOB_RUNS_RETENTION\}::interval/);
+  });
+
+  test("a run records counts or an error's class, never a message", () => {
+    assert.equal(jobDetail('{"claimed":0}'), '{"claimed":0}');
+    assert.equal(jobDetail("x".repeat(400)).length, 300);
+    const pg = Object.assign(new Error('invalid input syntax for type uuid: "someone@example.test"'), {
+      name: "PostgresError",
+      code: "22P02",
+    });
+    assert.equal(errorDetail(pg), "threw PostgresError 22P02");
+    assert.equal(errorDetail(Object.assign(new Error("x"), { code: "a b; drop" })), "threw Error");
+    assert.equal(errorDetail("a string"), "threw string");
+  });
+});
+
+describe("an error row", () => {
+  test("keeps the route pattern and the digest, nothing from the request", () => {
+    assert.deepEqual(
+      requestErrorKey({ digest: "2895641102" }, { routePath: "/[locale]/(site)/reports/[id]", routeType: "render" }),
+      { route: "/[locale]/(site)/reports/[id]", digest: "2895641102" },
+    );
+    assert.deepEqual(requestErrorKey(new Error("boom"), { routePath: "/api/reports" }), {
+      route: "/api/reports",
+      digest: "",
+    });
+  });
+
+  test("anything that is not plainly a pattern or a digest becomes a fixed word", () => {
+    // A path, a query, an address: none is a route pattern.
+    for (const routePath of ["/reports/1?email=a@b.test", "reports", "/a b", 42, null, undefined, "/" + "x".repeat(300)])
+      assert.equal(requestErrorKey({}, { routePath }).route, "unknown", String(routePath));
+    for (const digest of ["has space", "a@b.test", "x".repeat(65), 12345, { a: 1 }])
+      assert.equal(requestErrorKey({ digest }, { routePath: "/" }).digest, "other", String(digest));
+    assert.equal(requestErrorKey(null, null).route, "unknown");
+  });
+
+  test("instrumentation never reads the request, and never throws", () => {
+    const src = read("instrumentation.ts");
+    assert.match(src, /onRequestError: Instrumentation\.onRequestError = async \(err, _request, context\)/);
+    assert.ok(!/_request\./.test(src) && !/_request\[/.test(src), "the request must not be read");
+    assert.match(src, /process\.env\.NEXT_RUNTIME !== "nodejs"/);
+    assert.match(src, /\} catch \{/);
+    // server-only throws outside a server component, which instrumentation is not.
+    assert.ok(!/server-only/.test(read("lib", "appErrors.ts").replace(/\/\*[\s\S]*?\*\//g, "")));
+  });
+});
+
+describe("the migration ledger", () => {
+  test("lib/latestMigration.ts names the newest migration (run `node scripts/latest-migration.mjs`)", () => {
+    assert.equal(LATEST_MIGRATION, latestMigration(join(REPO, "supabase", "migrations")));
+    const newest = readdirSync(join(REPO, "supabase", "migrations")).filter((f) => f.endsWith(".sql")).sort().at(-1);
+    assert.equal(LATEST_MIGRATION, newest);
+  });
+
+  test("is asked in production only", () => {
+    assert.equal(ledgerKept({ VERCEL_ENV: "production" }), true);
+    for (const env of [{}, { VERCEL_ENV: "preview" }, { VERCEL_ENV: "development" }, { NODE_ENV: "production" }])
+      assert.equal(ledgerCheck(LATEST_MIGRATION, env), null, JSON.stringify(env));
+    const check = ledgerCheck("0036_job_runs_and_app_errors.sql", { VERCEL_ENV: "production" });
+    assert.equal(check.name, "0036 is recorded in the migration ledger");
+    assert.match(check.sql, /left\(name, 5\) = '0036_'/);
+  });
+
+  test("refuses a name that is not a migration's", () => {
+    assert.throws(() => ledgerCheck("0036'; drop table x; --.sql", { VERCEL_ENV: "production" }));
+  });
+
+  test("its SQL answers by number, with or without .sql", async () => {
+    const check = ledgerCheck("0036_job_runs_and_app_errors.sql", { VERCEL_ENV: "production" });
+    const marker = Symbol("rollback");
+    const answers = [];
+    await sql
+      .begin(async (tx) => {
+        // CI's database has no ledger at all; a laptop's stops wherever the
+        // runner last ran. Either way this transaction makes its own.
+        await tx`create table if not exists _migrations (name text primary key, applied_at timestamptz not null default now())`;
+        await tx`delete from _migrations where left(name, 5) = '0036_'`;
+        answers.push((await tx.unsafe(check.sql))[0].ok);
+        await tx`insert into _migrations (name) values ('0036_job_runs_and_app_errors')`;
+        answers.push((await tx.unsafe(check.sql))[0].ok);
+        await tx`delete from _migrations where left(name, 5) = '0036_'`;
+        await tx`insert into _migrations (name) values ('0036_job_runs_and_app_errors.sql')`;
+        answers.push((await tx.unsafe(check.sql))[0].ok);
+        throw marker;
+      })
+      .catch((e) => {
+        if (e !== marker) throw e;
+      });
+    assert.deepEqual(answers, [false, true, true]);
+  });
+});
+
+describe("the running server", () => {
+  test("health answers with the new fields, and caches only the public answer", async (t) => {
+    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    const res = await fetch(`${BASE_URL}/api/health`);
+    const body = await res.json();
+    assert.equal(res.status, 200, JSON.stringify(body));
+    assert.equal(body.ok, true);
+    assert.equal(body.schemaCurrent, true);
+    for (const k of ["reports", "taxa", "species", "dbLatencyMs", "dbSizeMb"]) assert.equal(typeof body[k], "number", k);
+    assert.deepEqual(Object.keys(body.jobs).sort(), activeJobs({ FORUM_ENABLED: process.env.FORUM_ENABLED }).sort());
+    assert.equal(typeof body.queue.waiting, "number");
+    assert.equal(typeof body.storage.ok, "boolean");
+    assert.equal(res.headers.get("cache-control"), "public, max-age=0, s-maxage=30");
+
+    const authed = await fetch(`${BASE_URL}/api/health`, { headers: { authorization: "Bearer not-the-secret" } });
+    assert.equal(authed.headers.get("cache-control"), "private, no-store");
+  });
+
+  test("health reports how long ago a job last succeeded", async (t) => {
+    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    // Committed, because the server cannot see another transaction's rows,
+    // and removed straight after. Two hours ago, so it can only be this row
+    // that a reading near 2 comes from (or a real run since, which is newer).
+    const [row] = await sql`
+      insert into job_runs (job, started_at, finished_at, ok, detail)
+      values ('cleanup-orphans', now() - interval '2 hours 1 minute', now() - interval '2 hours', true, 'monitoring.test')
+      returning id`;
+    try {
+      const body = await (await fetch(`${BASE_URL}/api/health`)).json();
+      const h = body.jobs["cleanup-orphans"].hoursSinceOk;
+      assert.ok(h !== null && h <= 2.1, `hoursSinceOk ${h}`);
+    } finally {
+      await sql`delete from job_runs where id = ${row.id}`;
+    }
+  });
+});

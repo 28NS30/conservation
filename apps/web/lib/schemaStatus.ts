@@ -1,6 +1,7 @@
 import "server-only";
 import { sql } from "@/lib/db";
 import { forumEnabled, type ForumEnv } from "@/lib/forum/gate";
+import { ledgerCheck } from "@/lib/migrationLedger";
 
 /**
  * Whether the database has what the deployed code writes.
@@ -10,9 +11,12 @@ import { forumEnabled, type ForumEnv } from "@/lib/forum/gate";
  * deployment renders perfectly and 500s every submission — and this site has
  * not had its first user submission yet, so nobody would notice.
  *
- * `_migrations` cannot answer this: production's schema was created by looping
- * psql over the files, which never populated that table. So each check asks
- * about the shape itself.
+ * `_migrations` could not answer this when this was written: production's
+ * schema was created by looping psql over the files, which never populated
+ * that table. Production's ledger has been kept since, and in production it
+ * is asked too (lib/migrationLedger.ts); but CI's database and a laptop's have
+ * no ledger worth asking, so each check here still asks about the shape
+ * itself, and these are what every database is held to.
  *
  * Add one whenever a migration adds something the app writes.
  */
@@ -191,6 +195,18 @@ export const REQUIRED_SCHEMA: SchemaCheck[] = [
              where table_name = 'reports_public'
                and column_name = 'is_invasive') as ok`,
   },
+  {
+    // The jobs and the error hook write here (lib/jobRuns.ts,
+    // lib/appErrors.ts). Without it they write nothing and say so only in a
+    // log that is gone within the hour, and /api/health reports `jobs: null`.
+    // Asks for row-level security as well: both are base tables nobody
+    // outside the server may read.
+    name: "0036 job runs and request errors are recorded",
+    sql: `select count(*) = 2 and bool_and(relrowsecurity) as ok
+            from pg_class
+           where relnamespace = 'public'::regnamespace and relkind = 'r'
+             and relname in ('job_runs', 'app_errors')`,
+  },
 ];
 
 /**
@@ -257,11 +273,21 @@ export function requiredSchema(env: ForumEnv = process.env): SchemaCheck[] {
  */
 export async function schemaStatus(
   checks: SchemaCheck[] = requiredSchema(),
+  ledger: SchemaCheck | null = ledgerCheck(),
 ): Promise<{ current: boolean; missing: string[] }> {
   const missing: string[] = [];
   for (const c of checks) {
     const [row] = await sql.unsafe<{ ok: boolean }[]>(c.sql);
     if (!row?.ok) missing.push(c.name);
+  }
+  if (ledger) {
+    // A ledger that cannot be read is a ledger that does not record it; an
+    // error here must not read as "database unreachable".
+    const row = await sql
+      .unsafe<{ ok: boolean }[]>(ledger.sql)
+      .then(([r]) => r)
+      .catch(() => null);
+    if (!row?.ok) missing.push(ledger.name);
   }
   return { current: missing.length === 0, missing };
 }
