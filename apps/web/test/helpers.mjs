@@ -9,6 +9,47 @@ if (existsSync(envPath) && !process.env.DATABASE_URL) process.loadEnvFile(envPat
 
 export const BASE_URL = process.env.TEST_BASE_URL ?? "http://localhost:3000";
 
+/** GitHub Actions sets CI=true on every step. */
+export const IN_CI = /^(1|true)$/i.test(process.env.CI ?? "");
+
+let serverSeen = false;
+
+/**
+ * For a test that needs the app: true when it answers at BASE_URL.
+ *
+ *   test("…", async (t) => {
+ *     if (!(await requireServer(t))) return;
+ *
+ * Off CI, a missing server skips the test, so one file can be run with
+ * `node --test` and nothing listening. Under CI it throws. CI starts the
+ * server before the suite, so a missing one is a broken run, and a skip is
+ * printed beside the passes and read as one: these checks used to carry their
+ * own copies of the probe, each ending in t.skip, and a run where the server
+ * never came up would have been green.
+ *
+ * Without a `t` (a `before` hook) it neither skips nor throws off CI, and the
+ * caller decides; under CI it still throws.
+ */
+export async function requireServer(t) {
+  if (!serverSeen) {
+    serverSeen = await fetch(BASE_URL).then(
+      async (res) => {
+        await res.body?.cancel().catch(() => {});
+        return true;
+      },
+      () => false,
+    );
+  }
+  if (serverSeen) return true;
+  if (IN_CI) {
+    throw new Error(
+      `no server at ${BASE_URL}. CI starts it before the suite, so this is a failure here, not a skip.`,
+    );
+  }
+  t?.skip(`no server at ${BASE_URL}`);
+  return false;
+}
+
 export const sql = postgres(process.env.DATABASE_URL, {
   max: 4,
   prepare: false,

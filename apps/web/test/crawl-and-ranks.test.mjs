@@ -13,13 +13,9 @@
 import { test, describe, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { sql, BASE_URL } from "./helpers.mjs";
+import { sql, BASE_URL, requireServer } from "./helpers.mjs";
 
 after(() => sql.end());
-
-async function server() {
-  return (await fetch(BASE_URL).catch(() => null)) !== null;
-}
 
 async function aboveSpecies() {
   const [t] = await sql`
@@ -33,7 +29,7 @@ async function aboveSpecies() {
 
 describe("robots.txt", () => {
   test("keeps crawlers off the private pages in both locales", async (t) => {
-    if (!(await server())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const txt = await (await fetch(`${BASE_URL}/robots.txt`)).text();
     for (const path of ["/admin", "/en/admin", "/login", "/en/login", "/me", "/en/me", "/api/"])
       assert.match(txt, new RegExp(`^Disallow: ${path.replace(/\//g, "\\/")}$`, "m"), path);
@@ -42,7 +38,7 @@ describe("robots.txt", () => {
 
 describe("the sitemap", () => {
   test("lists each home page at the address that answers", async (t) => {
-    if (!(await server())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const xml = await (await fetch(`${BASE_URL}/sitemap.xml`)).text();
     const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
     assert.ok(locs.length > 10);
@@ -51,7 +47,7 @@ describe("the sitemap", () => {
   });
 
   test("lists species and subspecies pages only", async (t) => {
-    if (!(await server())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const xml = await (await fetch(`${BASE_URL}/sitemap.xml`)).text();
     const ids = [...xml.matchAll(/\/species\/(\d+)/g)].map((m) => Number(m[1]));
     if (!ids.length) return t.skip("no species in this sitemap");
@@ -64,7 +60,7 @@ describe("the sitemap", () => {
 
 describe("a page for a family or a genus", () => {
   test("is not indexed and does not offer to report it", async (t) => {
-    if (!(await server())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const row = await aboveSpecies();
     if (!row) return t.skip("no protected or invasive group above species here");
     const res = await fetch(`${BASE_URL}/en/species/${row.id}`, { redirect: "follow" });
@@ -75,7 +71,7 @@ describe("a page for a family or a genus", () => {
   });
 
   test("named in a report, is filed as unidentified rather than refused", async (t) => {
-    if (!(await server())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const row = await aboveSpecies();
     if (!row) return t.skip("no protected or invasive group above species here");
     await sql`delete from rate_limits where key like 'submit-%'`;
@@ -101,7 +97,7 @@ describe("a page for a family or a genus", () => {
 
 describe("the moderation queue", () => {
   test("has its own title and is never indexed", async (t) => {
-    if (!(await server())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const html = await (await fetch(`${BASE_URL}/en/admin`)).text();
     assert.match(html, /<title>Moderation queue · /);
     assert.match(html, /<meta name="robots" content="noindex, nofollow"/);

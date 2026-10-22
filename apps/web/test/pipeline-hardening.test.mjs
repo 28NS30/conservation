@@ -13,15 +13,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { sql, inRollback, insertReport, BASE_URL } from "./helpers.mjs";
+import { sql, inRollback, insertReport, BASE_URL, requireServer } from "./helpers.mjs";
 import { networkOf, addressKey } from "../lib/request.ts";
 
 after(() => sql.end());
 
 const WEB = join(import.meta.dirname, "..");
 const read = (...p) => readFileSync(join(WEB, ...p), "utf8");
-const up = async () => Boolean(await fetch(BASE_URL).catch(() => null));
-
 describe("an address is counted as its network, under a key that is not the address", () => {
   test("an IPv6 address counts as its /64, however it is written", () => {
     const one = networkOf("2001:db8::1");
@@ -82,7 +80,7 @@ describe("an address is counted as its network, under a key that is not the addr
   });
 
   test("a submission leaves no address in rate_limits", async (t) => {
-    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     await sql`delete from rate_limits where key like 'submit-%'`;
     const clientNonce = randomUUID();
     try {
@@ -134,7 +132,7 @@ describe("a photograph belongs to one report", () => {
   });
 
   test("the same path twice in one request is invalid", async (t) => {
-    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     await sql`delete from rate_limits where key like 'submit-%'`;
     const path = `2026/09/${randomUUID()}.webp`;
     const res = await fetch(`${BASE_URL}/api/reports`, {
@@ -154,7 +152,7 @@ describe("a photograph belongs to one report", () => {
 describe("what a URL can make a page do", () => {
   for (const q of ["%00%01abc", "abc&q=def", "x".repeat(3000), "%E0%A4%A"]) {
     test(`the species directory answers ?q=${q.slice(0, 20)}${q.length > 20 ? "…" : ""}`, async (t) => {
-      if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+      if (!(await requireServer(t))) return;
       const res = await fetch(`${BASE_URL}/en/species?q=${q}`);
       assert.ok(res.status === 200 || res.status === 400, `answered ${res.status}`);
     });
@@ -162,14 +160,14 @@ describe("what a URL can make a page do", () => {
 
   for (const page of ["abc", "-3", "1e9", "2.5", "99999999999999999999"]) {
     test(`the records list answers ?page=${page}`, async (t) => {
-      if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+      if (!(await requireServer(t))) return;
       const res = await fetch(`${BASE_URL}/en/reports?page=${page}`);
       assert.equal(res.status, 200);
     });
   }
 
   test("a record id that is not a UUID is not found, not an error", async (t) => {
-    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const dashes = "-".repeat(36);
     assert.equal((await fetch(`${BASE_URL}/en/reports/${dashes}`)).status, 404);
     assert.equal((await fetch(`${BASE_URL}/en/reports/0000000g-0000-0000-0000-000000000000`)).status, 404);
@@ -177,14 +175,14 @@ describe("what a URL can make a page do", () => {
   });
 
   test("a date Postgres cannot read is refused, not a 500", async (t) => {
-    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const tile = await fetch(`${BASE_URL}/api/tiles/7/107/55?from=0001-01-01`);
     assert.equal(tile.status, 400);
     assert.equal((await fetch(`${BASE_URL}/en/reports?from=0000-01-01`)).status, 200);
   });
 
   test("health names no missing rule to a visitor", async (t) => {
-    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     for (const headers of [{}, { authorization: "Bearer not-the-secret" }]) {
       const res = await fetch(`${BASE_URL}/api/health`, { headers });
       const body = await res.json();
@@ -217,7 +215,7 @@ describe("a day is a day in Taiwan", () => {
   });
 
   test("a record seen at 01:30 in Taipei belongs to that Taipei day", async (t) => {
-    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const clientNonce = randomUUID();
     // 17:30 UTC on 1 June is 01:30 on 2 June in Taipei.
     const [row] = await sql`

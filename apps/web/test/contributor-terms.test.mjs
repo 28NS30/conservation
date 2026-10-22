@@ -11,7 +11,7 @@
 import { test, describe, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { sql, BASE_URL } from "./helpers.mjs";
+import { sql, BASE_URL, requireServer } from "./helpers.mjs";
 import { CONSENT_VERSION } from "@conservation/shared";
 
 after(async () => {
@@ -20,10 +20,6 @@ after(async () => {
 });
 
 const nonces = [];
-
-async function server() {
-  return (await fetch(BASE_URL).catch(() => null)) !== null;
-}
 
 async function submit(body) {
   await sql`delete from rate_limits where key like 'submit-%'`;
@@ -51,7 +47,7 @@ async function submit(body) {
 
 describe("what a report stores", () => {
   test("the licence, the credit and the consent, as answered", async (t) => {
-    if (!(await server())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const { status, row } = await submit({
       license: "cc-by-4.0", creditName: "  Owl Kid  ", sharePartners: true, consentVersion: "2026-09-29",
     });
@@ -64,14 +60,14 @@ describe("what a report stores", () => {
   });
 
   test("CC0 is stored as CC0", async (t) => {
-    if (!(await server())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const { row } = await submit({ license: "cc0-1.0" });
     assert.equal(row.license, "https://creativecommons.org/publicdomain/zero/1.0/legalcode");
     assert.equal(row.rights_holder, null);
   });
 
   test("the partner box counts only on the page that shows it", async (t) => {
-    if (!(await server())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const { status, row } = await submit({
       category: "sighting", page: "wildlife", license: "cc-by-4.0", sharePartners: true,
     });
@@ -80,7 +76,7 @@ describe("what a report stores", () => {
   });
 
   test("a report from before the terms carries no licence, and so is never exported under one", async (t) => {
-    if (!(await server())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const { status, row } = await submit({});
     assert.equal(status, 201);
     assert.deepEqual(
@@ -90,7 +86,7 @@ describe("what a report stores", () => {
   });
 
   test("an email address is not a credit name", async (t) => {
-    if (!(await server())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const { status } = await submit({ license: "cc-by-4.0", creditName: "me@example.com" });
     assert.equal(status, 400);
   });
@@ -106,7 +102,7 @@ describe("what a report stores", () => {
 
 describe("the pages", () => {
   test("/terms states its version in both languages, and the footer links it", async (t) => {
-    if (!(await server())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     for (const [path, word] of [["/terms", "通報者條款"], ["/en/terms", "Terms for contributors"]]) {
       const res = await fetch(`${BASE_URL}${path}`);
       assert.equal(res.status, 200, path);
@@ -118,7 +114,7 @@ describe("the pages", () => {
   });
 
   test("the roadkill page offers the partner box, unticked; the others do not", async (t) => {
-    if (!(await server())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const roadkill = await (await fetch(`${BASE_URL}/en/report/roadkill`)).text();
     // ">" before the words: rendered text, not the message catalogue the page
     // also ships to the browser, which holds every string of the form.

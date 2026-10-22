@@ -9,11 +9,7 @@
  */
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { BASE_URL } from "./helpers.mjs";
-
-async function server() {
-  return (await fetch(BASE_URL).catch(() => null)) !== null;
-}
+import { BASE_URL, requireServer } from "./helpers.mjs";
 
 const head = async (path) => {
   const html = await (await fetch(`${BASE_URL}${path}`, { redirect: "follow" })).text();
@@ -30,7 +26,7 @@ const PAGES = ["", "/about", "/attribution", "/privacy", "/species", "/reports",
 describe("canonical and language links", () => {
   for (const path of PAGES)
     test(path || "/", async (t) => {
-      if (!(await server())) return t.skip(`no server at ${BASE_URL}`);
+      if (!(await requireServer(t))) return;
       const zh = await head(path || "/");
       const en = await head(`/en${path}`);
       // Compared as paths: Next writes the home page's canonical as the bare
@@ -44,7 +40,7 @@ describe("canonical and language links", () => {
     });
 
   test("a filtered view names the unfiltered page as canonical", async (t) => {
-    if (!(await server())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const { canonical } = await head("/species?filter=protected");
     assert.ok(canonical?.endsWith("/species"), `canonical is ${canonical}`);
   });
@@ -52,7 +48,7 @@ describe("canonical and language links", () => {
 
 describe("descriptions", () => {
   test("pages that had the site's own description now describe themselves", async (t) => {
-    if (!(await server())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const site = (await head("/")).description;
     for (const path of ["/about", "/privacy", "/attribution", "/species", "/reports", "/map", "/report", "/en/map", "/en/report"]) {
       const { description } = await head(path);

@@ -8,7 +8,7 @@ import { test, describe, after } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { sql, BASE_URL } from "./helpers.mjs";
+import { sql, BASE_URL, requireServer } from "./helpers.mjs";
 import { speciesNames } from "../lib/speciesNames.ts";
 import { SPECIES_NOTES, speciesNotes } from "../lib/speciesNotes.ts";
 
@@ -24,10 +24,6 @@ const MOVES = [
   ["t0105665", "t0038839"],
   ["t0062784", "t0105743"],
 ];
-
-async function server() {
-  return (await fetch(BASE_URL).catch(() => null)) !== null;
-}
 
 describe("curated labels", () => {
   test("the Indian python is not called by Taiwan's python's name", () => {
@@ -125,7 +121,7 @@ async function runAgainstThisDatabase(file, fromTaicolIds) {
 
 describe("the species page", () => {
   test("says a species' locations are blurred whenever they are, not only when TaiCOL rates it", async (t) => {
-    if (!(await server())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     // A taxon with public records that TaiCOL leaves unrated, but that the
     // database blurs anyway (protection, the Red List, a floor, its species).
     const [sp] = await sql`
@@ -140,7 +136,7 @@ describe("the species page", () => {
   });
 
   test("an endemic subspecies is not called an endemic species", async (t) => {
-    if (!(await server())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const [sp] = await sql`
       select t.id from taxa t
        where t.is_endemic and t.rank = 'Subspecies' and t.taxon_status = 'accepted' and t.is_in_taiwan
@@ -156,7 +152,7 @@ describe("the species page", () => {
   });
 
   test("a name under review says so", async (t) => {
-    if (!(await server())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const [sp] = await sql`select id from taxa where taicol_id = 't0101610'`;
     if (!sp) return t.skip("日本樹蛙 is not in this database");
     const html = await (await fetch(`${BASE_URL}/en/species/${sp.id}`, { redirect: "follow" })).text();

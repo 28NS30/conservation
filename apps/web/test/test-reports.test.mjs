@@ -15,7 +15,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { sql, BASE_URL, inRollback, insertReport } from "./helpers.mjs";
+import { sql, BASE_URL, inRollback, insertReport, requireServer } from "./helpers.mjs";
 import { outcomeOf } from "../lib/report/outcome.ts";
 
 const nonces = [];
@@ -91,12 +91,8 @@ describe("the database leaves test reports out of everything public", () => {
 });
 
 describe("who may send one", () => {
-  async function server() {
-    return (await fetch(BASE_URL).catch(() => null)) !== null;
-  }
-
   test("a signed-out request for a test is refused, and nothing is stored", async (t) => {
-    if (!(await server())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     await sql`delete from rate_limits where key like 'submit-%'`;
     const clientNonce = randomUUID();
     nonces.push(clientNonce);

@@ -17,7 +17,7 @@ import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
 import { createServerClient } from "@supabase/ssr";
-import { sql, BASE_URL } from "./helpers.mjs";
+import { sql, BASE_URL, requireServer } from "./helpers.mjs";
 
 const AUTH = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "http://127.0.0.1:54321";
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
@@ -84,7 +84,7 @@ let member = null;
 let skip = null;
 
 before(async () => {
-  if (!(await reachable(BASE_URL))) return void (skip = `no server at ${BASE_URL}`);
+  if (!(await requireServer())) return void (skip = `no server at ${BASE_URL}`);
   if (!(await reachable(`${AUTH}/auth/v1/health`))) return void (skip = `no auth at ${AUTH}`);
   if (!SERVICE || !ANON_KEY) return void (skip = "no Supabase keys in the environment");
   moderator = await createAccount("moderator");

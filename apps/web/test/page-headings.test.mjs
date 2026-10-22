@@ -9,18 +9,14 @@
  */
 import { test, describe, after } from "node:test";
 import assert from "node:assert/strict";
-import { sql, BASE_URL } from "./helpers.mjs";
+import { sql, BASE_URL, requireServer } from "./helpers.mjs";
 
 after(() => sql.end());
-
-async function server() {
-  return (await fetch(BASE_URL).catch(() => null)) !== null;
-}
 const html = async (path) => (await fetch(`${BASE_URL}${path}`, { redirect: "follow" })).text();
 
 describe("a record page", () => {
   test("is headed by the animal when it is named, in both languages", async (t) => {
-    if (!(await server())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const [r] = await sql`
       select rp.id, t.common_name_zh as zh, t.common_name_en as en
         from reports_public rp join taxa t on t.id = rp.taxon_id
@@ -34,7 +30,7 @@ describe("a record page", () => {
   });
 
   test("with no species, is headed by what was reported", async (t) => {
-    if (!(await server())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const [r] = await sql`select id from reports_public where taxon_id is null limit 1`;
     if (!r) return t.skip("no unidentified public record");
     const h1 = (await html(`/en/reports/${r.id}`)).match(/<h1[^>]*>([\s\S]*?)<\/h1>/)?.[1] ?? "";
@@ -44,7 +40,7 @@ describe("a record page", () => {
 
 describe("a species page", () => {
   test("ends with one full-width report button, whether or not it has records", async (t) => {
-    if (!(await server())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const [withRecords] = await sql`
       select s.taxon_id as id from species_report_stats s join taxa t on t.id = s.taxon_id
        where t.sensitivity is distinct from '座標不開放' and t.rank = 'Species'
@@ -67,7 +63,7 @@ describe("a species page", () => {
 
 describe("/stats", () => {
   test("does not link the season goal while no one has filed a report", async (t) => {
-    if (!(await server())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const [{ n }] = await sql`select count(*)::int as n from reports_public where source = 'user'`;
     if (n > 0) return t.skip("a person has filed a report here");
     assert.doesNotMatch(await html("/en/stats"), /href="\/en\/season"/);

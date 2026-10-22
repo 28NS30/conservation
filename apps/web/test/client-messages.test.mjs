@@ -17,10 +17,9 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, dirname, relative } from "node:path";
 import { CLIENT_NAMESPACES, FORUM_NAMESPACES } from "../i18n/clientMessages.ts";
+import { BASE_URL, requireServer } from "./helpers.mjs";
 
 const WEB = join(import.meta.dirname, "..");
-const BASE_URL = process.env.TEST_BASE_URL ?? "http://localhost:3000";
-const up = async () => Boolean(await fetch(BASE_URL).catch(() => null));
 
 function sources(dir) {
   return readdirSync(dir).flatMap((name) => {
@@ -141,7 +140,7 @@ describe("the messages a page gives the browser", () => {
   });
 
   test("a report page carries the report form's words and not the privacy page's", async (t) => {
-    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     for (const path of ["/en/report/roadkill", "/report/wildlife"]) {
       const html = await fetch(`${BASE_URL}${path}`).then((r) => r.text());
       const has = (ns) => new RegExp(`\\\\?"${ns}\\\\?":\\{`).test(html);

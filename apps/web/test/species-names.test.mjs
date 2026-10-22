@@ -11,7 +11,7 @@ import { test, describe, after } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { sql, BASE_URL } from "./helpers.mjs";
+import { sql, BASE_URL, requireServer } from "./helpers.mjs";
 import { speciesNames, speciesLabel } from "../lib/speciesNames.ts";
 
 after(() => sql.end());
@@ -101,11 +101,6 @@ describe("the pages that name a species ask speciesNames()", () => {
     });
 });
 
-async function server() {
-  const res = await fetch(BASE_URL).catch(() => null);
-  return res !== null;
-}
-
 async function namesLoaded() {
   const [{ n }] = await sql`select count(*)::int as n from taxa where common_name_en is not null`;
   return n > 0;
@@ -129,7 +124,7 @@ describe("search by English name", () => {
   ];
   for (const [q, want] of cases)
     test(`"${q}" finds ${want}`, async (t) => {
-      if (!(await server())) return t.skip(`no server at ${BASE_URL}`);
+      if (!(await requireServer(t))) return;
       if (!(await namesLoaded())) return t.skip("English names not imported (npm run import:names-en)");
       const [{ n }] = await sql`
         select count(*)::int as n from taxa
@@ -144,14 +139,14 @@ describe("search by English name", () => {
     });
 
   test("a word inside a name counts, so 'iguana' finds the Green Iguana", async (t) => {
-    if (!(await server())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     if (!(await namesLoaded())) return t.skip("English names not imported");
     const results = await search("iguana");
     assert.ok(results.some((r) => r.scientificName === "Iguana iguana"));
   });
 
   test("English search still offers accepted names only", async (t) => {
-    if (!(await server())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     if (!(await namesLoaded())) return t.skip("English names not imported");
     for (const q of ["leopard cat", "toad", "iguana"]) {
       const ids = (await search(q)).map((r) => r.id);
@@ -166,7 +161,7 @@ describe("search by English name", () => {
 
 describe("the species page", () => {
   test("names the animal in both languages, each marked with its language", async (t) => {
-    if (!(await server())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     if (!(await namesLoaded())) return t.skip("English names not imported");
     const [sp] = await sql`
       select id, scientific_name, common_name_zh, common_name_en from taxa
