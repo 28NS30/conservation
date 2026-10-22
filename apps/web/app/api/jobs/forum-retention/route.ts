@@ -1,6 +1,7 @@
 import { sql } from "@/lib/db";
 import { forumEnabled } from "@/lib/forum/gate";
 import { RETENTION_DAYS } from "@/lib/forum/policy";
+import { withJobRun } from "@/lib/jobRuns";
 
 /**
  * The forum's retention job: purge what the forum keeps only for a while.
@@ -61,7 +62,13 @@ export async function POST(req: Request) {
 async function run(req: Request) {
   if (!forumEnabled()) return new Response("Not Found", { status: 404 });
   if (!authorised(req)) return Response.json({ error: "unauthorized" }, { status: 401 });
+  // Recorded in job_runs only while the forum is on. Switched off, this is a
+  // route that does not exist, and /api/health does not ask about it either
+  // (lib/monitoring.ts activeJobs).
+  return withJobRun("forum-retention", purge);
+}
 
+async function purge() {
   const days = RETENTION_DAYS;
   try {
     const posts = await sql`
