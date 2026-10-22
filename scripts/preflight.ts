@@ -128,6 +128,7 @@ async function main(): Promise<void> {
   // A TaiCOL refresh can retire a name and leave its rating on the retired row.
   // The picker offers only the name in use, so without a floor that rating
   // blurs nothing. Fatal: the fix is a line in scripts/taxa-overrides.csv.
+  // scripts/retired-twins.ts says what each pair is.
   try {
     const looser = await sql.unsafe<{ taicol_id: string; retired_taicol_id: string }[]>(
       `select taicol_id, retired_taicol_id from (${RETIRED_TWINS_SQL}) x where looser`,
@@ -147,7 +148,7 @@ async function main(): Promise<void> {
     check(
       "no name in use is blurred less than its retired twin",
       false,
-      `could not check (is migration 0014 applied?): ${(e as Error).message}`,
+      `could not check (are migrations 0014 and 0034 applied?): ${(e as Error).message}`,
     );
   }
 

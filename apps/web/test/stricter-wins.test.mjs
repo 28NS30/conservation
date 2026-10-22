@@ -50,13 +50,15 @@ async function taxon(
     sensitivity = null,
     protectedStatus = null,
     status = "accepted",
+    successor = null,
   } = {},
 ) {
   const [t] = await tx`
     insert into taxa (taicol_id, parent_taicol_id, scientific_name, rank,
-                      is_in_taiwan, sensitivity, protected_status, taxon_status)
+                      is_in_taiwan, sensitivity, protected_status, taxon_status,
+                      new_taicol_id)
     values (${uid()}, ${parent}, ${name}, ${rank}, true,
-            ${sensitivity}, ${protectedStatus}, ${status})
+            ${sensitivity}, ${protectedStatus}, ${status}, ${successor})
     returning id, taicol_id, scientific_name`;
   return t;
 }
@@ -306,7 +308,8 @@ describe("a rating TaiCOL left on a retired name", () => {
       .map((p) => `${p.taicol_id} ${p.scientific_name} (${p.precision}) < ` +
                   `${p.retired_taicol_id} (${p.retired_precision})`);
     assert.deepEqual(looser, [],
-      "add a floor for each to scripts/taxa-overrides.csv and apply it");
+      "add a floor for each to scripts/taxa-overrides.csv and apply it " +
+      "(npx tsx scripts/retired-twins.ts says what each is)");
   });
 
   test("and the query would catch one", async () => {
@@ -321,6 +324,69 @@ describe("a rating TaiCOL left on a retired name", () => {
         [used.taicol_id],
       );
       assert.ok(row?.looser, "an unfloored twin went unnoticed");
+    });
+  });
+
+  const twinsOf = (tx, taicolId) =>
+    tx.unsafe(`select * from (${RETIRED_TWINS_SQL}) x where taicol_id = $1`, [taicolId]);
+
+  test("and one TaiCOL renamed, which shares no name with the row in use", async () => {
+    // 鉛色水蛇 Enhydris plumbea, rated 座標不開放 on its deleted rows, became
+    // 韋氏水蛇 Hypsiscopus wettsteini, which is only protected class III.
+    // Neither name matches the other; TaiCOL's new_taxon_id is the only link,
+    // and the check matched names only while 29 records went from hidden to
+    // 10 km.
+    await inRollback(async (tx) => {
+      const used = await taxon(tx, { protectedStatus: "III" });
+      const retired = await taxon(tx, {
+        status: "deleted",
+        sensitivity: "座標不開放",
+        successor: used.taicol_id,
+      });
+      const rows = await twinsOf(tx, used.taicol_id);
+      assert.equal(rows.length, 1, "the renamed row's successor was not found");
+      assert.equal(rows[0].retired_taicol_id, retired.taicol_id);
+      assert.equal(rows[0].by_successor, true);
+      assert.equal(rows[0].precision, "coarse_10km", "fixture precondition");
+      assert.equal(rows[0].retired_precision, "suppressed", "fixture precondition");
+      assert.equal(rows[0].looser, true, "an unfloored rename went unnoticed");
+
+      // And the floor 0032 put on 韋氏水蛇 is what the check then accepts.
+      await tx`insert into taxon_precision_floors (taicol_id, min_precision, reason)
+               values (${used.taicol_id}, 'suppressed', 'test')`;
+      const [held] = await twinsOf(tx, used.taicol_id);
+      assert.equal(held.looser, false);
+    });
+  });
+
+  test("and a name TaiCOL moved twice, through a row it retired later", async () => {
+    // A rated row points at one TaiCOL has since retired too, which points at
+    // the row in use. The rating sits two hops away from the name people pick.
+    await inRollback(async (tx) => {
+      const used = await taxon(tx);
+      const between = await taxon(tx, { status: "deleted", successor: used.taicol_id });
+      const first = await taxon(tx, {
+        status: "deleted",
+        sensitivity: "重度",
+        successor: between.taicol_id,
+      });
+      const rows = await twinsOf(tx, used.taicol_id);
+      const found = rows.find((r) => r.retired_taicol_id === first.taicol_id);
+      assert.ok(found, "the first name's rating did not reach the row in use");
+      assert.equal(found.looser, true);
+    });
+  });
+
+  test("and lists a pair linked both ways once", async () => {
+    // 黃頸蝠's retired row shares its name with the row in use and may also
+    // point at it; preflight counts the pairs, so each is one row.
+    await inRollback(async (tx) => {
+      const name = binomial();
+      const used = await taxon(tx, { name });
+      await taxon(tx, { name, status: "deleted", sensitivity: "縣市", successor: used.taicol_id });
+      const rows = await twinsOf(tx, used.taicol_id);
+      assert.equal(rows.length, 1);
+      assert.equal(rows[0].by_successor, true);
     });
   });
 });

@@ -5,9 +5,10 @@
  * out of this machine's reach, so scripts/taicol-sql.ts writes the same
  * snapshot as SQL for the Management API. Both go through taicol-rows.ts. These
  * tests hold the mapping to what the importer needs, and run the generated SQL
- * against this database inside a transaction that is always rolled back. So
- * does the fill that came with TaiCOL's successor ids (migration 0034), for
- * rows imported before the column existed.
+ * against this database inside a transaction that is always rolled back. So do
+ * the two scripts that came with TaiCOL's successor ids (migration 0034): the
+ * fill for rows imported before the column existed, and the check that reads
+ * a snapshot's ids where the column is still empty.
  */
 import { test, describe, after } from "node:test";
 import assert from "node:assert/strict";
@@ -169,6 +170,23 @@ describe("the successor ids, for rows imported before 0034", () => {
       await tx.unsafe(fill);
       const [again] = await tx`select ctid::text from taxa where taicol_id = ${RETIRED.taxon_id}`;
       assert.equal(again.ctid, row.ctid);
+    });
+  });
+
+  test("and the check reads them from a snapshot where the column is empty", async () => {
+    // How production was checked before 0034 reached it: the snapshot's ids,
+    // the database's ratings and floors.
+    const { src } = snapshot([MAGPIE, RETIRED]);
+    const check = tsx("retired-twins.ts", "--from", src, "--sql").trim().replace(/;$/, "");
+    await inRollback(async (tx) => {
+      await insertBoth(tx);
+      const rows = await tx.unsafe(`select * from (${check}) c where taicol_id = $1`, [MAGPIE.taxon_id]);
+      assert.equal(rows.length, 1, "the renamed pair was not listed");
+      assert.equal(rows[0].retired_taicol_id, RETIRED.taxon_id);
+      assert.equal(rows[0].by_successor, true);
+      assert.equal(rows[0].retired_precision, "suppressed");
+      assert.equal(rows[0].precision, "exact");
+      assert.equal(rows[0].records, 0);
     });
   });
 });
