@@ -62,9 +62,11 @@ jobs:
         # GitHub turns off a public repository's scheduled workflows after 60
         # days without activity in the repository, silently, and this one is
         # only worth anything while it runs. Enabling the workflow through the
-        # API restarts that count; it changes nothing else and is harmless
-        # when the workflow is already on. Never fails the run: the run's
-        # result has to be the checks' result.
+        # API restarts that count, which is what the widely used
+        # keepalive-workflow action relies on (not yet seen to work here: the
+        # repository has never been idle that long). It changes nothing else
+        # and is harmless when the workflow is already on. Never fails the
+        # run: the run's result has to be the checks' result.
         if: always() && github.event_name == 'schedule'
         continue-on-error: true
         env:
