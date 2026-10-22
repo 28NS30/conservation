@@ -5,10 +5,18 @@
 #   MegaDetector 6 MIT   animal/person/vehicle detection, for cropping
 #
 # torch is the CPU/MPS build on macOS; Modal installs the CUDA build in its image.
-torch>=2.4
-torchvision>=0.19
-open_clip_torch>=2.24
-pillow>=10.3
-numpy>=1.26
-requests>=2.32
-psycopg[binary]>=3.2
+#
+# Exact versions, because the thresholds the website acts on were measured with
+# these (evaluate.py on 28 September 2026, the 1,144 dead-animal photographs
+# among them; apps/web/lib/report/classifier-thresholds.json). A different
+# torch or open_clip can move every score a little, and a threshold fitted to
+# the third decimal does not survive that unmeasured. Change a version only
+# with a re-run of `evaluate.py --fit --write`, and make the same change in
+# modal_app.py.
+torch==2.13.0
+torchvision==0.28.0
+open_clip_torch==3.3.0
+pillow==12.3.0
+numpy==2.3.5
+requests==2.34.2
+psycopg[binary]==3.3.4
