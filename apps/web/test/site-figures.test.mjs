@@ -48,7 +48,7 @@ describe("the site-wide figures are cached", () => {
 
   for (const [file, names] of [
     ["lib/stats.ts", ["recordedSpeciesCount", "checklistAnimalTaxaCount", "overview", "monthlyTotals", "yearlyTotals", "topSpecies", "mapEntrySpecies", "hotspots"]],
-    ["lib/collections.ts", ["collectionTotals"]],
+    ["lib/collections.ts", ["collectionTotals", "collectionSummary", "newestRecords", "invasiveSpeciesList"]],
   ])
     test(`${file}: ${names.join(", ")}`, () => {
       const src = code(file);
