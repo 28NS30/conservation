@@ -123,22 +123,65 @@ request time: the species count is **506**, not the 458 in
 `api/health/route.ts:19-20` and `apps/biowatch/README.md`; and the record count
 appears as 46,402 in some comments.
 
-## The jobs have never run
+## The scheduled jobs (22 October 2026)
 
-Both crons were declared in the repo-root `vercel.json`, which Vercel does not
-read, **and** both routes exported only `POST` while Vercel Cron issues `GET`.
-Either fault alone was enough. So the submit → identify → publish loop has
-executed **zero times** in production, which is indistinguishable from "nobody
-has submitted anything" — see `docs/launch-checklist.md`.
+**Declared where Vercel reads them, and callable the way it calls them.**
+Until #67 they were neither: the crons sat in the repo-root `vercel.json`,
+which Vercel ignores, and the routes answered only `POST` while Vercel Cron
+sends `GET`. Since #67 they are in `apps/web/vercel.json`, which now declares
+three, daily, in UTC:
+`/api/jobs/classify` at 03:00, `/api/jobs/cleanup-orphans` at 04:00 and
+`/api/jobs/forum-retention` at 04:30 (a 404 while the forum is off).
+`apps/web/test/cron-reachable.test.mjs` holds both halves. Verified in the
+repository, not in Vercel's dashboard.
 
-The Modal classifier they point at **is** deployed and serving, so this was the
-only missing link.
+**Whether they have ever run in production is not known.** Nothing recorded a
+run, and the Hobby plan keeps function logs for about an hour. In particular,
+**not verified**: that `CRON_SECRET` is set in Vercel's production
+environment. Without it each job route answers 401 in production, and Vercel
+Cron sends the secret only when it is set, so every run would be refused
+without a trace.
 
-Both faults are fixed in [#67](https://github.com/28NS30/conservation/pull/67).
-This section is therefore the shortest-lived thing in this file: once that merges
-and deploys, the first `0 3 * * *` run is the first time the loop has ever
-executed, and **that run is worth watching** — nothing downstream of it has been
-exercised against production data.
+**Classification does not wait for the cron.** Since #101 a report is
+classified right after it is sent; the two public reports of 30 September were
+classified within 31 seconds that way. The 03:00 run is the sweeper for
+retries and for anything that path missed. The model service was still v2 of
+5 August on 30 September (see that day's entry); not re-checked since.
+
+**From migration 0036 on, a run leaves a record.** Each job writes a
+`job_runs` row as it starts and completes it as it ends, and `/api/health`
+reports, per job, the hours since its last good run (`jobs`), with the
+classification queue's length and oldest wait (`queue`), whether Storage
+answers (`storage`) and the database's size (`dbSizeMb`). **0036 was not
+applied to production at the time of writing.** Until it is, the jobs run
+exactly as before and record nothing, health reports `jobs: null`, and once
+the code that expects it deploys, `/api/health` answers 503 with
+`schemaCurrent: false`. 0036 only adds two tables, so it can be applied
+before that code merges.
+
+## Monitoring (22 October 2026)
+
+What exists in the repository. None of it had run from GitHub at the time of
+writing; the watch's checks were run once by hand from here
+(`node scripts/production-watch.mjs --dry-run`) and passed for the custom
+domain.
+
+- **Every hour,** `.github/workflows/production-watch.yml` asks both addresses
+  for `/api/health` (200, `ok` and `schemaCurrent` true, more than 46,000
+  reports), the roadkill report page with its Turnstile site key, and one map
+  tile. Two failing runs in a row open an issue labelled `production-down`,
+  assigned to the repository's owner; the first green run closes it. The
+  rules are in `scripts/production-watch.mjs`. The repository is public, so
+  the issue carries only what any visitor could see.
+- **After every production deploy,** the same workflow runs
+  `scripts/verify-deploy.mjs`. Vercel's own URL for the deployment is behind
+  the team's login, so it checks the production address instead.
+- **Server errors are counted** in `app_errors` (0036) by
+  `apps/web/instrumentation.ts`: route pattern, digest, hour and count,
+  nothing about the request. Kept 30 days; job runs 90.
+- `/api/health` is cached by the CDN for 30 seconds when it is a public 200,
+  and never when it is not, or when the request carries an Authorization
+  header.
 
 ## The design lab is reachable
 
