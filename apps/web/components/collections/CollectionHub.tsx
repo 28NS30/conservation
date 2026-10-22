@@ -17,6 +17,8 @@ import { PHOTOS, type PhotoKey } from "@/lib/home/photos";
 import { SectionTitle } from "@/components/home/StoryRow";
 import InvasiveBadge from "@/components/collections/InvasiveBadge";
 import InvasiveSpeciesList from "@/components/collections/InvasiveSpeciesList";
+import UnverifiedBadge from "@/components/report/UnverifiedBadge";
+import { awaitingVerification } from "@/lib/report/verification";
 import { alternates } from "@/lib/alternates";
 import SpeciesName from "@/components/species/SpeciesName";
 
@@ -80,6 +82,7 @@ export default async function CollectionHub({
   const tp = await getTranslations("precision");
   const td = await getTranslations("detail");
   const tHome = await getTranslations("home");
+  const tr = await getTranslations("report");
   const zh = locale.startsWith("zh");
 
   const [summary, newest, species] = await Promise.all([
@@ -357,6 +360,12 @@ export default async function CollectionHub({
                           label={t(r.taxonId ? "badge.invasive" : "badge.reported")}
                           title={t(r.taxonId ? "badge.invasiveWhy" : "badge.reportedWhy")}
                         />
+                      )}
+                      {/* Unlike that mark it differs from row to row, so it
+                          repeats on the invasive page too: it is what the
+                          receipt promised until a moderator confirms. */}
+                      {awaitingVerification(r) && (
+                        <UnverifiedBadge label={tr("receipt.notVerified")} />
                       )}
                     </span>
                     <span className="col-start-2 flex items-center gap-2 text-[14px] text-ink-600 sm:col-start-3 sm:justify-end">

@@ -15,6 +15,8 @@ import {
   type LocationPrecision,
 } from "@conservation/shared";
 import InvasiveBadge from "@/components/collections/InvasiveBadge";
+import UnverifiedBadge from "@/components/report/UnverifiedBadge";
+import { awaitingVerification } from "@/lib/report/verification";
 import { publicSpeciesName, speciesSlug } from "@/lib/species";
 import { signedPhotoUrls } from "@/lib/supabase/service";
 import { sql } from "@/lib/db";
@@ -41,6 +43,7 @@ type Row = {
   commonNameEn: string | null;
   taicolId: string | null;
   isInvasive: boolean;
+  taxonSource: string | null;
 };
 
 /** The swatch beside a collection's chip, as on the map's toggles. */
@@ -101,6 +104,7 @@ export default async function ReportsListPage({
   const tp = await getTranslations("precision");
   // The map already has a word for this and the two controls do the same thing.
   const tm = await getTranslations("map");
+  const tr = await getTranslations("report");
 
   // The filter jumps here from the map, so it has to be the same collections
   // the map offers, read by the same selectionFor() the tiles use — this page
@@ -126,7 +130,8 @@ export default async function ReportsListPage({
              t.common_name_zh as "commonNameZh",
              t.common_name_en as "commonNameEn",
              t.taicol_id as "taicolId",
-             rp.is_invasive as "isInvasive"
+             rp.is_invasive as "isInvasive",
+             rp.taxon_source as "taxonSource"
         from reports_public rp
         left join taxa t on t.id = rp.taxon_id
        where (${categories}::text[] is null or rp.category = any(${categories}))
@@ -525,6 +530,11 @@ export default async function ReportsListPage({
                           label={tcol(r.taxonId ? "badge.invasive" : "badge.reported")}
                           title={tcol(r.taxonId ? "badge.invasiveWhy" : "badge.reportedWhy")}
                         />
+                      )}
+                      {/* As on the record itself: what the receipt promised
+                          until a moderator confirms the species. */}
+                      {awaitingVerification(r) && (
+                        <UnverifiedBadge label={tr("receipt.notVerified")} />
                       )}
                     </span>
                   </td>

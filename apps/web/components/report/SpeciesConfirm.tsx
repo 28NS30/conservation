@@ -20,11 +20,18 @@ export default function SpeciesConfirm({
   suggestions,
   canEdit,
   currentTaxonId,
+  identifiedBy,
 }: {
   reportId: string;
   suggestions: Suggestion[];
   canEdit: boolean;
   currentTaxonId: number | null;
+  /**
+   * Who chose the record's species — the model, the reporter or a moderator —
+   * already in words, or null when nobody has. Said under the list to a reader
+   * who cannot change it, because the tick alone reads as a verdict.
+   */
+  identifiedBy: string | null;
 }) {
   const t = useTranslations("detail");
   const locale = useLocale();
@@ -102,8 +109,12 @@ export default function SpeciesConfirm({
         </p>
       )}
 
-      {!canEdit && (
-        <p className="mt-2 text-sm leading-relaxed text-ink-700">{t("confirmedBy")}</p>
+      {/* Who chose the ticked species. It used to say "confirmed by the
+          reporter or a moderator" whoever had chosen it, the model included,
+          and with nothing chosen at all: on a record no moderator has seen,
+          a check that never happened. */}
+      {!canEdit && identifiedBy && (
+        <p className="mt-2 text-sm leading-relaxed text-ink-700">{identifiedBy}</p>
       )}
     </section>
   );
