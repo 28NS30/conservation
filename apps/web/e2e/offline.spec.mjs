@@ -21,6 +21,16 @@
  *     send without the report landing twice;
  *   - the words say "open the report page", not "open this site".
  *
+ * And what the form and the queue do so that a report is never stranded:
+ *
+ *   - a version-1 database is upgraded with its waiting report intact
+ *     (lib/offline/db.ts), and a reminder of it is on every page but the
+ *     report pages, without being in what /map loads first;
+ *   - a report the queue gave up on can be tried again, and a discard can be
+ *     undone for a few seconds;
+ *   - a report half filled in, photo and all, comes back after a reload and
+ *     after the language switch, both of which ask first, as a link does.
+ *
  * Turnstile. Local development and CI build without a site key, so there is
  * no challenge to wait for, and the no-token backup cannot appear. The spec
  * notices whether this build asks Cloudflare for its script and runs that
@@ -565,6 +575,302 @@ try {
   check("the worker keeps no personal page", privatePaths.every((p) => !kept[p]), JSON.stringify(kept));
   check("and still keeps a public one", kept["/en/stats"] === true);
   await keep.close();
+
+  // --- an older database, upgraded with its queue in it ---------------------
+  // Version 2 added the drafts and the sent list (lib/offline/db.ts). A phone
+  // that has a report waiting in a version-1 database must keep it through
+  // the upgrade, and then be reminded of it on every page.
+  const up = await browser.newContext({ viewport: { width: 500, height: 900 }, locale: "zh-TW" });
+  const upPage = await up.newPage();
+  // A file of the site with none of its scripts, so nothing opens the
+  // database before the old one is made.
+  await upPage.goto(`${BASE}/sw.js`, { waitUntil: "load" });
+  const OLD = crypto.randomUUID();
+  nonces.push(OLD);
+  await upPage.evaluate(async (id) => {
+    const db = await new Promise((res, rej) => {
+      const r = indexedDB.open("conservation-offline", 1);
+      r.onupgradeneeded = () => {
+        const s = r.result.createObjectStore("pendingReports", { keyPath: "id" });
+        s.createIndex("createdAt", "createdAt");
+      };
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+    await new Promise((res, rej) => {
+      const tx = db.transaction("pendingReports", "readwrite");
+      tx.objectStore("pendingReports").put({
+        id,
+        createdAt: Date.now(),
+        payload: {
+          category: "roadkill",
+          page: "roadkill",
+          lng: 120.95,
+          lat: 23.75,
+          observedAt: new Date().toISOString(),
+          notes: "upgrade e2e",
+        },
+        photos: [],
+        uploadedPaths: [],
+        attempts: 0,
+        status: "queued",
+      });
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+    });
+    db.close();
+  }, OLD);
+  // Its send never reaches the server, so it is still on the phone to be found.
+  await upPage.route("**/api/reports", (route) => route.abort());
+  await upPage.goto(`${BASE}/report/roadkill`, { waitUntil: "load" });
+  const upBanner = await upPage
+    .locator("#queue-waiting")
+    .waitFor({ timeout: 10000 })
+    .then(() => true)
+    .catch(() => false);
+  const upgraded = await upPage.evaluate(async () => {
+    const db = await new Promise((res) => {
+      const r = indexedDB.open("conservation-offline");
+      r.onsuccess = () => res(r.result);
+    });
+    const rows = await new Promise((res) => {
+      const req = db.transaction("pendingReports").objectStore("pendingReports").getAll();
+      req.onsuccess = () => res(req.result);
+    });
+    const out = { version: db.version, stores: [...db.objectStoreNames], rows };
+    db.close();
+    return out;
+  });
+  check(
+    "a version-1 database is upgraded to 2, with the drafts and sent stores",
+    upgraded.version === 2 && ["drafts", "pendingReports", "sent"].every((s) => upgraded.stores.includes(s)),
+    JSON.stringify({ version: upgraded.version, stores: upgraded.stores }),
+  );
+  check(
+    "and the report waiting in it survives the upgrade, on screen",
+    upBanner && upgraded.rows.some((r) => r.id === OLD && r.payload.notes === "upgrade e2e" && r.status !== "uploaded"),
+    JSON.stringify(upgraded.rows.map((r) => [r.id === OLD, r.status, r.lastError])),
+  );
+
+  // --- reminded on every page ------------------------------------------------
+  await upPage.goto(`${BASE}/`, { waitUntil: "load" });
+  const reminder = upPage.locator("#queue-reminder");
+  const reminded = await reminder
+    .waitFor({ timeout: 10000 })
+    .then(() => true)
+    .catch(() => false);
+  const reminderText = reminded ? await reminder.innerText() : "";
+  check(
+    "on '/', a reminder says a report is waiting, and how many",
+    reminded && reminderText.includes("1 筆通報還沒送出") && reminderText.includes(ZH.offline.reminderSend),
+    JSON.stringify(reminderText),
+  );
+  if (reminded) {
+    await reminder.click();
+    await upPage.waitForURL((u) => u.pathname === "/report", { timeout: 10000 }).catch(() => {});
+  }
+  check("and it opens the report page", new URL(upPage.url()).pathname === "/report", upPage.url());
+  // The banner says it there, so the reminder does not. It is idle-loaded,
+  // so give it the time it would take to appear.
+  await upPage.waitForTimeout(5000);
+  check("the report page has the banner, not the reminder", (await upPage.locator("#queue-reminder").count()) === 0);
+
+  // The reminder is not in what /map loads before it can draw: its chunk is
+  // fetched when the browser is idle (components/offline/QueueReminderLoader).
+  const mapHtml = await (await fetch(`${BASE}/map`)).text();
+  const mapScripts = [...mapHtml.matchAll(/<script[^>]+src="([^"]+)"/g)].map((m) => m[1]);
+  let inFirstLoad = false;
+  for (const src of mapScripts) {
+    const js = await (await fetch(new URL(src, BASE))).text();
+    if (js.includes("queue-reminder")) inFirstLoad = true;
+  }
+  check(
+    "/map's first-load scripts do not carry the reminder",
+    mapScripts.length > 0 && !inFirstLoad,
+    `${mapScripts.length} scripts`,
+  );
+
+  // --- try again, and discard with an undo ---------------------------------
+  await upPage.evaluate(async (id) => {
+    const db = await new Promise((res) => {
+      const r = indexedDB.open("conservation-offline");
+      r.onsuccess = () => res(r.result);
+    });
+    await new Promise((res) => {
+      const store = db.transaction("pendingReports", "readwrite").objectStore("pendingReports");
+      const get = store.get(id);
+      get.onsuccess = () => {
+        store.put({ ...get.result, status: "failed", lastError: "validation_failed" });
+        store.transaction.oncomplete = () => res();
+      };
+    });
+    db.close();
+  }, OLD);
+  await upPage.reload({ waitUntil: "load" });
+  const statusOf = () =>
+    upPage.evaluate(async (id) => {
+      const db = await new Promise((res) => {
+        const r = indexedDB.open("conservation-offline");
+        r.onsuccess = () => res(r.result);
+      });
+      const row = await new Promise((res) => {
+        const req = db.transaction("pendingReports").objectStore("pendingReports").get(id);
+        req.onsuccess = () => res(req.result);
+      });
+      db.close();
+      return row?.status ?? null;
+    }, OLD);
+  const retry = upPage.getByRole("button", { name: new RegExp(`^${ZH.offline.retry}：`) });
+  const retryShown = await retry
+    .waitFor({ timeout: 10000 })
+    .then(() => true)
+    .catch(() => false);
+  if (retryShown) await retry.click();
+  await upPage.waitForTimeout(1500);
+  check("a report the queue gave up on has 再試一次, which puts it back in line", retryShown && (await statusOf()) === "queued", String(await statusOf()));
+
+  const discardOld = upPage.getByRole("button", { name: new RegExp(`^${ZH.offline.discard}：`) });
+  await discardOld.click();
+  const undo = upPage.getByRole("button", { name: new RegExp(`^${ZH.offline.undo}：`) });
+  const undoShown = await undo
+    .waitFor({ timeout: 3000 })
+    .then(() => true)
+    .catch(() => false);
+  if (undoShown) await undo.click();
+  await upPage.waitForTimeout(6000);
+  check("discarding can be undone, and an undone report stays", undoShown && (await statusOf()) === "queued");
+  await discardOld.click();
+  await upPage.waitForTimeout(6000);
+  check("a discard that is not undone deletes the report after a few seconds", (await statusOf()) === null);
+  await up.close();
+
+  // --- a report filled in survives the page going ---------------------------
+  // Android discards the tab while the camera app is open; a reload is the
+  // same thing as far as the page can tell.
+  const dr = await browser.newContext({ viewport: { width: 500, height: 900 }, locale: "zh-TW" });
+  await dr.grantPermissions(["geolocation"], { origin: BASE });
+  await dr.setGeolocation({ latitude: 23.75, longitude: 120.95, accuracy: 30 });
+  const d = await dr.newPage();
+  // The model is a GPU the project pays for, and not what this is about.
+  await d.route("**/api/identify", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ band: "low", suggestions: [], outsidePage: null }),
+    }),
+  );
+  await d.goto(`${BASE}/report/roadkill`, { waitUntil: "load" });
+  await d
+    .locator('input[type="file"]')
+    .first()
+    .setInputFiles(join(import.meta.dirname, "..", "public", "home", "muntjac.webp"));
+  await d.locator("img[src^='blob:']").first().waitFor({ timeout: 15000 });
+  for (let i = 0; i < 4; i++) {
+    await d.getByRole("button", { name: ZH.report.useMyLocation }).click({ timeout: 2000 }).catch(() => {});
+    if (await d.getByText(ZH.report.tapToAdjust).waitFor({ timeout: 4000 }).then(() => true).catch(() => false)) break;
+  }
+  await d.getByRole("button", { name: ZH.report.condition.roadkill, exact: true }).click();
+  await d.locator("#notes").fill("draft e2e note");
+  await d.locator("#email").fill("draft-e2e@example.org");
+  // Written after a pause in typing.
+  await d.waitForTimeout(1000);
+  // The browser asks before a page with a report in it is reloaded.
+  const onReload = (dialog) => void dialog.accept();
+  d.on("dialog", onReload);
+  await d.reload({ waitUntil: "load" });
+  d.off("dialog", onReload);
+  const restored = await d
+    .getByText(ZH.report.draftRestored)
+    .waitFor({ timeout: 10000 })
+    .then(() => true)
+    .catch(() => false);
+  await d.locator("img[src^='blob:']").first().waitFor({ timeout: 5000 }).catch(() => {});
+  const back = {
+    notes: await d.locator("#notes").inputValue(),
+    email: await d.locator("#email").inputValue(),
+    photos: await d.locator("img[src^='blob:']").count(),
+    dead: await d.getByRole("button", { name: ZH.report.condition.roadkill, exact: true }).getAttribute("aria-pressed"),
+    placed: await d.getByText(ZH.report.tapToAdjust).isVisible(),
+  };
+  check(
+    "a report filled in with a photo comes back after a reload, all of it",
+    restored &&
+      back.notes === "draft e2e note" &&
+      back.email === "draft-e2e@example.org" &&
+      back.photos === 1 &&
+      back.dead === "true" &&
+      back.placed,
+    JSON.stringify({ restored, ...back }),
+  );
+
+  // A link to another page asks first.
+  let linkAsked = "";
+  d.once("dialog", (dialog) => {
+    linkAsked = dialog.message();
+    void dialog.dismiss();
+  });
+  await d.locator('a[href="/terms"]').first().click();
+  await d.waitForTimeout(1000);
+  check(
+    "a link off the page asks first, and staying stays",
+    linkAsked === ZH.report.leaveConfirm && new URL(d.url()).pathname === "/report/roadkill",
+    JSON.stringify(linkAsked),
+  );
+
+  // So does the language switch, which goes without a link.
+  const english = d.locator('button[lang="en"]:visible').first();
+  let switchAsked = "";
+  d.once("dialog", (dialog) => {
+    switchAsked = dialog.message();
+    void dialog.dismiss();
+  });
+  await english.click();
+  await d.waitForTimeout(1000);
+  check(
+    "the language switch asks first while there is a report on the page",
+    switchAsked === ZH.report.switchLanguageConfirm && !new URL(d.url()).pathname.startsWith("/en"),
+    JSON.stringify(switchAsked),
+  );
+  d.once("dialog", (dialog) => void dialog.accept());
+  await english.click();
+  await d.waitForURL((u) => u.pathname === "/en/report/roadkill", { timeout: 10000 }).catch(() => {});
+  const switched = await d
+    .getByText(EN.report.draftRestored)
+    .waitFor({ timeout: 10000 })
+    .then(() => true)
+    .catch(() => false);
+  check(
+    "and switching keeps the report, in the other language",
+    switched && (await d.locator("#notes").inputValue()) === "draft e2e note",
+    d.url(),
+  );
+
+  // Cleared, it is gone, from this tab and from the database.
+  await d
+    .getByRole("status")
+    .filter({ hasText: EN.report.draftRestored })
+    .getByRole("button", { name: EN.report.draftClear, exact: true })
+    .click();
+  await d.waitForTimeout(1000);
+  const left = await d.evaluate(async () => {
+    const keys = Object.keys(sessionStorage).filter((k) => k.startsWith("report-draft:"));
+    const db = await new Promise((res) => {
+      const r = indexedDB.open("conservation-offline");
+      r.onsuccess = () => res(r.result);
+    });
+    const photos = await new Promise((res) => {
+      const req = db.transaction("drafts").objectStore("drafts").count();
+      req.onsuccess = () => res(req.result);
+    });
+    db.close();
+    return { keys, photos, notes: document.querySelector("#notes")?.value ?? null };
+  });
+  check(
+    "清除 empties the form and forgets the draft",
+    left.keys.length === 0 && left.photos === 0 && left.notes === "" && !(await d.getByText(EN.report.draftRestored).isVisible()),
+    JSON.stringify(left),
+  );
+  await dr.close();
 } finally {
   await sql`delete from reports where client_nonce = any(${nonces})`;
   await sql.end();
