@@ -209,8 +209,12 @@ describe("against the running server", () => {
     if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
     const { results, health } = await checkHost(BASE_URL.replace(/\/$/, ""));
     const by = Object.fromEntries(results.map((r) => [r.name, r]));
-    // The local database holds the same 46,000-odd imported records as production.
-    assert.ok(by.health.ok, by.health.detail);
+    // A laptop's database holds production's 46,000-odd records; CI's fixture
+    // is a slice of them, which is the one thing allowed to fail here.
+    assert.ok(
+      by.health.ok || /^reports \d+, expected more than \d+$/.test(by.health.detail),
+      by.health.detail,
+    );
     assert.ok(by["map tile"].ok, by["map tile"].detail);
     // Locally the Turnstile keys are empty on purpose, so only the page itself is asked for.
     assert.doesNotMatch(by["report page with Turnstile"].detail, /^answered|^no answer/);
