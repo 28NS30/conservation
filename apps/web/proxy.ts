@@ -30,7 +30,7 @@ export default proxy;
 export const config = {
   /**
    * Everything except API routes, Next internals, the vendored MapLibre bundle,
-   * and files with an extension.
+   * share cards, and files with an extension.
    *
    * `/api` must be excluded: tile and submission endpoints are locale-independent,
    * and prefixing them would break MapLibre's tile URLs and every fetch in the app.
@@ -44,6 +44,13 @@ export const config = {
    * magic link in production landed on a 404 and nobody could sign in. Nothing
    * had exercised the callback, because nobody has signed in yet.
    *
+   * Share cards (`opengraph-image`, the site's and each species') are excluded
+   * because Next names them with the locale in the path, /zh-TW/opengraph-image,
+   * and the locale routing answered every Chinese one with a 307 to drop the
+   * prefix. A link preview fetched by LINE or Facebook should be the image, not
+   * a redirect some of them never follow. The path already carries the locale,
+   * so nothing is lost by skipping the routing.
+   *
    * Static files are excluded by the `.*\\..*` clause, so no image, script or
    * font request ever reaches the session check.
    *
@@ -54,5 +61,5 @@ export const config = {
    * then never ran for the site's own front page, so the default locale was never
    * rewritten in and that one path 404'd while every route under it worked.
    */
-  matcher: ["/", "/((?!api|auth/|_next|maplibre|.*\\..*).*)"],
+  matcher: ["/", "/((?!api|auth/|_next|maplibre|.*opengraph-image|.*\\..*).*)"],
 };

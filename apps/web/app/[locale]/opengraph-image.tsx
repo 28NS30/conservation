@@ -1,5 +1,7 @@
 import { ImageResponse } from "next/og";
+import { hasLocale } from "next-intl";
 import { getTranslations } from "next-intl/server";
+import { routing } from "@/i18n/routing";
 import { subsetFont } from "@/lib/ogFont";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -38,6 +40,20 @@ export const alt = "Project FormosaWatch — Taiwan";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
+/**
+ * Drawn once per locale at build time, not on every request. The card is the
+ * same for everyone who shares a link in that language, and drawing it per
+ * request cost two calls to Google's font API, up to three seconds each, for
+ * each crawler that came for it, and link-preview crawlers give up quickly.
+ * If the font cannot be fetched during the build, the Latin card below is
+ * what that deploy serves, as it would have been for a request.
+ */
+export const dynamic = "force-static";
+
+export function generateStaticParams() {
+  return routing.locales.map((locale) => ({ locale }));
+}
+
 const BARK_950 = "#0b1410";
 const PARCHMENT_50 = "#f6efe0";
 const PARCHMENT_400 = "#9d9179";
@@ -49,6 +65,9 @@ export default async function Image({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
+  // The proxy no longer routes this path (proxy.ts), so any first segment
+  // reaches it, and a static route would keep a card for each one asked for.
+  if (!hasLocale(routing.locales, locale)) return new Response("Not found", { status: 404 });
   const zh = locale.startsWith("zh");
   const t = await getTranslations({ locale, namespace: "home" });
   const site = await getTranslations({ locale, namespace: "site" });
