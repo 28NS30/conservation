@@ -113,7 +113,7 @@
     "exifOffer": "This photo contains a location — use it?",
     "exifUse": "Use",
     "exifSkip": "Skip",
-    "observedAt": "Observed",
+    "observedAt": "When did you see it?",
     "observedFromPhoto": "(from the photo)",
     "notes": "Notes",
     "email": "Email",
@@ -161,7 +161,7 @@
       "test": "Test report received",
       "testPublished": "It went through every step a real report takes, and a real one would now be on the map. This one is a test, so only moderators can see it."
     },
-    "needChallenge": "Complete the check above first",
+    "needChallenge": "Complete the bot check at the end of the form",
     "preparingPhotos": "Processing photos…",
     "group": {
       "invasive": "Invasive species",

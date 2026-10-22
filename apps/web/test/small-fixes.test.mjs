@@ -83,3 +83,39 @@ describe("a species page's description", () => {
     assert.doesNotMatch(page, /t\("metaDescription", \{ name, count/);
   });
 });
+
+describe("the form's words", () => {
+  const zh = catalogue("zh-TW");
+  const en = catalogue("en");
+  const values = (o) => Object.values(o).flatMap((v) => (v && typeof v === "object" ? values(v) : [String(v)]));
+
+  test("Taiwan is 臺灣 everywhere in the Chinese", () => {
+    // 台 stays where it is a measure word (這台裝置); the place is 臺灣.
+    assert.deepEqual(values(zh).filter((v) => v.includes("台灣")), []);
+  });
+
+  test("an unnamed animal is 尚未辨識, the record page's word, in every form string", () => {
+    assert.equal(zh.detail.notYetIdentified, "尚未辨識");
+    assert.deepEqual(values(zh).filter((v) => v.includes("未鑑定")), []);
+    for (const k of ["speciesUnsureHint", "speciesUnsureHintInvasive"])
+      assert.match(zh.report[k], /尚未辨識/, k);
+    assert.match(zh.report.receipt.heldForIdentification, /尚未辨識/);
+  });
+
+  test("the model is introduced as AI where the form first names it", () => {
+    for (const text of [
+      zh.report.speciesUnsureHint,
+      zh.report.receipt.heldForIdentification,
+      zh.report.testMode.body,
+      zh.detail.receipt.body,
+    ]) {
+      const first = text.indexOf("辨識模型");
+      assert.equal(text.slice(first - 3, first), "AI ", text);
+    }
+  });
+
+  test("the English asks the time as a question, and says where the bot check is", () => {
+    assert.equal(en.report.observedAt, "When did you see it?");
+    assert.equal(en.report.needChallenge, "Complete the bot check at the end of the form");
+  });
+});
