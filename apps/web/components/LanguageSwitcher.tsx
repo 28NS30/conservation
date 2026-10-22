@@ -1,8 +1,9 @@
 "use client";
 
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { routing, LOCALE_LABELS, type Locale } from "@/i18n/routing";
+import { wouldLoseEntries } from "@/lib/report/leaveGuard";
 
 /**
  * Switches locale while staying on the current page — and on the current view.
@@ -27,6 +28,11 @@ import { routing, LOCALE_LABELS, type Locale } from "@/i18n/routing";
  * floating over the home page's map — and any fixed colour is unreadable in at
  * least one of them. The active locale is distinguished by weight and the
  * inactive one by opacity, both of which work on any ground.
+ *
+ * On a report page with something entered, it asks first. Switching reopens
+ * the page in the other language, and the form used to come back empty; it
+ * comes back from its draft now (lib/offline/drafts.ts), but a reporter who
+ * tapped the wrong word should not have to find that out.
  */
 export default function LanguageSwitcher({
   className = "",
@@ -44,8 +50,11 @@ export default function LanguageSwitcher({
   const locale = useLocale() as Locale;
   const pathname = usePathname();
   const router = useRouter();
+  const t = useTranslations("report");
 
   const switchTo = (l: Locale) => {
+    if (l === locale) return;
+    if (wouldLoseEntries() && !window.confirm(t("switchLanguageConfirm"))) return;
     // Rendered on the server too, where there is no `location`; the handler only
     // ever runs in the browser, but the guard costs nothing and says so.
     const rest =
