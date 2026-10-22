@@ -17,7 +17,7 @@ const BADGE = `data:image/png;base64,${(
 
 import { routing } from "@/i18n/routing";
 import { getSpecies, parseSpeciesId } from "@/lib/species";
-import { speciesNames } from "@/lib/speciesNames";
+import { speciesLabel, speciesNames } from "@/lib/speciesNames";
 import { subsetFont } from "@/lib/ogFont";
 
 /**
@@ -36,9 +36,42 @@ import { subsetFont } from "@/lib/ogFont";
  * If that fetch fails the card falls back to Latin only, because a link preview
  * must never be the reason a request errors.
  */
-export const alt = "Species record";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
+
+/**
+ * The card's alt text: the species it is about, in the page's language.
+ *
+ * It was "Species record" on every species, in English on the Chinese pages
+ * too, so a screen reader, or a feed with images off, said nothing of which
+ * animal a shared link was about. The names are the page title's
+ * (speciesLabel), and getSpecies is memoised for the request, so this is not
+ * another read.
+ */
+export async function generateImageMetadata({
+  params,
+}: {
+  params: { locale: string; id: string };
+}) {
+  const zh = params.locale.startsWith("zh");
+  const taxonId = parseSpeciesId(params.id);
+  const s = taxonId ? await getSpecies(taxonId) : null;
+  const name = s ? speciesLabel(s, params.locale) : null;
+  return [
+    {
+      id: "card",
+      alt: name
+        ? zh
+          ? `${name}：臺灣的紀錄 · 福爾摩沙守望計畫`
+          : `${name}: records in Taiwan · Project FormosaWatch`
+        : zh
+          ? "福爾摩沙守望計畫的物種紀錄"
+          : "A species on Project FormosaWatch",
+      size,
+      contentType,
+    },
+  ];
+}
 
 // The team's palette: forest ground, ivory type, the report orange as the one
 // accent. Measured on #183D32: ivory 10.98:1, the pale green 7.4:1, the muted
@@ -66,9 +99,11 @@ export default async function Image({
 
   const binomial = s?.scientificName ?? "Project FormosaWatch";
   // A 座標不開放 taxon reports 0 here even when records exist, so the count is
-  // simply omitted rather than stated as zero — see the species page.
+  // simply omitted rather than stated as zero — see the species page. So is a
+  // count of nothing, as in the page's description (lib/speciesMeta.ts): a
+  // card reading "0 筆紀錄" looks broken.
   const withheld = s?.sensitivity === "座標不開放";
-  const count = s && !withheld ? s.reportCount : null;
+  const count = s && !withheld && s.reportCount > 0 ? s.reportCount : null;
 
   const zh = locale.startsWith("zh");
   // Both names, the page's language first (lib/speciesNames.ts).

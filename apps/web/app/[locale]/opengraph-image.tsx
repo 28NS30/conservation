@@ -36,11 +36,11 @@ const BADGE = `data:image/png;base64,${(
  * Everything is drawn with flexbox and inline styles because that is all satori
  * supports — no grid, no external stylesheet, no Tailwind classes.
  */
-export const alt = "Project FormosaWatch — Taiwan";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 /**
+<<<<<<< HEAD
  * Drawn once per locale at build time, not on every request. The card is the
  * same for everyone who shares a link in that language, and drawing it per
  * request cost two calls to Google's font API, up to three seconds each, for
@@ -56,6 +56,29 @@ export const dynamicParams = false;
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
+=======
+ * The card's alt text, in the page's language.
+ *
+ * A fixed `alt` export is one string for every locale, and it was English on
+ * the Chinese pages too. generateImageMetadata is the only way a generated
+ * image can say it per locale; the price is an id segment in the image's
+ * address (/opengraph-image/card), which nothing links to by hand.
+ */
+export async function generateImageMetadata({
+  params,
+}: {
+  params: { locale: string };
+}) {
+  const site = await getTranslations({ locale: params.locale, namespace: "site" });
+  return [
+    {
+      id: "card",
+      alt: `${site("title")} · ${site("tagline")}`,
+      size,
+      contentType,
+    },
+  ];
+>>>>>>> bff0df0 (Name the site, the language and the species in shared-link previews)
 }
 
 const BARK_950 = "#0b1410";

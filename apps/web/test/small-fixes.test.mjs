@@ -3,18 +3,19 @@
  *
  *   node --test test/small-fixes.test.mjs
  */
-import { test, describe } from "node:test";
+import { test, describe, after } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createTranslator } from "next-intl";
 import { speciesDescription } from "../lib/speciesMeta.ts";
-import { BASE_URL } from "./helpers.mjs";
+import { BASE_URL, sql } from "./helpers.mjs";
 
 const WEB = join(import.meta.dirname, "..");
 const read = (...p) => readFileSync(join(WEB, ...p), "utf8");
 const catalogue = (l) => JSON.parse(read("messages", `${l}.json`));
 const up = async () => Boolean(await fetch(BASE_URL).catch(() => null));
+after(() => sql.end());
 
 describe("fields a phone does not zoom into", () => {
   // iOS Safari zooms the page into a focused field set under 16px.
@@ -163,5 +164,47 @@ describe("the report form's fields say what describes them", () => {
     assert.match(form, /aria-describedby=\{describedBy\(errorId\("time"\)\)\}/);
     assert.match(form, /aria-describedby=\{describedBy\("email-help", errorId\("contact"\)\)\}/);
     assert.match(form, /errorId\("photo"\)/);
+  });
+});
+
+describe("what a shared link's preview says", () => {
+  const meta = (html, property) =>
+    [...html.matchAll(new RegExp(`<meta property="${property}" content="([^"]*)"`, "g"))].map((m) => m[1]);
+
+  test("every page names the site, its language and its type", async (t) => {
+    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    for (const [path, locale, other, name] of [
+      ["/about", "zh_TW", "en_GB", catalogue("zh-TW").site.title],
+      ["/en/about", "en_GB", "zh_TW", catalogue("en").site.title],
+    ]) {
+      const html = await (await fetch(`${BASE_URL}${path}`)).text();
+      assert.deepEqual(meta(html, "og:site_name"), [name], path);
+      assert.deepEqual(meta(html, "og:locale"), [locale], path);
+      assert.deepEqual(meta(html, "og:locale:alternate"), [other], path);
+      assert.deepEqual(meta(html, "og:type"), ["website"], path);
+    }
+  });
+
+  test("the site card's alt text is in the page's language", async (t) => {
+    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    for (const [path, l] of [["/", "zh-TW"], ["/en", "en"]]) {
+      const html = await (await fetch(`${BASE_URL}${path}`)).text();
+      const { title, tagline } = catalogue(l).site;
+      assert.deepEqual(meta(html, "og:image:alt"), [`${title} · ${tagline}`], path);
+    }
+  });
+
+  test("a species card's alt text names the species", async (t) => {
+    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    const [s] = await sql`
+      select t.id, t.common_name_zh as zh from taxa t
+        join species_report_stats s on s.taxon_id = t.id
+       where t.common_name_zh is not null
+       order by s.report_count desc limit 1`;
+    if (!s) return t.skip("no recorded species in this database");
+    const html = await (await fetch(`${BASE_URL}/species/${s.id}`)).text();
+    const [alt] = meta(html, "og:image:alt");
+    assert.ok(alt?.startsWith(s.zh), `alt is ${alt}`);
+    assert.doesNotMatch(alt, /Species record/);
   });
 });
