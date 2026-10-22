@@ -985,7 +985,7 @@ function ReportFormFields({
           </label>
         ) : (
           <div className="flex flex-wrap gap-3">
-            {photos.map((p) => (
+            {photos.map((p, n) => (
               <div key={p.id} className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -1014,7 +1014,9 @@ function ReportFormFields({
                   // area inwards and downwards, over the photograph it belongs
                   // to, so growing it cannot steal a tap from the next tile.
                   className="absolute -right-1.5 -top-1.5 grid h-6 w-6 place-items-center rounded-full bg-paper-200 text-sm text-ink-800 ring-1 ring-ink-900/15 after:absolute after:-bottom-5 after:-left-5 after:right-0 after:top-0 after:content-['']"
-                  aria-label={t("removePhoto")}
+                  // Numbered: with three photos on the form a screen reader
+                  // heard three identical buttons and no way to tell them apart.
+                  aria-label={t("removePhoto", { n: n + 1 })}
                 >
                   ×
                 </button>

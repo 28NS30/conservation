@@ -1,5 +1,5 @@
-import { openDB, type IDBPDatabase } from "idb";
 import type { Category, ReportPage } from "@conservation/shared";
+import { offlineDb, readExisting, QUEUE_STORE as STORE } from "./db.ts";
 
 /**
  * Offline submission queue.
@@ -13,10 +13,6 @@ import type { Category, ReportPage } from "@conservation/shared";
  * pre-signing upload URLs at queue time: they are short-lived and a report queued
  * overnight would flush against an expired one.
  */
-
-const DB_NAME = "conservation-offline";
-const STORE = "pendingReports";
-const VERSION = 1;
 
 export type QueuedReport = {
   /**
@@ -65,6 +61,8 @@ export type QueuedReport = {
      * saved by an older build, which are sent as before.
      */
     filedBy?: string;
+    /** A moderator's test (migration 0018), saved on the phone as one. */
+    test?: boolean;
   };
   photos: Blob[];
   /** Paths already uploaded, so a partial upload resumes instead of re-uploading. */
@@ -103,29 +101,33 @@ export type QueuedReport = {
    */
   serverVisible?: boolean;
   sentAt?: number;
+  /**
+   * When the server last answered this report with anything but acceptance,
+   * and how many such answers it has had in a row. Together they decide when
+   * the flush asks again (retryAt in flush.ts), so a report the server keeps
+   * failing on is not sent on every trigger. A try that never reached the
+   * server sets neither: the next sign of signal should send it at once.
+   */
+  lastTriedAt?: number;
+  retries?: number;
+  /**
+   * When the reporter last asked for it to be tried again (the banner's 再試一次).
+   * The fourteen days after which the queue stops trying count from here, or
+   * from `createdAt` when it was never asked.
+   */
+  retryFrom?: number;
+  /**
+   * The species as the form showed it, for this phone's list of the reports it
+   * sent (sent.ts). Beside the payload, not in it: the payload is what the
+   * server is sent, and it has no field for this.
+   */
+  label?: string | null;
 };
 
 /** Still to send. `uploaded` rows are receipts, not work. */
 export const isPending = (r: QueuedReport) => r.status !== "uploaded";
 
-let dbPromise: Promise<IDBPDatabase> | null = null;
-
-function db() {
-  if (!dbPromise) {
-    dbPromise = openDB(DB_NAME, VERSION, {
-      upgrade(database, oldVersion) {
-        // Guarded so a later VERSION bump does not re-create an existing store,
-        // which throws ConstraintError and leaves listQueued() rejecting with
-        // nothing catching it — i.e. a silent, total loss of the queue UI.
-        if (oldVersion < 1) {
-          const store = database.createObjectStore(STORE, { keyPath: "id" });
-          store.createIndex("createdAt", "createdAt");
-        }
-      },
-    });
-  }
-  return dbPromise;
-}
+const db = offlineDb;
 
 export async function enqueue(
   item: Omit<QueuedReport, "createdAt" | "attempts" | "status" | "uploadedPaths">,
@@ -159,6 +161,38 @@ export async function updateQueued(id: string, patch: Partial<QueuedReport>): Pr
 
 export async function removeQueued(id: string): Promise<void> {
   await (await db()).delete(STORE, id);
+}
+
+/**
+ * Put a report the queue stopped trying back in line, its waits forgotten.
+ *
+ * `failed` used to be the end: the reporter could read why and discard it, and
+ * nothing else. A server that was down for a morning, or a report that sat on a
+ * phone past the fourteen days, deserves another go when its reporter asks.
+ */
+export async function retryQueued(id: string): Promise<void> {
+  await updateQueued(id, {
+    status: "queued",
+    attempts: 0,
+    retries: 0,
+    lastTriedAt: undefined,
+    lastError: undefined,
+    retryFrom: Date.now(),
+  });
+}
+
+/**
+ * How many reports are still to send, for the reminder on every page.
+ *
+ * Read without opening the database for writing (readExisting in db.ts), so a
+ * phone that has never queued anything gets no database from being reminded.
+ */
+export async function countWaiting(): Promise<number> {
+  return readExisting(async (conn) => {
+    if (!conn.objectStoreNames.contains(STORE)) return 0;
+    const all = (await conn.getAll(STORE)) as QueuedReport[];
+    return all.filter(isPending).length;
+  }, 0);
 }
 
 /**

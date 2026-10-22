@@ -141,9 +141,11 @@ for (let i = 0; i < 30; i++) {
 const enqueueInPage = async (id) =>
   page.evaluate(
     async ({ id }) => {
-      // Talk to IndexedDB directly with the same schema the app uses.
+      // Talk to IndexedDB directly with the same schema the app uses. At
+      // whatever version the app has left it: version 1 is the queue alone,
+      // and lib/offline/db.ts upgrades it to 2 when the page next opens it.
       const db = await new Promise((res, rej) => {
-        const r = indexedDB.open("conservation-offline", 1);
+        const r = indexedDB.open("conservation-offline");
         r.onupgradeneeded = () => {
           const s = r.result.createObjectStore("pendingReports", {
             keyPath: "id",
@@ -175,6 +177,8 @@ const enqueueInPage = async (id) =>
         tx.oncomplete = () => res();
         tx.onerror = () => rej(tx.error);
       });
+      // Held open, this connection would block the app's own upgrade.
+      db.close();
       return true;
     },
     { id },
@@ -189,21 +193,23 @@ const enqueueInPage = async (id) =>
  * — and counting rows alone would now pass whether the report had been sent or
  * was still sitting there.
  *
- * The database version is still 1 on purpose. IndexedDB stores structured
- * clones and enforces no per-field schema, so adding fields to the stored
- * object needs no upgrade; only a new store or index would.
+ * Opened at whatever version is there. The database is at 2 since the drafts
+ * and the sent list got stores of their own (lib/offline/db.ts); adding fields
+ * to a stored object needs no upgrade, only a new store or index does.
  */
-const rows = () =>
-  page.evaluate(async () => {
+const rows = (p = page) =>
+  p.evaluate(async () => {
     const db = await new Promise((res) => {
-      const r = indexedDB.open("conservation-offline", 1);
+      const r = indexedDB.open("conservation-offline");
       r.onsuccess = () => res(r.result);
     });
-    return new Promise((res) => {
+    const all = await new Promise((res) => {
       const tx = db.transaction("pendingReports", "readonly");
       const req = tx.objectStore("pendingReports").getAll();
       req.onsuccess = () => res(req.result);
     });
+    db.close();
+    return all;
   });
 const counts = async () => {
   const all = await rows();

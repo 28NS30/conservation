@@ -129,7 +129,7 @@ describe("the queue does not wear a sound report down", () => {
   const flush = read("lib", "offline", "flush.ts");
 
   test("a rate limit costs no attempt and ends the flush", () => {
-    assert.match(flush, /const attempts = network \|\| limited \? item\.attempts : item\.attempts \+ 1;/);
+    assert.match(flush, /const attempts = network \|\| limited \|\| later \? item\.attempts : item\.attempts \+ 1;/);
     assert.match(flush, /if \(outcome === "limited"\) break;/);
     assert.match(flush, /if \(res\.status === 429\) throw new ReportError\("rate_limited", 429\);/);
   });
@@ -139,8 +139,28 @@ describe("the queue does not wear a sound report down", () => {
     assert.match(flush, /return sendOne\(again, getToken, true\);/);
   });
 
-  test("a refused report is not sent again on every flush", () => {
+  test("a refused report is not sent again on every flush, until its reporter asks", () => {
     assert.match(flush, /if \(item\.status === "failed"\) continue;/);
+    const banner = read("components", "report", "QueueBanner.tsx");
+    assert.match(banner, /i\.status === "failed" && \(/);
+    assert.match(banner, /await retryQueued\(i\.id\);/);
+  });
+
+  test("a discarded report can be brought back for a few seconds, and is not sent meanwhile", () => {
+    const banner = read("components", "report", "QueueBanner.tsx");
+    assert.match(banner, /const UNDO_MS = 5_000;/);
+    assert.match(banner, /holdBack\(id, true\);/);
+    assert.match(banner, /onClick=\{\(\) => undoDiscard\(i\.id\)\}/);
+    assert.match(flush, /if \(heldBack\.has\(item\.id\)\) continue;/);
+  });
+
+  test("each report's buttons say which report they are for", () => {
+    const banner = read("components", "report", "QueueBanner.tsx");
+    for (const key of ["discardItem", "retryItem", "undoItem"])
+      assert.match(banner, new RegExp(`aria-label=\\{t\\("${key}", \\{ report: which \\}\\)\\}`), key);
+    const form = read("components", "report", "ReportForm.tsx");
+    assert.match(form, /aria-label=\{t\("removePhoto", \{ n: n \+ 1 \}\)\}/);
+    for (const l of ["en", "zh-TW"]) assert.match(catalogue(l).report.removePhoto, /\{n\}/, l);
   });
 
   test("a report discarded mid-send is not filed", () => {
