@@ -36,11 +36,12 @@
  *
  * "In a row" is read from state each run leaves behind, not from whether the
  * run failed. Every run records its own check as a notice annotation titled
- * STATE_TITLE, before it asks GitHub anything, and the next run reads the
- * newest such notice from this workflow's earlier runs (previousState). A run
- * that failed for another reason (GitHub's API answering 5xx, checkout or
- * setup-node failing, the runner timing out) leaves no notice, or a notice
- * saying what the check found, so it is never mistaken for a failed check.
+ * STATE_TITLE, once it has read the previous one and before it touches either
+ * issue, and the next run reads the newest such notice from this workflow's
+ * earlier runs (previousState). A run that failed for another reason
+ * (GitHub's API answering 5xx, checkout or setup-node failing, the runner
+ * timing out) leaves no notice, or a notice saying what the check found, so
+ * it is never mistaken for a failed check.
  * And so the run's own result is free to mean something else: it fails only
  * when the issue is opened or commented on, or when a failed check could not
  * be reported, because GitHub emails whoever last edited the schedule about
@@ -652,8 +653,8 @@ async function main() {
     fault("could not read the previous check", e);
   }
 
-  // Recorded before anything else is asked of GitHub, so whatever fails next
-  // the next run knows what this one found.
+  // Recorded before either issue is touched, so whatever fails next the next
+  // run knows what this one found.
   const jobs = staleJobs(health, previous?.nullSince, now);
   console.log(stateCommand({ failed: failures.length > 0, nullSince: jobs.nullSince }));
 
