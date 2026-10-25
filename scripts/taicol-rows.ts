@@ -97,3 +97,12 @@ export const COLUMNS = [
   "new_taicol_id",
 ] as const;
 
+/**
+ * What an upsert overwrites on a row already there: every column but the key.
+ * Both writers build their ON CONFLICT from this, so a column added to COLUMNS
+ * cannot be written once by one of them and never updated again, which for
+ * new_taicol_id would leave a successor id stale on every later refresh.
+ */
+export const UPDATE_SET = COLUMNS.filter((c) => c !== "taicol_id")
+  .map((c) => `${c} = excluded.${c}`)
+  .join(",\n      ");

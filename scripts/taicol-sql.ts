@@ -17,7 +17,7 @@
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { COLUMNS, toRow, type TaicolTaxon } from "./taicol-rows.ts";
+import { COLUMNS, UPDATE_SET, toRow, type TaicolTaxon } from "./taicol-rows.ts";
 
 /**
  * Rows per file. 2,000 keeps every file near 1 MB: at 5,000 the first refresh
@@ -45,15 +45,12 @@ function upsertSql(rows: ReturnType<typeof toRow>[]): string {
   if (json.includes("$taicol$")) throw new Error("snapshot contains the dollar-quote tag");
   const cols = COLUMNS.join(", ");
   const record = COLUMNS.map((c) => `${c} ${TYPES[c]}`).join(", ");
-  const set = COLUMNS.filter((c) => c !== "taicol_id")
-    .map((c) => `${c} = excluded.${c}`)
-    .join(",\n      ");
   return `set local lock_timeout = '5s';
 insert into taxa (${cols})
 select ${cols}
   from jsonb_to_recordset($taicol$${json}$taicol$::jsonb) as x(${record})
 on conflict (taicol_id) do update set
-      ${set};
+      ${UPDATE_SET};
 `;
 }
 

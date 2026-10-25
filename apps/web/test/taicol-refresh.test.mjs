@@ -17,7 +17,7 @@ import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { sql, inRollback } from "./helpers.mjs";
-import { COLUMNS, toRow } from "../../../scripts/taicol-rows.ts";
+import { COLUMNS, UPDATE_SET, toRow } from "../../../scripts/taicol-rows.ts";
 
 after(() => sql.end());
 
@@ -88,6 +88,19 @@ describe("the mapping", () => {
     const { new_taxon_id, ...older } = MAGPIE;
     assert.equal(toRow(older).new_taicol_id, null, "a snapshot without the field");
     assert.ok(COLUMNS.includes("new_taicol_id"));
+  });
+
+  test("the importer and the SQL writer overwrite the same columns, all but the key", () => {
+    // A column left off an ON CONFLICT list is written once and never again: a
+    // successor id would stay whatever the first import said. Both writers
+    // take the list from taicol-rows.ts.
+    const set = UPDATE_SET.split(",").map((c) => c.trim().split(" = ")[0]);
+    assert.deepEqual(set, COLUMNS.filter((c) => c !== "taicol_id"));
+    for (const f of ["import-taicol.ts", "taicol-sql.ts"]) {
+      const src = readFileSync(join(ROOT, "scripts", f), "utf8");
+      assert.match(src, /on conflict \(taicol_id\) do update set\s*\$\{(?:sql\.unsafe\()?UPDATE_SET\)?\}/, f);
+      assert.doesNotMatch(src, /= excluded\./, `${f} lists columns of its own`);
+    }
   });
 
   test("derives the invasive flag and splits alternate names as before", () => {

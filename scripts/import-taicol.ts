@@ -11,7 +11,7 @@
  */
 import { readFileSync } from "node:fs";
 import { sql, fetchJson, mapPool, progress } from "./db.ts";
-import { COLUMNS, toRow, type Page, type TaicolTaxon } from "./taicol-rows.ts";
+import { COLUMNS, UPDATE_SET, toRow, type Page, type TaicolTaxon } from "./taicol-rows.ts";
 
 const API = "https://api.taicol.tw/v2/taxon";
 const PAGE = 300;
@@ -20,31 +20,7 @@ async function upsert(rows: ReturnType<typeof toRow>[]) {
   if (!rows.length) return;
   await sql`
     insert into taxa ${sql(rows, ...COLUMNS)}
-    on conflict (taicol_id) do update set
-      parent_taicol_id = excluded.parent_taicol_id,
-      taxon_status     = excluded.taxon_status,
-      scientific_name  = excluded.scientific_name,
-      name_author      = excluded.name_author,
-      common_name_zh   = excluded.common_name_zh,
-      alt_names_zh     = excluded.alt_names_zh,
-      rank             = excluded.rank,
-      kingdom          = excluded.kingdom,
-      is_in_taiwan     = excluded.is_in_taiwan,
-      is_endemic       = excluded.is_endemic,
-      alien_type       = excluded.alien_type,
-      alien_status_note = excluded.alien_status_note,
-      is_invasive      = excluded.is_invasive,
-      protected_status = excluded.protected_status,
-      cites            = excluded.cites,
-      iucn             = excluded.iucn,
-      redlist          = excluded.redlist,
-      sensitivity      = excluded.sensitivity,
-      is_terrestrial   = excluded.is_terrestrial,
-      is_freshwater    = excluded.is_freshwater,
-      is_brackish      = excluded.is_brackish,
-      is_marine        = excluded.is_marine,
-      updated_at       = excluded.updated_at,
-      new_taicol_id    = excluded.new_taicol_id`;
+    on conflict (taicol_id) do update set ${sql.unsafe(UPDATE_SET)}`;
 }
 
 /**
