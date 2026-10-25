@@ -3,7 +3,6 @@ import { hasLocale } from "next-intl";
 import { getTranslations } from "next-intl/server";
 import { routing } from "@/i18n/routing";
 import { subsetFont } from "@/lib/ogFont";
-import { routing } from "@/i18n/routing";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -37,11 +36,19 @@ const BADGE = `data:image/png;base64,${(
  * Everything is drawn with flexbox and inline styles because that is all satori
  * supports — no grid, no external stylesheet, no Tailwind classes.
  */
+/**
+ * One alt text for both languages, naming the site in each. Per-locale alt
+ * would need generateImageMetadata, which moves the card to an id segment
+ * (/opengraph-image/card) and replaces the force-static, locale-only build
+ * below, so the address that previews have already cached would 404. A
+ * bilingual line says the same to a screen reader in either language without
+ * moving the card.
+ */
+export const alt = "福爾摩沙守望計畫 · Project FormosaWatch · 臺灣 Taiwan";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 /**
-<<<<<<< HEAD
  * Drawn once per locale at build time, not on every request. The card is the
  * same for everyone who shares a link in that language, and drawing it per
  * request cost two calls to Google's font API, up to three seconds each, for
@@ -57,33 +64,6 @@ export const dynamicParams = false;
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
-=======
- * The card's alt text, in the page's language.
- *
- * A fixed `alt` export is one string for every locale, and it was English on
- * the Chinese pages too. generateImageMetadata is the only way a generated
- * image can say it per locale; the price is an id segment in the image's
- * address (/opengraph-image/card), which nothing links to by hand.
- */
-export async function generateImageMetadata({
-  params,
-}: {
-  // Awaited, as on the species card: a plain object in Next 16.3, partial at
-  // build time.
-  params: { locale?: string } | Promise<{ locale?: string }> | undefined;
-}) {
-  const asked = (await params)?.locale;
-  const locale = hasLocale(routing.locales, asked) ? asked : routing.defaultLocale;
-  const site = await getTranslations({ locale, namespace: "site" });
-  return [
-    {
-      id: "card",
-      alt: `${site("title")} · ${site("tagline")}`,
-      size,
-      contentType,
-    },
-  ];
->>>>>>> bff0df0 (Name the site, the language and the species in shared-link previews)
 }
 
 const BARK_950 = "#0b1410";

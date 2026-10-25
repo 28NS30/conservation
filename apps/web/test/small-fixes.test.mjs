@@ -197,12 +197,13 @@ describe("what a shared link's preview says", () => {
     }
   });
 
-  test("the site card's alt text is in the page's language", async (t) => {
+  test("the site card's alt text names the site in both languages", async (t) => {
     if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
-    for (const [path, l] of [["/", "zh-TW"], ["/en", "en"]]) {
+    for (const path of ["/", "/en"]) {
       const html = await (await fetch(`${BASE_URL}${path}`)).text();
-      const { title, tagline } = catalogue(l).site;
-      assert.deepEqual(meta(html, "og:image:alt"), [`${title} · ${tagline}`], path);
+      const [alt] = meta(html, "og:image:alt");
+      assert.ok(alt?.includes(catalogue("zh-TW").site.title), `${path}: alt is ${alt}`);
+      assert.ok(alt?.includes(catalogue("en").site.title), `${path}: alt is ${alt}`);
     }
   });
 
