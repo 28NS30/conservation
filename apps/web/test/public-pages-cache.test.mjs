@@ -87,6 +87,27 @@ function requestReaders(entry) {
   return found;
 }
 
+/**
+ * Whether `entry`, or a server module it reaches, asks next-intl for
+ * translations. A client component's translations come from the provider,
+ * not the request, so the walk stops at "use client".
+ */
+function translatesOnServer(entry) {
+  const seen = new Set();
+  const walk = (file) => {
+    if (seen.has(file)) return false;
+    seen.add(file);
+    const src = readFileSync(file, "utf8");
+    if (/^\s*["']use (client|server)["']/.test(src)) return false;
+    return specifiers(src).some((spec) => {
+      if (spec === "next-intl/server") return true;
+      const next = resolve(file, spec);
+      return next ? walk(next) : false;
+    });
+  };
+  return walk(entry);
+}
+
 function routeFiles(dir) {
   const out = [];
   for (const name of readdirSync(dir)) {
@@ -120,6 +141,22 @@ describe("nothing on a public page asks who is looking", () => {
     assert.ok(routes.length > 20, `only ${routes.length} routes found; is the walk broken?`);
     const offenders = routes.flatMap((r) => requestReaders(join(WEB, r)));
     assert.deepEqual(offenders, []);
+  });
+
+  test("every layout that translates on the server tells next-intl the locale", () => {
+    // Asked for a translation before anything has set the locale, next-intl
+    // reads it from the request's headers, and that alone makes the page
+    // render per request. Next renders a layout apart from its page, so the
+    // page setting it is not enough: the (site) layout's header and footer,
+    // which translate, kept every page under it private, no-store until the
+    // layout set it too.
+    const layouts = routeFiles(join(WEB, "app", "[locale]"))
+      .filter((f) => f.endsWith("layout.tsx"))
+      .map((f) => relative(WEB, f))
+      .filter((f) => !PER_USER.some((re) => re.test(f)));
+    assert.ok(layouts.length >= 3, `only ${layouts.length} layouts found`);
+    const unset = layouts.filter((f) => translatesOnServer(join(WEB, f)) && !/setRequestLocale\(locale\)/.test(read(f)));
+    assert.deepEqual(unset, []);
   });
 
   test("the walk does see a page that reads the request", () => {
