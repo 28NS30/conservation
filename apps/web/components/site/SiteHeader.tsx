@@ -78,9 +78,12 @@ export default async function SiteHeader({
           app ? "h-12 md:h-14" : "h-14 md:h-[72px]"
         }`}
       >
+        {/* No aria-label: the wordmark's own text (both names) is the link's
+            name. A label of the title alone did not contain the visible
+            "PROJECT FORMOSAWATCH", which axe reports as
+            label-content-name-mismatch (WCAG 2.5.3). */}
         <Link
           href="/"
-          aria-label={t("site.title")}
           className="flex shrink-0 items-center pl-4 pr-3 text-paper-50 sm:pl-6"
         >
           <Wordmark size="sm" className="sm:hidden" />
