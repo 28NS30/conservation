@@ -7,7 +7,7 @@ import { speciesNotes } from "@/lib/speciesNotes";
 import {
   getCachedSpecies,
   monthlyCounts,
-  recentRecords,
+  LIST_MAX_RECORDS,
   speciesSlug,
   parseSpeciesId,
   isIndexworthy,
@@ -17,13 +17,12 @@ import HabitatChips from "@/components/species/HabitatChips";
 import MonthlyChart from "@/components/species/MonthlyChart";
 import SpeciesMap from "@/components/species/SpeciesMap";
 import SpeciesName from "@/components/species/SpeciesName";
+import SpeciesRecords from "@/components/species/SpeciesRecords";
 import { speciesLabel } from "@/lib/speciesNames";
 import { alternates } from "@/lib/alternates";
 
 /** A heatmap built from a handful of points is noise; below this we plot them. */
 const HEATMAP_MIN_RECORDS = 6;
-/** Sparse species list their records outright. */
-const LIST_MAX_RECORDS = 5;
 
 /**
  * Rendered once, then served from the cache for everybody, and rebuilt when it
@@ -37,10 +36,16 @@ const LIST_MAX_RECORDS = 5;
  * until somebody happens to ask twice. The taxon and its monthly counts are
  * read through the cache tagged with the reports (getCachedSpecies,
  * monthlyCounts; lib/siteFigures.ts), so the page carries the tag, and every
- * writer that changes a record drops it at once. The records' points are
- * read afresh at each rebuild (recentRecords), never from that cache, so a
- * blur tightened in the database, where no writer runs, is off the page
- * within `expireTime` in next.config.ts.
+ * writer that changes a record drops it at once.
+ *
+ * The records themselves, each with its point, are not on the cached page at
+ * all: the browser asks for them per request (SpeciesRecords, from
+ * /api/species/[id]/records). A blur tightened in the database, where no
+ * writer runs, therefore reaches the list at once, however long a cache
+ * keeps the page around it. That matters because how long is not this app's
+ * to say for most species pages: on Vercel a page rendered on its first visit
+ * is stored under the platform's defaults for an on-demand route, not the
+ * `expireTime` the prerendered ones are given (see the route).
  */
 export const revalidate = 300;
 
@@ -168,10 +173,8 @@ export default async function SpeciesPage({
   const underReview = speciesNotes(s.taicolId).includes("nameUnderReview");
   const counts =
     s.reportCount >= HEATMAP_MIN_RECORDS ? await monthlyCounts(s.id) : null;
-  const records =
-    !withheld && s.reportCount > 0 && s.reportCount <= LIST_MAX_RECORDS
-      ? await recentRecords(s.id)
-      : [];
+  const listed =
+    !withheld && s.reportCount > 0 && s.reportCount <= LIST_MAX_RECORDS;
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 pb-24 pt-10">
@@ -267,31 +270,7 @@ export default async function SpeciesPage({
               </p>
             )}
 
-            {records.length > 0 && (
-              <ul className="mt-3 space-y-1.5 text-sm">
-                {records.map((r) => (
-                  <li
-                    key={r.id}
-                    className="flex items-center justify-between gap-3 rounded border border-ink-900/10 px-3"
-                  >
-                    <Link
-                      href={`/reports/${r.id}`}
-                      className="inline-flex min-h-11 items-center font-medium text-leaf-700 underline underline-offset-2 hover:text-forest-900"
-                    >
-                      {new Date(r.observedAt).toLocaleDateString(locale, {
-                        timeZone: "Asia/Taipei",
-                      })}
-                    </Link>
-                    <span className="tabular-nums text-ink-700">
-                      {r.lat.toFixed(3)}, {r.lng.toFixed(3)}
-                      {r.isObscured && (
-                        <span className="ml-1.5 text-amber-700">≈</span>
-                      )}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
+            {listed && <SpeciesRecords taxonId={s.id} expected={s.reportCount} />}
 
             {counts && (
               <div className="mt-6">

@@ -15,11 +15,12 @@
  * /login, a report's receipt, the forum) still render per request.
  *
  * And a page cached for everybody must not go on showing a record after the
- * record has moved: a sparse species lists its records with their points, and
- * one re-identified as a blurred species, or blurred where it stands, leaves
- * the cached page when the reports' tag is dropped (lib/siteFigures.ts). How
- * long a page may be served stale at all is bounded too (`expireTime`,
- * next.config.ts), for a blur no writer announces.
+ * record has moved. A sparse species' page lists its records, and the list,
+ * with each record's point, is read per request in the browser, so no cached
+ * copy holds a point; the page around it, its count, is dropped when the
+ * reports' tag is (lib/siteFigures.ts). How long a page may be served stale
+ * at all is bounded too (`expireTime`, next.config.ts), for a blur no writer
+ * announces.
  *
  *   node --test test/public-pages-cache.test.mjs      # TEST_BASE_URL for the live half
  */
@@ -308,6 +309,55 @@ describe("served from the cache", () => {
   });
 });
 
+describe("a species page's records are read per request", () => {
+  // A species page rendered on its first visit is, on Vercel, stored under
+  // the platform's defaults for an on-demand route (expiration 1 and no
+  // staleExpiration in its build output), so how long it may be served stale
+  // is not set by expireTime. The one thing on it that places a record is
+  // therefore not on it: the browser asks for the list.
+  const code = (src) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const PAGE = "app/[locale]/(site)/species/[id]/page.tsx";
+
+  test("the page reads no record and renders no point", () => {
+    const page = code(read(PAGE));
+    assert.doesNotMatch(page, /recentRecords|toFixed\(/);
+    assert.match(page, /\{listed && <SpeciesRecords taxonId=\{s\.id\} expected=\{s\.reportCount\} \/>\}/);
+    assert.match(page, /const listed =\s*!withheld && s\.reportCount > 0 && s\.reportCount <= LIST_MAX_RECORDS;/);
+  });
+
+  test("the list asks a route that renders per request and is kept by nobody", () => {
+    const list = code(read("components", "species", "SpeciesRecords.tsx"));
+    assert.match(list, /^"use client";/);
+    assert.match(list, /fetch\(withBase\(`\/api\/species\/\$\{taxonId\}\/records`\), \{ cache: "no-store" \}\)/);
+    const route = code(read("app", "api", "species", "[id]", "records", "route.ts"));
+    assert.match(route, /export const dynamic = "force-dynamic";/);
+    assert.match(route, /"cache-control": "private, no-store"/);
+    assert.match(route, /recentRecords\(Number\(id\), LIST_MAX_RECORDS \+ 1\)/);
+    assert.doesNotMatch(route, /siteFigure|unstable_cache|revalidate/);
+  });
+
+  test("…which lists a sparse species' records, and only a sparse one's", async (t) => {
+    if (!(await requireServer(t))) return;
+    // Two or more: the species the tests below make have one record each,
+    // committed and deleted while this runs.
+    const [sparse] = await sql`
+      select s.taxon_id as id, s.report_count::int as n from species_report_stats s
+       where s.report_count between 2 and 5 order by s.taxon_id limit 1`;
+    const [dense] = await sql`
+      select s.taxon_id as id from species_report_stats s where s.report_count > 5 order by s.taxon_id limit 1`;
+    const res = await fetch(`${BASE_URL}/api/species/${sparse.id}/records`);
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get("cache-control") ?? "", /no-store/);
+    const { records } = await res.json();
+    assert.equal(records.length, sparse.n);
+    for (const r of records) assert.ok(Number.isFinite(r.lat) && Number.isFinite(r.lng), JSON.stringify(r));
+    const many = await fetch(`${BASE_URL}/api/species/${dense.id}/records`).then((r) => r.json());
+    assert.deepEqual(many.records, []);
+    for (const bad of ["0", "abc", "1234567890", "12-x"])
+      assert.equal((await fetch(`${BASE_URL}/api/species/${bad}/records`)).status, 400, bad);
+  });
+});
+
 describe("…and dropped when a record on it moves", () => {
   const AUTH = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "http://127.0.0.1:54321";
   const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
@@ -417,6 +467,13 @@ describe("…and dropped when a record on it moves", () => {
     return `${p.lat.toFixed(3)}, ${p.lng.toFixed(3)}`;
   }
 
+  /** A species' records as its page's list gets them, per request. */
+  async function listed(taxonId) {
+    const res = await fetch(`${BASE_URL}/api/species/${taxonId}/records`);
+    assert.equal(res.status, 200, `the records of ${taxonId}`);
+    return (await res.json()).records.map((r) => ({ id: r.id, point: `${r.lat.toFixed(3)}, ${r.lng.toFixed(3)}` }));
+  }
+
   /** The page's HTML, without the markers React puts between text nodes. */
   async function page(path) {
     const res = await fetch(`${BASE_URL}${path}`);
@@ -462,8 +519,11 @@ describe("…and dropped when a record on it moves", () => {
     t.after(tidy);
     const s = await aSparseSpecies();
     const before = await cached(s.path);
-    assert.ok(before.html.includes(`/reports/${s.record}`), "the page does not list the record");
-    assert.ok(before.html.includes(s.point), `the page does not show ${s.point}`);
+    assert.match(before.html, /\b1 record\b/, "the page does not count the record");
+    // The cached page holds no point: the list is the browser's to ask for.
+    assert.ok(!before.html.includes(s.point), `the cached page holds ${s.point}`);
+    assert.ok(!before.html.includes(`/reports/${s.record}`), "the cached page links the record itself");
+    assert.deepEqual(await listed(s.taxonId), [{ id: s.record, point: s.point }]);
 
     // Named as a species published to 10 km at best, as a moderator does it
     // from the record's page.
@@ -476,44 +536,29 @@ describe("…and dropped when a record on it moves", () => {
     const [row] = await sql`select taxon_id from reports where id = ${s.record}::uuid`;
     assert.equal(row.taxon_id, blurred.id, "the action did not rename the record");
 
+    assert.deepEqual(await listed(s.taxonId), [], "the old species still lists the record");
+    // And the page around the list, which counted it, is dropped with the tag.
     const after = await page(s.path);
-    assert.ok(!after.html.includes(`/reports/${s.record}`), "the old species page still lists the record");
-    assert.ok(!after.html.includes(s.point), `the old species page still shows ${s.point}`);
+    assert.doesNotMatch(after.html, /\b1 record\b/, "the old species page still counts the record");
   });
 
-  test("a record blurred in the database leaves the cached page once the tag is dropped", async (t) => {
+  test("a record blurred in the database is listed blurred at once, and no cached page held its point", async (t) => {
     if (skip) return t.skip(skip);
     t.after(tidy);
     const s = await aSparseSpecies();
-    await cached(s.path);
+    const before = await cached(s.path);
+    assert.deepEqual(await listed(s.taxonId), [{ id: s.record, point: s.point }]);
 
     // As a migration or a floor would: in the database, with no writer of the
-    // app's to say so.
+    // app's to say so, so nothing drops the cached page.
     await sql`update reports set precision_override = 'coarse_10km' where id = ${s.record}::uuid`;
     const blurred = await shownPoint(s.record);
     assert.notEqual(blurred, s.point, "the blur did not move the record");
 
-    // The control: until something drops the tag, the cached copy still has
-    // the old point. That window is what `expireTime` bounds. Unless another
-    // suite's writer dropped the tag meanwhile, which only makes it shorter.
+    assert.deepEqual(await listed(s.taxonId), [{ id: s.record, point: blurred }]);
+    // The cached copy, still served, never had the point to keep.
     const still = await page(s.path);
-    if (still.cache === "HIT") assert.ok(still.html.includes(s.point), "the cached copy changed with nothing dropping it");
-    else t.diagnostic(`the page was rebuilt before the tag was dropped here (${still.cache})`);
-
-    // Any writer that changes the reports drops it: here a moderator
-    // publishing a held report (an import's, for the season goal's sake).
-    const [held] = await sql`
-      insert into reports (category, location, location_public, observed_at, status, source)
-      values ('roadkill', st_setsrid(st_makepoint(121.0, 24.0), 4326)::geography,
-              st_setsrid(st_makepoint(121.0, 24.0), 4326)::geography, now(), 'pending', 'gbif')
-      returning id::text`;
-    made.reports.push(held.id);
-    await act("publishReport", "/en/admin", [held.id]);
-    const [row] = await sql`select status from reports where id = ${held.id}::uuid`;
-    assert.equal(row.status, "published", "the action did not publish the report");
-
-    const after = await page(s.path);
-    assert.ok(!after.html.includes(s.point), `the page still shows the record at ${s.point}`);
-    assert.ok(after.html.includes(blurred), `the page does not show the record blurred, at ${blurred}`);
+    if (still.cache !== "HIT") t.diagnostic(`the page was rebuilt meanwhile (${still.cache})`);
+    for (const html of [before.html, still.html]) assert.ok(!html.includes(s.point), `a cached copy holds ${s.point}`);
   });
 });

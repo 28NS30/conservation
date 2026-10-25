@@ -362,6 +362,8 @@
     "range": "{from}–{to} of {total} species",
     "records": "Records",
     "recordCount": "{count, plural, one {# record} other {# records}}",
+    "recordsUnavailable": "The records could not be loaded just now.",
+    "recordsInList": "See them in the list of records",
     "beFirst": "Report this species",
     "seenOne": "Seen one? Report it",
     "alsoKnownAs": "Also known as",

@@ -550,11 +550,19 @@ export type SpeciesRecord = {
 };
 
 /**
+ * A species with this many public records or fewer has them listed, each
+ * with its point, rather than charted.
+ */
+export const LIST_MAX_RECORDS = 5;
+
+/**
  * Individual records, for species too sparse to justify a heatmap.
  *
  * Each with its point, so read afresh, never from the figures' cache: a point
  * may be no older than the page it is on (lib/siteFigures.ts), and a cached
- * copy could be five minutes old before the page was even made.
+ * copy could be five minutes old before the page was even made. The species
+ * page asks for them per request, through GET /api/species/[id]/records, so
+ * that no cached page holds one at all.
  */
 export function recentRecords(taxonId: number, limit: number = 12): Promise<SpeciesRecord[]> {
   return asPublic(
