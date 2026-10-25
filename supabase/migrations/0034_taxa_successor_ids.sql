@@ -25,7 +25,10 @@
 -- tatakaensis and 奇萊雙葉蘭 went into 大花雙葉蘭 Neottia wardii. They fall on 14
 -- names in use, floored here at 10 km, the level the retired names gave, as
 -- 0023 held the plants the 29 September 2026 refresh would have left unrated.
--- A floor on the broader species blurs every record of it, which is why each
+-- One more follows from those floors: a variety TaiCOL retired under
+-- Cymbidium goeringii takes that species' new floor, and it names 菅草蘭
+-- Cymbidium tortisepalum as its successor, so that row is floored too. A
+-- floor on the broader species blurs every record of it, which is why each
 -- is held only until the owner decides otherwise. None has a record. The
 -- reasons are also in scripts/taxa-overrides.csv, which the import and the
 -- test fixture read.
@@ -87,5 +90,7 @@ insert into taxon_precision_floors (taicol_id, min_precision, reason) values
   ('t0057960', 'coarse_10km',
    '哥綠懷蘭 Goodyera seikoomontana. The deleted row for 歌綠懷蘭 Eucosia longirostrata (t0073910), rated 輕度, names this unrated row as its successor. Held at 10 km, the level the retired name gave, until the owner decides otherwise. No record.'),
   ('t0061063', 'coarse_10km',
-   '薄葉蜘蛛抱蛋 Aspidistra attenuata. The deleted row for 霧社蜘蛛抱蛋 Aspidistra mushaensis (t0052655), rated 輕度, names this unrated row as its successor. Held at 10 km, the level the retired name gave, until the owner decides otherwise. No record.')
+   '薄葉蜘蛛抱蛋 Aspidistra attenuata. The deleted row for 霧社蜘蛛抱蛋 Aspidistra mushaensis (t0052655), rated 輕度, names this unrated row as its successor. Held at 10 km, the level the retired name gave, until the owner decides otherwise. No record.'),
+  ('t0058903', 'coarse_10km',
+   '菅草蘭 Cymbidium tortisepalum. The deleted row for 菅草蘭 Cymbidium goeringii var. tortisepalum (t0103412) names this unrated row as its successor. That variety has no rating of its own and is held at 10 km by the floor on its species, Cymbidium goeringii (t0053231), which holds two names TaiCOL rates 輕度. Held at 10 km, the level the retired name gave, until the owner decides otherwise. No record.')
 on conflict (taicol_id) do nothing;
