@@ -312,14 +312,32 @@ describe("…and dropped when a record on it moves", () => {
    * A species nobody has recorded, so its page has never been asked for on
    * this server, that is published to the metre; and one record of it, at a
    * point of its own.
+   *
+   * The record is committed, so the server can see it, and other suites read
+   * the same database meanwhile. So the species is outside the directory
+   * where there is one (not on Taiwan's list, or not an accepted name), or a
+   * suite walking it would meet a species that comes and goes; and the
+   * record is an import's, because a public record a person filed opens the
+   * season goal (test/season-gate.test.mjs).
    */
   async function aSparseSpecies() {
-    const [taxon] = await sql`
-      select t.id, t.scientific_name from taxa t
-       where t.rank = 'Species' and t.taxon_status is not distinct from 'accepted' and t.is_in_taiwan
-         and t.kingdom = 'Animalia' and taxon_precision(t.id) = 'exact'
-         and not exists (select 1 from reports r where r.taxon_id = t.id)
-       order by t.id offset ${Math.floor(Math.random() * 20000)} limit 1`;
+    // From a few hundred rows after a random id, by the primary key: a scan
+    // of all of taxa would also move where the other suites' unordered
+    // `limit 1` lookups start reading it.
+    const [{ top }] = await sql`select max(id) as top from taxa`;
+    const pick = (from) => sql`
+      with near as (
+        select t.id, t.scientific_name, t.is_in_taiwan, t.taxon_status from taxa t
+         where t.id >= ${from} and t.rank = 'Species' and t.kingdom = 'Animalia'
+         order by t.id limit 400)
+      select id, scientific_name from near
+       where not exists (select 1 from reports r where r.taxon_id = near.id)
+         and taxon_precision(near.id) = 'exact'
+       order by (is_in_taiwan and taxon_status = 'accepted'), random() limit 1`;
+    let [taxon] = await pick(Math.floor(Math.random() * top));
+    // Too near the end to find one: from the start instead.
+    if (!taxon) [taxon] = await pick(0);
+    assert.ok(taxon, "no unrecorded species published to the metre");
     const lng = 120.6 + Math.random() * 0.6;
     const lat = 23.2 + Math.random() * 0.8;
     const [record] = await sql`
@@ -327,7 +345,7 @@ describe("…and dropped when a record on it moves", () => {
                            taxon_source, status, source)
       values ('roadkill', st_setsrid(st_makepoint(${lng}, ${lat}), 4326)::geography,
               st_setsrid(st_makepoint(${lng}, ${lat}), 4326)::geography,
-              now() - interval '1 day', ${taxon.id}, 'imported', 'published', 'user')
+              now() - interval '1 day', ${taxon.id}, 'imported', 'published', 'gbif')
       returning id::text`;
     made.reports.push(record.id);
     return { path: `/en/species/${slug(taxon)}`, taxonId: taxon.id, record: record.id, point: await shownPoint(record.id) };
@@ -367,7 +385,7 @@ describe("…and dropped when a record on it moves", () => {
   });
 
   after(async () => {
-    await sql`delete from reports where id = any(${made.reports}::uuid[])`;
+    await tidy();
     for (const id of made.accounts) {
       await fetch(`${AUTH}/auth/v1/admin/users/${id}`, {
         method: "DELETE",
@@ -377,8 +395,14 @@ describe("…and dropped when a record on it moves", () => {
     }
   });
 
+  /** This test's records, deleted as soon as it ends rather than with the file. */
+  async function tidy() {
+    await sql`delete from reports where id = any(${made.reports.splice(0)}::uuid[])`;
+  }
+
   test("a record a moderator names as a blurred species leaves its old species page at once", async (t) => {
     if (skip) return t.skip(skip);
+    t.after(tidy);
     const s = await aSparseSpecies();
     const before = await cached(s.path);
     assert.ok(before.html.includes(`/reports/${s.record}`), "the page does not list the record");
@@ -402,6 +426,7 @@ describe("…and dropped when a record on it moves", () => {
 
   test("a record blurred in the database leaves the cached page once the tag is dropped", async (t) => {
     if (skip) return t.skip(skip);
+    t.after(tidy);
     const s = await aSparseSpecies();
     await cached(s.path);
 
@@ -419,11 +444,11 @@ describe("…and dropped when a record on it moves", () => {
     else t.diagnostic(`the page was rebuilt before the tag was dropped here (${still.cache})`);
 
     // Any writer that changes the reports drops it: here a moderator
-    // publishing a held report.
+    // publishing a held report (an import's, for the season goal's sake).
     const [held] = await sql`
       insert into reports (category, location, location_public, observed_at, status, source)
       values ('roadkill', st_setsrid(st_makepoint(121.0, 24.0), 4326)::geography,
-              st_setsrid(st_makepoint(121.0, 24.0), 4326)::geography, now(), 'pending', 'user')
+              st_setsrid(st_makepoint(121.0, 24.0), 4326)::geography, now(), 'pending', 'gbif')
       returning id::text`;
     made.reports.push(held.id);
     await act("publishReport", "/en/admin", [held.id]);
