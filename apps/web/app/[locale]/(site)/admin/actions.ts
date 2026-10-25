@@ -150,9 +150,10 @@ export async function setReportTaxon(reportId: string, taxonId: number | null) {
  * Say a published record's flag has been looked at, and take it off the list.
  *
  * A record can be published and still carry a reason a person should look:
- * the classifier writes one when the model, confident, names a different
- * species from the reporter, and the record goes on being shown under the
- * reporter's name. Until the queue listed them nobody saw those flags at all.
+ * the classifier writes one when it publishes a record unidentified because
+ * the model could only suggest a species, and when the model, confident,
+ * names a different species from the reporter, whose name the record keeps.
+ * Until the queue listed them nobody saw those flags at all.
  *
  * It clears the flag and nothing else. The species, the blur and the status
  * stay as they are, because "this is fine" is not a decision to publish a

@@ -21,7 +21,7 @@ export default function FlaggedRow(props: {
   flaggedReason: string;
   /** The species the record is published under, as named by the person. */
   speciesLabel: string | null;
-  /** The model's first answer, which the flag usually disagrees with. */
+  /** The model's first answer: what it suggested, or what it disagrees with. */
   modelLabel: string | null;
   /** How the record is shown on the map now, in words. */
   blurLabel: string;

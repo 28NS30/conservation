@@ -180,11 +180,13 @@ export default async function AdminPage({
     })),
   );
 
-  // Published, and flagged. The classifier flags a record whose reporter and
-  // model name different species and leaves it on the map under the
-  // reporter's name (blurred as the model's species would be), and until
-  // this list nothing showed those flags to anyone. The model's first answer
-  // is beside the reporter's, since that is what the flag is about.
+  // Published, and flagged, which until this list nothing showed to anyone.
+  // Two kinds are common: a record the classifier published unidentified
+  // because the model could only suggest a species (the moderator should name
+  // it), and a record whose reporter and model, sure of itself, name different
+  // species, kept on the map under the reporter's name and blurred at least as
+  // the model's species would be. The model's first answer is shown beside the
+  // record's species, since both kinds are about it.
   const [{ flagged }] = await sql<{ flagged: number }[]>`
     select count(*)::int as flagged from reports
      where status = 'published' and flagged_reason is not null`;

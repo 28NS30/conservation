@@ -161,7 +161,7 @@
       "another": "Report another",
       "notVerified": "Not yet verified",
       "invasiveNextTitle": "What happens next",
-      "invasiveNextBody": "We keep the record, and a moderator will check the species. Until then it is marked “not yet verified”. If you named the species, the record shows its exact spot, as every invasive animal's does; if you were not sure, its place is blurred to 10 km until someone names it. Nobody is sent out, and there is nothing more you need to do.",
+      "invasiveNextBody": "We keep the record, and a moderator will check the species. Until then it is marked “not yet verified”. If you named the species, the record shows its exact spot, as every invasive animal's does, once our identification model has looked at your photo, usually within minutes; if you were not sure, its place is blurred to 10 km until someone names it. Nobody is sent out, and there is nothing more you need to do.",
       "taironTitle": "Also report it to 路殺社 (TaiRON)",
       "taironBody": "路殺社 (TaiRON) keeps its own record of roadkill in Taiwan. To add this animal there as well, report it on their website; you need your own TaiRON account to do that. We don't send it for you.",
       "taironLink": "Open roadkill.tw",
@@ -245,7 +245,7 @@
     "notes": "Notes",
     "location": "Location",
     "aiIdentified": "Identified by AI",
-    "blurredNotice": "This is a sensitive or protected species. {precision} before publication, so this record cannot be used to find it.",
+    "blurredNotice": "{precision} before publication, so this record cannot be used to find the animal. Its species is sensitive or protected, or may be: the record is named only to a genus or higher, the identification model is sure its photo shows a protected species, or the model has not looked at the photo yet.",
     "blurredUnknownNotice": "{precision} — this record has not been identified, and until we know what the animal is we cannot tell whether it is sensitive.",
     "suggestions": "The AI's suggestions",
     "pickCorrect": "Pick the correct species to fix this record.",
@@ -328,7 +328,7 @@
     "cancel": "Cancel",
     "flagged": {
       "heading": "Published, with a flag",
-      "body": "These records are on the map but carry a reason to look at them. Most often the model is sure of a different species from the reporter: the record keeps the reporter's species and is blurred as the model's species would be. OK takes it off this list and changes nothing else. To correct the species, open the record.",
+      "body": "These records are on the map but carry a reason to look at them, and two kinds are common. Some were published unidentified because the model could only suggest a species: open the record and name it. In others the model, sure of itself, names a different species from the reporter: the record keeps the reporter's species and is blurred at least as hard as the model's species would be. OK takes a record off this list and changes nothing else, its blur included.",
       "count": "{count, number} flagged",
       "empty": "No published record is flagged.",
       "named": "Published as: {name}",
@@ -548,7 +548,7 @@
     "how3": "It goes on the public map",
     "how3Body": "Every public record is on the open map, in the list of records and in the statistics. Protected and sensitive species are shown only as a blurred area, never an exact spot.",
     "privacyTitle": "Why some locations are blurred",
-    "privacyBody": "Publishing the exact location of a protected species would be drawing a map for poachers. So for those species the public map shows a deliberately blurred location, a square about 10 km or 50 km across, never the real spot, and the most sensitive are not shown on the map at all. Which species are blurred, and by how much, follows the sensitivity rating in the Taiwan species checklist (TaiCOL), which is Taiwan's own list of species at risk from poaching; every species protected by law is blurred as well, rated or not. When the two disagree, the stricter one wins. A record whose species has not been named yet is blurred too, until it is. Invasive species are not blurred. GBIF, eBird and iNaturalist protect such records in the same way.",
+    "privacyBody": "Publishing the exact location of a protected species would be drawing a map for poachers. So for those species the public map shows a deliberately blurred location, a square about 10 km or 50 km across, never the real spot, and the most sensitive are not shown on the map at all. Which species are blurred, and by how much, follows the sensitivity rating in the Taiwan species checklist (TaiCOL), which is Taiwan's own list of species at risk from poaching; every species protected by law is blurred as well, rated or not. When the two disagree, the stricter one wins. A record whose species has not been named yet is blurred too, until it is, and so is one named only to a genus or higher, which may hold a protected species. A record its reporter named, with a photo, is blurred to at least 10 km until the identification model has looked at the photo, usually a few minutes; if the model is sure the photo shows a protected species, the record keeps the reporter's species and is blurred as the model's species would be. Apart from that, invasive species are not blurred. GBIF, eBird and iNaturalist protect such records in the same way.",
     "unknownTitle": "Reports that aren't identified yet",
     "unknownBody": "Until we know what an animal is, we cannot tell whether it is a protected species: it might be a leopard cat. So a report with no species name is never shown at its exact location. It is either held back until it has been identified, or shown at a blurred location.",
     "openTitle": "The data is open",
@@ -605,7 +605,7 @@
     "pageN": "Page {page}",
     "viewAsList": "View as list",
     "viewOnMap": "View on map",
-    "obscuredLegend": "This mark means the location was blurred before publication: the species is protected or sensitive, or the record has not been identified yet.",
+    "obscuredLegend": "This mark means the location was blurred before publication: the species is protected or sensitive; the record has not been identified yet, or only to a genus or higher; or the identification model is sure its photo shows a protected species, or has not looked at it yet.",
     "photo": "Photo"
   },
   "statsPage": {
@@ -633,7 +633,7 @@
     "dominatedBy": "Mostly {species}",
     "mixedSpecies": "Mixed species",
     "coverage": "Blurred locations",
-    "coverageBody": "Of {total, plural, one {# public record} other {# public records}}, {obscured, plural, one {# is} other {# are}} shown at a blurred location: the species is protected by law or rated sensitive in the Taiwan species checklist (TaiCOL), or the record has not been identified yet. They still count in every statistic here; only their place on the map is approximate.",
+    "coverageBody": "Of {total, plural, one {# public record} other {# public records}}, {obscured, plural, one {# is} other {# are}} shown at a blurred location: the species is protected by law or rated sensitive in the Taiwan species checklist (TaiCOL); the record has not been identified yet, or only to a genus or higher; or the identification model is sure its photo shows a protected species, or has not looked at it yet. They still count in every statistic here; only their place on the map is approximate.",
     "howObscuringWorks": "Why some locations are blurred",
     "seasonLink": "This season's goal",
     "seasonLinkHint": "A shared target for everyone reporting in Taiwan — reach the squares of the map that have no record at all."
@@ -651,7 +651,7 @@
     "cellsHint": "Counted from public records that carry an exact location.",
     "speciesCovered": "species and subspecies with a record here, of Taiwan's animal species and subspecies",
     "speciesHint": "Counted the way the species directory counts them, with each subspecies as an entry of its own. The second number is how many animal species and subspecies the Taiwan species checklist (TaiCOL) lists, counted the same way.",
-    "obscuredNote": "{n, plural, one {# public record is} other {# public records are}} left out of the squares above, because the location shown is blurred: the species is protected by law or rated sensitive, or the record has not been identified yet. Crediting a blurred location to a {km} km square would credit the wrong square. Blurred records still count in every other statistic on this site.",
+    "obscuredNote": "{n, plural, one {# public record is} other {# public records are}} left out of the squares above, because the location shown is blurred: the species is protected by law or rated sensitive; the record has not been identified yet, or only to a genus or higher; or the identification model is sure its photo shows a protected species, or has not looked at it yet. Crediting a blurred location to a {km} km square would credit the wrong square. Blurred records still count in every other statistic on this site.",
     "whyTitle": "Why squares, and not records",
     "whyBody": "A target counted in records rewards volume, and the cheapest volume is the same roadside verge photographed again tomorrow. This one counts only the first record in a {km} km square, so a second is worth nothing and there is no reason to sit on a site you already know. It is also what the data is short of: most records here come from a handful of surveyed roads, which describes those roads rather than the island.",
     "noRewardBody": "There are no points, rankings or prizes here. A reward for filing reports would also be a reward for careless or invented ones, and every record here is public.",
@@ -1241,7 +1241,7 @@
     "held": "A report waits here when a person has to look at it first: it has no photo, its location is outside Taiwan, its notes contain a link, or the identification model failed on it. Each one says which. A report with a photo also waits here until the model has tried to identify it, usually a few minutes.",
     "publish": "Publish puts it on the map, at the location its species allows. Protected and sensitive species stay blurred whatever is decided here.",
     "reject": "Reject keeps it off the map for good. Write why: the reporter only sees that it was not used, and the reason stays in the moderation log. The map catches up with a decision within about five minutes.",
-    "flagged": "Published records that carry a flag are listed after the queue. Most often the reporter and the model name different species: the record stays on the map under the reporter's species, blurred as the model's species would be. OK only takes it off the list; the blur stays as it is.",
+    "flagged": "Published records that carry a flag are listed after the queue. Some were published unidentified because the model could only suggest a species; name it on the record's page. In others the reporter and the model, sure of itself, name different species: the record stays on the map under the reporter's species, blurred at least as hard as the model's species would be. OK only takes a record off the list; the blur stays as it is. A report the reporter named is published at once, but if it has a photo it is blurred to at least 10 km until the model has looked at it, and stays so if the model fails on it.",
     "tests": "To try every step without anything being shown, use the test links further down."
   }
 }

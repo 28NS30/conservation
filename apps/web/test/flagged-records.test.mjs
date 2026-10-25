@@ -1,9 +1,11 @@
 /**
  * Published records that carry a flag.
  *
- * The classifier flags a published record whose reporter and model name
- * different species, and holds it at the model's blur. Nothing showed those
- * flags until the moderation queue listed them, with an OK that clears one.
+ * The classifier publishes some records with a flag: one it could only
+ * suggest a species for, published unidentified, and one whose reporter and
+ * model, sure of itself, name different species, blurred at least as the
+ * model's species. Nothing showed those flags until the moderation queue
+ * listed them, with an OK that clears one.
  * OK must clear the flag and nothing else: "I looked" is not a decision to
  * publish a location more exactly.
  */
