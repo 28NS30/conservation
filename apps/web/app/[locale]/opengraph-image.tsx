@@ -3,6 +3,7 @@ import { hasLocale } from "next-intl";
 import { getTranslations } from "next-intl/server";
 import { routing } from "@/i18n/routing";
 import { subsetFont } from "@/lib/ogFont";
+import { routing } from "@/i18n/routing";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -67,9 +68,10 @@ export function generateStaticParams() {
 export async function generateImageMetadata({
   params,
 }: {
-  params: { locale: string };
+  params: { locale?: string } | undefined;
 }) {
-  const site = await getTranslations({ locale: params.locale, namespace: "site" });
+  const locale = params?.locale ?? routing.defaultLocale;
+  const site = await getTranslations({ locale, namespace: "site" });
   return [
     {
       id: "card",

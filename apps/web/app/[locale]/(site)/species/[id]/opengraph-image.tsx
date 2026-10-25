@@ -19,6 +19,7 @@ import { routing } from "@/i18n/routing";
 import { getSpecies, parseSpeciesId } from "@/lib/species";
 import { speciesLabel, speciesNames } from "@/lib/speciesNames";
 import { subsetFont } from "@/lib/ogFont";
+import { routing } from "@/i18n/routing";
 
 /**
  * The share card for one species.
@@ -45,18 +46,23 @@ export const contentType = "image/png";
  * It was "Species record" on every species, in English on the Chinese pages
  * too, so a screen reader, or a feed with images off, said nothing of which
  * animal a shared link was about. The names are the page title's
- * (speciesLabel), and getSpecies is memoised for the request, so this is not
- * another read.
+ * (speciesLabel), and getSpecies is memoised while the page renders, so the
+ * page's metadata pays no extra read for them. The image's own route asks this
+ * too, to check the id, and React's cache does not reach route handlers, so a
+ * card that is not already in the CDN reads the row twice.
  */
 export async function generateImageMetadata({
   params,
 }: {
-  params: { locale: string; id: string };
+  // Partial at build time: Next asks this for the image's static params with
+  // only the segments above that have their own, and the species id has none.
+  params: { locale?: string; id?: string } | undefined;
 }) {
-  const zh = params.locale.startsWith("zh");
-  const taxonId = parseSpeciesId(params.id);
+  const locale = params?.locale ?? routing.defaultLocale;
+  const zh = locale.startsWith("zh");
+  const taxonId = params?.id ? parseSpeciesId(params.id) : null;
   const s = taxonId ? await getSpecies(taxonId) : null;
-  const name = s ? speciesLabel(s, params.locale) : null;
+  const name = s ? speciesLabel(s, locale) : null;
   return [
     {
       id: "card",
