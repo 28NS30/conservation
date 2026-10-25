@@ -53,6 +53,12 @@ jobs:
 
       - run: npm ci
 
+      - name: Create Supabase's API roles
+        # As in ci.yml: the database the pages are photographed against has
+        # the roles and grants a Supabase project starts with, and the
+        # migrations' revokes run against them.
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f supabase/ci-roles.sql
+
       - name: Apply migrations
         run: |
           for f in supabase/migrations/*.sql; do
