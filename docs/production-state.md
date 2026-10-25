@@ -516,3 +516,13 @@ are the only non-GBIF reports in production, and both are anonymous.
   deployment target.
 - Production SMTP for magic-link sign-in is not configured anywhere in the repo;
   `supabase/config.toml` covers localhost only.
+- **Migration 0034 is not applied** (checked 25 October 2026: production's
+  `taxa` has no `new_taicol_id`). Until it and its fill are, the retired-twin
+  check matches names only, which is how 0032's two renames went unseen. In
+  order: apply 0034 through the Management API like the others (the column,
+  and 15 floors on plants with no record); run
+  `npx tsx scripts/taicol-successors-sql.ts data/cache/taicol-2026-09-29.jsonl <out.sql>`
+  and apply its one UPDATE (2,352 rows the first time, none after; it writes
+  no rating column, so no record moves); then `npm run preflight`, where both
+  retired-twin checks should pass. The importer, `taicol-sql.ts` and the
+  preflight all name the column, so 0034 goes first.
