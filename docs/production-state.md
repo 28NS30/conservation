@@ -159,29 +159,70 @@ the code that expects it deploys, `/api/health` answers 503 with
 `schemaCurrent: false`. 0036 only adds two tables, so it can be applied
 before that code merges.
 
+**A run refused for want of `CRON_SECRET` still records nothing**, by design:
+the secret is checked before the first write, or anyone could add rows. What
+shows it is that no good run ever appears, and the hourly watch turns that
+into an issue (below).
+
 ## Monitoring (22 October 2026)
 
 What exists in the repository. None of it had run from GitHub at the time of
 writing; the watch's checks were run once by hand from here
 (`node scripts/production-watch.mjs --dry-run`) and passed for the custom
-domain.
+domain. Revised on 25 October after review; the revisions have not run from
+GitHub either.
 
 - **Every hour,** `.github/workflows/production-watch.yml` asks both addresses
   for `/api/health` (200, `ok` and `schemaCurrent` true, more than 46,000
   reports), the roadkill report page with its Turnstile site key, and one map
-  tile. Two failing runs in a row open an issue labelled `production-down`,
+  tile. Two failed checks in a row open an issue labelled `production-down`,
   assigned to the repository's owner; the first green run closes it. The
   rules are in `scripts/production-watch.mjs`. The repository is public, so
   the issue carries only what any visitor could see.
-- **After every production deploy,** the same workflow runs
-  `scripts/verify-deploy.mjs`. Vercel's own URL for the deployment is behind
-  the team's login, so it checks the production address instead.
+
+  "In a row" is read from a notice annotation each run leaves on its own job
+  (`production-watch state`), not from whether the run failed, so a run that
+  failed for GitHub's reasons is not taken for a failed check. The run itself
+  fails only when the issue is opened or commented on, or when a failed check
+  could not be reported, so one blip sends no email. **Not verified:** that
+  GitHub's check-run annotations API returns these notices to the workflow's
+  token as expected; until a scheduled run has read one, the first runs see
+  no previous state, which reads as "the previous check passed".
+- **The scheduled jobs.** A job whose last good run is more than 48 hours old,
+  or that the watch has seen with no good run at all for 48 hours, opens a
+  separate issue labelled `jobs-stale`, closed once every job has run well
+  again. This is what would notice `CRON_SECRET` missing in production. It
+  starts only once 0036 is applied and health reports `jobs`.
+- **After every production deploy,** the same workflow waits up to three
+  minutes for the production address's `/api/health` to name the
+  deployment's commit (health's `commit`, from `VERCEL_GIT_COMMIT_SHA`), then
+  runs `scripts/verify-deploy.mjs` against it. Vercel's own URL for the
+  deployment is behind the team's login, so the production address is what
+  can be checked. **Not verified:** that Vercel exposes
+  `VERCEL_GIT_COMMIT_SHA` to this project's functions at run time. If it does
+  not, health's `commit` is null and the check runs after the three minutes
+  with a warning, not knowing which build it checked.
+- **Health asks production's ledger for every migration file** in the build
+  (`lib/migrationLedger.ts`), by name, not just the highest number: numbers
+  arrive out of order across branches, and each migration is applied to
+  production with its ledger row before its branch merges. Verified on 25
+  October with a read-only `select name from _migrations`: 31 rows, 0001–0019
+  and 0021–0032, each recorded with its `.sql`; there is no 0020 file or row.
 - **Server errors are counted** in `app_errors` (0036) by
   `apps/web/instrumentation.ts`: route pattern, digest, hour and count,
-  nothing about the request. Kept 30 days; job runs 90.
+  nothing about the request. Kept 30 days; job runs 90. A route handler's or
+  a server action's error is written before its response goes. A page's
+  render error is not awaited by Next.js, so its write is handed to the
+  platform's `waitUntil` to finish after the response. **Not verified in
+  production:** that Vercel keeps those writes; until it has been seen, a
+  page's errors may be counted less often than they happen. Locally
+  (`next start`) a deliberate route error is counted, which
+  `apps/web/test/monitoring.test.mjs` checks against a test build.
 - `/api/health` is cached by the CDN for 30 seconds when it is a public 200,
   and never when it is not, or when the request carries an Authorization
-  header.
+  header. The schema checks and the Storage probe are also kept for 30
+  seconds by each server instance, so a request that misses the CDN (a query
+  string, an Authorization header) costs a few queries rather than thirty.
 
 ## The design lab is reachable
 

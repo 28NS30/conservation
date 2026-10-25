@@ -2,10 +2,17 @@
 -- someone can look.
 --
 -- Vercel's Hobby plan keeps function logs for about an hour, and nothing else
--- recorded either fact. A nightly job that 401s because CRON_SECRET is unset,
--- or that is killed at its time limit every night, leaves nothing behind; a
--- page that 500s for one kind of record leaves a log line that is gone by
--- morning. Both looked exactly like "nothing happened".
+-- recorded either fact. A nightly job that fails, or is killed at its time
+-- limit, every night left nothing behind; a page that 500s for one kind of
+-- record leaves a log line that is gone by morning. Both looked exactly like
+-- "nothing happened".
+--
+-- A run refused at the door still writes nothing: a job that answers 401
+-- because CRON_SECRET is unset never reaches its first write, and that is on
+-- purpose, since otherwise anyone could add rows. What shows it is the
+-- absence of good runs: /api/health reports no good run for the job, and the
+-- hourly watch (scripts/production-watch.mjs) opens a `jobs-stale` issue
+-- once that has lasted two days.
 --
 -- JOB_RUNS. Each job route (apps/web/app/api/jobs/*) writes a row when it
 -- starts and fills in `finished_at`, `ok` and `detail` when it ends
