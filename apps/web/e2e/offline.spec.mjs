@@ -324,9 +324,14 @@ try {
     let banner = false;
     let working = path === "/report";
     if (opened) {
+      // 20 s, not 8: the banner shows once the page's script has read the
+      // queue from IndexedDB, and the first page in this loop starts with its
+      // chunks cold in the worker's cache. On CI's runners that has taken
+      // longer than 8 s often enough to fail unrelated pull requests (#141,
+      // #142) while every later page passed.
       banner = await page
         .locator("#queue-waiting")
-        .waitFor({ timeout: 8000 })
+        .waitFor({ timeout: 20000 })
         .then(() => true)
         .catch(() => false);
       if (path !== "/report")
