@@ -17,7 +17,9 @@ import { CONTRIBUTOR_LICENSES } from "@conservation/shared";
 
 after(() => sql.end());
 
-const read = (...p) => readFileSync(join(import.meta.dirname, "..", ...p), "utf8");/**
+const read = (...p) => readFileSync(join(import.meta.dirname, "..", ...p), "utf8");
+
+/**
  * A record page as rendered, and what it shows: every page carries the whole
  * message catalogue in its scripts, so a label's words are always somewhere in
  * the HTML, and only the markup outside the scripts says whether it is shown.
