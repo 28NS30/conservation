@@ -140,6 +140,26 @@ describe("the record page keeps it", () => {
     assert.ok(page.includes(zh.detail.moderatorConfirmed));
   });
 
+  test("the model's list repeats who named it only under a tick", async (t) => {
+    // The line under the list explains its tick. A reporter's typed species,
+    // or a moderator's fix from the whole list, need not be among the model's
+    // guesses, and the line then stood under a list with nothing ticked.
+    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    const named = await skink();
+    const id = await record(t, { taxonId: named, taxonSource: "user" });
+    // A common, unrated animal, so the blur does not hold the list back.
+    const [other] = await sql`select id from taxa where scientific_name = 'Paguma larvata' limit 1`;
+    const guess = (taxonId, rank) => sql`
+      insert into classifications (report_id, taxon_id, score, rank, model_version)
+      values (${id}, ${taxonId}, ${0.6 / rank}, ${rank}, 'test')`;
+    const times = (html) => html.split(zh.detail.reporterIdentified).length - 1;
+
+    await guess(other.id, 1);
+    assert.equal(times(await shown(`/reports/${id}`)), 1, "the list explained a tick it does not show");
+    await guess(named, 2);
+    assert.equal(times(await shown(`/reports/${id}`)), 2, "the ticked guess is not explained");
+  });
+
   test("off the invasive page there is nothing to wait for, but the name is still the reporter's", async (t) => {
     if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
     const id = await record(t, { category: "roadkill", taxonId: await skink(), taxonSource: "user" });
