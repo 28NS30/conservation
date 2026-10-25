@@ -497,6 +497,22 @@ are the only non-GBIF reports in production, and both are anonymous.
   It opens no routine pip pull requests: the classifier's thresholds were
   measured with its pinned versions, and a bump also needs a paid GPU deploy.
 
+**Retired TaiCOL rows now carry their successor's id (0034)**, applied 25
+October with a ledger row.
+- `taxa.new_taicol_id` was added.
+- The fill from the 29 September snapshot set it on 2,352 retired rows. A dry
+  run of the fill moved no record, though `taxa_reblur_reports` fires on taxa
+  updates.
+- 15 plants got coarse_10km floors, so there are now 103 floors. None of the
+  plants has a record, and the dry run changed 0 records.
+- `npx tsx scripts/retired-twins.ts --sql`, run through the Management API
+  afterwards, lists nothing. No name in use is blurred less than a retired
+  row it replaced, now matched by id as well as by name.
+
+**TaiRON's 13 hoopoe records moved to the species 戴勝 (0037, #159)**, applied
+25 October with a ledger row. All 13 are still exact, and the public total did
+not change.
+
 **Counts on 25 October:**
 - 46,305 public records, 0 of them from users;
 - 0 accounts, so 0 moderators;
@@ -516,13 +532,3 @@ are the only non-GBIF reports in production, and both are anonymous.
   deployment target.
 - Production SMTP for magic-link sign-in is not configured anywhere in the repo;
   `supabase/config.toml` covers localhost only.
-- **Migration 0034 is not applied** (checked 25 October 2026: production's
-  `taxa` has no `new_taicol_id`). Until it and its fill are, the retired-twin
-  check matches names only, which is how 0032's two renames went unseen. In
-  order: apply 0034 through the Management API like the others (the column,
-  and 15 floors on plants with no record); run
-  `npx tsx scripts/taicol-successors-sql.ts data/cache/taicol-2026-09-29.jsonl <out.sql>`
-  and apply its one UPDATE (2,352 rows the first time, none after; it writes
-  no rating column, so no record moves); then `npm run preflight`, where both
-  retired-twin checks should pass. The importer, `taicol-sql.ts` and the
-  preflight all name the column, so 0034 goes first.
