@@ -29,13 +29,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # One at a time, so a manual run during a scheduled one cannot open the
-    # same issue twice.
+    # same issue twice, or read a state the other is about to replace.
     concurrency:
       group: production-watch
       cancel-in-progress: false
     permissions:
       contents: read
-      # Open, comment on and close the production-down issue.
+      # Open, comment on and close the production-down and jobs-stale issues.
       issues: write
       # Read this workflow's earlier runs and their jobs ("two failures in a
       # row"), and the keepalive below.
