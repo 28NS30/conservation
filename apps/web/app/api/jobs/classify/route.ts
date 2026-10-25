@@ -68,9 +68,12 @@ async function run(req: Request) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   // Deliberately small. This is read by a cron service, not a human, and a large
   // body is what made a timeout look like a broken endpoint.
-  const answer = Response.json(await classifyQueued());
-  // The run may have published reports or named their animals, and the counts
-  // every page states are cached for everybody (lib/siteFigures.ts).
-  reportsChanged();
-  return answer;
+  const outcome = await classifyQueued();
+  // A job that finished may have published its report or named its animal,
+  // and the counts every page states are cached for everybody
+  // (lib/siteFigures.ts). A run that finished none changed nothing public:
+  // what a failed job writes is on a held report, which no page shows. Not
+  // dropped then, because dropping empties every cached page at once.
+  if (outcome.processed > 0) reportsChanged();
+  return Response.json(outcome);
 }

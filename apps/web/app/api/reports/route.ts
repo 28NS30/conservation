@@ -417,9 +417,11 @@ export async function POST(req: Request) {
       const id = result.id;
       after(async () => {
         try {
-          await classifyQueued({ reportId: id });
-          // The model may have published the report or named its animal.
-          reportsChanged();
+          // The model may have published the report or named its animal, if
+          // its job finished; one that failed leaves the report held, and a
+          // held report is on no page (see the cron route).
+          const outcome = await classifyQueued({ reportId: id });
+          if (outcome.processed > 0) reportsChanged();
         } catch (e) {
           console.error(`[reports] classify after submit ${id}:`, (e as Error).message);
         }

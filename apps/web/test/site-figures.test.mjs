@@ -89,8 +89,27 @@ describe("everything that changes the reports drops them", () => {
   test("a report published on arrival, and one the model has seen", () => {
     const route = code("app/api/reports/route.ts");
     assert.match(route, /if \(!result\.duplicate && result\.status === "published" && !result\.test\) reportsChanged\(\);/);
-    assert.match(route, /await classifyQueued\(\{ reportId: id \}\);\s*reportsChanged\(\);/);
+    assert.match(route, /const outcome = await classifyQueued\(\{ reportId: id \}\);\s*if \(outcome\.processed > 0\) reportsChanged\(\);/);
     const cron = code("app/api/jobs/classify/route.ts");
-    assert.match(cron, /Response\.json\(await classifyQueued\(\)\);\s*reportsChanged\(\);/);
+    assert.match(cron, /const outcome = await classifyQueued\(\);\s*if \(outcome\.processed > 0\) reportsChanged\(\);/);
+  });
+
+  test("…and only a model run that finished a job, because one that did not changed nothing public", () => {
+    // Dropping the tag empties every cached page at once, and a submission
+    // that is held, or a cron run with nothing to do, used to do it anyway.
+    // Skipping it is right only while what an unfinished run writes stays on
+    // held reports, which no page shows: the sweep of abandoned jobs, and the
+    // give-up branch.
+    const worker = code("lib/report/classifyWorker.ts");
+    const sweep = worker.slice(worker.indexOf("export async function classifyQueued"), worker.indexOf("const jobs = await sql"));
+    const failing = worker.slice(worker.indexOf("} catch (err) {"), worker.indexOf("console.error(`[jobs/classify]"));
+    for (const [where, src] of [["the sweep", sweep], ["a failed job", failing]]) {
+      const updates = [...src.matchAll(/update reports\b[\s\S]*?`/g)].map((m) => m[0]);
+      assert.ok(updates.length > 0, `${where} no longer updates reports; is the slice wrong?`);
+      for (const u of updates) assert.match(u, /status = 'pending'/, `${where} writes to a report that may be public`);
+    }
+    // `processed` counts the jobs that finished, and nothing else.
+    assert.match(worker, /processed: succeeded,/);
+    assert.equal(worker.match(/succeeded\+\+;/g)?.length, 2, "one for each contract's finished job");
   });
 });
