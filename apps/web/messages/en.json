@@ -328,14 +328,19 @@
     "cancel": "Cancel",
     "flagged": {
       "heading": "Published, with a flag",
-      "body": "These records are on the map but carry a reason to look at them, and two kinds are common. Some were published unidentified because the model could only suggest a species: open the record and name it. In others the model, sure of itself, names a different species from the reporter: the record keeps the reporter's species and is blurred at least as hard as the model's species would be. OK takes a record off this list and changes nothing else, its blur included.",
+      "body": "These records are public but carry a reason to look at them, and two kinds are common. Some were published unidentified because the model could only suggest a species: open the record and name it. In others the model, sure of itself, names a different species from the reporter: the record keeps the reporter's species and is blurred at least as hard as the model's species would be. A third kind is a record its reporter named whose photo the model could not check: it stays blurred to 10 km and off the map until the model has looked, and Classify again has the model try once more. OK takes a record off this list and changes nothing else, its blur included.",
       "count": "{count, number} flagged",
       "empty": "No published record is flagged.",
       "named": "Published as: {name}",
       "model": "The model's first answer: {name}",
       "ok": "OK",
       "cleared": "Marked OK",
-      "open": "Open the record"
+      "open": "Open the record",
+      "heldUnavailable": "The identification model could not check the photo: it refused it, or failed on it every time. Until it has looked, this record stays blurred to 10 km and off the map, even when its species is one shown at its exact spot. Classify again puts the photo back in the model's queue.",
+      "classifyAgain": "Classify again",
+      "requeued": "Back in the model's queue. It stays blurred to 10 km and off the map until the model has looked.",
+      "okHeld": "OK, leave it at 10 km",
+      "clearedHeld": "Marked OK. It stays blurred to 10 km and off the map."
     }
   },
   "login": {
@@ -548,7 +553,7 @@
     "how3": "It goes on the public map",
     "how3Body": "Every public record is on the open map, in the list of records and in the statistics. Protected and sensitive species are shown only as a blurred area, never an exact spot.",
     "privacyTitle": "Why some locations are blurred",
-    "privacyBody": "Publishing the exact location of a protected species would be drawing a map for poachers. So for those species the public map shows a deliberately blurred location, a square about 10 km or 50 km across, never the real spot, and the most sensitive are not shown on the map at all. Which species are blurred, and by how much, follows the sensitivity rating in the Taiwan species checklist (TaiCOL), which is Taiwan's own list of species at risk from poaching; every species protected by law is blurred as well, rated or not. When the two disagree, the stricter one wins. A record whose species has not been named yet is blurred too, until it is, and so is one named only to a genus or higher, which may hold a protected species. A record its reporter named, with a photo, is blurred to at least 10 km until the identification model has looked at the photo; if the model is sure the photo shows a protected species, the record keeps the reporter's species and is blurred as the model's species would be. Apart from that, invasive species are not blurred. GBIF, eBird and iNaturalist protect such records in the same way.",
+    "privacyBody": "Publishing the exact location of a protected species would be drawing a map for poachers. So for those species the public map shows a deliberately blurred location, a square about 10 km or 50 km across, never the real spot, and the most sensitive are not shown on the map at all. Which species are blurred, and by how much, follows the sensitivity rating in the Taiwan species checklist (TaiCOL), which is Taiwan's own list of species at risk from poaching; every species protected by law is blurred as well, rated or not. When the two disagree, the stricter one wins. A record whose species has not been named yet is blurred too, until it is, and so is one named only to a genus or higher, which may hold a protected species. A record its reporter named, with a photo, is blurred to at least 10 km, and left off the map, until the identification model has looked at the photo; if the model is sure the photo shows a protected species, the record keeps the reporter's species and is blurred as the model's species would be. Apart from that, invasive species are not blurred. GBIF, eBird and iNaturalist protect such records in the same way.",
     "unknownTitle": "Reports that aren't identified yet",
     "unknownBody": "Until we know what an animal is, we cannot tell whether it is a protected species: it might be a leopard cat. So a report with no species name is never shown at its exact location. It is either held back until it has been identified, or shown at a blurred location.",
     "openTitle": "The data is open",
@@ -1241,7 +1246,7 @@
     "held": "A report waits here when a person has to look at it first: it has no photo, its location is outside Taiwan, its notes contain a link, or the identification model failed on it. Each one says which. A report with a photo also waits here until the model has tried to identify it, usually a few minutes.",
     "publish": "Publish puts it on the map, at the location its species allows. Protected and sensitive species stay blurred whatever is decided here.",
     "reject": "Reject keeps it off the map for good. Write why: the reporter only sees that it was not used, and the reason stays in the moderation log. The map catches up with a decision within about five minutes.",
-    "flagged": "Published records that carry a flag are listed after the queue. Some were published unidentified because the model could only suggest a species; name it on the record's page. In others the reporter and the model, sure of itself, name different species: the record stays on the map under the reporter's species, blurred at least as hard as the model's species would be. OK only takes a record off the list; the blur stays as it is. A report the reporter named is published at once, but if it has a photo it is blurred to at least 10 km until the model has looked at it, and stays so if the model fails on it.",
+    "flagged": "Published records that carry a flag are listed after the queue. Some were published unidentified because the model could only suggest a species; name it on the record's page. In others the reporter and the model, sure of itself, name different species: the record stays on the map under the reporter's species, blurred at least as hard as the model's species would be. OK only takes a record off the list; the blur stays as it is. A report the reporter named is published at once, but if it has a photo it is blurred to at least 10 km, and left off the map, until the model has looked at it. If the model fails on it, it stays so and is listed here, where Classify again has the model try once more.",
     "tests": "To try every step without anything being shown, use the test links further down."
   }
 }

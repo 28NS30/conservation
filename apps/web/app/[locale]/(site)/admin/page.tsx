@@ -16,6 +16,7 @@ import FlaggedRow from "@/components/admin/FlaggedRow";
 import { signInHref } from "@/components/auth/signInHref";
 import { speciesLabel } from "@/lib/speciesNames";
 import { flagReason } from "@/lib/report/flagReasons";
+import { UNAVAILABLE_FLAG } from "@/lib/report/classificationHold";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +66,8 @@ type Flagged = {
   model_common_name_zh: string | null;
   model_common_name_en: string | null;
   photo_paths: string[] | null;
+  /** Still held at 10 km and off the map, waiting for the model (0033). */
+  held: boolean;
 };
 
 /** How many flagged records are listed at once, oldest first, as the queue. */
@@ -186,12 +189,16 @@ export default async function AdminPage({
   // it), and a record whose reporter and model, sure of itself, name different
   // species, kept on the map under the reporter's name and blurred at least as
   // the model's species would be. The model's first answer is shown beside the
-  // record's species, since both kinds are about it.
+  // record's species, since both kinds are about it. A third is rarer and
+  // matters more: a named record still held at 10 km and off the map because
+  // the model never answered for its photo. It stays so until a moderator has
+  // the model try again (classifyAgain), so the row says that, and offers it.
   const [{ flagged }] = await sql<{ flagged: number }[]>`
     select count(*)::int as flagged from reports
      where status = 'published' and flagged_reason is not null`;
   const flaggedRows = await sql<Flagged[]>`
     select r.id, r.category, r.observed_at, r.flagged_reason, r.location_precision, r.is_test,
+           r.held_for_classification as held,
            t.scientific_name, t.common_name_zh, t.common_name_en,
            m.scientific_name as model_scientific_name,
            m.common_name_zh as model_common_name_zh,
@@ -318,7 +325,12 @@ export default async function AdminPage({
                 categoryLabel={tc(r.category)}
                 categoryColor={CATEGORIES[r.category]?.color}
                 observedAt={r.observed_at}
-                flaggedReason={flagText(r.flagged_reason) ?? r.flagged_reason}
+                flaggedReason={
+                  r.held && r.flagged_reason === UNAVAILABLE_FLAG
+                    ? t("flagged.heldUnavailable")
+                    : (flagText(r.flagged_reason) ?? r.flagged_reason)
+                }
+                held={r.held}
                 speciesLabel={named(r.scientific_name, r.common_name_zh, r.common_name_en)}
                 modelLabel={named(
                   r.model_scientific_name,

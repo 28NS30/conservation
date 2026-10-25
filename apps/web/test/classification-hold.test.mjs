@@ -24,7 +24,11 @@ import { createClient } from "@supabase/supabase-js";
 import { UNIDENTIFIED_PRECISION } from "@conservation/shared";
 import { BASE_URL, sql, inRollback, insertReport } from "./helpers.mjs";
 import {
+  UNAVAILABLE_FLAG,
+  flagHeldAbandoned,
+  flagHeldUnclassified,
   recordBesidePerson,
+  requeueClassification,
   settleClassificationHold,
 } from "../lib/report/classificationHold.ts";
 
@@ -33,6 +37,8 @@ const read = (...p) => readFileSync(join(WEB, ...p), "utf8");
 const WORKER = read("lib", "report", "classifyWorker.ts");
 const EVIDENCE = read("lib", "report", "classifyEvidence.ts");
 const ROUTE = read("app", "api", "reports", "route.ts");
+const TILES = read("app", "api", "tiles", "[z]", "[x]", "[y]", "route.ts");
+const ADMIN = read("app", "[locale]", "(site)", "admin", "actions.ts");
 const MIGRATION = readFileSync(
   join(WEB, "..", "..", "supabase", "migrations", "0033_blur_disagreements_and_higher_ranks.sql"),
   "utf8",
@@ -68,14 +74,17 @@ async function row(tx, { sensitivity = null, protectedStatus = null, invasive = 
     values (${`test-ch-${process.pid}-${Date.now()}-${seq}`},
             ${`Testudofixtura h${process.pid}x${Date.now()}x${seq++}`}, 'Species',
             true, 'accepted', ${sensitivity}, ${protectedStatus}, ${invasive})
-    returning id`;
+    returning id, taicol_id, scientific_name`;
   // Asked after the insert: RETURNING runs on a snapshot without the new row.
   const [{ rule }] = await tx`select taxon_precision(${t.id}) as rule`;
   return { ...t, rule: rule ?? "exact" };
 }
 
-/** A report its reporter named with a photo, inserted held as POST /api/reports inserts one. */
-async function held(tx, taxonId, override = null) {
+/**
+ * A report its reporter named with a photo, inserted held as POST /api/reports
+ * inserts one; or, with `isHeld` false, its twin filed before the hold existed.
+ */
+async function held(tx, taxonId, override = null, isHeld = true) {
   const [{ id }] = await tx`
     insert into reports (category, location, location_public, observed_at, taxon_id,
                          taxon_source, status, source, precision_override,
@@ -83,9 +92,19 @@ async function held(tx, taxonId, override = null) {
     values ('roadkill',
             st_setsrid(st_makepoint(120.9, 23.8), 4326)::geography,
             st_setsrid(st_makepoint(120.9, 23.8), 4326)::geography,
-            now(), ${taxonId}, 'user', 'published', 'user', ${override}, true)
+            now(), ${taxonId}, 'user', 'published', 'user', ${override}, ${isHeld})
     returning id`;
   return { ...(await state(tx, id)), id, taxonId };
+}
+
+/** A row sharing `species`' binomial: a subspecies of it, unrated. */
+async function sibling(tx, species) {
+  const [t] = await tx`
+    insert into taxa (taicol_id, scientific_name, rank, is_in_taiwan, taxon_status)
+    values (${`${species.taicol_id}-ssp`}, ${`${species.scientific_name} formosana`},
+            'Subspecies', true, 'accepted')
+    returning id, taicol_id`;
+  return t;
 }
 const state = async (tx, id) =>
   (await tx`select taxon_id, precision_override, location_precision,
@@ -216,7 +235,8 @@ describe("released when the classifier has run", () => {
 describe("held when the classifier fails", () => {
   // Both give-up paths of the worker, read out of the source and run as
   // written: the job's own, and the sweep that retires a job which died
-  // during its last attempt. Neither touches a published record.
+  // during its last attempt. Neither blurs nor unpublishes a published
+  // record; each flags a held one, by a statement of its own.
   const giveUp = (() => {
     const m = /update reports\s+set precision_override = stricter_precision\(precision_override,[\s\S]*?and status = 'pending'`/.exec(WORKER);
     assert.ok(m, "the give-up update moved");
@@ -239,15 +259,18 @@ describe("held when the classifier fails", () => {
     assert.doesNotMatch(sweep, /\$\{/);
   });
 
-  test("a model that refused the photo, or ran out of attempts, leaves it held", async () => {
+  test("a model that refused the photo, or ran out of attempts, leaves it held, and flagged", async () => {
     await inRollback(async (tx) => {
       const cat = await row(tx);
       const r = await held(tx, cat.id);
       await tx.unsafe(giveUp, [r.id]);
+      await flagHeldUnclassified(tx, r.id);
       const after_ = await state(tx, r.id);
       assert.equal(after_.held, true);
       assert.equal(after_.location_precision, "coarse_10km");
       assert.equal(after_.status, "published", "a model outage pulled a record off the map");
+      assert.equal(after_.precision_override, null, "the flag wrote a blur of its own");
+      assert.equal(after_.flagged_reason, UNAVAILABLE_FLAG, "held for good, and nobody told");
     });
   });
 
@@ -257,10 +280,56 @@ describe("held when the classifier fails", () => {
       const r = await held(tx, cat.id);
       await tx`insert into classification_jobs (report_id, status, attempts, updated_at)
                values (${r.id}::uuid, 'running', 5, now() - interval '1 hour')`;
+      // In the worker's order: the flag by the sweep's own test, then the sweep.
+      await flagHeldAbandoned(tx, 5, "5 minutes");
       await tx.unsafe(sweep);
       const after_ = await state(tx, r.id);
       assert.equal(after_.held, true);
       assert.equal(after_.location_precision, "coarse_10km");
+      assert.equal(after_.status, "published");
+      assert.equal(after_.flagged_reason, UNAVAILABLE_FLAG);
+      const [job] = await tx`select status from classification_jobs where report_id = ${r.id}::uuid`;
+      assert.equal(job.status, "failed", "the sweep did not retire the job");
+    });
+  });
+
+  test("both paths call the flag, in their own statements", () => {
+    const src = code(WORKER);
+    const branch = src.slice(src.indexOf("if (giveUp) {"), src.indexOf("console.error(`[jobs/classify]"));
+    assert.match(branch, /and status = 'pending'`;\s*await flagHeldUnclassified\(tx, job\.report_id\);/,
+      "the give-up branch must flag a held record after the pending report's statement");
+    assert.match(
+      src,
+      /await sql\.begin\(async \(tx\) => \{\s*await flagHeldAbandoned\(tx, MAX_ATTEMPTS, STALE_AFTER\);\s*await tx`\s*with stuck as \(/,
+      "the sweep must flag first, in the same transaction, before it retires the jobs",
+    );
+  });
+
+  test("the flag touches no record but a published one that is held", async () => {
+    await inRollback(async (tx) => {
+      const cat = await row(tx);
+      const free = await held(tx, cat.id, null, false);
+      const pending = await held(tx, cat.id);
+      await tx`update reports set status = 'pending' where id = ${pending.id}`;
+      for (const r of [free, pending]) {
+        await tx`insert into classification_jobs (report_id, status, attempts, updated_at)
+                 values (${r.id}::uuid, 'running', 5, now() - interval '1 hour')`;
+        await flagHeldUnclassified(tx, r.id);
+      }
+      await flagHeldAbandoned(tx, 5, "5 minutes");
+      assert.equal((await state(tx, free.id)).flagged_reason, null, "a record that is not held");
+      assert.equal((await state(tx, pending.id)).flagged_reason, null, "a pending one is the other statement's");
+    });
+  });
+
+  test("a job still being worked on, or not stale yet, is not flagged", async () => {
+    await inRollback(async (tx) => {
+      const cat = await row(tx);
+      const r = await held(tx, cat.id);
+      await tx`insert into classification_jobs (report_id, status, attempts, updated_at)
+               values (${r.id}::uuid, 'running', 5, now())`;
+      await flagHeldAbandoned(tx, 5, "5 minutes");
+      assert.equal((await state(tx, r.id)).flagged_reason, null);
     });
   });
 
@@ -281,6 +350,203 @@ describe("held when the classifier fails", () => {
       join("lib", "report", "classifyEvidence.ts"),
       join("lib", "report", "classifyWorker.ts"),
     ]);
+  });
+});
+
+describe("a moderator can have the model try again", () => {
+  /** A held record the worker gave up on, as the give-up path leaves it. */
+  async function givenUp(tx) {
+    const cat = await row(tx);
+    const r = await held(tx, cat.id);
+    await tx`insert into classification_jobs (report_id, status, attempts, last_error)
+             values (${r.id}::uuid, 'failed', 5, 'the model refused the photo')`;
+    await flagHeldUnclassified(tx, r.id);
+    return r;
+  }
+  const job = async (tx, id) =>
+    Array.from(
+      await tx`select status, attempts, last_error from classification_jobs
+                where report_id = ${id}::uuid order by id`,
+      ({ status, attempts, last_error }) => ({ status, attempts, last_error }),
+    );
+
+  test("its job goes back in the queue, as new, and the hold stays", async () => {
+    await inRollback(async (tx) => {
+      const r = await givenUp(tx);
+      const queued = await requeueClassification(tx, r.id);
+      assert.deepEqual(queued, { flaggedReason: UNAVAILABLE_FLAG });
+      assert.deepEqual(await job(tx, r.id), [{ status: "queued", attempts: 0, last_error: null }]);
+      const after_ = await state(tx, r.id);
+      assert.equal(after_.held, true, "classify again released the hold");
+      assert.equal(after_.location_precision, "coarse_10km");
+      assert.equal(after_.precision_override, null);
+      assert.equal(after_.status, "published");
+      assert.equal(after_.flagged_reason, null, "the give-up's flag outlived the requeue");
+      // And the worker's claim takes it: queued, with attempts to spare.
+      const claim = /where \(\s*j\.status in \('queued','failed'\)/.test(WORKER);
+      assert.ok(claim, "the claim no longer takes queued jobs");
+    });
+  });
+
+  test("a second click, while the job waits, queues nothing", async () => {
+    await inRollback(async (tx) => {
+      const r = await givenUp(tx);
+      await requeueClassification(tx, r.id);
+      assert.equal(await requeueClassification(tx, r.id), null);
+      assert.equal((await job(tx, r.id)).length, 1);
+    });
+  });
+
+  test("a record no longer held, or not published, is refused", async () => {
+    await inRollback(async (tx) => {
+      const cat = await row(tx);
+      const free = await held(tx, cat.id, null, false);
+      await tx`insert into classification_jobs (report_id, status, attempts)
+               values (${free.id}::uuid, 'failed', 5)`;
+      assert.equal(await requeueClassification(tx, free.id), null);
+      const rejected = await givenUp(tx);
+      await tx`update reports set status = 'rejected' where id = ${rejected.id}`;
+      assert.equal(await requeueClassification(tx, rejected.id), null);
+      assert.equal((await job(tx, free.id))[0].status, "failed", "the refused job was queued");
+    });
+  });
+
+  test("a held record with no job is given one, and another flag is kept", async () => {
+    await inRollback(async (tx) => {
+      const cat = await row(tx);
+      const r = await held(tx, cat.id);
+      await tx`update reports set flagged_reason = 'links or handles in notes' where id = ${r.id}`;
+      assert.deepEqual(await requeueClassification(tx, r.id), { flaggedReason: "links or handles in notes" });
+      assert.deepEqual(await job(tx, r.id), [{ status: "queued", attempts: 0, last_error: null }]);
+      assert.equal((await state(tx, r.id)).flagged_reason, "links or handles in notes");
+    });
+  });
+
+  test("the action is a moderator's, logged, and releases nothing", () => {
+    const from = ADMIN.indexOf("export async function classifyAgain(");
+    assert.ok(from > 0, "no classifyAgain action");
+    const rest = ADMIN.slice(from);
+    const end = rest.indexOf("\nexport ", 1);
+    const body = end === -1 ? rest : rest.slice(0, end);
+    assert.match(body, /const actor = await requireModerator\(\);/);
+    assert.match(body, /await sql\.begin\(async \(tx\) => \{\s*const queued = await requeueClassification\(tx, reportId\);/);
+    assert.match(body, /if \(!queued\) throw/);
+    assert.match(body, /insert into moderation_actions \(report_id, actor_id, action, reason\)[\s\S]*'flag'/);
+    assert.doesNotMatch(code(body), /held_for_classification|precision_override|status\s*=/);
+  });
+});
+
+describe("a tightening while it is held outlives the hold", () => {
+  // A row sharing the record's binomial is given a floor or a rating while
+  // the record is held. tighten_binomial_siblings() writes the binomial's
+  // blur as an override where it is stricter than the record's, and used to
+  // compare with the hold's 10 km: a 10 km rule wrote nothing, and the release
+  // put the record at its own rule for good, beside an unheld twin at 10 km.
+  for (const [what, add] of [
+    ["a 10 km floor", (tx, sib) =>
+      tx`insert into taxon_precision_floors (taicol_id, min_precision, reason)
+         values (${sib.taicol_id}, 'coarse_10km', 'test')`],
+    ["a 10 km rating", (tx, sib) =>
+      tx`update taxa set sensitivity = '輕度' where id = ${sib.id}`],
+  ]) {
+    test(`${what} on a sibling keeps the record at 10 km after the release`, async () => {
+      await inRollback(async (tx) => {
+        const cat = await row(tx);
+        const sib = await sibling(tx, cat);
+        const r = await held(tx, cat.id);
+        const twin = await held(tx, cat.id, null, false);
+        assert.equal(twin.location_precision, "exact");
+        await add(tx, sib);
+        assert.equal((await state(tx, twin.id)).location_precision, "coarse_10km", "fixture: the twin tightened");
+        assert.equal((await state(tx, r.id)).precision_override, "coarse_10km", "the hold masked the tightening");
+        await classify(tx, r, null);
+        const after_ = await state(tx, r.id);
+        assert.equal(after_.held, false);
+        assert.equal(after_.location_precision, "coarse_10km", "released below its sibling's rule");
+      });
+    });
+  }
+
+  test("and a floor stricter than 10 km does the same", async () => {
+    await inRollback(async (tx) => {
+      const cat = await row(tx);
+      const sib = await sibling(tx, cat);
+      const r = await held(tx, cat.id);
+      await tx`insert into taxon_precision_floors (taicol_id, min_precision, reason)
+               values (${sib.taicol_id}, 'coarse_50km', 'test')`;
+      assert.equal((await state(tx, r.id)).location_precision, "coarse_50km");
+      await classify(tx, r, null);
+      const after_ = await state(tx, r.id);
+      assert.equal(after_.held, false);
+      assert.equal(after_.location_precision, "coarse_50km");
+      assert.equal(after_.precision_override, "coarse_50km");
+    });
+  });
+
+  test("a record held harder than the hold is never loosened by it", async () => {
+    // Its 50 km rating is withdrawn while it is held, which leaves it at 50 km
+    // (tighten_reports never loosens), and then a sibling is floored at 10 km.
+    // Compared with the record's own rule alone, exact, the floor would be
+    // written, and the trigger would re-derive the record to 10 km.
+    await inRollback(async (tx) => {
+      const owl = await row(tx, { sensitivity: "重度" });
+      const sib = await sibling(tx, owl);
+      const r = await held(tx, owl.id);
+      await tx`update taxa set sensitivity = null where id = ${owl.id}`;
+      assert.equal((await state(tx, r.id)).location_precision, "coarse_50km");
+      await tx`insert into taxon_precision_floors (taicol_id, min_precision, reason)
+               values (${sib.taicol_id}, 'coarse_10km', 'test')`;
+      assert.equal((await state(tx, r.id)).location_precision, "coarse_50km", "the floor loosened a held record");
+      await classify(tx, r, null);
+      assert.equal((await state(tx, r.id)).location_precision, "coarse_50km");
+    });
+  });
+});
+
+describe("off the map while held", () => {
+  // The map's tiles are cached for up to a day where nothing can purge them,
+  // and the hold's 10 km can be looser than the model then decides, so the
+  // tiles read reports_on_map, which leaves held records out. Its own page
+  // still shows a held record.
+
+  test("a held record is public, but not on the map until it is released", async () => {
+    await inRollback(async (tx) => {
+      const cat = await row(tx);
+      const r = await held(tx, cat.id);
+      const seen = async () => {
+        await tx`set local role web_anon`;
+        const [x] = await tx`
+          select (select count(*)::int from reports_public where id = ${r.id}) as public,
+                 (select count(*)::int from reports_on_map where id = ${r.id}) as map`;
+        await tx`reset role`;
+        return { public: x.public, map: x.map };
+      };
+      assert.deepEqual(await seen(), { public: 1, map: 0 });
+      await classify(tx, r, null);
+      assert.deepEqual(await seen(), { public: 1, map: 1 });
+    });
+  });
+
+  test("the view shows the public no more than reports_public does", async () => {
+    const cols = async (view) =>
+      (await sql`select column_name from information_schema.columns
+                  where table_schema = 'public' and table_name = ${view}
+                  order by ordinal_position`).map((c) => c.column_name);
+    assert.deepEqual(await cols("reports_on_map"), await cols("reports_public"));
+    const [grant] = await sql`
+      select has_table_privilege('web_anon', 'public.reports_on_map', 'select') as web_anon,
+             has_table_privilege('web_anon', 'public.reports', 'select') as base,
+             (select not has_table_privilege('anon', 'public.reports_on_map', 'select')
+                from pg_roles where rolname = 'anon') as closed`;
+    assert.equal(grant.web_anon, true, "the tiles' role cannot read the map's view");
+    assert.equal(grant.base, false);
+    assert.notEqual(grant.closed, false, "the REST API's role can read the map's view");
+  });
+
+  test("every layer of the tile route reads it, and nothing else", () => {
+    const src = code(TILES);
+    assert.equal((src.match(/from reports_on_map r/g) ?? []).length, 2, "the cells and the points");
+    assert.doesNotMatch(src, /reports_public|from reports\b/);
   });
 });
 

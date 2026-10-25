@@ -20,8 +20,14 @@ import {
  *           returns a few hundred features instead of tens of thousands of points.
  *   z >= 10 individual points, clickable.
  *
- * Reads `reports_public`, never `reports`: true coordinates of sensitive taxa are
- * not reachable from this path by construction.
+ * Reads `reports_on_map`, never `reports`: true coordinates of sensitive taxa are
+ * not reachable from this path by construction. That view is `reports_public`
+ * without the records held at 10 km until the classifier has looked at their
+ * photo (migration 0033, lib/report/classificationHold.ts). The hold's 10 km
+ * can be looser than the blur the model's answer then gives a record, and a
+ * tile is cached by the CDN for up to a day where nothing can purge it, so a
+ * held record is in no layer here, points, cells or dots, until its blur is
+ * decided. Its own page shows it meanwhile.
  */
 
 const MAX_ZOOM = 16;
@@ -166,6 +172,7 @@ export async function GET(
 
   // Runs as `web_anon`, which cannot reach the `reports` base table at all —
   // tiles are structurally incapable of carrying a true sensitive coordinate.
+  // Both regimes read reports_on_map, so neither draws a held record.
   const rows = await asPublic(async (tx) => {
     if (aggregated) {
       const cell = aggregationCellMeters(z);
@@ -194,7 +201,7 @@ export async function GET(
         select st_snaptogrid(r.geom_3857, ${cell}::float8) as pt,
                ${tx.unsafe(mapTypeOf)}                     as grp,
                count(*)::int                               as n
-          from reports_public r
+          from reports_on_map r
          -- The envelope inline rather than through the env CTE. Joined, the
          -- planner cannot see it as a constant and reads far more of the table;
          -- inline, the same tile touches about a tenth of the buffers. Output
@@ -277,7 +284,7 @@ export async function GET(
                  r.taxon_id            as taxon_id,
                  to_char(r.observed_at at time zone 'Asia/Taipei', 'YYYY-MM-DD') as observed_on,
                  1                     as weight
-            from reports_public r, env
+            from reports_on_map r, env
            where r.geom_3857 && env.e
              and (${categories}::text[] is null or r.category = any(${categories}))
              and (not ${invasiveOnly}::boolean or r.is_invasive)

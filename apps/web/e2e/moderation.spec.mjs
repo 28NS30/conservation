@@ -3,7 +3,7 @@
  *
  *   node e2e/moderation.spec.mjs         # TEST_BASE_URL, default localhost:3000
  *
- * A throwaway moderator, two held reports, a flagged record and an unnamed one:
+ * A throwaway moderator, two held reports, two flagged records and an unnamed one:
  *
  *   the reason each was held reads as a sentence, not the stored code;
  *   publishing one publishes it, and logs who did;
@@ -11,6 +11,8 @@
  *   and stores the reason in the log;
  *   a published record with a flag is listed below the queue, and OK
  *   clears the flag without moving the record or loosening its blur;
+ *   a named record the model never answered for says it stays at 10 km,
+ *   and Classify again queues its job without releasing the hold;
  *   on a published record the model could not name, a moderator can
  *   name any species, stored as an expert's, and the blur does not loosen.
  *
@@ -180,6 +182,52 @@ try {
     select reason from moderation_actions
      where report_id = ${ids.flagged} and actor_id = ${userId}::uuid and action = 'flag'`;
   check("the log keeps the reason it cleared", okLog?.reason === "cleared: the model and the reporter name different species", okLog?.reason);
+
+  // -- A named record the model never answered for -------------------------
+  // As the give-up path leaves one: published under the reporter's species,
+  // still held at 10 km and off the map, flagged, its job failed for good.
+  // The row says so, its OK says the blur stays, and Classify again queues
+  // the job without releasing the hold.
+  const [stuck] = await sql`
+    insert into reports (category, location, location_public, observed_at, status, source,
+                         taxon_id, taxon_source, held_for_classification, flagged_reason)
+    values ('roadkill',
+            st_setsrid(st_makepoint(120.95, 23.95), 4326)::geography,
+            st_setsrid(st_makepoint(120.95, 23.95), 4326)::geography,
+            now(), 'published', 'user', ${plain.id}, 'user', true, 'classification unavailable')
+    returning id, location_precision`;
+  ids.stuck = stuck.id;
+  await sql`insert into classification_jobs (report_id, status, attempts, last_error)
+            values (${ids.stuck}, 'failed', 5, 'the model refused the photo')`;
+  check("a held record starts at 10 km", stuck.location_precision === "coarse_10km", stuck.location_precision);
+  await page.goto(`${BASE}/en/admin`, { waitUntil: "networkidle" });
+  const stuckRow = page.locator("li", { has: page.locator(`a[href$="/reports/${ids.stuck}"]`) });
+  check("a record held for good is listed", (await stuckRow.count()) === 1);
+  check(
+    "it says the photo could not be checked and the record stays at 10 km",
+    await stuckRow.getByText(/could not check the photo[\s\S]*10 km and off the map/).isVisible(),
+  );
+  check("its OK says the blur stays", await stuckRow.getByRole("button", { name: "OK, leave it at 10 km" }).isVisible());
+  await stuckRow.getByRole("button", { name: "Classify again" }).click();
+  await stuckRow.getByText(/Back in the model's queue/).waitFor({ timeout: 10000 }).catch(() => {});
+  const [requeued] = await sql`
+    select r.held_for_classification as held, r.location_precision, r.flagged_reason, r.status,
+           j.status as job, j.attempts, j.last_error
+      from reports r join classification_jobs j on j.report_id = r.id
+     where r.id = ${ids.stuck}`;
+  check(
+    "Classify again queues the job afresh",
+    requeued?.job === "queued" && requeued?.attempts === 0 && requeued?.last_error === null,
+    JSON.stringify(requeued),
+  );
+  check(
+    "and releases nothing: still held, at 10 km, published",
+    requeued?.held === true && requeued?.location_precision === "coarse_10km" && requeued?.status === "published",
+  );
+  const [againLog] = await sql`
+    select reason from moderation_actions
+     where report_id = ${ids.stuck} and actor_id = ${userId}::uuid and action = 'flag'`;
+  check("the log says who had it classified again", againLog?.reason === "classify again: classification unavailable", againLog?.reason);
 
   // -- Naming a species the model never offered (#117) -------------------
   // An unidentified record, published, as the classifier leaves one it could

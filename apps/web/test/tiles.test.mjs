@@ -13,6 +13,7 @@ import { PbfReader } from "pbf";
 import { gunzipSync } from "node:zlib";
 import { sql, BASE_URL } from "./helpers.mjs";
 import { steadyPopulation } from "./population.mjs";
+import { recordBesidePerson } from "../lib/report/classificationHold.ts";
 import {
   aggregationCellMeters,
   selectionFor,
@@ -163,7 +164,7 @@ describe("MVT structure", () => {
 
   test("high zoom returns individual points, not aggregates", async () => {
     const [row] = await sql`
-      select st_x(geom_3857) x, st_y(geom_3857) y from reports_public limit 1`;
+      select st_x(geom_3857) x, st_y(geom_3857) y from reports_on_map limit 1`;
     // Derived from the constant, not hardcoded: this test previously pinned z12
     // and started failing the moment aggregation was extended past it.
     const z = TILE_AGGREGATION_MAX_ZOOM + 1;
@@ -180,6 +181,86 @@ describe("MVT structure", () => {
       "id" in f.properties,
       "point tiles should carry a report id for click handling",
     );
+  });
+});
+
+describe("a record held for classification", () => {
+  // A named report with a photo is held at 10 km until the model has looked
+  // at it (migration 0033), and the model's answer can then blur it harder
+  // than that. Tiles are cached by the CDN for up to a day, where nothing can
+  // purge them, so a held record is in no layer of any tile until it is
+  // released, and in every one as soon as it is. Planted, committed and
+  // removed, like the records above, since the endpoint reads on its own
+  // connection; dated 1900 and asked for by that day alone, so that no other
+  // record can be in the tiles read, whatever else the suite is doing.
+  const DAY = "1900-01-02";
+  const onlyThatDay = `?from=${DAY}&to=${DAY}`;
+  const POINTS_Z = TILE_AGGREGATION_MAX_ZOOM + 1;
+  const tileAt = ({ x, y }, z) => {
+    const n = 2 ** z;
+    return `${z}/${Math.floor(((Number(x) + 20037508.34) / 40075016.68) * n)}/${Math.floor(((20037508.34 - Number(y)) / 40075016.68) * n)}`;
+  };
+  const layers = async (path) => {
+    const t = await getTile(path);
+    assert.equal(t.status, 200, path);
+    return t.bytes ? new VectorTile(new PbfReader(t.buf)).layers : {};
+  };
+  const features = (layer) =>
+    layer ? [...Array(layer.length).keys()].map((i) => layer.feature(i).properties) : [];
+
+  test("is in no layer while it is held, and in each once it is released", async () => {
+    const [taxon] = await sql`
+      select id from taxa
+       where taxon_status = 'accepted' and kingdom = 'Animalia' and rank = 'Species'
+         and is_in_taiwan and taxon_precision(id) = 'exact' and binomial_precision(id) = 'exact'
+       order by id limit 1`;
+    assert.ok(taxon, "expected an unrated species in the fixture");
+    const [{ id }] = await sql`
+      insert into reports (category, location, location_public, observed_at, taxon_id,
+                           taxon_source, status, source, held_for_classification)
+      values ('roadkill',
+              st_setsrid(st_makepoint(121.0, 23.7), 4326)::geography,
+              st_setsrid(st_makepoint(121.0, 23.7), 4326)::geography,
+              ${`${DAY} 12:00+08`}::timestamptz, ${taxon.id}, 'user', 'published', 'user', true)
+      returning id`;
+    try {
+      const now = async () =>
+        (await sql`select st_x(geom_3857) as x, st_y(geom_3857) as y, location_precision
+                     from reports where id = ${id}`)[0];
+      const held = await now();
+      assert.equal(held.location_precision, "coarse_10km");
+      const [{ n }] = await sql`select count(*)::int as n from reports_public where id = ${id}`;
+      assert.equal(n, 1, "its own page is public while it is held");
+
+      const heldPoints = await layers(`${tileAt(held, POINTS_Z)}${onlyThatDay}`);
+      assert.deepEqual(features(heldPoints.reports), [], "a point tile drew a held record");
+      const heldCells = await layers(`${Z6.z}/${Z6.x}/${Z6.y}${onlyThatDay}`);
+      assert.deepEqual(features(heldCells.reports), [], "a cell counted a held record");
+      assert.deepEqual(features(heldCells.reports_dots), [], "a dot counted a held record");
+
+      // The classifier's record branch, the model agreeing: the hold is
+      // released to the species' own rule, here exact.
+      await sql.begin((tx) =>
+        recordBesidePerson(tx, {
+          reportId: id,
+          claimedTaxonId: taxon.id,
+          claimedSource: "user",
+          score: 0.97,
+          band: "high",
+          disagreeingTaxonId: null,
+        }),
+      );
+      const released = await now();
+      assert.equal(released.location_precision, "exact");
+
+      const points = await layers(`${tileAt(released, POINTS_Z)}${onlyThatDay}`);
+      assert.deepEqual(features(points.reports).map((f) => f.id), [id], "released, it is drawn");
+      const cells = await layers(`${Z6.z}/${Z6.x}/${Z6.y}${onlyThatDay}`);
+      assert.deepEqual(features(cells.reports).map((f) => f.weight), [1]);
+      assert.deepEqual(features(cells.reports_dots).map((f) => f.weight), [1]);
+    } finally {
+      await sql`delete from reports where id = ${id}`;
+    }
   });
 });
 
@@ -260,7 +341,7 @@ describe("filters discriminate", () => {
       with env as (select st_tileenvelope(${Z6.z}, ${Z6.x}, ${Z6.y}) as e)
       select count(*) filter (where r.geom_3857 && env.e)::int as inside,
              count(*)::int as inside_with_collar
-        from reports_public r, env
+        from reports_on_map r, env
        where r.geom_3857 && st_expand(env.e, ${CELL_M_Z6}::float8)
          and r.is_invasive`;
     const tile = await getTile(`${Z6.z}/${Z6.x}/${Z6.y}?collection=invasive`);
@@ -343,7 +424,7 @@ describe("filters discriminate", () => {
     const [{ cutoff }] = await sql`
       select to_char(
         percentile_disc(0.5) within group (order by observed_at), 'YYYY-MM-DD') as cutoff
-        from reports_public`;
+        from reports_on_map`;
 
     const full = await getTile(`${Z6.z}/${Z6.x}/${Z6.y}`);
     const filtered = await getTile(`${Z6.z}/${Z6.x}/${Z6.y}?from=${cutoff}`);
@@ -363,7 +444,7 @@ describe("filters discriminate", () => {
       with env as (select st_tileenvelope(${Z6.z}, ${Z6.x}, ${Z6.y}) as e)
       select count(*) filter (where r.geom_3857 && env.e)::int as inside,
              count(*)::int as inside_with_collar
-        from reports_public r, env
+        from reports_on_map r, env
        where r.geom_3857 && st_expand(env.e, ${CELL_M_Z6}::float8)
          and r.observed_at >= ${cutoff}::date`;
     const tile = new VectorTile(new PbfReader(filtered.buf));

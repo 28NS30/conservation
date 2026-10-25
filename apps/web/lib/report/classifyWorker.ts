@@ -5,7 +5,11 @@ import {
   photoIdentificationOverride,
   suggestionOverride,
 } from "@/lib/report/precision";
-import { recordBesidePerson } from "@/lib/report/classificationHold";
+import {
+  flagHeldAbandoned,
+  flagHeldUnclassified,
+  recordBesidePerson,
+} from "@/lib/report/classificationHold";
 import {
   AUTO_ASSIGN_BANDS,
   classifierAction,
@@ -81,23 +85,30 @@ export async function classifyQueued({ reportId = null }: { reportId?: string | 
   // the claim below will never take again, so its give-up branch never ran:
   // the report sat pending with no reason given (security audit, 29 September
   // 2026). Retire such jobs here exactly as that branch would.
-  await sql`
-    with stuck as (
-      update classification_jobs
-         set status = 'failed',
-             last_error = coalesce(last_error, 'abandoned during its last attempt'),
-             updated_at = now()
-       where status = 'running'
-         and attempts >= ${MAX_ATTEMPTS}
-         and updated_at < now() - ${STALE_AFTER}::interval
-      returning report_id)
-    update reports r
-       set precision_override = stricter_precision(r.precision_override,
-                                                   ${UNIDENTIFIED_PRECISION}::text),
-           flagged_reason = coalesce(r.flagged_reason, 'classification unavailable')
-      from stuck
-     where r.id = stuck.report_id
-       and r.status = 'pending'`;
+  //
+  // A published record held for classification is flagged first, by the same
+  // test, since the statement after it touches pending reports only and
+  // leaves no trace of which jobs it retired (flagHeldAbandoned).
+  await sql.begin(async (tx) => {
+    await flagHeldAbandoned(tx, MAX_ATTEMPTS, STALE_AFTER);
+    await tx`
+      with stuck as (
+        update classification_jobs
+           set status = 'failed',
+               last_error = coalesce(last_error, 'abandoned during its last attempt'),
+               updated_at = now()
+         where status = 'running'
+           and attempts >= ${MAX_ATTEMPTS}
+           and updated_at < now() - ${STALE_AFTER}::interval
+        returning report_id)
+      update reports r
+         set precision_override = stricter_precision(r.precision_override,
+                                                     ${UNIDENTIFIED_PRECISION}::text),
+             flagged_reason = coalesce(r.flagged_reason, 'classification unavailable')
+        from stuck
+       where r.id = stuck.report_id
+         and r.status = 'pending'`;
+  });
 
   // Claim a batch. `skip locked` lets overlapping cron runs make progress instead
   // of blocking on each other.
@@ -362,7 +373,7 @@ export async function classifyQueued({ reportId = null }: { reportId?: string | 
           // At least the unidentified blur, never less than the record already
           // has: see suggestionOverride for who else may have held it coarser.
           //
-          // A published record a reporter named is not touched here, and need
+          // A published record a reporter named is not blurred here, and need
           // not be: it was filed held at 10 km until the model had looked
           // (held_for_classification), and only a run that finishes releases
           // that. Giving up leaves it held, which is the safe way to fail.
@@ -373,6 +384,11 @@ export async function classifyQueued({ reportId = null }: { reportId?: string | 
                    flagged_reason = coalesce(flagged_reason, 'classification unavailable')
              where id = ${job.report_id}::uuid
                and status = 'pending'`;
+          // But it is flagged, by a statement of its own that writes the flag
+          // and nothing else: held for good, it would otherwise sit at 10 km
+          // and off the map with nobody told, an invasive species the owner
+          // decided is shown exactly among them (flagHeldUnclassified).
+          await flagHeldUnclassified(tx, job.report_id);
         }
       });
 

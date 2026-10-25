@@ -3,15 +3,23 @@
 import { useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { clearFlag } from "@/app/[locale]/(site)/admin/actions";
+import { classifyAgain, clearFlag } from "@/app/[locale]/(site)/admin/actions";
 
 /**
  * A published record with a flag, in the moderation queue's list of them.
  *
  * Less than a held report shows: no coordinates and no notes, because nothing
- * here decides where the record is shown. The one action says the flag was
- * looked at; correcting the species is done on the record's own page, where a
- * moderator can name any species and the blur follows.
+ * here decides where the record is shown. OK says the flag was looked at;
+ * correcting the species is done on the record's own page, where a moderator
+ * can name any species and the blur follows.
+ *
+ * A record still held for classification gets one more action, and its OK
+ * says what it leaves. Such a record is at 10 km and off the map because the
+ * model never answered for its photo, and only a finished classification
+ * moves it (lib/report/classificationHold.ts): "classify again" queues the
+ * photo for the model, and OK takes the row off the list with the record left
+ * exactly as it is, which an unqualified "OK" beside "held" could be read as
+ * undoing.
  */
 export default function FlaggedRow(props: {
   id: string;
@@ -25,31 +33,39 @@ export default function FlaggedRow(props: {
   modelLabel: string | null;
   /** How the record is shown on the map now, in words. */
   blurLabel: string;
+  /** Still held at 10 km and off the map until the model has looked. */
+  held?: boolean;
   photoUrls: string[];
   test?: boolean;
 }) {
   const t = useTranslations("admin");
   const locale = useLocale();
   const [pending, startTransition] = useTransition();
-  const [done, setDone] = useState(false);
+  const [done, setDone] = useState<"cleared" | "requeued" | null>(null);
   // As in ModerationRow: whether it failed, not why, since a production build
   // replaces a server action's message with a generic English one.
   const [failed, setFailed] = useState(false);
 
   if (done) {
+    const said =
+      done === "requeued"
+        ? t("flagged.requeued")
+        : props.held
+          ? t("flagged.clearedHeld")
+          : t("flagged.cleared");
     return (
       <li className="rounded-lg border border-ink-900/10 bg-paper-100/60 px-4 py-3 text-sm text-ink-700">
-        {t("flagged.cleared")} · {props.id.slice(0, 8)}
+        {said} · {props.id.slice(0, 8)}
       </li>
     );
   }
 
-  const ok = () =>
+  const act = (action: (id: string) => Promise<void>, outcome: "cleared" | "requeued") =>
     startTransition(async () => {
       setFailed(false);
       try {
-        await clearFlag(props.id);
-        setDone(true);
+        await action(props.id);
+        setDone(outcome);
       } catch (e) {
         console.error("[moderation]", (e as Error).message);
         setFailed(true);
@@ -103,13 +119,23 @@ export default function FlaggedRow(props: {
       )}
 
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+        {props.held && (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => act(classifyAgain, "requeued")}
+            className="inline-flex min-h-11 items-center rounded-lg bg-ember-500 px-5 text-base font-semibold text-ink-950 hover:bg-ember-400 disabled:opacity-50"
+          >
+            {t("flagged.classifyAgain")}
+          </button>
+        )}
         <button
           type="button"
           disabled={pending}
-          onClick={ok}
+          onClick={() => act(clearFlag, "cleared")}
           className="inline-flex min-h-11 items-center rounded-lg border-2 border-ink-900/20 px-5 text-base font-semibold text-ink-800 hover:border-ink-900/40 disabled:opacity-50"
         >
-          {t("flagged.ok")}
+          {props.held ? t("flagged.okHeld") : t("flagged.ok")}
         </button>
         <Link
           href={`/reports/${props.id}`}

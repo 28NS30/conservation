@@ -60,12 +60,56 @@
 -- moderator's or the model's precision_override, the unidentified stamp, a
 -- floor. The classifier is the only thing that releases it.
 --
+-- 3. A HELD RECORD IS LEFT OFF THE MAP UNTIL IT IS RELEASED.
+--
+-- The hold is 10 km even for a species whose own rule is 50 km or hidden, so
+-- a 石虎 filed as 家貓 sits in a 10 km cell until the model's answer blurs it
+-- to 50 km. Map tiles are the worst place for that cell to be: Vercel's CDN
+-- keeps a coarse-zoom tile up to about 25 hours (s-maxage 3600 plus
+-- stale-while-revalidate 86400) and the app has no way to purge it, so the
+-- cell could outlive the model's tightening by a day. So the tile route reads
+-- `reports_on_map` below, which is reports_public without the held records,
+-- in every layer: points, cells and dots. A record reaches the map once its
+-- blur is decided. The view has reports_public's columns and no others; all
+-- web_anon can learn from it that it could not before is which records are
+-- held.
+--
+-- What is left is on the pages, by decision: while a record is held, its own
+-- page, the lists and the statistics show it in the hold's 10 km cell. The
+-- hold lasts minutes when the classifier runs straight after the report is
+-- filed (POST /api/reports, in after()), until the next daily cron when that
+-- run fails, and for good when the model never answers, in which case the
+-- classifier flags the record for a moderator, who can queue it again
+-- (apps/web/lib/report/classificationHold.ts). A page then keeps what it
+-- showed for as long as it is cached, since nothing yet drops a cached page
+-- when the hold is released: the record page not at all, as it is read on
+-- every request; the list, collection and statistics pages for their minutes
+-- of revalidation; a species page, which is static and lists the points of a
+-- species with five records or fewer, until the next deploy.
+--
+-- 4. A TIGHTENING WHILE A RECORD IS HELD OUTLIVES THE HOLD.
+--
+-- tighten_binomial_siblings() (0028) writes the binomial's strictest blur as
+-- an override where that is stricter than the record's blur now. While a
+-- record is held, its blur now is the hold's 10 km, so a floor or a rating of
+-- exactly 10 km given to a row sharing its binomial during the hold wrote
+-- nothing, and the release then put the record at its own taxon's rule for
+-- good, while a twin that was never held kept 10 km. It is replaced below to
+-- compare with the blur the record will be released to, never the hold's.
+-- tighten_reports() (0014) needs nothing: it stamps no override, and the
+-- release re-derives the blur from the rules as they are then, a 10 km rule
+-- added during the hold included. No other function decides from
+-- location_precision whether to stamp one (0014, 0021, 0023, 0026, 0028, 0029
+-- and 0032 checked; 0022's one-time remap stamped GBIF imports, which are
+-- never held).
+--
 -- No existing record is held (the column starts false), so this part moves
 -- no blur either. The check at the end refuses the migration if any record
 -- would loosen.
 --
 -- Apply this before the app that writes the column is deployed: until it is,
--- POST /api/reports cannot insert a named report with a photo.
+-- POST /api/reports cannot insert a named report with a photo, and the map's
+-- tiles, which read reports_on_map, fail.
 --
 -- Safe to re-run.
 
@@ -196,6 +240,99 @@ begin
       before insert or update of location, taxon_id, precision_override, held_for_classification
       on public.reports
       for each row execute function public.set_report_public_location();
+  end if;
+end $$;
+
+-- 0028's tighten_binomial_siblings(), deciding from the blur a held record
+-- will be released to (4 above). For a record held at the hold's own 10 km
+-- that is its rule today, report_precision(), which is what the release
+-- re-derives; for one held harder, by a rating since withdrawn, it is the
+-- blur it has, which the release keeps (settleClassificationHold). Either
+-- way the write is only ever stricter than the record: the trigger then takes
+-- the stricter of the new override's rule and the hold, so a held record
+-- never comes out of it looser than it went in. A record that is not held is
+-- compared with its blur now, as before.
+create or replace function public.tighten_binomial_siblings(p_taxon_ids bigint[])
+returns bigint
+language plpgsql
+set search_path = public
+as $$
+declare
+  siblings bigint[];
+  n bigint;
+begin
+  select coalesce(array_agg(distinct s.id), '{}')
+    into siblings
+    from taxa t
+    join taxa s
+      on binomial_of(s.scientific_name) = binomial_of(t.scientific_name)
+     and (s.kingdom is null or t.kingdom is null or s.kingdom = t.kingdom)
+   where t.id = any (p_taxon_ids);
+
+  if cardinality(siblings) = 0 then
+    return 0;
+  end if;
+
+  update reports r
+     set precision_override = stricter_precision(r.precision_override,
+                                                 binomial_precision(r.taxon_id))
+   where r.taxon_id = any (siblings)
+     and r.taxon_source in ('ai', 'user', 'expert')
+     and precision_rank(binomial_precision(r.taxon_id))
+         > precision_rank(case
+             when r.held_for_classification
+              and precision_rank(r.location_precision) <= precision_rank('coarse_10km')
+             then report_precision(r.taxon_id, r.precision_override)
+             else r.location_precision
+           end);
+  get diagnostics n = row_count;
+  return n;
+end
+$$;
+
+-- The map's records (3 above): reports_public without the held ones. Over
+-- reports_public rather than beside it, so that nothing that view leaves out
+-- can ever reach the map by this one, and a record is on the map only if its
+-- page is public too.
+--
+-- `not in` rather than `not exists`. The planner turns `not exists` into an
+-- anti-join that probes for every record in the tile, 46,000 probes for a
+-- country-zoom tile, which doubled its time locally; `not in` reads the held
+-- ids once into a hash and checks each record against that. Its trap, a null
+-- in the list making every comparison unknown, cannot spring on a primary
+-- key. The index holds the held records only, nearly always none, so reading
+-- them costs one page instead of a pass over `reports`. Built only when
+-- missing: CREATE INDEX takes SHARE on `reports`, which stops every report
+-- being filed while it waits, even when the index exists.
+do $$
+begin
+  if not exists (select 1 from pg_indexes
+                  where schemaname = 'public' and tablename = 'reports'
+                    and indexname = 'reports_held_for_classification') then
+    create index reports_held_for_classification on public.reports (id)
+      where held_for_classification;
+  end if;
+end $$;
+
+create or replace view public.reports_on_map as
+  select p.*
+    from reports_public p
+   where p.id not in (select h.id
+                        from reports h
+                       where h.held_for_classification);
+
+comment on view public.reports_on_map is
+  'What the map tiles draw: reports_public without the records held at 10 km until the classifier has run (reports.held_for_classification, 0033). Tiles are CDN-cached for up to a day, where a held record''s cell could outlive the blur the model then gives it.';
+
+-- web_anon reads it, as it reads reports_public; nobody else (0013).
+revoke all on public.reports_on_map from public;
+do $$
+begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then
+    revoke all on public.reports_on_map from anon, authenticated;
+  end if;
+  if exists (select 1 from pg_roles where rolname = 'web_anon') then
+    grant select on public.reports_on_map to web_anon;
   end if;
 end $$;
 

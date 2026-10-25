@@ -18,7 +18,7 @@ import { UNIDENTIFIED_PRECISION } from "@conservation/shared";
  * species' rule straight away, and tightening it only when the model
  * answered, left it public to the metre for as long as the model took, and
  * for good when the model never answered: a failed run waits for the next
- * day's cron, and a job that gives up never touches a published record.
+ * day's cron, and a job that gives up never blurs a published record.
  *
  * RELEASING THE HOLD IS NOT A LOOSENING. The owner decided where a named
  * record ends (blur policy, 30 September 2026: an invasive species at its
@@ -29,6 +29,31 @@ import { UNIDENTIFIED_PRECISION } from "@conservation/shared";
  * model's (below) when the model is sure of another species. When the model
  * never answers (it refused the photo, or the job ran out of attempts) the
  * hold stays, so failure is the safe direction.
+ *
+ * OFF THE MAP WHILE HELD. The hold is 10 km whatever the species, so a
+ * 石虎 filed as 家貓 sits in a 10 km cell until the model's answer blurs it to
+ * 50 km. Map tiles are cached by the CDN for up to about 25 hours, where the
+ * app cannot purge them, so a held record is left out of every tile layer
+ * until it is released (`reports_on_map`, migration 0033), and the cell never
+ * reaches a cache that could outlive the model's answer. Its own page, the
+ * lists and the statistics do show it, in the hold's 10 km cell: for minutes
+ * when the run straight after the report is filed works (POST /api/reports,
+ * in after()), until the next daily cron when that run fails, and for good
+ * when the model never answers. Nothing drops a cached page when the hold
+ * is released (there is no revalidateTag('reports') yet), so a page keeps
+ * what it showed for its own revalidation window: minutes for the list and
+ * the collection and statistics pages, and until the next deploy for a
+ * species page, which is static and lists the points of a species with five
+ * records or fewer.
+ *
+ * AND NOT HELD SILENTLY. A record the model never answers for would stay at
+ * 10 km for good, overriding the owner's decision that a named invasive
+ * species is published at its exact spot, with nothing to say so. So both of
+ * the worker's give-up paths flag it (flagHeldUnclassified,
+ * flagHeldAbandoned), the moderation queue lists it among the published
+ * records with a flag, and a moderator can put its job back in the queue
+ * (requeueClassification). Neither the flag, nor clearing it, nor the
+ * requeue releases the hold: only a finished classification does.
  *
  * It is a column of its own, not a value of `precision_override`, so that it
  * cannot be mistaken for anything an override means. An override on a named
@@ -62,6 +87,13 @@ import { UNIDENTIFIED_PRECISION } from "@conservation/shared";
 
 /** The flag a record carries when the model, sure of itself, names another species. */
 export const DISAGREES_FLAG = "the model and the reporter name different species";
+
+/**
+ * The flag a record carries when the model never answered for its photo: the
+ * same words the give-up paths have always written on a pending report, so
+ * the queue reads both the same way (lib/report/flagReasons.ts).
+ */
+export const UNAVAILABLE_FLAG = "classification unavailable";
 
 export type PersonNamedAnswer = {
   reportId: string;
@@ -162,3 +194,101 @@ export const settleClassificationHold = (
     from cur
    where r.id = cur.id
      and (cur.held or cur.model_p is not null)`;
+
+/**
+ * Flag a published record still held after the worker gave up on its job:
+ * the model refused the photo, or the job ran out of attempts.
+ *
+ * Its own statement beside the give-up path's, which flags and blurs a
+ * pending report and must never touch a published one (lib/receipt.ts relies
+ * on that; test/receipt.test.mjs holds it). This one touches nothing but the
+ * flag, and only on a published record that is held, so the record stays
+ * public, at the hold's 10 km and off the map, and is listed in the
+ * moderation queue instead of waiting there unseen. A flag already on it is
+ * kept.
+ */
+export const flagHeldUnclassified = (tx: postgres.TransactionSql, reportId: string) => tx`
+  update reports
+     set flagged_reason = coalesce(flagged_reason, ${UNAVAILABLE_FLAG})
+   where id = ${reportId}::uuid
+     and status = 'published'
+     and held_for_classification`;
+
+/**
+ * The same, for the sweep that retires a job killed during its last attempt
+ * (classifyQueued). It must run before that sweep, in the same transaction,
+ * and pick the jobs by the sweep's own test: the sweep's statement returns
+ * the pending reports it blurred and nothing else, so afterwards nothing
+ * tells a job retired a moment ago from one a moderator has since looked at.
+ */
+export const flagHeldAbandoned = (
+  tx: postgres.TransactionSql,
+  maxAttempts: number,
+  staleAfter: string,
+) => tx`
+  update reports r
+     set flagged_reason = coalesce(r.flagged_reason, ${UNAVAILABLE_FLAG})
+    from classification_jobs j
+   where j.report_id = r.id
+     and j.status = 'running'
+     and j.attempts >= ${maxAttempts}
+     and j.updated_at < now() - ${staleAfter}::interval
+     and r.status = 'published'
+     and r.held_for_classification`;
+
+/**
+ * Put a held record's classification job back in the queue, for a moderator
+ * (classifyAgain, app/[locale]/(site)/admin/actions.ts). Plain SQL in the
+ * caller's transaction, so the action's own checks and log stay with it.
+ *
+ * Only a published record that is still held: one already released has
+ * nothing to wait for. The job a worker gave up on, or one marked done
+ * without releasing it, is queued again with its attempts and its error
+ * cleared, so the next run claims it as if it were new; a record with no job
+ * at all is given one. A job queued or running already is left alone, and
+ * the answer is then null, so a second click cannot start the model twice.
+ *
+ * It does not release the hold, and it does not touch the blur: the record
+ * stays at 10 km and off the map until the run finishes, as when it was
+ * filed. It clears the flag the give-up wrote, and only that flag, because
+ * the run that follows either releases the record, which would leave the
+ * flag saying something no longer true, or gives up and writes it again.
+ *
+ * Returns the flag the record had, for the moderation log, or null when
+ * nothing was queued.
+ */
+export async function requeueClassification(
+  tx: postgres.TransactionSql,
+  reportId: string,
+): Promise<{ flaggedReason: string | null } | null> {
+  const [report] = await tx<{ flagged_reason: string | null }[]>`
+    select flagged_reason from reports
+     where id = ${reportId}::uuid
+       and status = 'published'
+       and held_for_classification
+     for update`;
+  if (!report) return null;
+
+  const live = await tx`
+    select 1 from classification_jobs
+     where report_id = ${reportId}::uuid
+       and status in ('queued', 'running')`;
+  if (live.length > 0) return null;
+
+  const requeued = await tx`
+    update classification_jobs
+       set status = 'queued', attempts = 0, last_error = null, updated_at = now()
+     where report_id = ${reportId}::uuid
+       and status in ('failed', 'done')
+    returning id`;
+  if (requeued.length === 0) {
+    await tx`insert into classification_jobs (report_id) values (${reportId}::uuid)`;
+  }
+
+  await tx`
+    update reports
+       set flagged_reason = null
+     where id = ${reportId}::uuid
+       and flagged_reason = ${UNAVAILABLE_FLAG}`;
+  return { flaggedReason: report.flagged_reason };
+}

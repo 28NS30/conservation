@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { sql } from "@/lib/db";
 import { currentRole } from "@/lib/auth";
 import { OFFERED } from "@/lib/species";
+import { requeueClassification } from "@/lib/report/classificationHold";
 import {
   keepDeliberateOverride,
   photoIdentificationOverride,
@@ -157,8 +158,10 @@ export async function setReportTaxon(reportId: string, taxonId: number | null) {
  *
  * It clears the flag and nothing else. The species, the blur and the status
  * stay as they are, because "this is fine" is not a decision to publish a
- * location more exactly: a record held at the model's blur stays held, and a
- * moderator who thinks the species is wrong corrects it on the record's page.
+ * location more exactly: a record held at the model's blur stays held, one
+ * the model never answered for stays at 10 km and off the map (classifyAgain
+ * is the way out of that), and a moderator who thinks the species is wrong
+ * corrects it on the record's page.
  * `flagged_reason` fires no blur trigger, so this cannot move the point.
  *
  * Only a published record with a flag, so a stale screen cannot clear one
@@ -180,6 +183,33 @@ export async function clearFlag(reportId: string) {
     await tx`insert into moderation_actions (report_id, actor_id, action, reason)
              values (${reportId}::uuid, ${actor}::uuid, 'flag',
                      ${`cleared: ${row.flagged_reason}`.slice(0, 500)})`;
+  });
+  revalidatePath("/admin");
+}
+
+/**
+ * Have the model try a held record's photo again.
+ *
+ * A record its reporter named, with a photo, is held at 10 km and off the
+ * map until the model has looked (lib/report/classificationHold.ts). When the
+ * model refused the photo or the job ran out of attempts, it stays held for
+ * good and is flagged here; this puts its job back in the queue, with its
+ * attempts and error cleared, for the next run to claim.
+ *
+ * It does not release the hold. The record stays where it is until a run
+ * finishes, which is the only thing that releases it, and a run that gives up
+ * again flags it again. Only a published record that is still held, and only
+ * when no job of its own is waiting already. Logged under `flag`, as OK is:
+ * it is a decision about a flag, and the log's actions are fixed (0003).
+ */
+export async function classifyAgain(reportId: string) {
+  const actor = await requireModerator();
+  await sql.begin(async (tx) => {
+    const queued = await requeueClassification(tx, reportId);
+    if (!queued) throw new Error("nothing to classify again");
+    await tx`insert into moderation_actions (report_id, actor_id, action, reason)
+             values (${reportId}::uuid, ${actor}::uuid, 'flag',
+                     ${`classify again: ${queued.flaggedReason ?? "no flag"}`.slice(0, 500)})`;
   });
   revalidatePath("/admin");
 }

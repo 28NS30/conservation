@@ -96,3 +96,44 @@ describe("the queue lists published records with a flag", () => {
     assert.match(PAGE, /t\("flagged\.count", \{ count: flagged \}\)/);
   });
 });
+
+describe("a record held for good is listed, and says so", () => {
+  // A named record whose photo the model never answered for stays at 10 km
+  // and off the map (lib/report/classificationHold.ts). The give-up paths
+  // flag it, so it is listed here; the row must say what holds it, offer to
+  // have the model try again, and not let OK read as letting it go.
+  const ROW = read("components", "admin", "FlaggedRow.tsx");
+  const catalogue = (l) => JSON.parse(read("messages", `${l}.json`)).admin.flagged;
+
+  test("the list knows which records are held", () => {
+    assert.match(PAGE, /r\.held_for_classification as held,/);
+    assert.match(PAGE, /r\.held && r\.flagged_reason === UNAVAILABLE_FLAG\s*\?\s*t\("flagged\.heldUnavailable"\)/);
+    assert.match(PAGE, /held=\{r\.held\}/);
+  });
+
+  test("a held row offers classify again, and an OK that keeps the blur", () => {
+    assert.match(ROW, /\{props\.held && \(\s*<button[\s\S]*?act\(classifyAgain, "requeued"\)[\s\S]*?t\("flagged\.classifyAgain"\)/);
+    assert.match(ROW, /props\.held \? t\("flagged\.okHeld"\) : t\("flagged\.ok"\)/);
+    assert.match(ROW, /props\.held\s*\?\s*t\("flagged\.clearedHeld"\)/);
+  });
+
+  test("its words say it stays blurred and off the map, in both languages", () => {
+    const en = catalogue("en");
+    const zh = catalogue("zh-TW");
+    for (const key of ["heldUnavailable", "requeued", "clearedHeld"]) {
+      assert.match(en[key], /10 km/, `en ${key}`);
+      assert.match(en[key], /off the map/, `en ${key}`);
+      assert.match(zh[key], /10 公里/, `zh-TW ${key}`);
+      assert.match(zh[key], /不會出現在地圖上/, `zh-TW ${key}`);
+    }
+    assert.match(en.okHeld, /10 km/);
+    assert.match(zh.okHeld, /10 公里/);
+    for (const key of ["okHeld", "clearedHeld", "requeued"]) {
+      assert.doesNotMatch(en[key], /releas|exact|unblur|on the map now/i, `en ${key} suggests the hold is released`);
+      assert.doesNotMatch(zh[key], /解除|精確/, `zh-TW ${key} suggests the hold is released`);
+    }
+    // And the list's own description no longer says every record on it is on the map.
+    assert.doesNotMatch(en.body, /on the map but/);
+    assert.match(en.body, /Classify again/);
+  });
+});

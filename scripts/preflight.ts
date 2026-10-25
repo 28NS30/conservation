@@ -33,10 +33,10 @@ async function main(): Promise<void> {
 
   const [views] = await sql<{ missing: string[] }[]>`
     select coalesce(array_agg(v), '{}') as missing from unnest(array[
-      'reports_public','report_ai_suggestions','species_report_stats'
+      'reports_public','reports_on_map','report_ai_suggestions','species_report_stats'
     ]) v
     where to_regclass('public.' || v) is null`;
-  check("all views exist", views.missing.length === 0, views.missing.length ? `missing: ${views.missing}` : "3/3");
+  check("all views exist", views.missing.length === 0, views.missing.length ? `missing: ${views.missing}` : "4/4");
 
   const [band] = await sql<{ n: number }[]>`
     select count(*)::int as n from information_schema.columns
@@ -67,13 +67,19 @@ async function main(): Promise<void> {
   check("web_anon role exists", role.exists, role.exists ? "yes" : "the app's read path will fail");
 
   if (role.exists) {
-    const [priv] = await sql<{ base: boolean; view: boolean }[]>`
+    const [priv] = await sql<{ base: boolean; view: boolean; map: boolean }[]>`
       select has_table_privilege('web_anon','reports','select') as base,
-             has_table_privilege('web_anon','reports_public','select') as view`;
+             has_table_privilege('web_anon','reports_public','select') as view,
+             -- A case, not an and: has_table_privilege() throws on a missing view.
+             case when to_regclass('public.reports_on_map') is null then false
+                  else has_table_privilege('web_anon','reports_on_map','select') end as map`;
     check("web_anon CANNOT read reports (true coordinates)", priv.base === false,
       priv.base ? "LEAK: web_anon can select from reports" : "denied, correct");
     check("web_anon CAN read reports_public", priv.view === true,
-      priv.view ? "granted" : "the public map will be empty");
+      priv.view ? "granted" : "the record pages and lists will be empty");
+    // The tiles read this one (0033): reports_public without held records.
+    check("web_anon CAN read reports_on_map", priv.map === true,
+      priv.map ? "granted" : "the public map will be empty");
   }
 
   const [supp] = await sql<{ n: number }[]>`
