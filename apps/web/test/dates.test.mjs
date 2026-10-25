@@ -11,9 +11,12 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+import { execFileSync } from "node:child_process";
 import { formatTaipeiDate } from "../lib/dates.ts";
 
-const read = (...p) => readFileSync(join(import.meta.dirname, "..", ...p), "utf8");
+const WEB = join(import.meta.dirname, "..");
+const read = (...p) => readFileSync(join(WEB, ...p), "utf8");
 // Half past six in the morning, 1 October, in Taipei.
 const DAWN = "2026-09-30T22:30:00Z";
 
@@ -24,9 +27,26 @@ describe("formatTaipeiDate", () => {
     assert.equal(formatTaipeiDate(new Date(DAWN), "zh-TW"), "2026/10/1");
   });
 
-  test("whatever the machine's own zone, and whatever zone is asked for", () => {
+  test("whatever the machine's own zone", () => {
     // The server runs in UTC and a reader's phone in anything; neither moves
-    // the day. A caller's timeZone cannot either.
+    // the day. Run where the local day is still 30 September, to prove it.
+    const out = execFileSync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        `import { formatTaipeiDate } from ${JSON.stringify(pathToFileURL(join(WEB, "lib", "dates.ts")).href)};
+         const d = new Date(${JSON.stringify(DAWN)});
+         console.log(JSON.stringify([d.getDate(), formatTaipeiDate(d, "en")]));`,
+      ],
+      { env: { ...process.env, TZ: "America/Los_Angeles" }, encoding: "utf8" },
+    );
+    const [localDay, shown] = JSON.parse(out);
+    assert.equal(localDay, 30, "the child did not run in Los Angeles's zone");
+    assert.equal(shown, "10/1/2026");
+  });
+
+  test("whatever zone a caller asks for", () => {
     assert.equal(formatTaipeiDate(DAWN, "en", { timeZone: "UTC" }), "10/1/2026");
   });
 
