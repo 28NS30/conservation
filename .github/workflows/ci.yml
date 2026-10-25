@@ -159,7 +159,39 @@ jobs:
           curl -fsS -o /dev/null --max-time 5 http://localhost:3000/api/health
 
       - name: Tests (privacy invariants, tile contract, shared logic)
-        run: npm test
+        # A skipped test is printed beside the passes and read as one, so the
+        # step fails when more tests skip than ALLOWED_SKIPS. That is none:
+        # the roles above, the Auth stand-in and the fixture give every test
+        # what it asks for, and one that needs the server throws here rather
+        # than skipping (requireServer). Before this, 36 skipped on every run,
+        # 30 of them the checks of who can read an exact coordinate. A test
+        # that has to skip in CI raises the number in the same commit, with
+        # its name and its reason in docs/qa-harness.md.
+        #
+        # The count is read off node's own summary, in either of its formats:
+        # TAP ("# skipped 2"), which node 22 prints when the output is not a
+        # terminal, and spec ("ℹ skipped 2"), its default from node 23 on. No
+        # summary at all fails too: then nothing says what ran.
+        env:
+          ALLOWED_SKIPS: "0"
+        shell: bash
+        run: |
+          set +e
+          npm test 2>&1 | tee "$RUNNER_TEMP/unit-tests.log"
+          status=${PIPESTATUS[0]}
+          set -e
+          skipped=$(grep -aE '^(# |ℹ )skipped [0-9]+$' "$RUNNER_TEMP/unit-tests.log" | tail -n 1 | grep -oE '[0-9]+$' || true)
+          if [ -z "$skipped" ]; then
+            echo "::error::npm test printed no summary, so nothing says what ran."
+            exit 1
+          fi
+          if [ "$skipped" -gt "$ALLOWED_SKIPS" ]; then
+            grep -aE '# SKIP|^ *﹣ ' "$RUNNER_TEMP/unit-tests.log" || true
+            echo "::error::$skipped tests skipped and $ALLOWED_SKIPS may. Give each what it needs here, or raise ALLOWED_SKIPS with its reason in docs/qa-harness.md."
+            exit 1
+          fi
+          echo "$skipped skipped, $ALLOWED_SKIPS allowed."
+          exit "$status"
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
