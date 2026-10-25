@@ -486,6 +486,8 @@
     "undoItem": "Undo: {report}",
     "sentCount": "{count, plural, one {Sent # report.} other {Sent # reports.}}",
     "queueFailed": "This report could not be saved on your device, and was not sent. Check that your browser is not blocking storage, or that it is not full.",
+    "queueHeld": "This report was not saved on this phone, and was not sent: the site is still open in another tab with an older version. Close the site's other tabs and try again.",
+    "queueHeldList": "The reports kept on this phone can't be read right now: the site is still open in another tab with an older version. Close the site's other tabs.",
     "verifying": "Checking your browser before sending — this takes a moment.",
     "explainOffline": "No signal right now. They stay on this phone and are sent when you open the report page again with a signal.",
     "reminder": "{count, plural, one {# report not sent yet} other {# reports not sent yet}}",

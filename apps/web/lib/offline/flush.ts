@@ -3,7 +3,9 @@ import {
   getQueued,
   updateQueued,
   markUploaded,
+  finishDiscards,
   isPending,
+  isWaiting,
   type QueuedReport,
 } from "./queue";
 import { withBase } from "@/lib/basePath";
@@ -58,8 +60,15 @@ import { recordSent } from "./sent.ts";
  *     wait, so a report goes the moment the phone finds some; and pressing
  *     send on the banner does not wait either.
  *   - The queue stops trying only when the server refuses the report — a
- *     4xx that says the report itself is wrong — or after fourteen days of
- *     trying. Either way it stays on screen, with 再試一次 beside it.
+ *     4xx that says the report itself is wrong — or when the server has been
+ *     failing on it for fourteen days, counted from its first answer, not
+ *     from the save: a report carried for weeks with no signal has not been
+ *     tried at all. Either way it stays on screen, with 再試一次 beside it.
+ *
+ * A REPORT ITS REPORTER DISCARDED IS NEVER SENT, from any tab, during the few
+ * seconds its undo lasts or after: the discard is on the row (discardAt in
+ * queue.ts), each report is read again just before it is sent, and a flush
+ * starts by deleting the discards that have become final.
  */
 
 export type FlushResult = {
@@ -96,18 +105,6 @@ export const LONGEST_WAIT_MS = 6 * 3600 * 1000;
 export function retryAt(item: Pick<QueuedReport, "lastTriedAt" | "retries">): number {
   if (!item.lastTriedAt || !item.retries) return 0;
   return item.lastTriedAt + Math.min(2 ** item.retries * 60_000, LONGEST_WAIT_MS);
-}
-
-/**
- * Reports the banner is about to discard, during its few seconds of undo.
- * Not sent, so that a report its reporter has just thrown away is not filed
- * by a flush that happened to start in those seconds.
- */
-const heldBack = new Set<string>();
-
-export function holdBack(id: string, held: boolean): void {
-  if (held) heldBack.add(id);
-  else heldBack.delete(id);
 }
 
 /**
@@ -212,10 +209,16 @@ async function sendOne(
   try {
     const photoPaths = await uploadPhotos(item);
 
-    // Discarded while its photos were going up: it is not filed. The row is
-    // gone, so nothing below could record the outcome, and a report the
-    // reporter was told was deleted used to be published anyway.
-    if (!(await getQueued(item.id))) return "skipped";
+    // Discarded while its photos were going up: it is not filed. A report the
+    // reporter was told was deleted used to be published anyway. Gone, or
+    // being discarded from another tab, whose undo may yet bring it back: put
+    // as it was, with the attempt this send took back.
+    const latest = await getQueued(item.id);
+    if (!latest) return "skipped";
+    if (latest.discardAt !== undefined) {
+      await updateQueued(item.id, { status: "queued", attempts: item.attempts });
+      return "skipped";
+    }
 
     const res = await fetch(withBase("/api/reports"), {
       method: "POST",
@@ -330,12 +333,13 @@ async function sendOne(
     // signal, and the other has ended this flush for every report anyway.
     const answered = !network && !limited;
     const now = Date.now();
-    const tooLong = answered && now - (item.retryFrom ?? item.createdAt) > GIVE_UP_AFTER_MS;
+    const since = item.firstAnsweredAt ?? now;
+    const tooLong = answered && now - since > GIVE_UP_AFTER_MS;
     await updateQueued(item.id, {
       status: refused || tooLong ? "failed" : "queued",
       attempts,
       lastError: code,
-      ...(answered ? { lastTriedAt: now, retries: (item.retries ?? 0) + 1 } : {}),
+      ...(answered ? { lastTriedAt: now, retries: (item.retries ?? 0) + 1, firstAnsweredAt: since } : {}),
     });
     return limited ? "limited" : "failed";
   }
@@ -374,21 +378,29 @@ export async function flushQueue(
 
     // `remaining` counts work, not receipts: an uploaded row is a record of
     // something that already succeeded, and counting it would leave the banner
-    // claiming a report was still waiting after it had landed.
-    const pending = async () => (await listQueued()).filter(isPending).length;
+    // claiming a report was still waiting after it had landed. Nor a report
+    // being discarded.
+    const pending = async () => (await listQueued()).filter(isWaiting).length;
+
+    await finishDiscards();
 
     if (typeof navigator !== "undefined" && navigator.onLine === false) {
       return { sent, failed, skipped, deferred, remaining: await pending() };
     }
 
-    for (const item of (await listQueued()).filter(isPending)) {
+    for (const listed of (await listQueued()).filter(isPending)) {
+      // As it is now, not as it was when the flush began: the reports before
+      // it may have taken a minute to send, and in that minute it may have
+      // been discarded, here or in another tab.
+      const item = await getQueued(listed.id);
+      if (!item || !isPending(item)) continue;
       // `failed` is final until the reporter says otherwise: refused by the
       // server for something about the report, or tried for fourteen days.
       // Sending it again on every flush spent the sender's rate limit on
       // answers already known, so it stays on screen, to be read, tried again
       // or discarded, and is not sent.
       if (item.status === "failed") continue;
-      if (heldBack.has(item.id)) continue;
+      if (item.discardAt !== undefined) continue;
       if (!force && Date.now() < retryAt(item)) {
         deferred++;
         continue;
@@ -438,9 +450,12 @@ export function startFlushTriggers(
   getToken?: TokenProvider,
 ): () => void {
   const run = () => {
-    void flushQueue(getToken).then((r) => {
-      if (r.sent > 0 || r.failed > 0) onResult?.(r);
-    });
+    void flushQueue(getToken)
+      .then((r) => {
+        if (r.sent > 0 || r.failed > 0) onResult?.(r);
+      })
+      // The database is held by another tab (db.ts); the next trigger tries again.
+      .catch(() => {});
   };
 
   const onVisible = () => {

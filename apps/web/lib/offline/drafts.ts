@@ -22,6 +22,10 @@ import { offlineDb, readExisting, DRAFT_STORE } from "./db.ts";
  * A draft older than DRAFT_TTL_MS is dropped, in both halves: by then it is not
  * the report someone was in the middle of. And the photographs of a tab that
  * was closed have no fields left pointing at them, so they are swept by age.
+ *
+ * On a page that had to leave the database at version 1, because a tab of an
+ * older build had it open (db.ts), there is no `drafts` store: the fields still
+ * come back, and the photographs quietly do not.
  */
 export const DRAFT_TTL_MS = 24 * 3600 * 1000;
 
@@ -78,6 +82,7 @@ export function dropDraftFields(key: string): void {
 export async function saveDraftPhotos(id: string, photos: DraftPhoto[]): Promise<void> {
   try {
     const conn = await offlineDb();
+    if (!conn.objectStoreNames.contains(DRAFT_STORE)) return;
     if (photos.length === 0) await conn.delete(DRAFT_STORE, id);
     else await conn.put(DRAFT_STORE, { id, savedAt: Date.now(), photos } satisfies StoredPhotos);
   } catch (e) {
@@ -89,6 +94,7 @@ export async function saveDraftPhotos(id: string, photos: DraftPhoto[]): Promise
 export async function loadDraftPhotos(id: string, now = Date.now()): Promise<DraftPhoto[]> {
   try {
     const conn = await offlineDb();
+    if (!conn.objectStoreNames.contains(DRAFT_STORE)) return [];
     const stored = (await conn.get(DRAFT_STORE, id)) as StoredPhotos | undefined;
     if (!stored || now - stored.savedAt > DRAFT_TTL_MS) return [];
     return stored.photos;
@@ -99,7 +105,8 @@ export async function loadDraftPhotos(id: string, now = Date.now()): Promise<Dra
 
 export async function dropDraftPhotos(id: string): Promise<void> {
   try {
-    await (await offlineDb()).delete(DRAFT_STORE, id);
+    const conn = await offlineDb();
+    if (conn.objectStoreNames.contains(DRAFT_STORE)) await conn.delete(DRAFT_STORE, id);
   } catch {
     // Swept by age later.
   }
@@ -109,6 +116,7 @@ export async function dropDraftPhotos(id: string): Promise<void> {
 export async function purgeDraftPhotos(now = Date.now()): Promise<void> {
   try {
     const conn = await offlineDb();
+    if (!conn.objectStoreNames.contains(DRAFT_STORE)) return;
     for (const d of (await conn.getAll(DRAFT_STORE)) as StoredPhotos[])
       if (now - d.savedAt > DRAFT_TTL_MS) await conn.delete(DRAFT_STORE, d.id);
   } catch {

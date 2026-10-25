@@ -38,6 +38,8 @@ export async function recordSent(report: SentReport): Promise<void> {
   if (!report.id) return;
   try {
     const conn = await offlineDb();
+    // Left at version 1 because a tab of an older build had it (db.ts).
+    if (!conn.objectStoreNames.contains(SENT_STORE)) return;
     await conn.put(SENT_STORE, report);
     const all = (await conn.getAll(SENT_STORE)) as SentReport[];
     if (all.length > KEEP) {

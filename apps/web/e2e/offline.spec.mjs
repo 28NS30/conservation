@@ -27,7 +27,14 @@
  *     (lib/offline/db.ts), and a reminder of it is on every page but the
  *     report pages, without being in what /map loads first;
  *   - a report the queue gave up on can be tried again, and a discard can be
- *     undone for a few seconds;
+ *     undone for a few seconds — still after a reload, never sent meanwhile,
+ *     and deleted when they are up even if the tab was closed — and the
+ *     reminder stops saying a report is waiting once none is;
+ *   - a tab of the build before version 2, holding the database open and
+ *     deaf to requests to let go, never leaves a new tab without its queue:
+ *     with a service worker to ask, the new tab keeps the database at version
+ *     1 and saving on the phone works; with none, it says to close the other
+ *     tab instead of hanging, and recovers by itself once that tab is closed;
  *   - a report half filled in, photo and all, comes back after a reload and
  *     after the language switch, both of which ask first, as a link does.
  *
@@ -302,6 +309,122 @@ const tapUseMyLocation = async (locale = ZH) => {
   }
   throw new Error("the location never set");
 };
+
+/** The same on any page of any context. Says whether the place was set. */
+const placeOn = async (p, context) => {
+  for (let i = 0; i < 4; i++) {
+    await context.setGeolocation({ latitude: 23.75, longitude: 120.95, accuracy: 30 });
+    await p.getByRole("button", { name: ZH.report.useMyLocation }).click({ timeout: 2000 }).catch(() => {});
+    if (await p.getByText(ZH.report.tapToAdjust).waitFor({ timeout: 4000 }).then(() => true).catch(() => false))
+      return true;
+  }
+  return false;
+};
+
+/** A waiting report, written straight into the queue at whatever version it is. */
+const putQueued = (p, id, notes = "offline e2e") =>
+  p.evaluate(
+    async ({ id, notes }) => {
+      const db = await new Promise((res, rej) => {
+        const r = indexedDB.open("conservation-offline");
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => rej(r.error);
+      });
+      await new Promise((res, rej) => {
+        const tx = db.transaction("pendingReports", "readwrite");
+        tx.objectStore("pendingReports").put({
+          id,
+          createdAt: Date.now(),
+          payload: {
+            category: "roadkill",
+            page: "roadkill",
+            lng: 120.95,
+            lat: 23.75,
+            observedAt: new Date().toISOString(),
+            notes,
+          },
+          photos: [],
+          uploadedPaths: [],
+          attempts: 0,
+          status: "queued",
+        });
+        tx.oncomplete = () => res();
+        tx.onerror = () => rej(tx.error);
+      });
+      db.close();
+    },
+    { id, notes },
+  );
+
+/** One row of the queue, or null. */
+const rowOf = (p, id) =>
+  p.evaluate(async (id) => {
+    const db = await new Promise((res) => {
+      const r = indexedDB.open("conservation-offline");
+      r.onsuccess = () => res(r.result);
+    });
+    const row = await new Promise((res) => {
+      const req = db.transaction("pendingReports").objectStore("pendingReports").get(id);
+      req.onsuccess = () => res(req.result);
+    });
+    db.close();
+    return row ?? null;
+  }, id);
+
+/** The database's version and its queue, opened as it is. */
+const dbState = (p) =>
+  p.evaluate(async () => {
+    const db = await new Promise((res, rej) => {
+      const r = indexedDB.open("conservation-offline");
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+    const rows = await new Promise((res) => {
+      const req = db.transaction("pendingReports").objectStore("pendingReports").getAll();
+      req.onsuccess = () => res(req.result);
+    });
+    const out = { version: db.version, stores: [...db.objectStoreNames], rows };
+    db.close();
+    return out;
+  });
+
+/**
+ * Be a tab of the build before version 2: open the database at version 1,
+ * with a report waiting in it, and keep the connection — never closing it,
+ * and not listening for a newer version asking it to.
+ */
+const beOldTab = (p, id) =>
+  p.evaluate(async (id) => {
+    const db = await new Promise((res, rej) => {
+      const r = indexedDB.open("conservation-offline", 1);
+      r.onupgradeneeded = () =>
+        r.result.createObjectStore("pendingReports", { keyPath: "id" }).createIndex("createdAt", "createdAt");
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+    await new Promise((res, rej) => {
+      const tx = db.transaction("pendingReports", "readwrite");
+      tx.objectStore("pendingReports").put({
+        id,
+        createdAt: Date.now(),
+        payload: {
+          category: "roadkill",
+          page: "roadkill",
+          lng: 120.95,
+          lat: 23.75,
+          observedAt: new Date().toISOString(),
+          notes: "old tab e2e",
+        },
+        photos: [],
+        uploadedPaths: [],
+        attempts: 0,
+        status: "queued",
+      });
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+    });
+    window.oldTab = db;
+  }, id);
 
 try {
   // --- queue while offline -------------------------------------------------
@@ -742,7 +865,207 @@ try {
   await discardOld.click();
   await upPage.waitForTimeout(6000);
   check("a discard that is not undone deletes the report after a few seconds", (await statusOf()) === null);
+
+  // From here every send this context makes is counted, and none lands.
+  let upPosts = 0;
+  await upPage.unroute("**/api/reports");
+  await up.route("**/api/reports", (route) => {
+    upPosts++;
+    return route.abort();
+  });
+  const discardButton = (p) => p.getByRole("button", { name: new RegExp(`^${ZH.offline.discard}：`) });
+  const undoButton = (p) => p.getByRole("button", { name: new RegExp(`^${ZH.offline.undo}：`) });
+
+  // The reminder had counted a report, which is then discarded on the report
+  // page; going on to another page, it says nothing is waiting.
+  const LAST = crypto.randomUUID();
+  nonces.push(LAST);
+  await putQueued(upPage, LAST);
+  await upPage.reload({ waitUntil: "load" });
+  await discardButton(upPage).waitFor({ timeout: 10000 });
+  // The reminder is idle-loaded; let it count the report first.
+  await upPage.waitForTimeout(5000);
+  await discardButton(upPage).click();
+  await upPage.waitForTimeout(6500);
+  // A link, so that the move is the client-side one that kept the old count.
+  await upPage.locator('a[href="/"]').first().click({ timeout: 5000 }).catch(() => {});
+  await upPage.waitForURL((u) => u.pathname === "/", { timeout: 10000 }).catch(() => {});
+  await upPage.waitForTimeout(2000);
+  check(
+    "after the last report is discarded, the next page has no reminder",
+    new URL(upPage.url()).pathname === "/" && (await upPage.locator("#queue-reminder").count()) === 0 && (await rowOf(upPage, LAST)) === null,
+    upPage.url(),
+  );
+
+  // Reloaded during the undo: the undo is still there, and the report is
+  // neither lost before its seconds are up nor sent.
+  const AGAIN = crypto.randomUUID();
+  nonces.push(AGAIN);
+  await upPage.goto(`${BASE}/report`, { waitUntil: "load" });
+  await putQueued(upPage, AGAIN);
+  await upPage.reload({ waitUntil: "load" });
+  await discardButton(upPage).waitFor({ timeout: 10000 });
+  await upPage.waitForTimeout(1500);
+  let sentBefore = upPosts;
+  await discardButton(upPage).click();
+  await undoButton(upPage).waitFor({ timeout: 3000 });
+  await upPage.reload({ waitUntil: "load" });
+  const undoAfterReload = await undoButton(upPage)
+    .waitFor({ timeout: 3000 })
+    .then(() => true)
+    .catch(() => false);
+  const heldThrough = await rowOf(upPage, AGAIN);
+  check(
+    "a page reloaded during the undo still offers it, and still has the report",
+    undoAfterReload && typeof heldThrough?.discardAt === "number",
+    JSON.stringify({ undoAfterReload, discardAt: heldThrough?.discardAt ?? null }),
+  );
+  await upPage.waitForTimeout(6000);
+  check(
+    "when the undo is up the report is deleted, and it was never sent",
+    (await rowOf(upPage, AGAIN)) === null && upPosts === sentBefore,
+    `posts during the undo: ${upPosts - sentBefore}`,
+  );
+
+  // Closed during the undo: deleted when its seconds are up, by whatever page
+  // opens next, and never sent.
+  const CLOSED = crypto.randomUUID();
+  nonces.push(CLOSED);
+  await putQueued(upPage, CLOSED);
+  const closing = await up.newPage();
+  await closing.goto(`${BASE}/report`, { waitUntil: "load" });
+  await discardButton(closing).waitFor({ timeout: 10000 });
+  await closing.waitForTimeout(1500);
+  sentBefore = upPosts;
+  await discardButton(closing).click();
+  await undoButton(closing).waitFor({ timeout: 3000 });
+  await closing.close();
+  // Its sibling tab, still open on /report, must not send it either.
+  await upPage.evaluate(() => window.dispatchEvent(new Event("online")));
+  await upPage.waitForTimeout(6000);
+  await upPage.goto(`${BASE}/`, { waitUntil: "load" });
+  await upPage.waitForTimeout(5000);
+  check(
+    "a tab closed during the undo: the report is deleted once it is up, and never sent",
+    (await rowOf(upPage, CLOSED)) === null && upPosts === sentBefore && (await upPage.locator("#queue-reminder").count()) === 0,
+    `posts: ${upPosts - sentBefore}`,
+  );
   await up.close();
+
+  // --- an old tab holding the database ---------------------------------------
+  // The build before version 2 opened the database at version 1, never closed
+  // it, and did not close when a newer version asked. Browsers hold an upgrade
+  // until every other connection closes, and put every later open in line
+  // behind it, so one such tab used to leave a new tab's queue unanswered.
+  // With a service worker to ask (lib/offline/db.ts), the new tab sees the
+  // other window and leaves the database at version 1.
+  const oc = await browser.newContext({ viewport: { width: 500, height: 900 }, locale: "zh-TW" });
+  await oc.grantPermissions(["geolocation"], { origin: BASE });
+  await oc.route("**/api/reports", (route) => route.abort());
+  const oldTab = await oc.newPage();
+  // A file of the site with none of its scripts, so it is the old build's
+  // connection and nothing else that holds the database.
+  await oldTab.goto(`${BASE}/sw.js`, { waitUntil: "load" });
+  await oldTab.evaluate(async () => {
+    await navigator.serviceWorker.register("/sw.js");
+    await navigator.serviceWorker.ready;
+  });
+  const OLD_TAB = crypto.randomUUID();
+  nonces.push(OLD_TAB);
+  await beOldTab(oldTab, OLD_TAB);
+  const newTab = await oc.newPage();
+  await newTab.goto(`${BASE}/report/wildlife`, { waitUntil: "load" });
+  const ocBanner = await newTab
+    .locator("#queue-waiting")
+    .waitFor({ timeout: 10000 })
+    .then(() => true)
+    .catch(() => false);
+  check("beside an old tab, the new tab's banner reads the queue", ocBanner);
+  await oc.setOffline(true);
+  await reassertOffline(oc, newTab);
+  const ocPlaced = await placeOn(newTab, oc);
+  const ocStarted = Date.now();
+  await newTab.getByRole("button", { name: ZH.report.saveOnPhone, exact: true }).click();
+  const ocSaved = await newTab
+    .getByRole("heading", { name: ZH.offline.queuedTitle })
+    .waitFor({ timeout: 10000 })
+    .then(() => true)
+    .catch(() => false);
+  const ocState = await dbState(newTab);
+  for (const r of ocState.rows) nonces.push(r.id);
+  check(
+    "and saving on the phone finishes, at version 1, the old tab's report kept",
+    ocPlaced && ocSaved && ocState.version === 1 && ocState.rows.length === 2 && ocState.rows.some((r) => r.id === OLD_TAB),
+    JSON.stringify({ ocPlaced, ocSaved, ms: Date.now() - ocStarted, version: ocState.version, rows: ocState.rows.length }),
+  );
+  // The old tab closed, the next page that opens alone upgrades.
+  await oldTab.close();
+  await oc.setOffline(false);
+  await newTab.reload({ waitUntil: "load" });
+  await newTab.locator("#queue-waiting").waitFor({ timeout: 10000 }).catch(() => {});
+  const ocAfter = await dbState(newTab);
+  check(
+    "once it is closed, the next page upgrades to 2 with both reports",
+    ocAfter.version === 2 && ocAfter.rows.length === 2 && ["drafts", "sent"].every((s) => ocAfter.stores.includes(s)),
+    JSON.stringify({ version: ocAfter.version, rows: ocAfter.rows.length, stores: ocAfter.stores }),
+  );
+  await oc.close();
+
+  // With no service worker to ask (an in-app browser, say), the new tab asks
+  // for the upgrade, and the old tab holds it. Nothing may hang: the banner
+  // and the form say to close the other tab, and when it is closed the queue
+  // comes back without a reload.
+  const nc = await browser.newContext({ viewport: { width: 500, height: 900 }, locale: "zh-TW", serviceWorkers: "block" });
+  await nc.grantPermissions(["geolocation"], { origin: BASE });
+  await nc.route("**/api/reports", (route) => route.abort());
+  const stuckOld = await nc.newPage();
+  await stuckOld.goto(`${BASE}/sw.js`, { waitUntil: "load" });
+  const STUCK = crypto.randomUUID();
+  nonces.push(STUCK);
+  await beOldTab(stuckOld, STUCK);
+  const stuckNew = await nc.newPage();
+  await stuckNew.goto(`${BASE}/report/wildlife`, { waitUntil: "load" });
+  const heldSaid = await stuckNew
+    .getByText(ZH.offline.queueHeldList)
+    .waitFor({ timeout: 8000 })
+    .then(() => true)
+    .catch(() => false);
+  check("held by an old tab, the banner says to close the site's other tabs", heldSaid);
+  await nc.setOffline(true);
+  await reassertOffline(nc, stuckNew);
+  const ncPlaced = await placeOn(stuckNew, nc);
+  const ncStarted = Date.now();
+  await stuckNew.getByRole("button", { name: ZH.report.saveOnPhone, exact: true }).click();
+  const heldAlert = await stuckNew
+    .getByText(ZH.offline.queueHeld)
+    .waitFor({ timeout: 8000 })
+    .then(() => true)
+    .catch(() => false);
+  check(
+    "saving on the phone answers within seconds, saying what to do, instead of never answering",
+    ncPlaced && heldAlert && Date.now() - ncStarted < 8000,
+    JSON.stringify({ ncPlaced, heldAlert, ms: Date.now() - ncStarted }),
+  );
+  await stuckOld.close();
+  const cameBack = await stuckNew
+    .locator("#queue-waiting")
+    .waitFor({ timeout: 10000 })
+    .then(() => true)
+    .catch(() => false);
+  await stuckNew.getByRole("button", { name: ZH.report.saveOnPhone, exact: true }).click();
+  const ncSaved = await stuckNew
+    .getByRole("heading", { name: ZH.offline.queuedTitle })
+    .waitFor({ timeout: 10000 })
+    .then(() => true)
+    .catch(() => false);
+  const ncState = await dbState(stuckNew);
+  for (const r of ncState.rows) nonces.push(r.id);
+  check(
+    "when the old tab closes, the queue comes back by itself, upgraded, and saving works",
+    cameBack && ncSaved && ncState.version === 2 && ncState.rows.length === 2,
+    JSON.stringify({ cameBack, ncSaved, version: ncState.version, rows: ncState.rows.length }),
+  );
+  await nc.close();
 
   // --- a report filled in survives the page going ---------------------------
   // Android discards the tab while the camera app is open; a reload is the

@@ -4,19 +4,21 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import {
   listQueued,
-  removeQueued,
   retryQueued,
+  discardQueued,
+  keepQueued,
+  finishDiscards,
   purgeUploaded,
   isPending,
   requestPersistence,
   type QueuedReport,
 } from "@/lib/offline/queue";
+import { isBlocked } from "@/lib/offline/db";
 import { Link } from "@/i18n/navigation";
 import {
   flushQueue,
   startFlushTriggers,
   currentlySending,
-  holdBack,
   type FlushOptions,
 } from "@/lib/offline/flush";
 import Turnstile from "@/components/report/Turnstile";
@@ -62,6 +64,12 @@ export default function QueueBanner() {
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
   const [ready, setReady] = useState(!turnstileEnabled);
+  /**
+   * The queue cannot be read: a tab of an older build holds the database
+   * (lib/offline/db.ts). Said, rather than showing nothing, which reads as
+   * "nothing is waiting" to someone who saved a report on this phone.
+   */
+  const [held, setHeld] = useState(false);
 
   const STALE_AFTER_MS = 3 * 24 * 3600 * 1000;
   /** How long a "sent" receipt survives. Long enough to come down off a hill. */
@@ -76,26 +84,29 @@ export default function QueueBanner() {
   const resetRef = useRef<(() => void) | null>(null);
   /** Reports this page has already tried to send by itself. */
   const autoFlushedRef = useRef(new Set<string>());
-  /**
-   * Reports discarded in the last UNDO_MS, each with the timer that deletes
-   * it. A tap on 刪除 next to 再試一次, on a phone, on a moving bus, is easily
-   * the wrong one, and it threw away the only copy of a report at once.
-   */
-  const [discarding, setDiscarding] = useState<string[]>([]);
-  const undoTimers = useRef(new Map<string, number>());
 
   const refresh = useCallback(async () => {
-    // Receipts are kept for a day so a reporter who closes the app on a
-    // mountain road and opens it in town still sees that their report went.
-    await purgeUploaded(RECEIPT_TTL_MS);
-    const all = await listQueued();
-    const waiting = all.filter(isPending);
-    setItems(waiting);
-    setSent(all.filter((i) => i.status === "uploaded"));
-    // Computed here rather than during render: Date.now() is impure and would
-    // make the component's output depend on when it happened to re-render.
-    setStale(waiting.some((i) => Date.now() - i.createdAt > STALE_AFTER_MS));
-    setSendingId(currentlySending());
+    try {
+      // A discard whose few seconds are up is deleted here, whichever page or
+      // tab it was pressed on (discardAt in lib/offline/queue.ts).
+      await finishDiscards();
+      // Receipts are kept for a day so a reporter who closes the app on a
+      // mountain road and opens it in town still sees that their report went.
+      await purgeUploaded(RECEIPT_TTL_MS);
+      const all = await listQueued();
+      const waiting = all.filter(isPending);
+      setItems(waiting);
+      setSent(all.filter((i) => i.status === "uploaded"));
+      // Computed here rather than during render: Date.now() is impure and would
+      // make the component's output depend on when it happened to re-render.
+      setStale(waiting.some((i) => Date.now() - i.createdAt > STALE_AFTER_MS));
+      setSendingId(currentlySending());
+      setHeld(false);
+    } catch (e) {
+      // Looked at again when the database comes free: db.ts says so.
+      if (isBlocked(e)) setHeld(true);
+      else console.error("[queue] could not read the queue:", e);
+    }
   }, [STALE_AFTER_MS, RECEIPT_TTL_MS]);
 
   /** Hand out one token, then start minting the next. */
@@ -142,56 +153,63 @@ export default function QueueBanner() {
   const runFlush = useCallback(
     async (options?: FlushOptions) => {
       setBusy(true);
-      await flushQueue(getToken, options);
-      await refresh();
-      setBusy(false);
+      try {
+        await flushQueue(getToken, options);
+      } catch {
+        // The queue could not be read; refresh() says why.
+      } finally {
+        await refresh();
+        setBusy(false);
+      }
     },
     [getToken, refresh],
   );
 
-  /** Delete it for good, now: its undo is over, or the banner is going. */
-  const commitDiscard = useCallback(async (id: string) => {
-    const timer = undoTimers.current.get(id);
-    if (timer !== undefined) window.clearTimeout(timer);
-    undoTimers.current.delete(id);
-    await removeQueued(id);
-    holdBack(id, false);
-  }, []);
-
+  /*
+   * 刪除, with a few seconds to take it back. A tap on 刪除 next to 再試一次, on
+   * a phone, on a moving bus, is easily the wrong one, and it threw away the
+   * only copy of a report at once.
+   *
+   * The decision is written on the report itself (discardAt in
+   * lib/offline/queue.ts), never kept only here. The undo was once a timer on
+   * this page: closed, reloaded or evicted in those seconds, the page never
+   * deleted the report, and the next flush sent it. Now no flush anywhere
+   * sends it, a page opened during the undo shows it with the time that is
+   * left, and when that is up the next look deletes it.
+   */
   const discard = useCallback(
-    (id: string) => {
-      // Held back from the flush at once, so a send that starts during the
-      // undo does not file a report its reporter has just thrown away.
-      holdBack(id, true);
-      setDiscarding((d) => [...d, id]);
-      const timer = window.setTimeout(() => {
-        // Off the list before it stops being "discarded", so it does not
-        // flash back as a waiting report in between.
-        void commitDiscard(id)
-          .then(refresh)
-          .then(() => setDiscarding((d) => d.filter((x) => x !== id)));
-      }, UNDO_MS);
-      undoTimers.current.set(id, timer);
+    async (id: string) => {
+      await discardQueued(id, Date.now() + UNDO_MS);
+      await refresh();
     },
-    [UNDO_MS, commitDiscard, refresh],
+    [UNDO_MS, refresh],
   );
 
-  const undoDiscard = useCallback((id: string) => {
-    const timer = undoTimers.current.get(id);
-    if (timer !== undefined) window.clearTimeout(timer);
-    undoTimers.current.delete(id);
-    holdBack(id, false);
-    setDiscarding((d) => d.filter((x) => x !== id));
-  }, []);
+  const undoDiscard = useCallback(
+    async (id: string) => {
+      await keepQueued(id);
+      await refresh();
+    },
+    [refresh],
+  );
 
-  // Leaving the page during an undo keeps the decision: the reporter said
-  // discard, and the undo is a few seconds' grace, not a reprieve.
+  // Look again when the next discard becomes final, which deletes it.
+  const nextFinal = items.reduce<number | null>(
+    (soonest, i) =>
+      i.discardAt !== undefined && (soonest === null || i.discardAt < soonest)
+        ? i.discardAt
+        : soonest,
+    null,
+  );
   useEffect(() => {
-    const timers = undoTimers.current;
-    return () => {
-      for (const id of [...timers.keys()]) void commitDiscard(id);
-    };
-  }, [commitDiscard]);
+    if (nextFinal === null) return;
+    const timer = window.setTimeout(
+      () => void refresh(),
+      Math.max(0, nextFinal - Date.now()) + 50,
+    );
+    return () => window.clearTimeout(timer);
+  }, [nextFinal, refresh]);
+  const discarding = items.filter((i) => i.discardAt !== undefined).length;
 
   // The queue's first flush fires on mount, before the widget can possibly have
   // solved, so it holds everything back. This is the retry that actually sends.
@@ -301,10 +319,26 @@ export default function QueueBanner() {
     </div>
   );
 
-  if (items.length === 0) return receipts || null;
+  const heldNotice = held && (
+    <p
+      role="status"
+      className="mb-6 rounded-lg border-2 border-forest-900/25 bg-paper-100 px-4 py-3 text-sm text-ink-800"
+    >
+      {t("queueHeldList")}
+    </p>
+  );
+
+  if (items.length === 0)
+    return heldNotice || receipts ? (
+      <>
+        {heldNotice}
+        {receipts}
+      </>
+    ) : null;
 
   return (
     <>
+      {heldNotice}
       {receipts}
       <section
         aria-labelledby="queue-waiting"
@@ -315,7 +349,7 @@ export default function QueueBanner() {
             id="queue-waiting"
             className="text-base font-semibold text-forest-900"
           >
-            {t("waiting", { count: items.length - discarding.length })}
+            {t("waiting", { count: items.length - discarding })}
           </h2>
           {/* Pressed, it tries every report now, including one waiting out
               the pause after a server error (lib/offline/flush.ts). */}
@@ -363,7 +397,7 @@ export default function QueueBanner() {
             const which = `${new Date(i.createdAt).toLocaleString(locale, {
               timeZone: "Asia/Taipei",
             })} · ${tCategory(i.payload.category)}`;
-            if (discarding.includes(i.id))
+            if (i.discardAt !== undefined)
               return (
                 <li
                   key={i.id}
@@ -374,7 +408,7 @@ export default function QueueBanner() {
                   </span>
                   <button
                     type="button"
-                    onClick={() => undoDiscard(i.id)}
+                    onClick={() => void undoDiscard(i.id)}
                     aria-label={t("undoItem", { report: which })}
                     className="inline-flex min-h-11 shrink-0 items-center px-2 font-medium text-forest-900 underline underline-offset-2 hover:text-ink-950"
                   >
@@ -426,7 +460,7 @@ export default function QueueBanner() {
                     disabled={sendingId === i.id}
                     onClick={() => {
                       if (currentlySending() === i.id) return;
-                      discard(i.id);
+                      void discard(i.id);
                     }}
                     aria-label={t("discardItem", { report: which })}
                     className="inline-flex min-h-11 items-center px-2 text-ink-700 underline underline-offset-2 hover:text-ink-950 disabled:cursor-not-allowed disabled:text-ink-600 disabled:no-underline"

@@ -149,9 +149,13 @@ describe("the queue does not wear a sound report down", () => {
   test("a discarded report can be brought back for a few seconds, and is not sent meanwhile", () => {
     const banner = read("components", "report", "QueueBanner.tsx");
     assert.match(banner, /const UNDO_MS = 5_000;/);
-    assert.match(banner, /holdBack\(id, true\);/);
-    assert.match(banner, /onClick=\{\(\) => undoDiscard\(i\.id\)\}/);
-    assert.match(flush, /if \(heldBack\.has\(item\.id\)\) continue;/);
+    // On the row, so that it holds across a reload and in every tab; the
+    // page never deletes a report by itself on its way out.
+    assert.match(banner, /await discardQueued\(id, Date\.now\(\) \+ UNDO_MS\);/);
+    assert.match(banner, /onClick=\{\(\) => void undoDiscard\(i\.id\)\}/);
+    assert.doesNotMatch(banner, /removeQueued|holdBack/);
+    assert.match(flush, /if \(item\.discardAt !== undefined\) continue;/);
+    assert.match(flush, /const item = await getQueued\(listed\.id\);/, "the flush sends what it listed, not what is there now");
   });
 
   test("each report's buttons say which report they are for", () => {
@@ -164,8 +168,10 @@ describe("the queue does not wear a sound report down", () => {
   });
 
   test("a report discarded mid-send is not filed", () => {
-    const check = flush.indexOf("if (!(await getQueued(item.id))) return \"skipped\";");
-    assert.ok(check > 0 && check < flush.indexOf('fetch(withBase("/api/reports")'),
+    const post = flush.indexOf('fetch(withBase("/api/reports")');
+    const gone = flush.indexOf('if (!latest) return "skipped";');
+    const discarding = flush.indexOf("if (latest.discardAt !== undefined) {");
+    assert.ok(gone > 0 && gone < post && discarding > 0 && discarding < post,
       "the discard is only noticed after the report is filed");
     const banner = read("components", "report", "QueueBanner.tsx");
     assert.match(banner, /disabled=\{sendingId === i\.id\}/);

@@ -43,10 +43,18 @@ registerHooks({
 
 // No challenge, as in local development: the token path has its own tests.
 process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = "";
-const { enqueue, getQueued, updateQueued, retryQueued, listQueued, removeQueued } = await import(
-  "../lib/offline/queue.ts"
-);
-const { flushQueue, retryAt, holdBack, GIVE_UP_AFTER_MS, LONGEST_WAIT_MS } = await import(
+const {
+  enqueue,
+  getQueued,
+  updateQueued,
+  retryQueued,
+  listQueued,
+  removeQueued,
+  discardQueued,
+  keepQueued,
+  countWaiting,
+} = await import("../lib/offline/queue.ts");
+const { flushQueue, retryAt, GIVE_UP_AFTER_MS, LONGEST_WAIT_MS } = await import(
   "../lib/offline/flush.ts"
 );
 const { listSent, forgetSent } = await import("../lib/offline/sent.ts");
@@ -178,9 +186,10 @@ describe("the only two ways a report is given up on", () => {
     assert.equal(item.lastError, "validation_failed");
   });
 
-  test("fourteen days of trying, and 再試一次 starts the fourteen days again", async () => {
+  test("fourteen days of the server failing on it, and 再試一次 starts the fourteen days again", async () => {
     const { id } = await queue();
     answer = json(503, {});
+    await flushQueue();
     mock.timers.tick(GIVE_UP_AFTER_MS - MINUTE);
     await flushQueue();
     assert.equal((await getQueued(id)).status, "queued", "given up before fourteen days");
@@ -203,23 +212,101 @@ describe("the only two ways a report is given up on", () => {
     await flushQueue();
     item = await getQueued(id);
     assert.equal(posts, before + 1);
-    assert.equal(item.status, "queued", "the fourteen days were counted from the first save");
+    assert.equal(item.status, "queued", "the fourteen days were not started again");
+  });
+
+  test("not fourteen days from the save: a report carried three weeks with no signal is tried", async () => {
+    const { id } = await queue();
+    // Twenty days on a trip, every flush finding no network.
+    globalThis.fetch = async () => {
+      throw new TypeError("Failed to fetch");
+    };
+    try {
+      for (let day = 0; day < 20; day++) {
+        mock.timers.tick(24 * 3600 * 1000);
+        await flushQueue();
+      }
+    } finally {
+      globalThis.fetch = async (url) => {
+        if (String(url).endsWith("/api/reports")) posts++;
+        return answer();
+      };
+    }
+    // Then signal, and a server having a bad morning.
+    answer = json(503, {});
+    await flushQueue();
+    const item = await getQueued(id);
+    assert.equal(posts, 1);
+    assert.equal(item.status, "queued", "given up on at its first answer, for having been saved long ago");
+    assert.equal(item.attempts, 0);
   });
 });
 
 describe("what a flush does with the rest", () => {
-  test("a report being discarded is not sent during its undo", async () => {
+  test("a report being discarded is not sent during its undo, by any flush, and undone it is", async () => {
     const { id } = await queue();
     answer = json(201, { id: randomUUID(), status: "published", visible: true });
-    holdBack(id, true);
-    try {
-      await flushQueue(undefined, { force: true });
-      assert.equal(posts, 0, "a report its reporter had just discarded was sent");
-    } finally {
-      holdBack(id, false);
-    }
+    // The discard is on the row, so this holds for a flush in any tab, and for
+    // the page that opens after the one it was pressed on was closed.
+    await discardQueued(id, Date.now() + 5_000);
+    await flushQueue(undefined, { force: true });
+    assert.equal(posts, 0, "a report its reporter had just discarded was sent");
+    assert.equal(await countWaiting(), 0, "the reminder still counts a discarded report");
+    assert.ok(await getQueued(id), "deleted before its undo was over");
+
+    await keepQueued(id);
+    assert.equal(await countWaiting(), 1);
     await flushQueue();
     assert.equal((await getQueued(id)).status, "uploaded");
+  });
+
+  test("once the undo is over, the next look deletes it, and it was never sent", async () => {
+    const { id } = await queue();
+    answer = json(201, { id: randomUUID(), status: "published", visible: true });
+    await discardQueued(id, Date.now() + 5_000);
+    // The page it was discarded on is gone; a flush starts somewhere later.
+    mock.timers.tick(6_000);
+    await flushQueue();
+    assert.equal(posts, 0);
+    assert.equal(await getQueued(id), undefined, "a discard that had become final was not finished");
+  });
+
+  test("the reminder's count finishes a final discard too", async () => {
+    const { id } = await queue();
+    await discardQueued(id, Date.now() + 5_000);
+    mock.timers.tick(6_000);
+    assert.equal(await countWaiting(), 0);
+    assert.equal(await getQueued(id), undefined);
+  });
+
+  test("a report discarded from another tab while its photos go up is not filed, and its undo still works", async () => {
+    const { id } = await queue({ photos: [new Blob(["x"], { type: "image/webp" })] });
+    let signed = false;
+    globalThis.fetch = async (url) => {
+      const u = String(url);
+      if (u.endsWith("/api/uploads/sign")) {
+        signed = true;
+        // Pressed in another tab, between the signing and the post.
+        await discardQueued(id, Date.now() + 5_000);
+        return new Response(JSON.stringify({ uploads: [{ path: "p/1.webp", token: "t" }] }), { status: 200 });
+      }
+      if (u.endsWith("/api/reports")) posts++;
+      return answer();
+    };
+    try {
+      answer = json(201, { id: randomUUID(), status: "published", visible: true });
+      await flushQueue();
+      assert.ok(signed);
+      assert.equal(posts, 0, "filed while being discarded");
+      const item = await getQueued(id);
+      assert.equal(item.status, "queued");
+      assert.equal(item.attempts, 0, "the send it never made cost an attempt");
+    } finally {
+      globalThis.fetch = async (url) => {
+        if (String(url).endsWith("/api/reports")) posts++;
+        return answer();
+      };
+    }
   });
 
   test("a sent report is written down on the phone, and a moderator's test is not", async () => {

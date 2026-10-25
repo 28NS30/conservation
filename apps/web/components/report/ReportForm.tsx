@@ -22,6 +22,7 @@ import { uploadPhoto } from "@/lib/report/upload";
 import { checkFields, observedInstant, sendableAccuracy } from "@/lib/report/fieldChecks";
 import { notesConcerns } from "@/lib/report/notesCheck";
 import { enqueue } from "@/lib/offline/queue";
+import { isBlocked } from "@/lib/offline/db";
 import { recordSent } from "@/lib/offline/sent";
 import {
   loadDraftFields,
@@ -77,7 +78,6 @@ type DraftFields = {
   timeFromPhoto: boolean;
   notes: string;
   email: string;
-  sharePartners: boolean;
   /** The model's suggestions, so a restored photo is not asked about twice. */
   photoIdea: PhotoSuggestionsState | null;
 };
@@ -313,8 +313,10 @@ function ReportFormFields({
    * saved on the device, so there is no queue to point at and no retry that
    * would behave differently. Its own flag rather than an error code, because
    * it is the browser's storage refusing, not anything the server said.
+   * `held` when what refused is a tab of an older build holding the database
+   * (lib/offline/db.ts), which the reporter can do something about.
    */
-  const [queueFailed, setQueueFailed] = useState(false);
+  const [queueFailed, setQueueFailed] = useState<"failed" | "held" | null>(null);
   /** The browser refused or could not produce a fix. Says so under the map. */
   const [locationError, setLocationError] = useState(false);
 
@@ -360,23 +362,27 @@ function ReportFormFields({
   /**
    * Nothing is saved over the draft until it is back: the effects below
    * would otherwise write the empty form over it on the first render, and
-   * an empty photo list deletes the photographs.
+   * an empty photo list deletes the photographs. Two flags, because the
+   * fields come back at once and the photographs when IndexedDB answers.
    */
   const [draftLoaded, setDraftLoaded] = useState(false);
+  const [photosLoaded, setPhotosLoaded] = useState(false);
   /** Cleared on purpose; nothing writes it back on the way out. */
   const dropped = useRef(false);
 
   // Read after hydration, never during render: the page is rendered on the
   // server, which has no draft, and a first render that differed from the
-  // server's would not hydrate. Both halves are read before anything is set,
-  // so the form changes once.
+  // server's would not hydrate.
+  //
+  // The fields first, without waiting for the photographs. Both used to be
+  // read before anything was set, and a tab of an older build holding the
+  // database (lib/offline/db.ts) kept the photographs, and so the whole
+  // draft, from ever coming back, and no draft was saved after it either.
   useEffect(() => {
     let live = true;
     void purgeDraftPhotos();
     void (async () => {
       const saved = loadDraftFields<DraftFields>(draftKey);
-      const kept = saved ? await loadDraftPhotos(saved.nonce) : [];
-      if (!live) return;
       if (saved) {
         nonce.current = saved.nonce;
         if (saved.category && conditions.includes(saved.category)) setCategory(saved.category);
@@ -395,22 +401,28 @@ function ReportFormFields({
         setTimeFromPhoto(saved.timeFromPhoto);
         setNotes(saved.notes);
         setEmail(saved.email);
-        setSharePartners(saved.sharePartners);
         if (saved.photoIdea) setPhotoIdea(saved.photoIdea);
-        if (kept.length) {
-          // Asked about before the page went, so not asked again.
-          photoAsked.current = true;
-          // Ahead of anything added while they were being read.
-          setPhotos((prev) =>
-            [
-              ...kept.map((p) => ({ ...p, previewUrl: URL.createObjectURL(p.blob) })),
-              ...prev,
-            ].slice(0, MAX_PHOTOS),
-          );
-        }
+        // Never the partner-sharing consent (sharePartners), which is not in
+        // the draft. Consent under the personal data law is given, not
+        // restored: a box ticked again by a reload is one nobody ticked here.
         setRestored(true);
       }
       setDraftLoaded(true);
+
+      const kept = saved ? await loadDraftPhotos(saved.nonce) : [];
+      if (!live) return;
+      if (kept.length) {
+        // Asked about before the page went, so not asked again.
+        photoAsked.current = true;
+        // Ahead of anything added while they were being read.
+        setPhotos((prev) =>
+          [
+            ...kept.map((p) => ({ ...p, previewUrl: URL.createObjectURL(p.blob) })),
+            ...prev,
+          ].slice(0, MAX_PHOTOS),
+        );
+      }
+      setPhotosLoaded(true);
     })();
     return () => {
       live = false;
@@ -433,8 +445,7 @@ function ReportFormFields({
     (species !== null && species.id !== initialSpecies?.id) ||
     unsure ||
     timeEdited ||
-    (asksCondition && category !== null) ||
-    sharePartners;
+    (asksCondition && category !== null);
   /** Still being filled in: not sent, and not saved as a report. */
   const open = phase !== "done" && phase !== "queued";
 
@@ -453,7 +464,6 @@ function ReportFormFields({
       timeFromPhoto,
       notes,
       email,
-      sharePartners,
       photoIdea: photoIdea.status === "done" ? photoIdea : null,
     }),
     [
@@ -469,7 +479,6 @@ function ReportFormFields({
       timeFromPhoto,
       notes,
       email,
-      sharePartners,
       photoIdea,
     ],
   );
@@ -508,7 +517,7 @@ function ReportFormFields({
   // The photographs whenever they change. They change rarely, and each is a
   // few hundred KB that is not worth holding back.
   useEffect(() => {
-    if (!draftLoaded || !open || dropped.current) return;
+    if (!photosLoaded || !open || dropped.current) return;
     void saveDraftPhotos(
       nonce.current,
       photos.map((p) => ({
@@ -520,7 +529,7 @@ function ReportFormFields({
         takenAt: p.takenAt,
       })),
     );
-  }, [draftLoaded, open, photos]);
+  }, [photosLoaded, open, photos]);
 
   /** Forget the draft: sent, saved as a report, or cleared by the reporter. */
   const forgetDraft = useCallback(() => {
@@ -797,7 +806,7 @@ function ReportFormFields({
     liveSend.current += 1;
     inFlight.current?.abort();
     setError(null);
-    setQueueFailed(false);
+    setQueueFailed(null);
     setPhase("submitting");
     try {
       await enqueue({
@@ -806,21 +815,20 @@ function ReportFormFields({
         photos: photos.map((p) => p.blob),
         label: species ? speciesLabel(species, locale) : null,
       });
-      window.dispatchEvent(new Event("conservation:queue-changed"));
       setPhase("queued");
     } catch (queueErr) {
       // `t` is the `report` namespace and this key lives in `offline`, so
       // the old call rendered the literal string "report.queueFailed" to
       // the one person whose report had just failed to save anywhere at all.
       console.error("[report] could not queue:", queueErr);
-      setQueueFailed(true);
+      setQueueFailed(isBlocked(queueErr) ? "held" : "failed");
       setPhase("error");
     }
   }
 
   async function submit() {
     setError(null);
-    setQueueFailed(false);
+    setQueueFailed(null);
     // Unreachable through the button, which is disabled without both, and the
     // sentence above it already says which requirement is unmet.
     if (!location || !category) return;
@@ -1637,7 +1645,7 @@ function ReportFormFields({
       {errorIn("form")}
       {queueFailed && (
         <p role="alert" className={ALERT}>
-          {tOffline("queueFailed")}
+          {queueFailed === "held" ? tOffline("queueHeld") : tOffline("queueFailed")}
         </p>
       )}
 

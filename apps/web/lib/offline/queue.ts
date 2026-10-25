@@ -111,11 +111,28 @@ export type QueuedReport = {
   lastTriedAt?: number;
   retries?: number;
   /**
-   * When the reporter last asked for it to be tried again (the banner's 再試一次).
-   * The fourteen days after which the queue stops trying count from here, or
-   * from `createdAt` when it was never asked.
+   * When the server first answered it so, since it was saved or since its
+   * reporter last pressed 再試一次. The fourteen days after which the queue
+   * stops trying count from here, not from when it was saved: a report carried
+   * for three weeks on a trip with no signal at all has not been tried for
+   * three weeks, and was given up on at its very first 503.
    */
-  retryFrom?: number;
+  firstAnsweredAt?: number;
+  /**
+   * When the reporter's 刪除 becomes final, unless they press 復原 first.
+   *
+   * On the row, set the moment 刪除 is pressed, rather than in a timer on the
+   * page. The undo used to live in the page alone, and a page closed, reloaded
+   * or evicted during it never deleted the report — and nothing said it was
+   * discarded, so the next flush sent the report its reporter had thrown away.
+   * Now no flush in any tab sends a row with this set, the banner shows it as
+   * discarded with its undo for whatever is left of the few seconds, and once
+   * they are up the next look at the queue deletes it (finishDiscards), here
+   * or in any other tab, or on any page through the reminder. Nothing is
+   * deleted before then, so a reporter whose page went away mid-undo can still
+   * take it back when it opens again.
+   */
+  discardAt?: number;
   /**
    * The species as the form showed it, for this phone's list of the reports it
    * sent (sent.ts). Beside the payload, not in it: the payload is what the
@@ -127,7 +144,29 @@ export type QueuedReport = {
 /** Still to send. `uploaded` rows are receipts, not work. */
 export const isPending = (r: QueuedReport) => r.status !== "uploaded";
 
+/** Still to send, and not on its way to being discarded. What is counted. */
+export const isWaiting = (r: QueuedReport) => isPending(r) && r.discardAt === undefined;
+
+/** A discard that has become final. */
+const discardDue = (r: QueuedReport, now: number) =>
+  r.discardAt !== undefined && r.discardAt <= now;
+
 const db = offlineDb;
+
+/**
+ * Tell this page's banner and reminder to look again.
+ *
+ * From every change to the queue, so that nothing has to remember to: the
+ * banner's 刪除, 復原 and 再試一次 used to change the queue without a word, and
+ * the reminder went on saying "1 筆通報還沒送出" on every page after the last
+ * report had been discarded. Looking again changes nothing, so this cannot
+ * loop: the banner's own refresh writes only through finishDiscards, which
+ * says so only when it deleted something.
+ */
+function changed() {
+  if (typeof window !== "undefined")
+    window.dispatchEvent(new Event("conservation:queue-changed"));
+}
 
 export async function enqueue(
   item: Omit<QueuedReport, "createdAt" | "attempts" | "status" | "uploadedPaths">,
@@ -140,6 +179,7 @@ export async function enqueue(
     status: "queued",
   };
   await (await db()).put(STORE, record);
+  changed();
   return record;
 }
 
@@ -157,18 +197,44 @@ export async function updateQueued(id: string, patch: Partial<QueuedReport>): Pr
   const existing = (await conn.get(STORE, id)) as QueuedReport | undefined;
   if (!existing) return;
   await conn.put(STORE, { ...existing, ...patch });
+  changed();
 }
 
 export async function removeQueued(id: string): Promise<void> {
   await (await db()).delete(STORE, id);
+  changed();
+}
+
+/** The reporter pressed 刪除: final at `at`, unless they undo it. See discardAt. */
+export async function discardQueued(id: string, at: number): Promise<void> {
+  await updateQueued(id, { discardAt: at });
+}
+
+/** The reporter pressed 復原. */
+export async function keepQueued(id: string): Promise<void> {
+  await updateQueued(id, { discardAt: undefined });
+}
+
+/** Delete every report whose discard has become final. Says how many. */
+export async function finishDiscards(now = Date.now()): Promise<number> {
+  const conn = await db();
+  let deleted = 0;
+  for (const r of (await conn.getAll(STORE)) as QueuedReport[]) {
+    if (!discardDue(r, now)) continue;
+    await conn.delete(STORE, r.id);
+    deleted++;
+  }
+  if (deleted) changed();
+  return deleted;
 }
 
 /**
  * Put a report the queue stopped trying back in line, its waits forgotten.
  *
  * `failed` used to be the end: the reporter could read why and discard it, and
- * nothing else. A server that was down for a morning, or a report that sat on a
- * phone past the fourteen days, deserves another go when its reporter asks.
+ * nothing else. A server that was down for a morning, or a report the server
+ * failed on for fourteen days, deserves another go when its reporter asks; the
+ * fourteen days start again from the next answer.
  */
 export async function retryQueued(id: string): Promise<void> {
   await updateQueued(id, {
@@ -177,21 +243,25 @@ export async function retryQueued(id: string): Promise<void> {
     retries: 0,
     lastTriedAt: undefined,
     lastError: undefined,
-    retryFrom: Date.now(),
+    firstAnsweredAt: undefined,
   });
 }
 
 /**
  * How many reports are still to send, for the reminder on every page.
  *
- * Read without opening the database for writing (readExisting in db.ts), so a
- * phone that has never queued anything gets no database from being reminded.
+ * Through readExisting (db.ts), which never creates or upgrades the database,
+ * so a phone that has never queued anything gets no database from being
+ * reminded. It does finish the discards that are due, as the banner does: the
+ * photographs and notes of a report its reporter threw away should not stay
+ * on the phone until a report page happens to be opened again.
  */
-export async function countWaiting(): Promise<number> {
+export async function countWaiting(now = Date.now()): Promise<number> {
   return readExisting(async (conn) => {
     if (!conn.objectStoreNames.contains(STORE)) return 0;
     const all = (await conn.getAll(STORE)) as QueuedReport[];
-    return all.filter(isPending).length;
+    for (const r of all) if (discardDue(r, now)) await conn.delete(STORE, r.id);
+    return all.filter(isWaiting).length;
   }, 0);
 }
 
@@ -220,7 +290,11 @@ export async function markUploaded(
     sentAt: Date.now(),
     photos: [],
     lastError: undefined,
+    // Filed, so there is nothing left to discard; a 刪除 pressed in another
+    // tab in the second it took is answered by the receipt instead.
+    discardAt: undefined,
   });
+  changed();
 }
 
 /** Drop receipts older than `maxAgeMs`. Called on load; nothing else expires. */
