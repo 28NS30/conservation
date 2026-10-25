@@ -8,6 +8,12 @@ published.
 Named HabitatWatch until September 2026. FlamaWatch, in Atlántico, Colombia, is a separate
 project that promotes alongside this one; its site is its own.
 
+**Live at [formosawatch.biowatchitnl.org](https://formosawatch.biowatchitnl.org)**
+(`itnl`, as registered). The old address,
+[preservation-web-one.vercel.app](https://preservation-web-one.vercel.app), answers every
+page with a permanent redirect there, and keeps its API and service worker so a phone with
+reports saved under it can still send them (`apps/web/proxy.ts`).
+
 **Status: M1–M3 complete, bilingual, with species pages and offline submission.** Schema, species checklist, open-data
 seed, vector-tile heatmap, the full reporting flow (submission, photo upload, auth,
 moderation), and species identification end-to-end — classifier, embeddings, job queue,

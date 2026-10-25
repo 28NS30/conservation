@@ -1,12 +1,18 @@
 # BioWatch International
 
-The parent site at **biowatchintl.org**. Each project runs on its own subdomain
+The parent site, for **biowatchitnl.org**. Each project runs on its own subdomain
 and deploys independently:
 
 | Domain | App | Stack |
 |---|---|---|
-| `biowatchintl.org` | this app | Next.js |
-| `formosawatch.biowatchintl.org` | `apps/web` | Next.js — Taiwan, roadkill and invasive species |
+| [`biowatchitnl.org`](https://biowatchitnl.org) | this app | Next.js |
+| [`formosawatch.biowatchitnl.org`](https://formosawatch.biowatchitnl.org) | `apps/web` | Next.js — Taiwan, roadkill and invasive species |
+
+The spelling is `itnl`, as registered, not `intl`. The repository spelled it
+`biowatchintl.org` until October 2026, a name that does not resolve.
+
+FormosaWatch is live at its subdomain. This app has no deployment yet: the apex
+and `www` answer with a redirect to FormosaWatch until it has one.
 
 Two Vercel projects, one repository. A Vercel project has a single Root
 Directory, so two apps need two projects however the URLs look.
@@ -38,9 +44,9 @@ All optional; each has a working default.
 
 | Variable | Default | Why you would set it |
 |---|---|---|
-| `NEXT_PUBLIC_FORMOSAWATCH_URL` | `https://formosawatch.biowatchintl.org` | Point a preview at a Vercel URL before DNS is cut over. **The default does not resolve yet**, so until it does, every FormosaWatch figure on the page falls back to its approximation and says so. |
-| `NEXT_PUBLIC_FLAMAWATCH_URL` | `https://flamawatch.biowatchintl.org` | Point at FlamaWatch's real address once its organisation confirms it. |
-| `NEXT_PUBLIC_CONTACT_EMAIL` | `hello@biowatchintl.org` | Until the real address exists. |
+| `NEXT_PUBLIC_FORMOSAWATCH_URL` | `https://formosawatch.biowatchitnl.org` | Point a preview at another FormosaWatch deployment. The default is the live site, whose `/api/health` the page reads its FormosaWatch figures from. |
+| `NEXT_PUBLIC_FLAMAWATCH_URL` | `https://flamawatch.biowatchitnl.org` | Point at FlamaWatch's real address once its organisation confirms it. The default is a placeholder. |
+| `NEXT_PUBLIC_CONTACT_EMAIL` | `hello@biowatchitnl.org` | Until the real address exists. |
 
 ## Known gaps
 

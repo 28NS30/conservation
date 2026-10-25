@@ -10,16 +10,18 @@ This file exists so that stops happening. It records **verified** production
 state, with the date, the method, and — where it matters — an explicit "not
 known". It is not a plan and contains no intentions.
 
-Last verified **25 September 2026, 19:40 (Asia/Taipei)**; the "Changed on" sections were each verified on their day, the latest on **30 September 2026, 23:40**.
+Last verified **25 September 2026, 19:40 (Asia/Taipei)**; the "Changed on" sections were each verified on their day, the latest on **30 September 2026, 23:40**, except 22 October, which says why it is not.
 
 ## How these were checked
 
 Two ways, both from outside the repo:
 
-- HTTP against `https://preservation-web-one.vercel.app` — the live production
-  alias. There is no custom domain: `biowatchintl.org` and
-  `formosawatch.biowatchintl.org` are **NXDOMAIN**, not registered, so the
-  `vercel.app` alias is the only address the site has.
+- HTTP against `https://preservation-web-one.vercel.app` — then the live
+  production alias. The repository spelled the custom domain
+  `biowatchintl.org`, and that name and `formosawatch.biowatchintl.org` are
+  **NXDOMAIN**, so the `vercel.app` alias was the only address checked. The
+  registered domain is `biowatchitnl.org`, and the site has since moved to
+  `formosawatch.biowatchitnl.org` (see "Changed on 22 October 2026").
 - SQL through the Supabase Management API query endpoint, using the token in the
   macOS keychain. Production `DATABASE_URL` is marked Sensitive in Vercel and is
   genuinely unobtainable from here.
@@ -360,15 +362,28 @@ affected"), so prerendered pages took the new alternates with the next deploy.
 answered every `*.vercel.app` name with a local address. GitHub's deployment
 records showed production healthy throughout, and it cleared by itself.
 
+## Changed on 22 October 2026
+
+**The site moved to https://formosawatch.biowatchitnl.org.** Recorded from the
+cutover's own notes, **not verified from this machine**: its network filter
+sinkholes the new domain, as it did `*.vercel.app` on 29–30 September. As
+recorded: the apex and `www` answer 307 to the new address,
+`NEXT_PUBLIC_SITE_URL` is set to it in production, and Supabase's `site_url`
+points at it. `https://preservation-web-one.vercel.app` still served the whole
+site. `node scripts/verify-deploy.mjs` checks both hosts, from a network that
+reaches them.
+
 ## Known outstanding, on the credential holder
 
 - The legacy HS256 JWT signing key is `previously_used`, which still **verifies**.
   Retiring it needs the app moved to `sb_publishable_` / `sb_secret_` first.
 - **A custom SMTP provider.** Unlocks public sign-in, the email-code template
-  and a sane rate limit. Needs a sending domain, which needs the domain below.
-- No custom domain, and the Vercel project `apps/biowatch/.vercel/project.json`
-  points at does not exist — the team has exactly one project,
-  `conservation-web`. So the parent site is finished code with no deployment
-  target.
+  and a sane rate limit. Needs a sending domain, which `biowatchitnl.org` can
+  now be (docs/owner-setup.md, step 1).
+- The parent site has no deployment: the Vercel project
+  `apps/biowatch/.vercel/project.json` points at does not exist — the team has
+  exactly one project, `conservation-web` — and `biowatchitnl.org` itself only
+  redirects to FormosaWatch. So the parent site is finished code with no
+  deployment target.
 - Production SMTP for magic-link sign-in is not configured anywhere in the repo;
   `supabase/config.toml` covers localhost only.

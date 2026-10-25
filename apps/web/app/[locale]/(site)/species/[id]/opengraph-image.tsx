@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { hasLocale } from "next-intl";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -14,6 +15,7 @@ const BADGE = `data:image/png;base64,${(
   await readFile(join(process.cwd(), "public", "brand-badge.png"))
 ).toString("base64")}`;
 
+import { routing } from "@/i18n/routing";
 import { getSpecies, parseSpeciesId } from "@/lib/species";
 import { speciesNames } from "@/lib/speciesNames";
 import { subsetFont } from "@/lib/ogFont";
@@ -55,6 +57,10 @@ export default async function Image({
   params: Promise<{ locale: string; id: string }>;
 }) {
   const { locale, id } = await params;
+  // Share cards no longer pass through the proxy's locale routing, so a made-up
+  // first segment reaches this route directly: answer it without a database
+  // read or a font fetch.
+  if (!hasLocale(routing.locales, locale)) return new Response("Not found", { status: 404 });
   const taxonId = parseSpeciesId(id);
   const s = taxonId ? await getSpecies(taxonId) : null;
 

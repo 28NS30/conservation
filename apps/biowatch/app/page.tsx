@@ -4,7 +4,7 @@ import { FORMOSAWATCH, formosawatchCounts, projects } from "@/lib/projects";
 export const revalidate = 3600;
 
 const CONTACT =
-  process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? "hello@biowatchintl.org";
+  process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? "hello@biowatchitnl.org";
 
 /**
  * The organisation, and the door to each project.

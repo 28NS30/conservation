@@ -57,6 +57,88 @@ async function trim(cacheName, max) {
 }
 
 /**
+ * The host the site lived on until it moved to formosawatch.biowatchitnl.org
+ * in October 2026. It now answers every page with a 308 to the new host.
+ *
+ * A report saved on this phone without a signal lives in this origin's
+ * IndexedDB, which the new host cannot read, and it is only ever sent from a
+ * page open on this origin (lib/offline/flush.ts). Followed blindly, the move
+ * would strand it here for good, and the phones most likely to hold one are
+ * those that kept the old address on the home screen and used it offline. So
+ * on the old host, while any report is unsent, a navigation asks for the page
+ * itself (proxy.ts honours the header), the page loads here as it always did,
+ * and the queue goes to this host's /api. Once it is empty, the next
+ * navigation follows the move.
+ */
+const OLD_HOST = "preservation-web-one.vercel.app";
+
+/**
+ * Whether a report saved on this phone is still to be sent: a row in
+ * lib/offline/queue.ts's store that is not an `uploaded` receipt.
+ *
+ * It must never create the database. Opened without a version, a missing
+ * database would be created at version 1 with no store in it, and the page's
+ * own open at version 1 would then never run its upgrade: every read of the
+ * queue would throw. So an open that would create it is aborted.
+ */
+function unsentReports() {
+  return new Promise((resolve) => {
+    let open;
+    try {
+      open = indexedDB.open("conservation-offline");
+    } catch {
+      resolve(false);
+      return;
+    }
+    open.onupgradeneeded = () => open.transaction.abort();
+    open.onerror = () => resolve(false);
+    open.onsuccess = () => {
+      const db = open.result;
+      const done = (answer) => {
+        db.close();
+        resolve(answer);
+      };
+      try {
+        if (!db.objectStoreNames.contains("pendingReports")) return done(false);
+        const rows = db.transaction("pendingReports", "readonly").objectStore("pendingReports").openCursor();
+        rows.onsuccess = () => {
+          const cursor = rows.result;
+          if (!cursor) return done(false);
+          if (cursor.value?.status !== "uploaded") return done(true);
+          cursor.continue();
+        };
+        rows.onerror = () => done(false);
+      } catch {
+        done(false);
+      }
+    };
+  });
+}
+
+/**
+ * Fetches a request, and on the old host with a report unsent, a navigation as
+ * one that asks to stay (see OLD_HOST). Rebuilt from its parts because a
+ * navigation request cannot be copied with a header added and keep its mode.
+ * `no-store` because a 308 is permanent and the browser may have kept one in
+ * its HTTP cache, which would answer before the server saw the header.
+ */
+async function send(request) {
+  if (request.mode !== "navigate" || self.location.hostname !== OLD_HOST) return fetch(request);
+  if (!(await unsentReports())) return fetch(request);
+  const headers = new Headers(request.headers);
+  headers.set("x-unsent-reports", "1");
+  return fetch(
+    new Request(request.url, {
+      method: request.method,
+      headers,
+      credentials: "include",
+      redirect: "manual",
+      cache: "no-store",
+    }),
+  );
+}
+
+/**
  * The network, unless it is slow or gone and there is a copy.
  *
  * It used to abort every request after 3.5 s and fall back to the cache, which
@@ -70,7 +152,7 @@ async function trim(cacheName, max) {
  */
 async function networkFirst(request, cacheName, { store = true, timeoutMs = 3500, max = null } = {}) {
   const cache = await caches.open(cacheName);
-  const network = fetch(request).then((res) => {
+  const network = send(request).then((res) => {
     if (store && res.ok) {
       cache.put(request, res.clone()).then(() => (max ? trim(cacheName, max) : undefined), () => {});
     }
@@ -276,7 +358,10 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(networkFirst(request, SHELL, { max: MAX_SHELL_ENTRIES }));
     return;
   }
-  // Everything else goes to the network and is never written down.
+  // Everything else goes to the network and is never written down. On the old
+  // host a page navigation goes through send(), so a phone with a report unsent
+  // keeps every page there, not only the ones above (see OLD_HOST).
+  if (request.mode === "navigate" && self.location.hostname === OLD_HOST) event.respondWith(send(request));
 });
 
 /**
