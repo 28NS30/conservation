@@ -25,10 +25,23 @@ nobody ran with checks that fail.
 | Screenshot matrix + gallery | `npm run shots` | nightly + `gh workflow run gallery.yml` |
 | axe, every route, 390 and 1440 | `npm run test:a11y -w @conservation/web` | nightly, and a finding fails it |
 | WCAG AA contrast, every route | `npm run test:contrast -w @conservation/web` | nightly, and a finding fails it |
+| No high or critical advisory in what ships | `npm audit --omit=dev --audit-level=high` | every PR, its own job |
 
 Everything needs a server on `TEST_BASE_URL` (default `http://localhost:3000`)
 except the self-test, which serves its own fixture. Build with
 `NEXT_PUBLIC_E2E=1` — see "The build these run against" below.
+
+**The audit job is green at merge, and goes red with the next advisory.** It
+reads `package-lock.json` and the registry, nothing else, so it needs no
+install and does not hold up the suite beside it. On 25 October 2026, before
+#142, the lock file had `next` 16.3.7 (two critical remote code executions and
+a high denial of service among its advisories), `zod` 4.4.3 and
+`source-map-js` 1.2.1, and the command exited 1. #142 moved main to `next`
+16.4.3, `zod` 4.6.7 and `source-map-js` 1.2.2, and against main's lock file
+the same command reports 0 vulnerabilities and exits 0. A pull request's CI
+runs on its merge with main, so the job starts green; from then on a new high
+or critical advisory in a production dependency turns every run red until it
+is bumped.
 
 **Why the gallery is not on every push.** It is about a hundred page loads,
 four minutes of browser time and 40 MB of PNGs. A reviewer looks at it when a
@@ -50,8 +63,11 @@ Per pull request, `ci.yml` runs both on the pages a reporter fills in with one
 thumb: the `/report` chooser, `/report/roadkill`, `/report/invasive`,
 `/report/wildlife` and `/map`, in both languages at 390px. Ten page loads
 each, against 164 for the full sweep. `ONLY` and `WIDTHS` choose the
-slice, and both are read strictly: a name in `ONLY` that matches no route is an
-error, not an empty pass, so the slice cannot go quiet when a route is renamed.
+slice, and both are read strictly: a name in `ONLY` that matches no route, or
+that the check would skip (a new `skipAxe`, a parameterised route that resolved
+no id), is an error, not an empty pass, so the slice cannot go quiet when a
+route is renamed or excused. `test/ci-gates.test.mjs` holds the slice `ci.yml`
+names to the same rule without a browser.
 `UPDATE_*` refuses a slice, because a list recorded from one would drop every
 line it did not visit.
 
@@ -119,18 +135,36 @@ exactly like a bug.
 
 A fresh `imresamu/postgis:17-3.5` cluster, which is not Supabase, made like it
 in one respect on purpose. `supabase/ci-roles.sql` runs before the migrations
-and creates `anon`, `authenticated` and `service_role` with the grants
-production was created with: ALL, on whatever `postgres` makes in `public`.
-0013 and 0024 then revoke them the way they did on production, and the tests
-can tell whether they did: built without those two files, this database fails
-"anon is denied SELECT on reports", "no table grants anything to anon or
-authenticated" and "anon and authenticated can execute none of them". Until
-October 2026 those roles did not exist in CI, every migration block guarded on
-them was skipped, and so were the thirty tests of what `anon` and
-`authenticated` can reach: `reports` and its exact points, the public views,
-the site's functions and every forum table. The `auth` schema is not faked:
-the policies that call `auth.uid()` are guarded on the schema as well as the
-role (0004), and stay untested here, as they always were.
+and creates `anon`, `authenticated` and `service_role`, and gives the first two
+the default privileges production was created with: ALL, on whatever
+`postgres` makes in `public`. 0013 and 0024 then revoke them the way they did
+on production, and the tests can tell whether they did: built without those two
+files, this database fails "anon is denied SELECT on reports", "no table grants
+anything to anon or authenticated" and "anon and authenticated can execute none
+of them". Until October 2026 those roles did not exist in CI, every migration
+block guarded on them was skipped, and so were the thirty tests of what `anon`
+and `authenticated` can reach: `reports` and its exact points, the public
+views, the site's functions and every forum table. The `auth` schema is not
+faked: the policies that call `auth.uid()` are guarded on the schema as well as
+the role (0004), and stay untested here, as they always were.
+
+Those defaults open every table made after them, so the file is for that empty
+cluster and nothing else. It raises, and changes nothing, on a Supabase cluster
+(the local stack, a scratch database inside it, a hosted project), on one that
+already has the roles, and on one the migrations have touched. Run after the
+migrations, nothing would take its grants back again. For the same reason it
+grants nothing that no migration revokes: `service_role` is created and given
+nothing (no migration names it and no test reads it), and USAGE on `public`
+reaches the two roles through PUBLIC, as on every Postgres.
+
+After the migrations, `supabase/ci-roles-check.sql` fails the run if any of the
+three roles still holds a default, or a grant on a table, column or function in
+`public`. One kind stays, and the file says why: EXECUTE on pg_trgm's functions,
+because 0005 makes the extension after the defaults and 0024 leaves an
+extension's own functions alone. PUBLIC can execute each of them anyway, and a
+Supabase project grants the same. It also checks that USAGE still reaches the
+roles, so that a test's "permission denied" is the table's and not the
+schema's.
 
 To try it on a laptop, give the migrations an empty cluster of their own:
 
@@ -139,13 +173,15 @@ docker run -d --name ci-pg -e POSTGRES_PASSWORD=postgres -p 127.0.0.1:55432:5432
 export DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:55432/postgres
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f supabase/ci-roles.sql
 for f in supabase/migrations/*.sql; do psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$f"; done
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f supabase/ci-roles-check.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f supabase/seed-test.sql
 npm run import:names-en
 ```
 
-Not the local Supabase stack's database: it already has the roles, and a
-recent Supabase CLI no longer grants them ALL by default, so it cannot show
-what 0013 had to undo.
+To try it again, `docker rm -f ci-pg` and start over: a second run of
+`ci-roles.sql` refuses. Not the local Supabase stack's database either: the
+file refuses that too, and a recent Supabase CLI no longer grants the roles ALL
+by default, so it could not show what 0013 had to undo.
 
 Then the fixture, `supabase/seed-test.sql`: a slice of real TaiCOL and GBIF
 rows, every blurred record at the centre of its blur cell. It also holds the
@@ -245,28 +281,25 @@ the inline copy #48 added can be deleted rather than maintained twice.
 
 ## What is still owed
 
-1. **Three advisories, so the audit job starts red.** On 25 October 2026
-   `npm audit --omit=dev --audit-level=high` against `package-lock.json`
-   reported `next` 16.3.7 as critical (GHSA-2464-fhr4-w9xw and
-   GHSA-673q-mjm6-r5xr, two remote code executions, and a high denial of
-   service, GHSA-p3m5-59mp-jv5r, all three open through 16.4.0; and a high
-   server-side request forgery in image optimisation with six lesser ones,
-   fixed in 16.3.8), `source-map-js` 1.2.1 under `postcss` (high,
-   GHSA-68fv-2mgg-jv7q, fixed in 1.2.2) and `zod` 4.4.3 under
-   `@conservation/shared` (high, GHSA-mrhx-c7xc-m3w5, fixed in 4.6.6), and
-   exited 1. The audit job fails until all three are bumped; the suite beside
-   it does not wait on it.
-2. **Read the performance numbers off production.** The JavaScript budgets in
-   `e2e/perf-budget.json` were recorded on 25 October 2026 from a build made
-   the way CI makes one (`NEXT_PUBLIC_E2E=1`, the fixture database, no
-   MapTiler key, `next start`) with `UPDATE_PERF=1 PERF_LABEL=ci`, and CI fails
-   at 10% over them: `/map` and `/en/map` 1074 KB, `/` 177, `/species` 171,
-   `/report/roadkill` 1499. Bytes are a property of the build, so a laptop's
-   and a runner's should agree well inside the 10%; the timings recorded
-   beside them are one laptop's, and print without failing. Production
-   compresses differently from `next start`, so its numbers are read with a
-   plain run, `TEST_BASE_URL=https://… npm run test:perf -w
-   @conservation/web`, and not recorded over CI's.
+1. **Re-record the JavaScript budgets on main's dependencies.** The budgets
+   in `e2e/perf-budget.json` were recorded on 25 October 2026 on a laptop,
+   from a build made the way CI makes one (`NEXT_PUBLIC_E2E=1`, the fixture
+   database, no MapTiler key, `next start`) with `UPDATE_PERF=1
+   PERF_LABEL=ci`, from the tree before #142: `next` 16.3.7, `react` 19.2.8.
+   `/map` and `/en/map` 1074 KB, `/` 177, `/species` 171, `/report/roadkill`
+   1499. CI fails at 10% over them. #142 has since moved main to `next`
+   16.4.3 and `react` 19.3.1, and main's CI on that day (run 40187309906,
+   Linux) measured `/map` and `/en/map` at 1041 KB, `/` at 177 and
+   `/species` at 171. So the map's gate is about 3% looser than it reads,
+   allowing some 13% growth instead of 10%, until the numbers are recorded
+   again from the merged tree; `/report/roadkill` has not been measured on
+   main's dependencies or on Linux at all. The first CI run after merging
+   prints all five. The timings recorded beside the bytes are one laptop's,
+   and print without failing.
+2. **Read the performance numbers off production.** Production compresses
+   differently from `next start`, so its numbers are read with a plain run,
+   `TEST_BASE_URL=https://… npm run test:perf -w @conservation/web`, and not
+   recorded over CI's.
 3. **`test:receipt` in `test:e2e`.** CI runs the receipt spec as its own step;
    the `test:e2e` script in `apps/web/package.json` does not list it yet.
 4. **Decide the hooks** — `docs/test-hooks.md`. Every later workstream adopts
