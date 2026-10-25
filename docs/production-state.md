@@ -10,7 +10,7 @@ This file exists so that stops happening. It records **verified** production
 state, with the date, the method, and — where it matters — an explicit "not
 known". It is not a plan and contains no intentions.
 
-Last verified **25 September 2026, 19:40 (Asia/Taipei)**; the "Changed on" sections were each verified on their day, the latest on **30 September 2026, 23:40**, except 22 October, which says why it is not.
+Last verified **25 September 2026, 19:40 (Asia/Taipei)**; the "Changed on" sections were each verified on their day, the latest on **25 October 2026**.
 
 ## How these were checked
 
@@ -362,16 +362,62 @@ affected"), so prerendered pages took the new alternates with the next deploy.
 answered every `*.vercel.app` name with a local address. GitHub's deployment
 records showed production healthy throughout, and it cleared by itself.
 
-## Changed on 22 October 2026
+## Changed on 22–25 October 2026
 
-**The site moved to https://formosawatch.biowatchitnl.org.** Recorded from the
-cutover's own notes, **not verified from this machine**: its network filter
-sinkholes the new domain, as it did `*.vercel.app` on 29–30 September. As
-recorded: the apex and `www` answer 307 to the new address,
-`NEXT_PUBLIC_SITE_URL` is set to it in production, and Supabase's `site_url`
-points at it. `https://preservation-web-one.vercel.app` still served the whole
-site. `node scripts/verify-deploy.mjs` checks both hosts, from a network that
-reaches them.
+Verified from this machine on **25 October 2026**. The network filter let the
+new domain through that day.
+
+**The site moved to https://formosawatch.biowatchitnl.org** (#155).
+- The apex and `www` answer 307 to it.
+- `NEXT_PUBLIC_SITE_URL` and Supabase's `site_url` name it.
+- The canonical link, `sitemap.xml` (3,596 URLs) and `robots.txt` all name the
+  new host.
+- **The old host redirects.** Page `GET`/`HEAD` requests to
+  `https://preservation-web-one.vercel.app` answer 308 to the same path and
+  query on the new host. Checked: `/`, `/species?filter=protected` and
+  `/en/about`.
+- These requests are let through on the old host and do not redirect:
+  - anything that is not a page `GET`/`HEAD`, so a queued report still posts;
+  - same-origin fetches;
+  - requests carrying `x-unsent-reports: 1`. The service worker adds that
+    header only while reports are waiting to be sent.
+- `/api/health` on the old host still answers 200.
+- **Turnstile** works on the new host now that `biowatchitnl.org` is one of the
+  widget's hostnames, which also covers subdomains. Error 110200 went away by
+  itself once the change propagated.
+  `preservation-web-one.vercel.app` stays in the list for the queued reports
+  above.
+- The share image loads directly: `og:image` on `/` is a 200 `image/png`.
+- `node scripts/verify-deploy.mjs https://formosawatch.biowatchitnl.org`:
+  26/26.
+
+**Two more retired-name twins floored (0032, #141)**, applied 22 October
+with a ledger row:
+- t0029845 韋氏水蛇 *Hypsiscopus wettsteini* is now `suppressed`;
+- t0101559 科勒氏鰍鮀 is now `coarse_10km`.
+
+TaiCOL's refresh had moved these records to a new id that had no floor. The
+dry run changed 29 rows, all of them tightened and none loosened. Afterwards
+the snake has 0 public rows and there are 88 floors.
+
+**The team's two 30 September test reports are marked `is_test`**, so they
+are out of every public view. The update was guarded to exactly 2 rows. They
+are the only non-GBIF reports in production, and both are anonymous.
+
+**Dependencies (#142, #156).**
+- Next 16.4.3, React 19.3.1 and zod 4.6.7; `npm audit` reports 0
+  vulnerabilities.
+- The ML service's Python requirements are pinned. The classifier is **not
+  redeployed**, so the live one is still v2 (5 August).
+- Dependabot opens one weekly pull request of npm minor and patch updates and
+  ignores npm majors. All the Actions updates come in one monthly pull request.
+  It opens no routine pip pull requests: the classifier's thresholds were
+  measured with its pinned versions, and a bump also needs a paid GPU deploy.
+
+**Counts on 25 October:**
+- 46,305 public records, 0 of them from users;
+- 0 accounts, so 0 moderators;
+- ledger through `0032_floor_renamed_retired_twins.sql`.
 
 ## Known outstanding, on the credential holder
 
