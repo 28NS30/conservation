@@ -416,14 +416,18 @@ export async function POST(req: Request) {
     if ("queued" in result && result.queued && process.env.NEXT_PUBLIC_E2E !== "1") {
       const id = result.id;
       after(async () => {
+        // The model may have published the report or named its animal, if
+        // its job finished; one that failed leaves the report held, and a
+        // held report is on no page (see the cron route). Dropped in
+        // `finally`, from the count the run keeps as it goes, because a run
+        // can throw after its job has committed.
+        const progress = { processed: 0 };
         try {
-          // The model may have published the report or named its animal, if
-          // its job finished; one that failed leaves the report held, and a
-          // held report is on no page (see the cron route).
-          const outcome = await classifyQueued({ reportId: id });
-          if (outcome.processed > 0) reportsChanged();
+          await classifyQueued({ reportId: id, progress });
         } catch (e) {
           console.error(`[reports] classify after submit ${id}:`, (e as Error).message);
+        } finally {
+          if (progress.processed > 0) reportsChanged();
         }
       });
     }

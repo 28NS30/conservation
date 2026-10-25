@@ -1,4 +1,5 @@
 import { revalidateTag, unstable_cache } from "next/cache";
+import { after } from "next/server";
 
 /**
  * The figures the whole site states, computed once for everybody.
@@ -93,6 +94,14 @@ export async function freshPoints<R>(name: string, read: () => Promise<R[]>): Pr
 }
 
 /**
+ * Long enough for a rebuild that started before the write to have stored
+ * its copy, the reads of a page being a few hundred milliseconds; short
+ * enough to fit in what is left of any function's time once it has
+ * answered.
+ */
+const AGAIN_AFTER_MS = 5_000;
+
+/**
  * Drop every cached figure, and every cached page built from one, after a
  * report is published, rejected, given another species, or blurred.
  *
@@ -106,6 +115,17 @@ export async function freshPoints<R>(name: string, read: () => Promise<R[]>): Pr
  * committed: called before, the next reader could cache the old figures
  * again for five minutes.
  *
+ * And once more, AGAIN_AFTER_MS later, from after(). The first drop leaves
+ * two things standing. A rebuild that read before the write committed but
+ * stored its copy after the drop is newer than the drop, so it counts as
+ * fresh, old figures and all, for its five minutes. And a drop that fails,
+ * the platform's purge not answering, is not tried again. The second drop
+ * expires the first kind, which has had five seconds to land, and is the
+ * retry for the second. Inside an after() of its own (the classify run that
+ * follows a submission) the two are one: Next carries out what after()
+ * callbacks revalidate once they have all finished, so there the drop
+ * happens once, five seconds after the run.
+ *
  * A change made in the database itself, a migration's re-blur or a floor,
  * calls nothing. Its points are off every page within ten minutes, and its
  * counts within fifteen (above); when that cannot wait, a production deploy
@@ -113,4 +133,9 @@ export async function freshPoints<R>(name: string, read: () => Promise<R[]>): Pr
  */
 export function reportsChanged(): void {
   revalidateTag(REPORTS_TAG, { expire: 0 });
+  after(async () => {
+    await new Promise((resolve) => setTimeout(resolve, AGAIN_AFTER_MS));
+    revalidateTag(REPORTS_TAG, { expire: 0 });
+  });
 }
+

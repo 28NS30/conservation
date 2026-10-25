@@ -19,7 +19,7 @@ const code = (p) => readFileSync(join(WEB, p), "utf8").replace(/\/\*[\s\S]*?\*\/
 test("the report route classifies the report it just queued, after responding", () => {
   const route = code("app/api/reports/route.ts");
   assert.match(route, /import \{ after \} from "next\/server"/);
-  assert.match(route, /after\(async \(\) => \{\s*try \{\s*const outcome = await classifyQueued\(\{ reportId: id \}\)/);
+  assert.match(route, /after\(async \(\) => \{\s*const progress = \{ processed: 0 \};\s*try \{\s*await classifyQueued\(\{ reportId: id, progress \}\)/);
   // Only when a job was queued in the same transaction: a report with no
   // photo, or a duplicate, has nothing to classify.
   assert.match(route, /result\.queued && process\.env\.NEXT_PUBLIC_E2E !== "1"/);
@@ -36,6 +36,6 @@ test("the worker claims only that report's job when asked, and skips locked rows
 test("the cron route is a thin, authorised wrapper around the same worker", () => {
   const cron = code("app/api/jobs/classify/route.ts");
   assert.match(cron, /if \(!authorised\(req\)\)/);
-  assert.match(cron, /const outcome = await classifyQueued\(\);[\s\S]*?return Response\.json\(outcome\);/);
+  assert.match(cron, /const outcome = await classifyQueued\(\{ progress \}\);[\s\S]*?return Response\.json\(outcome\);/);
   assert.match(cron, /export const dynamic = "force-dynamic"/);
 });

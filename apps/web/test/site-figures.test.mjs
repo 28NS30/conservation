@@ -58,6 +58,15 @@ describe("the site-wide figures are cached", () => {
     assert.match(src, /revalidateTag\(REPORTS_TAG, \{ expire: 0 \}\)/);
   });
 
+  test("and dropped again a few seconds later, for a rebuild that read before the write, or a drop that failed", () => {
+    const src = code("lib/siteFigures.ts");
+    assert.match(src, /export function reportsChanged\(\): void \{\s*revalidateTag\(REPORTS_TAG, \{ expire: 0 \}\);\s*after\(async \(\) => \{\s*await new Promise\(\(resolve\) => setTimeout\(resolve, AGAIN_AFTER_MS\)\);\s*revalidateTag\(REPORTS_TAG, \{ expire: 0 \}\);\s*\}\);\s*\}/);
+    const again = Number(/const AGAIN_AFTER_MS = ([\d_]+);/.exec(src)?.[1].replaceAll("_", ""));
+    // Seconds, not minutes: it has to fit in the function's time after the
+    // answer, and a cron run uses 45 of its 60 before it answers.
+    assert.ok(again >= 2_000 && again <= 10_000, `AGAIN_AFTER_MS is ${again}`);
+  });
+
   for (const [file, names] of [
     ["lib/stats.ts", ["recordedSpeciesCount", "checklistAnimalTaxaCount", "overview", "monthlyTotals", "yearlyTotals", "topSpecies", "mapEntrySpecies"]],
     ["lib/collections.ts", ["collectionTotals", "collectionSummary", "newestRecords", "invasiveSpeciesList"]],
@@ -111,12 +120,14 @@ describe("everything that changes the reports drops them", () => {
       assert.ok(drop > write, `${fn} does not call reportsChanged() after its write`);
     });
 
-  test("a report published on arrival, and one the model has seen", () => {
+  test("a report published on arrival, and one the model has seen, even when the run throws", () => {
     const route = code("app/api/reports/route.ts");
     assert.match(route, /if \(!result\.duplicate && result\.status === "published" && !result\.test\) reportsChanged\(\);/);
-    assert.match(route, /const outcome = await classifyQueued\(\{ reportId: id \}\);\s*if \(outcome\.processed > 0\) reportsChanged\(\);/);
+    // The count the run keeps as it goes, read in `finally`: a run can throw
+    // after a job it finished has committed, and that job's report is public.
+    assert.match(route, /const progress = \{ processed: 0 \};\s*try \{\s*await classifyQueued\(\{ reportId: id, progress \}\);\s*\} catch \(e\) \{[\s\S]*?\} finally \{\s*if \(progress\.processed > 0\) reportsChanged\(\);\s*\}/);
     const cron = code("app/api/jobs/classify/route.ts");
-    assert.match(cron, /const outcome = await classifyQueued\(\);\s*if \(outcome\.processed > 0\) reportsChanged\(\);/);
+    assert.match(cron, /const progress = \{ processed: 0 \};\s*try \{\s*const outcome = await classifyQueued\(\{ progress \}\);\s*return Response\.json\(outcome\);\s*\} finally \{\s*if \(progress\.processed > 0\) reportsChanged\(\);\s*\}/);
   });
 
   test("…and only a model run that finished a job, because one that did not changed nothing public", () => {
@@ -133,9 +144,12 @@ describe("everything that changes the reports drops them", () => {
       assert.ok(updates.length > 0, `${where} no longer updates reports; is the slice wrong?`);
       for (const u of updates) assert.match(u, /status = 'pending'/, `${where} writes to a report that may be public`);
     }
-    // `processed` counts the jobs that finished, and nothing else.
-    assert.match(worker, /processed: succeeded,/);
-    assert.equal(worker.match(/succeeded\+\+;/g)?.length, 2, "one for each contract's finished job");
+    // `processed` counts the jobs that finished, and nothing else, as they
+    // finish, in the object the caller passed.
+    assert.match(worker, /progress = \{ processed: 0 \},\s*\}: \{ reportId\?: string \| null; progress\?: ClassifyProgress \} = \{\}/);
+    assert.match(worker, /processed: progress\.processed,/);
+    assert.equal(worker.match(/progress\.processed\+\+;/g)?.length, 2, "one for each contract's finished job");
+    assert.doesNotMatch(worker, /processed(?:\s*\+=|\s*=(?!=)|--)/, "something else changes the count");
   });
 });
 

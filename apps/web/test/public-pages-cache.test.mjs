@@ -564,6 +564,30 @@ describe("…and dropped when a record on it moves", () => {
     assert.doesNotMatch(after.html, /\b1 record\b/, "the old species page still counts the record");
   });
 
+  test("a writer drops the pages again a few seconds after it", async (t) => {
+    // For a rebuild that read the rows before the write committed and stored
+    // its copy after the first drop, which then counts as fresh, and for a
+    // first drop that failed. lib/siteFigures.ts, reportsChanged().
+    if (skip) return t.skip(skip);
+    t.after(tidy);
+    const s = await aSparseSpecies();
+    await cached(s.path);
+    const [held] = await sql`
+      insert into reports (category, location, location_public, observed_at, status, source)
+      values ('roadkill', st_setsrid(st_makepoint(121.0, 24.0), 4326)::geography,
+              st_setsrid(st_makepoint(121.0, 24.0), 4326)::geography, now(), 'pending', 'gbif')
+      returning id::text`;
+    made.reports.push(held.id);
+    const dropped = Date.now();
+    await act("publishReport", "/en/admin", [held.id]);
+    // The first drop: the page is made again, and cached again.
+    await cached(s.path);
+    assert.ok(Date.now() - dropped < 4_000, "too slow to see the second drop apart from the first");
+    await new Promise((resolve) => setTimeout(resolve, 7_000));
+    const again = await page(s.path);
+    assert.notEqual(again.cache, "HIT", "the page was not dropped a second time");
+  });
+
   test("a record blurred in the database is listed blurred at once, and no cached page held its point", async (t) => {
     if (skip) return t.skip(skip);
     t.after(tidy);
