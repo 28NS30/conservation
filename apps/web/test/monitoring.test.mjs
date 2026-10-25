@@ -391,4 +391,68 @@ describe("the running server", () => {
       await sql`delete from job_runs where id = ${row.id}`;
     }
   });
+
+  /** Ask `read` every half second until `ok` holds of its answer, for up to ten seconds. */
+  async function eventually(read, ok) {
+    let last;
+    for (let i = 0; i < 20; i++) {
+      last = await read();
+      if (ok(last)) return last;
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    return last;
+  }
+
+  test("a server error is counted in app_errors, by its route's pattern and nothing else", async (t) => {
+    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    const ROUTE = "/api/e2e/server-error";
+    const count = async () =>
+      (
+        await sql`
+          select coalesce(sum(count), 0)::int as n from app_errors
+           where route = ${ROUTE} and hour = date_trunc('hour', now(), 'UTC')`
+      )[0].n;
+    const before = await count();
+    try {
+      const res = await fetch(`${BASE_URL}${ROUTE}?email=someone@example.test`);
+      if (res.status === 404) return t.skip("not a test build (NEXT_PUBLIC_E2E unset)");
+      assert.equal(res.status, 500);
+      // Written through instrumentation.ts onRequestError, after the response.
+      const after = await eventually(count, (n) => n > before);
+      assert.equal(after, before + 1, "the error was not counted");
+      const rows = await sql`select route, digest from app_errors where route = ${ROUTE}`;
+      assert.deepEqual(rows.map((r) => [r.route, r.digest]), [[ROUTE, ""]], "a route handler's error has no digest");
+      const leaked = await sql`select count(*)::int as n from app_errors where route like '%example.test%' or route like '%?%'`;
+      assert.equal(leaked[0].n, 0, "the request's own address was recorded");
+    } finally {
+      await sql`delete from app_errors where route = ${ROUTE}`;
+    }
+  });
+
+  test("a job called with the cron secret records a finished run", async (t) => {
+    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    const secret = process.env.CRON_SECRET;
+    if (!secret) return t.skip("no CRON_SECRET here (CI has none, and its server refuses every job)");
+    const [{ since }] = await sql`select now() as since`;
+    // cleanup-orphans: the job whose work is harmless here, deleting only
+    // what its own retention says is old. classify would send queued photos
+    // to the model.
+    const res = await fetch(`${BASE_URL}/api/jobs/cleanup-orphans`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${secret}` },
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (res.status === 401) return t.skip("the server's CRON_SECRET is not this one");
+    const rows = await sql`
+      select id, finished_at is not null as finished, ok, detail from job_runs
+       where job = 'cleanup-orphans' and started_at >= ${since}`;
+    try {
+      assert.equal(rows.length, 1, JSON.stringify(rows));
+      assert.equal(rows[0].finished, true, "the run's end was not recorded");
+      assert.equal(rows[0].ok, res.ok);
+      assert.deepEqual(JSON.parse(rows[0].detail), await res.json(), "the detail is the job's own answer");
+    } finally {
+      if (rows.length) await sql`delete from job_runs where id = any(${rows.map((r) => r.id)})`;
+    }
+  });
 });
