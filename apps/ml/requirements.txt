@@ -16,7 +16,7 @@
 torch==2.13.0
 torchvision==0.28.0
 open_clip_torch==3.3.0
-pillow==12.3.0
+pillow==13.0.0
 numpy==2.3.5
 requests==2.34.2
 psycopg[binary]==3.3.4
