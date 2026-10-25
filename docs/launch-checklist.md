@@ -159,6 +159,55 @@ their ids intact. This exact sequence was rehearsed against a scratch database �
 125,438 taxa and 46,402 reports load clean, and the id sequence lands correctly so
 new reports do not collide.
 
+### After a change to a blur made in the database
+
+A moderator's decision, the classifier and a report published on arrival drop
+every cached page that shows records as soon as they commit. Nothing done in the
+database does: a migration, a floor, a TaiCOL refresh or a script that re-rates
+taxa or sets `precision_override` changes `reports_public` and leaves every
+cached copy of the old positions where it is, for at most:
+
+| What | For at most | Set by |
+|---|---|---|
+| Pages: species, stats, home, collections | 15 minutes: 10 for the page, 5 for the cached reads it was made from | `expireTime` in `apps/web/next.config.ts`; `apps/web/lib/siteFigures.ts` |
+| Map tiles, zoom 5 and closer | 4 minutes | `SHORT_TILE_CACHE`, `apps/web/app/api/tiles/[z]/[x]/[y]/route.ts` |
+| Map tiles, zoom 4 and out | about 25 hours | `TILE_HEADERS`, same file |
+
+The page bound holds only while the database answers: a page whose rebuild
+fails keeps its old copy until one succeeds (`apps/web/lib/siteFigures.ts`).
+
+So, after any migration or script that changes taxa, floors or a report's blur:
+
+1. **Redeploy production** (Vercel → Deployments → the current production
+   deployment → Redeploy), or wait out the bound. A production deploy starts the
+   page and CDN caches afresh, the tiles' included. Deploy rather than wait when
+   the change widened a blur past 10 km or hid records, because a zoom 3 or 4
+   tile places a record to 20–40 km for a day; when it was made while the
+   database was failing; and whenever fifteen minutes is too long. The cached
+   reads live in Vercel's data cache, which may outlast a deploy, and a page
+   built from one read just before the change keeps it: start the redeploy at
+   least five minutes after the change, when none is still fresh, or drop them
+   first with `vercel cache dangerously-delete --tag reports --yes` (the tag the
+   app's own writers drop; not yet tried on this project).
+2. **Check the database**, with an aggregate: the records now carry the
+   precision the change meant, for example
+   `select location_precision, count(*) from reports_public where taxon_id = <id> group by 1`.
+3. **Check a page that listed them**, the species page:
+
+   ```bash
+   curl -sIL https://formosawatch.biowatchitnl.org/en/species/<id> \
+     | grep -iE '^(age|x-vercel-cache):'
+   ```
+
+   `age`, how long the CDN has held the copy, should be less than the time
+   since the deploy, or since the change if you waited. (Vercel keeps the
+   `s-maxage` and `stale-while-revalidate` it is sent to itself, so the
+   browser never sees them; the test suite checks them against `next start`.)
+   A sparse species lists each record's point to three decimals;
+   each should be the one `reports_public` now gives for it
+   (`st_y(location_public::geometry)`, `st_x(…)`). Then
+   `npm run verify:deploy -- https://formosawatch.biowatchitnl.org`.
+
 ---
 
 ## 4. Check Modal is still running
