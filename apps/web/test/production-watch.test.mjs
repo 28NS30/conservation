@@ -7,7 +7,9 @@
  * its emails filtered within a week, and one that never opens it is the
  * silence it replaced. So the decisions are pure functions and are pinned
  * here: one failure waits, two open an issue, a long outage is not an email
- * an hour, and the first green run closes it.
+ * an hour, and the first green run closes it; "two in a row" is read from the
+ * state each run leaves, so a run that failed for another reason is not a
+ * failed check; and a job that stops succeeding, or never starts, is noticed.
  *
  * The runtime half runs the real checks against the local server, when there
  * is one.
@@ -21,21 +23,33 @@ import { join } from "node:path";
 import { BASE_URL } from "./helpers.mjs";
 import {
   HOSTS,
+  JOB_ALARM_HOURS,
   MIN_REPORTS,
   RENOTIFY_HOURS,
+  STATE_TITLE,
   TURNSTILE_KEY,
+  WATCH_JOB,
   checkHost,
   commentBody,
+  commitMatch,
   decide,
+  decideJobs,
+  exitCode,
   failureKey,
   healthProblems,
   healthWarnings,
   isProtectedDeployment,
   issueBody,
+  jobsCommentBody,
+  jobsIssueBody,
+  jobsKey,
   keyFromText,
   marker,
-  previousConclusion,
+  previousState,
   scriptsIn,
+  staleJobs,
+  stateCommand,
+  stateFromAnnotations,
 } from "../../../scripts/production-watch.mjs";
 
 const REPO = join(import.meta.dirname, "..", "..", "..");
@@ -92,18 +106,140 @@ describe("when to say something", () => {
 
 describe("what the previous run says", () => {
   const run = (id, event, status, conclusion) => ({ id, event, status, conclusion });
+  /** A run's annotations as a workflow command would leave them. */
+  const left = (state) => {
+    const m = /^::notice title=(.*?)::(.*)$/.exec(stateCommand(state));
+    return [{ title: m[1], message: decodeURIComponent(m[2]), annotation_level: "notice" }];
+  };
 
-  test("the newest finished scheduled or manual run, other than this one", () => {
+  test("the state survives a round trip through an annotation", () => {
+    const state = { failed: true, nullSince: { classify: now - HOUR } };
+    assert.deepEqual(stateFromAnnotations(left(state)), state);
+    assert.match(stateCommand(state), new RegExp(`^::notice title=${STATE_TITLE}::\\{`));
+    assert.doesNotMatch(stateCommand({ failed: false, nullSince: {} }), /[\r\n]/);
+  });
+
+  test("anything else in a run's annotations is not a state", () => {
+    assert.equal(stateFromAnnotations([]), null);
+    assert.equal(stateFromAnnotations(null), null);
+    assert.equal(stateFromAnnotations([{ title: "production check", message: '{"failed":true}' }]), null);
+    assert.equal(stateFromAnnotations([{ title: STATE_TITLE, message: "not json" }]), null);
+    assert.equal(stateFromAnnotations([{ title: STATE_TITLE, message: '{"failed":"yes"}' }]), null);
+    // A job name that is not one, or a time that is not a number, is dropped.
+    assert.deepEqual(
+      stateFromAnnotations([{ title: STATE_TITLE, message: '{"failed":false,"nullSince":{"Bad Name":1,"classify":"x","cleanup-orphans":5}}' }]),
+      { failed: false, nullSince: { "cleanup-orphans": 5 } },
+    );
+  });
+
+  test("is the newest finished scheduled or manual run's that left one, other than this one", async () => {
     const runs = [
       run(9, "schedule", "in_progress", null), // this run
       run(8, "deployment_status", "completed", "success"),
-      run(7, "schedule", "completed", "cancelled"),
-      run(6, "workflow_dispatch", "completed", "failure"),
+      run(7, "schedule", "completed", "cancelled"), // timed out before it could say
+      run(6, "workflow_dispatch", "completed", "failure"), // GitHub's API failed; the check passed
       run(5, "schedule", "completed", "success"),
     ];
-    assert.equal(previousConclusion(runs, "9"), "failure");
-    assert.equal(previousConclusion(runs.slice(4), 9), "success");
-    assert.equal(previousConclusion([run(9, "schedule", "in_progress", null)], 9), null);
+    const by = { 7: [], 6: left({ failed: false, nullSince: {} }), 5: left({ failed: true, nullSince: {} }) };
+    const asked = [];
+    const annotationsOf = async (r) => (asked.push(r.id), by[r.id]);
+    assert.deepEqual(await previousState(runs, "9", annotationsOf), { failed: false, nullSince: {} });
+    assert.deepEqual(asked, [7, 6], "the deployment run and this run are not asked");
+  });
+
+  test("a run that failed for any reason but its check is not a failed check", async () => {
+    // The old rule read the run's conclusion; a failed setup step then read as an outage.
+    const runs = [run(2, "schedule", "completed", "failure"), run(1, "schedule", "completed", "success")];
+    const states = { 2: [], 1: left({ failed: false, nullSince: {} }) };
+    assert.equal((await previousState(runs, 3, async (r) => states[r.id])).failed, false);
+  });
+
+  test("gives up after five runs without a state, and then says nothing failed", async () => {
+    const runs = Array.from({ length: 8 }, (_, i) => run(20 - i, "schedule", "completed", "failure"));
+    let asked = 0;
+    const previous = await previousState(runs, 99, async () => (asked++, []));
+    assert.equal(previous, null);
+    assert.equal(asked, 5);
+    assert.equal(decide({ failures: down, previousFailed: previous?.failed === true, issue: null, now }), "wait");
+  });
+});
+
+describe("whether the run fails", () => {
+  test("only when the issue is told something, so a blip sends no email", () => {
+    assert.equal(exitCode({ failures: [], action: "none", reported: true }), 0);
+    assert.equal(exitCode({ failures: down, action: "wait", reported: true }), 0);
+    assert.equal(exitCode({ failures: down, action: "open", reported: true }), 1);
+    assert.equal(exitCode({ failures: down, action: "comment", reported: true }), 1);
+    assert.equal(exitCode({ failures: down, action: "quiet", reported: true }), 0);
+    assert.equal(exitCode({ failures: [], action: "close", reported: true }), 0);
+  });
+
+  test("or when a failed check could not be reported, and never for GitHub's trouble alone", () => {
+    assert.equal(exitCode({ failures: down, action: "none", reported: false }), 1);
+    assert.equal(exitCode({ failures: [], action: "none", reported: false }), 0);
+  });
+});
+
+describe("the jobs", () => {
+  const healthy = (jobs) => ({ ok: true, schemaCurrent: true, reports: 46_334, jobs });
+
+  test("say nothing while health cannot (0036 not applied, or health failing), and keep the clock", () => {
+    const clock = { classify: now - 10 * HOUR };
+    for (const body of [null, { ok: false }, healthy(null)]) {
+      const r = staleJobs(body, clock, now);
+      assert.equal(r.known, false);
+      assert.deepEqual(r.nullSince, clock);
+      assert.equal(decideJobs({ ...r, issue: { number: 3, lastKey: "classify" } }), "none");
+    }
+  });
+
+  test("a job past two days since its last good run is stale at once", () => {
+    const r = staleJobs(healthy({ classify: { hoursSinceOk: JOB_ALARM_HOURS + 0.1 }, "cleanup-orphans": { hoursSinceOk: 20 } }), {}, now);
+    assert.deepEqual(r.stale.map((s) => s.job), ["classify"]);
+    assert.deepEqual(r.nullSince, {});
+    assert.equal(decideJobs({ ...r, issue: null }), "open");
+  });
+
+  test("a job with no good run on record is stale once the watch has seen it so for two days", () => {
+    const body = healthy({ classify: { hoursSinceOk: 3 }, "cleanup-orphans": { hoursSinceOk: null } });
+    // The first sight starts the clock: the day after 0036 is applied looks just like this.
+    const first = staleJobs(body, undefined, now);
+    assert.deepEqual(first.stale, []);
+    assert.deepEqual(first.nullSince, { "cleanup-orphans": now });
+    const later = staleJobs(body, first.nullSince, now + (JOB_ALARM_HOURS - 1) * HOUR);
+    assert.deepEqual(later.stale, []);
+    const then = staleJobs(body, later.nullSince, now + JOB_ALARM_HOURS * HOUR);
+    assert.deepEqual(then.stale.map((s) => s.job), ["cleanup-orphans"]);
+    assert.match(then.stale[0].detail, /no good run on record, in the 48 h/);
+  });
+
+  test("a job that runs well clears its clock, and the issue closes when none is stale", () => {
+    const r = staleJobs(healthy({ "cleanup-orphans": { hoursSinceOk: 1 } }), { "cleanup-orphans": now - 60 * HOUR }, now);
+    assert.deepEqual(r.nullSince, {});
+    assert.deepEqual(r.stale, []);
+    assert.equal(decideJobs({ ...r, issue: { number: 3, lastKey: "cleanup-orphans" } }), "close");
+    assert.equal(decideJobs({ ...r, issue: null }), "none");
+  });
+
+  test("an open jobs issue hears again only when the set of stale jobs changes", () => {
+    const stale = [{ job: "classify", detail: "last good run 50 h ago" }];
+    assert.equal(decideJobs({ known: true, stale, issue: { number: 3, lastKey: jobsKey(stale) } }), "none");
+    assert.equal(
+      decideJobs({ known: true, stale: [...stale, { job: "cleanup-orphans", detail: "x" }], issue: { number: 3, lastKey: jobsKey(stale) } }),
+      "comment",
+    );
+    assert.equal(keyFromText(jobsIssueBody(stale, "https://example.test/run/1")), jobsKey(stale));
+    assert.equal(keyFromText(jobsCommentBody(stale, "https://example.test/run/2")), jobsKey(stale));
+    assert.match(jobsIssueBody(stale, "u"), /CRON_SECRET/);
+  });
+});
+
+describe("the deploy check's commit", () => {
+  const sha = "0123456789abcdef0123456789abcdef01234567";
+  test("matches health's short commit to the deployment's", () => {
+    assert.equal(commitMatch("0123456789ab", sha), "same");
+    assert.equal(commitMatch("fedcba987654", sha), "different");
+    for (const served of [null, undefined, "", "not-a-sha", 42]) assert.equal(commitMatch(served, sha), "unknown");
   });
 });
 
@@ -174,10 +310,24 @@ describe("the workflow", () => {
     assert.match(yml, /^  deployment_status:$/m);
   });
 
-  test("the run fails exactly when the checks do, so the keepalive cannot fail it", () => {
+  test("the keepalive cannot fail the run, whose result is the watch's", () => {
     const keepalive = yml.slice(yml.indexOf("- name: Keep the schedule alive"), yml.indexOf("verify-deploy:"));
     assert.match(keepalive, /continue-on-error: true/);
     assert.match(keepalive, /actions\/workflows\/production-watch\.yml\/enable/);
+  });
+
+  test("the state is read from the job this script runs in, which may read check runs", () => {
+    assert.match(yml, new RegExp(`^  ${WATCH_JOB}:$`, "m"));
+    const watch = yml.slice(yml.indexOf(`  ${WATCH_JOB}:`), yml.indexOf("verify-deploy:"));
+    assert.doesNotMatch(watch, /^    name:/m, "a job name would change what the API calls it");
+    assert.match(watch, /checks: read/);
+    assert.match(watch, /actions: write/);
+    assert.match(watch, /issues: write/);
+  });
+
+  test("the deploy check waits for the deployment's own commit", () => {
+    assert.match(yml, /DEPLOYMENT_SHA: \$\{\{ github\.event\.deployment\.sha \}\}/);
+    assert.match(yml, /production-watch\.mjs wait-for "\$TARGET" "\$DEPLOYMENT_SHA"\n\s+node scripts\/verify-deploy\.mjs/);
   });
 
   test("checks production deployments only, and puts no event text in a command", () => {
