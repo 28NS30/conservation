@@ -41,13 +41,12 @@ export const SPECIES_NOTES: Record<string, Entry> = {
   t0029282: { notes: ["introducedMainIsland"] }, //   its subspecies canorus
 
   /*
-   * Names that do not apply in Taiwan, whose records a biologist has to place.
-   * 日本樹蛙's 75 records are 周氏樹蛙 or 太田樹蛙 depending on where each was
-   * found; the hoopoe's 13 are probably 戴勝 U. e. saturata. Migration 0022
-   * moved the records whose right name was certain; these wait.
+   * A name that does not apply in Taiwan, whose records a biologist has to
+   * place: 日本樹蛙's 75 records are 周氏樹蛙 or 太田樹蛙 depending on where each
+   * was found. Migrations 0022 and 0037 moved the records whose right name was
+   * certain (0037: the hoopoe's 13, to the species 戴勝); these wait.
    */
   t0101610: { notes: ["nameUnderReview"] }, // Buergeria japonica
-  t0102553: { notes: ["nameUnderReview"] }, // Upupa epops epops
 };
 
 export function speciesNotes(taicolId: string | null | undefined): SpeciesNoteKey[] {
