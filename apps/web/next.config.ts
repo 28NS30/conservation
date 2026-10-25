@@ -83,23 +83,40 @@ const config: NextConfig = {
    * fresh one is made, but only until ten minutes from when it was made;
    * after that its next visitor waits for a fresh render. It is also the
    * response's `stale-while-revalidate` (ten minutes less the page's
-   * `revalidate`: `s-maxage=300, stale-while-revalidate=300`), so a CDN keeps
-   * it no longer either. A page whose `revalidate` came to more than this
-   * would lose its stale-while-revalidate and be kept by the CDN for the
-   * whole of it. So nothing cached, a page or a read it is made from, may
-   * last longer than five minutes, which keeps the header's two halves and
-   * the fifteen minutes below (test/public-pages-cache.test.mjs).
+   * `revalidate`: `s-maxage=300, stale-while-revalidate=300`). A page whose
+   * `revalidate` came to more than this would lose its
+   * stale-while-revalidate, so nothing cached, a page or a read it is made
+   * from, may last longer than five minutes, which keeps the header's two
+   * halves (test/public-pages-cache.test.mjs).
+   *
+   * Where it holds: in Next's own cache, which `next start` serves from;
+   * and on Vercel for the pages built with the site, whose build output
+   * carries both lifetimes (300 and 600, from the prerender manifest's
+   * initialRevalidateSeconds and initialExpireSeconds). Not behind a CDN
+   * put in front of `next start`: a page Next serves stale carries the
+   * whole `s-maxage=300, stale-while-revalidate=300` again and no Age, so
+   * such a CDN would start the page's ten minutes afresh when it is already
+   * up to ten minutes old. And not, as far as this repository can show, for
+   * a page rendered on its first visit on Vercel, as all but fifty species
+   * pages are: their build output says expiration 1 and nothing about
+   * staleness, and what the platform then does with the header is in code
+   * that does not ship. So the species pages hold no point of a record at
+   * all; their list is read per request (components/species/SpeciesRecords).
+   * docs/launch-checklist.md has the check to make after a deploy.
    *
    * What it bounds is a change no writer announces. The app's own writers
-   * drop every page that shows records the moment one changes
-   * (reportsChanged() in lib/siteFigures.ts). A blur tightened in the
+   * drop every page that shows records when one changes, and again five
+   * seconds on (reportsChanged() in lib/siteFigures.ts): normally at once,
+   * at worst this bound. A blur tightened in the
    * database, by a migration, a floor or a TaiCOL refresh, runs none of
    * them. Anything that places a record more precisely than its blur may do
    * so for a few minutes at most, and an hour here left a quiet species page
-   * listing the record's old point for sixty-five. Now it is gone within
-   * fifteen: these ten, plus the five the cached reads the page was rebuilt
-   * from may already have been old. That assumes the rebuild's reads
-   * succeed; lib/siteFigures.ts says what happens when they do not.
+   * listing the record's old point for sixty-five. The reads that place a
+   * record are made afresh on every rebuild, so a point is gone within
+   * these ten minutes; a count, read through the five-minute cache, within
+   * fifteen. That assumes the rebuild does not throw; lib/siteFigures.ts
+   * says what happens when it does, and why the reads that place records
+   * do not.
    *
    * It costs no extra renders: a page is rebuilt at most once in five
    * minutes, and only when somebody asks for it, whatever this is. What it
@@ -108,7 +125,7 @@ const config: NextConfig = {
    * more and rebuilt it behind them; at this site's traffic that is most
    * visits to a page.
    *
-   * When fifteen minutes is too long, deploy. A production deploy starts the
+   * When ten minutes is too long, deploy. A production deploy starts the
    * page cache afresh, as it does the tiles', and it is the procedure after a
    * re-blur run by hand or by migration (docs/launch-checklist.md, "After a
    * change to a blur made in the database").

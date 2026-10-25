@@ -43,7 +43,8 @@ import { after } from "next/server";
  * retainPreviousCacheEntry). A cached figure does not throw once it has a
  * copy: a stale one whose read fails is handed to the rebuild as it was (Next
  * logs "revalidating cache with key"). So the reads that can make a rebuild
- * throw are the uncached ones, and the ones that place records answer no
+ * throw are the uncached ones, and the ones that place records, where a page
+ * makes them at all (a species page's list is not on the page), answer no
  * points rather than throw: the rebuild succeeds, and the old points go with
  * the old page, at the bound, outage or not. What the bound then does not
  * cover is a page whose rebuild throws anyway, which is a page with a cached
