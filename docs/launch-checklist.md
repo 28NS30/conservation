@@ -162,19 +162,27 @@ new reports do not collide.
 ### After a change to a blur made in the database
 
 A moderator's decision, the classifier and a report published on arrival drop
-every cached page that shows records as soon as they commit. Nothing done in the
-database does: a migration, a floor, a TaiCOL refresh or a script that re-rates
-taxa or sets `precision_override` changes `reports_public` and leaves every
-cached copy of the old positions where it is, for at most:
+every cached page that shows records when they commit, and again five seconds
+later: normally at once; at worst the bound below. Nothing done in the
+database drops anything: a migration, a floor, a TaiCOL refresh or a script
+that re-rates taxa or sets `precision_override` changes `reports_public` and
+leaves every cached copy of the old positions where it is, for at most:
 
 | What | For at most | Set by |
 |---|---|---|
-| Pages: species, stats, home, collections | 15 minutes: 10 for the page, 5 for the cached reads it was made from | `expireTime` in `apps/web/next.config.ts`; `apps/web/lib/siteFigures.ts` |
+| A species page's list of records, with their points | not cached: read per request | `apps/web/app/api/species/[id]/records/route.ts` |
+| Other points on a page: the /stats hotspots, the lab's ledger | 10 minutes, the page's own age | `expireTime` in `apps/web/next.config.ts`; `freshPoints` in `apps/web/lib/siteFigures.ts` |
+| Counts on a page: species, stats, home, collections | 15 minutes: 10 for the page, 5 for the cached reads it was made from | the same two files |
 | Map tiles, zoom 5 and closer | 4 minutes | `SHORT_TILE_CACHE`, `apps/web/app/api/tiles/[z]/[x]/[y]/route.ts` |
 | Map tiles, zoom 4 and out | about 25 hours | `TILE_HEADERS`, same file |
 
-The page bound holds only while the database answers: a page whose rebuild
-fails keeps its old copy until one succeeds (`apps/web/lib/siteFigures.ts`).
+The 10 minutes hold through a database outage: the reads that place records
+answer none rather than fail the page's rebuild. A page whose rebuild fails for
+another reason keeps its old copy, stored again for ten minutes at each failed
+try, until a rebuild succeeds (`apps/web/lib/siteFigures.ts`). The page bounds
+are Next's own; on Vercel they hold as written for the pages built with the
+site, and section 8 has the check for the species pages rendered on their
+first visit.
 
 So, after any migration or script that changes taxa, floors or a report's blur:
 
@@ -183,7 +191,7 @@ So, after any migration or script that changes taxa, floors or a report's blur:
    page and CDN caches afresh, the tiles' included. Deploy rather than wait when
    the change widened a blur past 10 km or hid records, because a zoom 3 or 4
    tile places a record to 20–40 km for a day; when it was made while the
-   database was failing; and whenever fifteen minutes is too long. The cached
+   database was failing; and whenever ten minutes is too long. The cached
    reads live in Vercel's data cache, which may outlast a deploy, and a page
    built from one read just before the change keeps it: start the redeploy at
    least five minutes after the change, when none is still fresh, or drop them
@@ -192,10 +200,14 @@ So, after any migration or script that changes taxa, floors or a report's blur:
 2. **Check the database**, with an aggregate: the records now carry the
    precision the change meant, for example
    `select location_precision, count(*) from reports_public where taxon_id = <id> group by 1`.
-3. **Check a page that listed them**, the species page:
+3. **Check a page that showed them.** A sparse species' list comes from
+   `/api/species/<id>/records`, per request, and each point there should be
+   the one `reports_public` now gives (`st_y(location_public::geometry)`,
+   `st_x(…)`) at once, deploy or not. For /stats, whose hotspots place
+   records:
 
    ```bash
-   curl -sIL https://formosawatch.biowatchitnl.org/en/species/<id> \
+   curl -sI https://formosawatch.biowatchitnl.org/en/stats \
      | grep -iE '^(age|x-vercel-cache):'
    ```
 
@@ -203,10 +215,7 @@ So, after any migration or script that changes taxa, floors or a report's blur:
    since the deploy, or since the change if you waited. (Vercel keeps the
    `s-maxage` and `stale-while-revalidate` it is sent to itself, so the
    browser never sees them; the test suite checks them against `next start`.)
-   A sparse species lists each record's point to three decimals;
-   each should be the one `reports_public` now gives for it
-   (`st_y(location_public::geometry)`, `st_x(…)`). Then
-   `npm run verify:deploy -- https://formosawatch.biowatchitnl.org`.
+   Then `npm run verify:deploy -- https://formosawatch.biowatchitnl.org`.
 
 ---
 
@@ -347,6 +356,30 @@ Then, by hand, on the live site:
    species is known, because an unidentified animal might be a protected one.
 4. Wait for the cron, then confirm it appears with a species attached.
 5. Open `/api/health` — it should return `ok: true`.
+6. **A species page rendered on its first visit is not served past ten
+   minutes.** Every species page but the fifty built with the site is
+   rendered when first asked for, and Vercel's build output gives those
+   pages expiration 1 and no stale limit, so whether the `expireTime` of ten
+   minutes holds for them is Vercel's behaviour, not this repository's. Their
+   records are read per request either way (`/api/species/<id>/records`), so
+   no point depends on it; their counts do. Take a sparse species, one with
+   one to five records, outside the fifty most recorded, ask for its page
+   twice, then leave it alone for more than ten minutes and ask again:
+
+   ```bash
+   P=https://formosawatch.biowatchitnl.org/en/species/<id>-<slug>
+   curl -sI "$P" | grep -iE '^(age|x-vercel-cache):'; curl -sI "$P" | grep -iE '^(age|x-vercel-cache):'
+   sleep 660
+   curl -sI "$P" | grep -iE '^(age|x-vercel-cache):'
+   curl -s "https://formosawatch.biowatchitnl.org/api/species/<id>/records" -o /dev/null -D - | grep -i '^cache-control:'
+   ```
+
+   The last page request must not answer `x-vercel-cache: STALE` with an
+   `age` above 600; MISS, or HIT with a small `age`, is right. The records
+   route must answer `private, no-store`. A STALE above 600 means Vercel keeps
+   an on-demand page past `expireTime`: no point is exposed by it, but the
+   counts' bound in section 3 is then wrong for species pages; write down
+   what `age` reached there.
 
 If step 4 never happens, the cron is not firing. See step 7.
 
