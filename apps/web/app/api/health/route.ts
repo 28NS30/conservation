@@ -1,7 +1,16 @@
 import { asPublic, sql } from "@/lib/db";
 import { schemaStatus } from "@/lib/schemaStatus";
 import { secondsSinceGoodRun } from "@/lib/jobRuns";
-import { activeJobs, healthResponse, healthUnreachable } from "@/lib/monitoring";
+import {
+  CLASSIFICATION_QUEUE,
+  QUEUE_MAX_ATTEMPTS,
+  QUEUE_STALE_AFTER,
+  activeJobs,
+  commitOf,
+  healthResponse,
+  healthUnreachable,
+  memoFor,
+} from "@/lib/monitoring";
 import { serviceSupabase, PHOTO_BUCKET } from "@/lib/supabase/service";
 
 /**
@@ -20,42 +29,53 @@ import { serviceSupabase, PHOTO_BUCKET } from "@/lib/supabase/service";
 /** Never prerendered: a health check answered from the build is a health check of the build. */
 export const dynamic = "force-dynamic";
 
+/**
+ * The two costly parts, kept by this instance for 30 seconds, as long as the
+ * CDN keeps the public answer: the schema checks are some thirty queries, and
+ * Storage is a call to another service. A migration applied or a Storage
+ * outage therefore shows here up to 30 seconds late.
+ */
+const HELD_MS = 30_000;
+const heldSchemaStatus = memoFor(HELD_MS, () => schemaStatus());
+const heldStorageAnswers = memoFor(HELD_MS, () => storageAnswers());
+
 export async function GET(req: Request) {
   const started = Date.now();
   const secret = process.env.CRON_SECRET;
   const authorization = req.headers.get("authorization");
   const operator = Boolean(secret) && authorization === `Bearer ${secret}`;
   try {
-    // The database's own answer, timed on its own: `dbLatencyMs` has always
-    // meant these two, and the Storage call below must not count towards it.
-    const database = Promise.all([
-      asPublic(
-        async (tx) =>
-          (
-            await tx<{ reports: number; taxa: number; species: number }[]>`
-              select (select count(*) from reports_public)::int as reports,
-                     (select count(*) from taxa)::int          as taxa,
-                     -- Species we hold records FOR, which is not the size of the
-                     -- checklist: 458 against 125,438. The parent site advertises this
-                     -- one, and had it hardcoded because the taxa count is the checklist.
-                     (select count(distinct taxon_id) from reports_public
-                       where taxon_id is not null)::int        as species`
-          )[0],
-      ),
+    // The counts and the schema. `dbLatencyMs` times the counts alone: it
+    // timed both before the schema checks were held (heldSchemaStatus), and
+    // timing a held answer too would make the number depend on whether this
+    // request happened to be the one that ran them. Nor may the Storage call
+    // below count towards it.
+    const counted = asPublic(
+      async (tx) =>
+        (
+          await tx<{ reports: number; taxa: number; species: number }[]>`
+            select (select count(*) from reports_public)::int as reports,
+                   (select count(*) from taxa)::int          as taxa,
+                   -- Species we hold records FOR, which is not the size of the
+                   -- checklist: 458 against 125,438. The parent site advertises this
+                   -- one, and had it hardcoded because the taxa count is the checklist.
+                   (select count(distinct taxon_id) from reports_public
+                     where taxon_id is not null)::int        as species`
+        )[0],
+    ).then((counts) => ({ counts, latencyMs: Date.now() - started }));
+
+    const [{ counts, latencyMs }, schema, jobSeconds, queue, dbSizeMb, storageOk] = await Promise.all([
+      counted,
       // Runs on the app's own connection: `web_anon` has no privileges on
       // `reports`, and information_schema shows you only what you may touch — so
       // asking as the public role would report every column missing.
-      schemaStatus(),
-    ]).then(([counts, schema]) => ({ counts, schema, latencyMs: Date.now() - started }));
-
-    const [{ counts, schema, latencyMs }, jobSeconds, queue, dbSizeMb, storageOk] = await Promise.all([
-      database,
+      heldSchemaStatus(),
       // These four may each fail on their own (job_runs is 0036's) and are
       // then reported as null or false, never as an unreachable database.
       secondsSinceGoodRun(),
       classificationQueue(),
       databaseSizeMb(),
-      storageAnswers(),
+      heldStorageAnswers(),
     ]);
 
     if (schema.missing.length) console.error("[health] schema missing:", schema.missing.join("; "));
@@ -85,6 +105,7 @@ export async function GET(req: Request) {
       storageOk,
       dbSizeMb,
       latencyMs,
+      commit: commitOf(process.env.VERCEL_GIT_COMMIT_SHA),
     });
     return Response.json(res.body, { status: res.status, headers: res.headers });
   } catch (err) {
@@ -96,17 +117,15 @@ export async function GET(req: Request) {
 
 /**
  * Classification jobs the worker would still claim, and how long the oldest
- * has waited. 5 is lib/report/classifyWorker.ts MAX_ATTEMPTS, after which a
- * job has been given up on and is waiting for nothing; test/monitoring.test.mjs
- * holds the two equal.
+ * has waited: lib/monitoring.ts CLASSIFICATION_QUEUE, the worker's own
+ * predicate.
  */
 async function classificationQueue() {
   try {
-    const [row] = await sql<{ waiting: number; oldest_seconds: number | null }[]>`
-      select count(*)::int as waiting,
-             extract(epoch from now() - min(created_at))::float8 as oldest_seconds
-        from classification_jobs
-       where status in ('queued', 'failed') and attempts < 5`;
+    const [row] = await sql.unsafe<{ waiting: number; oldest_seconds: number | null }[]>(CLASSIFICATION_QUEUE, [
+      QUEUE_MAX_ATTEMPTS,
+      QUEUE_STALE_AFTER,
+    ]);
     return { waiting: row.waiting, oldestSeconds: row.oldest_seconds };
   } catch (e) {
     console.error("[health] queue:", (e as Error).message);

@@ -44,6 +44,27 @@ export const JOB_RUN_AGES = `
    group by job`;
 
 /**
+ * What the classification worker would still claim (lib/report/classifyWorker.ts):
+ * queued or failed jobs, and running ones whose lease has gone stale, under
+ * the attempt limit, for a report a moderator has not rejected. The same
+ * predicate as the worker's claim, so `waiting` is work that will happen and
+ * `oldestMinutes` cannot grow for ever on a job nothing will ever take (a
+ * rejected report's job is never claimed and never cancelled).
+ * test/monitoring.test.mjs holds the two constants equal to the worker's;
+ * $1 is QUEUE_MAX_ATTEMPTS and $2 QUEUE_STALE_AFTER.
+ */
+export const QUEUE_MAX_ATTEMPTS = 5;
+export const QUEUE_STALE_AFTER = "5 minutes";
+export const CLASSIFICATION_QUEUE = `
+  select count(*)::int as waiting,
+         extract(epoch from now() - min(j.created_at))::float8 as oldest_seconds
+    from classification_jobs j
+   where (j.status in ('queued', 'failed')
+          or (j.status = 'running' and j.updated_at < now() - $2::interval))
+     and j.attempts < $1
+     and exists (select 1 from reports r where r.id = j.report_id and r.status <> 'rejected')`;
+
+/**
  * What a run records about itself: the route's own JSON answer, which every
  * job keeps to counts and an error code, cut to fit.
  */
@@ -152,6 +173,32 @@ export function platformWaitUntil(scope: object = globalThis): WaitUntil | null 
   return null;
 }
 
+/**
+ * `fn`'s answer, kept for `ms` by this server instance; a failure is not kept.
+ * Calls while one is in flight share it. For /api/health's costly parts, so a
+ * request the CDN does not answer (any query string is a new cache key, any
+ * Authorization header skips it) costs a few queries rather than thirty.
+ */
+export function memoFor<T>(ms: number, fn: () => Promise<T>, now: () => number = Date.now): () => Promise<T> {
+  let at = 0;
+  let kept: Promise<T> | null = null;
+  return () => {
+    if (kept && now() - at < ms) return kept;
+    at = now();
+    const p = fn();
+    kept = p;
+    p.catch(() => {
+      if (kept === p) kept = null;
+    });
+    return p;
+  };
+}
+
+/** The commit a deployment was built from, shortened; null when it is not known. */
+export function commitOf(sha: string | undefined): string | null {
+  return typeof sha === "string" && /^[0-9a-f]{12,40}$/.test(sha) ? sha.slice(0, 12) : null;
+}
+
 /** Hours, to one decimal: what the health endpoint reports a job's age in. */
 export function hours(seconds: number | null): number | null {
   return seconds === null || !Number.isFinite(seconds) ? null : Math.round(seconds / 360) / 10;
@@ -173,6 +220,8 @@ export type HealthInput = {
   storageOk: boolean;
   dbSizeMb: number | null;
   latencyMs: number;
+  /** commitOf(VERCEL_GIT_COMMIT_SHA): which build is answering. */
+  commit: string | null;
 };
 
 export type HealthResponse = { status: number; headers: Record<string, string>; body: Record<string, unknown> };
@@ -189,10 +238,17 @@ export type HealthResponse = { status: number; headers: Record<string, string>; 
  * say so, not only a field one has to know to look for; `ok` stays true
  * because the database did answer, which is what it has always meant.
  *
+ * `commit` is the commit the answering build was made from, so the deploy
+ * check can tell that the address it asks is serving the deployment it was
+ * started for (the repository is public; the commit is no secret).
+ *
  * Cached by the CDN for 30 seconds when it is a plain public 200, so a crawler
- * or a monitor polling it cannot turn it into ~25 database queries a request.
- * Never cached when it is not a 200, or when the request carried an
- * Authorization header: the operator's answer names missing rules, and a
+ * or a monitor polling the plain address is answered without the database.
+ * That is not a defence: any query string is a new cache key, and a request
+ * with an Authorization header skips the cache, so the route also keeps its
+ * costly parts for 30 seconds itself (memoFor). Never cached by the CDN when
+ * it is not a 200, or when the request carried an Authorization header: the
+ * operator's answer names missing rules, and a
  * shared cache that kept it would hand those names to the next visitor (the
  * 29 September audit's finding, back again). `Vary: Authorization` keeps a
  * cached public answer from being served to the operator instead.
@@ -220,6 +276,7 @@ export function healthResponse(input: HealthInput): HealthResponse {
     storage: { ok: input.storageOk },
     dbSizeMb: input.dbSizeMb,
     dbLatencyMs: input.latencyMs,
+    commit: input.commit,
   };
   const cacheable = status === 200 && !input.authorization;
   return {

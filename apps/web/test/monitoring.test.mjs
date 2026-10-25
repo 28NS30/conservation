@@ -20,12 +20,16 @@ import { join } from "node:path";
 import { sql, BASE_URL } from "./helpers.mjs";
 import {
   JOBS,
+  QUEUE_MAX_ATTEMPTS,
+  QUEUE_STALE_AFTER,
   activeJobs,
+  commitOf,
   errorDetail,
   healthResponse,
   healthUnreachable,
   hours,
   jobDetail,
+  memoFor,
   platformWaitUntil,
   requestErrorKey,
 } from "../lib/monitoring.ts";
@@ -51,6 +55,7 @@ const input = (over = {}) => ({
   storageOk: true,
   dbSizeMb: 412,
   latencyMs: 61,
+  commit: "2f13f5e0a1b2",
   ...over,
 });
 
@@ -69,7 +74,14 @@ describe("the health answer", () => {
       storage: { ok: true },
       dbSizeMb: 412,
       dbLatencyMs: 61,
+      commit: "2f13f5e0a1b2",
     });
+  });
+
+  test("names the commit it was built from, or null when that is not known", () => {
+    assert.equal(commitOf("2f13f5e0a1b2c3d4e5f60718293a4b5c6d7e8f90"), "2f13f5e0a1b2");
+    for (const sha of [undefined, "", "main", "2F13F5E0A1B2C3D4", "2f13f5e"]) assert.equal(commitOf(sha), null, String(sha));
+    assert.equal(healthResponse(input({ commit: null })).body.commit, null);
   });
 
   test("a schema that is not current answers 503, still saying the database answered", () => {
@@ -156,9 +168,16 @@ describe("the jobs", () => {
   }
 
   test("the queue counts what the worker would still claim", () => {
-    // app/api/health/route.ts says `attempts < 5`; the worker gives up at MAX_ATTEMPTS.
-    assert.match(read("lib", "report", "classifyWorker.ts"), /^const MAX_ATTEMPTS = 5;$/m);
-    assert.match(read("app", "api", "health", "route.ts"), /status in \('queued', 'failed'\) and attempts < 5/);
+    // lib/monitoring.ts CLASSIFICATION_QUEUE repeats the worker's claim; its
+    // constants have to be the worker's. test/monitoring-tables.test.mjs runs
+    // the statement against jobs of every kind.
+    const worker = read("lib", "report", "classifyWorker.ts");
+    assert.match(worker, new RegExp(`^const MAX_ATTEMPTS = ${QUEUE_MAX_ATTEMPTS};$`, "m"));
+    assert.match(worker, new RegExp(`^const STALE_AFTER = "${QUEUE_STALE_AFTER}";$`, "m"));
+    assert.match(worker, /j\.status in \('queued','failed'\)/);
+    assert.match(worker, /j\.status = 'running'\s+and j\.updated_at < now\(\) - \$\{STALE_AFTER\}::interval/);
+    assert.match(worker, /r\.id = j\.report_id and r\.status <> 'rejected'/);
+    assert.match(read("app", "api", "health", "route.ts"), /CLASSIFICATION_QUEUE, \[\s*QUEUE_MAX_ATTEMPTS,\s*QUEUE_STALE_AFTER,?\s*\]/);
   });
 
   test("cleanup-orphans states its limit and clears the monitoring tables", () => {
@@ -249,6 +268,27 @@ describe("the platform's waitUntil", () => {
   });
 });
 
+describe("health's held answers", () => {
+  test("are kept for the time given, shared while in flight, and a failure is not kept", async () => {
+    let t = 0;
+    let calls = 0;
+    let fail = false;
+    const held = memoFor(30_000, async () => {
+      calls++;
+      if (fail) throw new Error("down");
+      return calls;
+    }, () => t);
+    assert.equal(await Promise.all([held(), held()]).then(([a, b]) => a === b && a), 1, "two at once ask once");
+    t = 29_999;
+    assert.equal(await held(), 1);
+    t = 30_000;
+    fail = true;
+    await assert.rejects(held(), /down/);
+    fail = false;
+    assert.equal(await held(), 3, "the failure was asked again, not kept");
+  });
+});
+
 describe("the migration ledger", () => {
   const DIR = join(REPO, "supabase", "migrations");
   const prod = { VERCEL_ENV: "production" };
@@ -327,6 +367,7 @@ describe("the running server", () => {
     assert.deepEqual(Object.keys(body.jobs).sort(), activeJobs({ FORUM_ENABLED: process.env.FORUM_ENABLED }).sort());
     assert.equal(typeof body.queue.waiting, "number");
     assert.equal(typeof body.storage.ok, "boolean");
+    assert.ok("commit" in body, "the deploy check reads which build answered");
     assert.equal(res.headers.get("cache-control"), "public, max-age=0, s-maxage=30");
 
     const authed = await fetch(`${BASE_URL}/api/health`, { headers: { authorization: "Bearer not-the-secret" } });

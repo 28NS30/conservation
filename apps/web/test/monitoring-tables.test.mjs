@@ -9,20 +9,26 @@
  * not a reason to open them: an error count by route is a map of where the
  * site is weak.
  *
- * Everything that writes runs inside a transaction that is rolled back.
+ * Everything that writes runs inside a transaction that is rolled back. So
+ * does the one statement here that reads another table: /api/health's count
+ * of the classification queue, which has to count what the worker would
+ * claim and nothing it never will.
  *
  *   node --test test/monitoring-tables.test.mjs
  */
 import { test, describe, after } from "node:test";
 import assert from "node:assert/strict";
-import { sql, inRollback } from "./helpers.mjs";
+import { sql, inRollback, insertReport } from "./helpers.mjs";
 import {
   APP_ERROR_UPSERT,
   APP_ERRORS_PER_HOUR,
+  CLASSIFICATION_QUEUE,
   JOBS,
   JOB_RUN_AGES,
   JOB_RUN_FINISH,
   JOB_RUN_START,
+  QUEUE_MAX_ATTEMPTS,
+  QUEUE_STALE_AFTER,
 } from "../lib/monitoring.ts";
 
 after(() => sql.end());
@@ -211,5 +217,42 @@ describe("app_errors", () => {
       () => inRollback((tx) => tx.unsafe(APP_ERROR_UPSERT, ["/" + "x".repeat(250), "", APP_ERRORS_PER_HOUR])),
       /violates check constraint/,
     );
+  });
+});
+
+describe("the classification queue /api/health reports", () => {
+  test("counts what the worker would claim, and nothing it never will", async () => {
+    const marker = Symbol("rollback");
+    let before;
+    let after;
+    // One snapshot for both counts, so another session's jobs cannot move them.
+    await sql
+      .begin("isolation level repeatable read", async (tx) => {
+        const queue = async () => (await tx.unsafe(CLASSIFICATION_QUEUE, [QUEUE_MAX_ATTEMPTS, QUEUE_STALE_AFTER]))[0];
+        before = await queue();
+        const pending = await insertReport(tx, { status: "pending" });
+        const rejected = await insertReport(tx, { status: "rejected" });
+        const job = (report, status, attempts, { leaseMinutes = 0, hoursOld = 1 } = {}) => tx`
+          insert into classification_jobs (report_id, status, attempts, created_at, updated_at)
+          values (${report.id}, ${status}, ${attempts},
+                  now() - ${hoursOld} * interval '1 hour', now() - ${leaseMinutes} * interval '1 minute')`;
+        await job(pending, "queued", 0); // claimed
+        await job(pending, "failed", 2); // claimed again
+        await job(pending, "running", 1, { leaseMinutes: 10 }); // a lease gone stale: claimed again
+        await job(pending, "running", 1, { leaseMinutes: 1 }); // a live lease: not
+        await job(pending, "failed", QUEUE_MAX_ATTEMPTS); // given up on: not
+        await job(pending, "done", 1); // finished: not
+        // A rejected report's job is never claimed and never cancelled. Counted,
+        // it would be the oldest wait for ever.
+        await job(rejected, "queued", 0, { hoursOld: 100_000 });
+        await job(rejected, "failed", 1);
+        after = await queue();
+        throw marker;
+      })
+      .catch((e) => {
+        if (e !== marker) throw e;
+      });
+    assert.equal(after.waiting - before.waiting, 3);
+    assert.ok(after.oldest_seconds < 50_000 * 3600, `oldest ${after.oldest_seconds} s is the rejected report's job`);
   });
 });
