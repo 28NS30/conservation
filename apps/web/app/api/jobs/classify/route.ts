@@ -1,4 +1,5 @@
 import { classifyQueued } from "@/lib/report/classifyWorker";
+import { withJobRun } from "@/lib/jobRuns";
 
 /**
  * Classification worker, driven by Vercel Cron (see apps/web/vercel.json).
@@ -66,6 +67,7 @@ async function run(req: Request) {
   if (!authorised(req))
     return Response.json({ error: "unauthorized" }, { status: 401 });
   // Deliberately small. This is read by a cron service, not a human, and a large
-  // body is what made a timeout look like a broken endpoint.
-  return Response.json(await classifyQueued());
+  // body is what made a timeout look like a broken endpoint. It is also what
+  // the run's row in job_runs records (lib/jobRuns.ts): four counts.
+  return withJobRun("classify", async () => Response.json(await classifyQueued()));
 }

@@ -1,5 +1,7 @@
 import { sql } from "@/lib/db";
 import { serviceSupabase, PHOTO_BUCKET } from "@/lib/supabase/service";
+import { withJobRun } from "@/lib/jobRuns";
+import { APP_ERRORS_RETENTION, JOB_RUNS_RETENTION } from "@/lib/monitoring";
 
 /**
  * Delete photos that were uploaded but never attached to a report.
@@ -11,7 +13,16 @@ import { serviceSupabase, PHOTO_BUCKET } from "@/lib/supabase/service";
  *
  * Driven by Vercel Cron; see apps/web/vercel.json. Cron issues GET — see the
  * note on the handler.
+ *
+ * It also clears the site's own records once they are old: the request-error
+ * counts after 30 days and the jobs' run history after 90 (0036).
  */
+
+/**
+ * The Hobby ceiling, pinned rather than left to the plan's default, so the
+ * time budget below is measured against a limit this file states.
+ */
+export const maxDuration = 60;
 
 /**
  * Generous, so a report queued on a phone is never collected mid-flight. It was
@@ -56,6 +67,27 @@ export const dynamic = "force-dynamic";
 
 async function run(req: Request) {
   if (!authorised(req)) return Response.json({ error: "unauthorized" }, { status: 401 });
+  return withJobRun("cleanup-orphans", cleanup);
+}
+
+/**
+ * The monitoring tables' purge, on its own so that a database without 0036
+ * still has its photos cleaned: null there rather than a failed job.
+ */
+async function purgeMonitoring(): Promise<{ errors: number; runs: number } | null> {
+  try {
+    const errors = await sql`
+      delete from app_errors where hour < now() - ${APP_ERRORS_RETENTION}::interval`;
+    const runs = await sql`
+      delete from job_runs where started_at < now() - ${JOB_RUNS_RETENTION}::interval`;
+    return { errors: errors.count, runs: runs.count };
+  } catch (e) {
+    console.error("[cleanup-orphans] monitoring purge:", (e as Error).message);
+    return null;
+  }
+}
+
+async function cleanup() {
   const started = Date.now();
 
   // First, and whatever Storage does next: the forum's retention job used to
@@ -63,6 +95,7 @@ async function run(req: Request) {
   // switched on, so rows naming (hashed) addresses were kept for good.
   const purged = await sql`
     delete from rate_limits where window_start < now() - ${RATE_LIMIT_RETENTION}::interval`;
+  const history = await purgeMonitoring();
 
   const storage = serviceSupabase().storage.from(PHOTO_BUCKET);
   const cutoff = Date.now() - MIN_AGE_HOURS * 3600_000;
@@ -91,7 +124,7 @@ async function run(req: Request) {
         scanned += old.length;
         for (let i = 0; i < old.length; i += BATCH) {
           if (Date.now() - started > TIME_BUDGET_MS)
-            return Response.json({ scanned, deleted, purged: purged.count, incomplete: true });
+            return Response.json({ scanned, deleted, purged: purged.count, history, incomplete: true });
           const batch = old.slice(i, i + BATCH);
           // Anything still referenced by a report is kept, obviously.
           const referenced = await sql<{ storage_path: string }[]>`
@@ -107,8 +140,11 @@ async function run(req: Request) {
     }
   } catch (e) {
     console.error("[cleanup-orphans]", (e as Error).message);
-    return Response.json({ error: "cleanup_failed", scanned, deleted, purged: purged.count }, { status: 500 });
+    return Response.json(
+      { error: "cleanup_failed", scanned, deleted, purged: purged.count, history },
+      { status: 500 },
+    );
   }
 
-  return Response.json({ scanned, deleted, purged: purged.count });
+  return Response.json({ scanned, deleted, purged: purged.count, history });
 }
