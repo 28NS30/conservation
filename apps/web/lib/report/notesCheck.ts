@@ -30,6 +30,16 @@ export type NotesConcern = "location" | "contact" | "address" | "school";
  */
 const LINK_OR_HANDLE = /https?:\/\/|www\.|\bt\.me\b|@[\p{L}\p{N}_.]{2,}/u;
 
+/**
+ * A handle given without the @, as students write them: "IG: lin_xiao88",
+ * "ig：abc_123", "dcard:someone". Only with the colon, which is what makes it
+ * a handle and not a mention: "saw it on IG yesterday" says nothing about
+ * anyone. (LINE ids are the server's own contact pattern already.) The notes
+ * are normalised first, so a full-width colon is a colon here.
+ */
+const NAMED_HANDLE =
+  /(?:^|[^a-z])(?:ig|instagram|fb|facebook|threads|dcard|tiktok|twitter|discord|抖音|臉書|小紅書)\s*[:：]\s*@?[\p{L}\p{N}_.]{2,}/u;
+
 /** Digits as a Chinese address writes them, Arabic or Chinese. */
 const NUMBER = "[\\d一二三四五六七八九十百千零〇兩]+";
 
@@ -40,13 +50,15 @@ const NUMBER = "[\\d一二三四五六七八九十百千零〇兩]+";
  * notes, and a bare 街 is a street name, which says where the animal was and
  * nothing about the reporter. What gives a home away is the numbering: a lane,
  * an alley or a house number (15巷3弄8號), or a road or street followed by its
- * section or its number (中正路二段, 民生街100). National freeways are named
- * by number too (國道3號) and are left alone. English forms are the ones a
- * Taiwanese address takes in English: "No. 8", "Lane 15", "Sec. 2".
+ * section or its number (中正路二段, 民生街100). Highways are named by number
+ * too — national, provincial, county, city, township and district roads (國道
+ * 3號, 省道台9線, 縣道106號, 市道, 鄉道, 區道) — and are where roadkill is
+ * found, so they are left alone. English forms are the ones a Taiwanese
+ * address takes in English: "No. 8", "Lane 15", "Sec. 2".
  */
 const ADDRESS: RegExp[] = [
   // From the start of the number, so 國道10號 is not read as "0號".
-  new RegExp(`(?<!國道\\s*|${NUMBER})${NUMBER}\\s*(?:巷|弄|號|号)`, "u"),
+  new RegExp(`(?<!(?:國|省|縣|市|鄉|區)道\\s*|${NUMBER})${NUMBER}\\s*(?:巷|弄|號|号)`, "u"),
   new RegExp(`(?:路|街|大道)\\s*${NUMBER}\\s*段`, "u"),
   // A road or street and then a number, unless the number is a distance, a
   // time or a count: "公路 50 公尺處" and "路邊 3 隻" are where, not who.
@@ -71,7 +83,8 @@ export function notesConcerns(input: string): NotesConcern[] {
   const text = normalise(input);
   const found: NotesConcern[] = [];
   if (reasons.some((r) => LOCATION_REASONS.includes(r))) found.push("location");
-  if (reasons.includes("contact") || LINK_OR_HANDLE.test(text)) found.push("contact");
+  if (reasons.includes("contact") || LINK_OR_HANDLE.test(text) || NAMED_HANDLE.test(text))
+    found.push("contact");
   if (ADDRESS.some((re) => re.test(text))) found.push("address");
   if (SCHOOL.test(text)) found.push("school");
   return found;

@@ -45,6 +45,11 @@ describe("what the notes check notices", () => {
     "@小明",
     "t.me/someone",
     "https://www.instagram.com/someone",
+    // And without the @, as students give them.
+    "IG: lin_xiao88",
+    "ig：abc_123",
+    "我的dcard:someone",
+    "臉書：王小明",
   ]);
 
   cases("address", [
@@ -83,6 +88,16 @@ describe("what it leaves alone", () => {
       "山路上，大約早上七點",
       "國道3號北上",
       "國道 10 號南下 23 公里處",
+      // Every kind of numbered highway, where roadkill is found.
+      "縣道106號",
+      "在縣道 106 號旁邊",
+      "省道9號",
+      "市道136號往山上",
+      "鄉道12號",
+      "區道5號",
+      // Naming a site is not giving a handle.
+      "saw it on IG yesterday",
+      "fb上有人說看過",
       "台9線",
       "民生街附近的田",
       "左後腳受傷，還會動",
