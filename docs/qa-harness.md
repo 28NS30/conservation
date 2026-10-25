@@ -16,12 +16,15 @@ nobody ran with checks that fail.
 |---|---|---|
 | The audits still find what they are for | `npm run test:selftest -w @conservation/web` | every PR |
 | No page scrolls sideways at 320/390 | `npm run test:reflow -w @conservation/web` | every PR |
-| The map's load path | `npm run test:perf -w @conservation/web` | every PR |
+| The map's load path, and its JS budget | `npm run test:perf -w @conservation/web` | every PR |
 | The map actually paints | `npm run test:map` | every PR (it can now fail) |
-| Route table, namespaces, known-issue shape | `npm test` | every PR |
+| Route table, namespaces, known-issue shape | `npm test` | every PR, and no test may skip |
+| The report form submitted, and the card it leaves | `npm run test:receipt -w @conservation/web` | every PR |
+| axe on `/report`, its three pages and `/map`, 390 | `ONLY=… WIDTHS=390 npm run test:a11y -w @conservation/web` | every PR |
+| WCAG AA contrast on the same five, 390 | `ONLY=… WIDTHS=390 npm run test:contrast -w @conservation/web` | every PR |
 | Screenshot matrix + gallery | `npm run shots` | nightly + `gh workflow run gallery.yml` |
-| axe | `npm run test:a11y -w @conservation/web` | nightly, until its baseline is recorded |
-| WCAG AA contrast | `npm run test:contrast -w @conservation/web` | nightly, until its baseline is recorded |
+| axe, every route, 390 and 1440 | `npm run test:a11y -w @conservation/web` | nightly, and a finding fails it |
+| WCAG AA contrast, every route | `npm run test:contrast -w @conservation/web` | nightly, and a finding fails it |
 
 Everything needs a server on `TEST_BASE_URL` (default `http://localhost:3000`)
 except the self-test, which serves its own fixture. Build with
@@ -33,14 +36,24 @@ page is rebuilt, not forty times a day, and a four-minute step on every push is
 how a team learns to skip CI. Nightly keeps it honest; `workflow_dispatch` is
 how you take a "before" deliberately, which is the use that matters.
 
-**Why axe and contrast are nightly for now.** Both ratchet against a written
-list of today's known issues — `e2e/a11y-known.json`, `e2e/contrast-known.json`
-— and **neither list has ever been recorded**, because this harness was written
-without a running server to record one from. They ship empty, which means the
-first real run reports everything it finds as new. That is the correct first
-run: it prints the list. Somebody then fixes what should be fixed, records the
-rest with a reason, and moves the two steps from `gallery.yml` into `ci.yml`.
-They are written to be moved, not rewritten.
+**axe and contrast: five pages per PR, every page nightly.** Both ratchet
+against a written list of known issues, `e2e/a11y-known.json` and
+`e2e/contrast-known.json`. Both shipped empty, because the harness was written
+without a server to record them from, and ran nightly with `continue-on-error`
+so that a red first run of one could not stop the other recording its list.
+Neither has found anything since: all 35 nightly runs from 20 September to 24
+October 2026 reported no new axe violation and no contrast failure, over every
+route (27, then 41), both locales, 390 and 1440. The empty files are the
+baseline, so `continue-on-error` is gone and a finding fails the nightly run.
+
+Per pull request, `ci.yml` runs both on the pages a reporter fills in with one
+thumb: the `/report` chooser, `/report/roadkill`, `/report/invasive`,
+`/report/wildlife` and `/map`, in both languages at 390px. Ten page loads
+each, against 164 for the full sweep. `ONLY` and `WIDTHS` choose the
+slice, and both are read strictly: a name in `ONLY` that matches no route is an
+error, not an empty pass, so the slice cannot go quiet when a route is renamed.
+`UPDATE_*` refuses a slice, because a list recorded from one would drop every
+line it did not visit.
 
 ```
 UPDATE_A11Y=1     npm run test:a11y     -w @conservation/web
@@ -101,6 +114,69 @@ and for a tile response. Sleeps are for screenshots.
 Capture map screenshots with headless Playwright only. A hidden browser pane
 suspends `requestAnimationFrame` and photographs a blank canvas that looks
 exactly like a bug.
+
+## The database CI tests against
+
+A fresh `imresamu/postgis:17-3.5` cluster, which is not Supabase, made like it
+in one respect on purpose. `supabase/ci-roles.sql` runs before the migrations
+and creates `anon`, `authenticated` and `service_role` with the grants
+production was created with: ALL, on whatever `postgres` makes in `public`.
+0013 and 0024 then revoke them the way they did on production, and the tests
+can tell whether they did: built without those two files, this database fails
+"anon is denied SELECT on reports", "no table grants anything to anon or
+authenticated" and "anon and authenticated can execute none of them". Until
+October 2026 those roles did not exist in CI, every migration block guarded on
+them was skipped, and so were the thirty tests of what `anon` and
+`authenticated` can reach: `reports` and its exact points, the public views,
+the site's functions and every forum table. The `auth` schema is not faked:
+the policies that call `auth.uid()` are guarded on the schema as well as the
+role (0004), and stay untested here, as they always were.
+
+To try it on a laptop, give the migrations an empty cluster of their own:
+
+```
+docker run -d --name ci-pg -e POSTGRES_PASSWORD=postgres -p 127.0.0.1:55432:5432 imresamu/postgis:17-3.5
+export DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:55432/postgres
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f supabase/ci-roles.sql
+for f in supabase/migrations/*.sql; do psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$f"; done
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f supabase/seed-test.sql
+npm run import:names-en
+```
+
+Not the local Supabase stack's database: it already has the roles, and a
+recent Supabase CLI no longer grants them ALL by default, so it cannot show
+what 0013 had to undo.
+
+Then the fixture, `supabase/seed-test.sql`: a slice of real TaiCOL and GBIF
+rows, every blurred record at the centre of its blur cell. It also holds the
+rows tests name by property: 蒼鷺, 紅耳泥龜 and 日本樹蛙, a species whose
+binomial carries a stricter rule than its own (巨蚺, with its protected
+subspecies), and one record GBIF could not name. The generator's `wanted` list
+(`scripts/make-test-fixture.ts`) takes the same rows. They were appended to the
+file rather than regenerated into it: `npm run make:fixture` against a local
+database today replaces 591 of the 604 sampled records, because 0022 moved
+records to Taiwan's names and the sample follows the taxa, and a fixture diff
+nobody can review is not one to merge with the privacy tests resting on it.
+
+## Skips are counted
+
+A skipped test prints beside the passes and reads as one. Until October 2026
+every CI run skipped 36: the thirty role checks above, and six that found
+nothing in the fixture to test (the two heron searches, the red-eared slider,
+日本樹蛙's review note, the binomial floor on a photo pick, and the heading of
+a record with no species). The unit-test step in `ci.yml` now reads the
+count off node's summary and fails when it is over `ALLOWED_SKIPS`, which is
+**0**. Every skip condition in the suite is false in CI: the roles exist, the
+Supabase Auth stand-in answers, the fixture holds every row a test names, and a
+test that needs the server calls `requireServer(t)` (`test/helpers.mjs`), which
+skips on a laptop with nothing listening and throws under CI.
+
+A test that has to skip in CI is listed here, with its reason, in the commit
+that raises `ALLOWED_SKIPS`:
+
+| Test | Why it may skip in CI |
+|---|---|
+| (none) | |
 
 ## Two things the brief had slightly wrong
 
@@ -169,17 +245,33 @@ the inline copy #48 added can be deleted rather than maintained twice.
 
 ## What is still owed
 
-1. **Record the two baselines.** One run each, against a server. Until then axe
-   and contrast are nightly and red.
-2. **Record the performance budget.** `e2e/perf-budget.json` ships every byte
-   count and every millisecond as `null`, which prints and does not fail. A
-   budget invented at a desk gets enforced for years as though somebody meant
-   it. `UPDATE_PERF=1 PERF_LABEL=production TEST_BASE_URL=https://… npm run
-   test:perf -w @conservation/web` is the number that matters; CI's is a
-   broken-load-path detector.
-3. **Decide the hooks** — `docs/test-hooks.md`. Every later workstream adopts
+1. **Three advisories, so the audit job starts red.** On 25 October 2026
+   `npm audit --omit=dev --audit-level=high` against `package-lock.json`
+   reported `next` 16.3.7 as critical (GHSA-2464-fhr4-w9xw and
+   GHSA-673q-mjm6-r5xr, two remote code executions, and a high denial of
+   service, GHSA-p3m5-59mp-jv5r, all three open through 16.4.0; and a high
+   server-side request forgery in image optimisation with six lesser ones,
+   fixed in 16.3.8), `source-map-js` 1.2.1 under `postcss` (high,
+   GHSA-68fv-2mgg-jv7q, fixed in 1.2.2) and `zod` 4.4.3 under
+   `@conservation/shared` (high, GHSA-mrhx-c7xc-m3w5, fixed in 4.6.6), and
+   exited 1. The audit job fails until all three are bumped; the suite beside
+   it does not wait on it.
+2. **Read the performance numbers off production.** The JavaScript budgets in
+   `e2e/perf-budget.json` were recorded on 25 October 2026 from a build made
+   the way CI makes one (`NEXT_PUBLIC_E2E=1`, the fixture database, no
+   MapTiler key, `next start`) with `UPDATE_PERF=1 PERF_LABEL=ci`, and CI fails
+   at 10% over them: `/map` and `/en/map` 1074 KB, `/` 177, `/species` 171,
+   `/report/roadkill` 1499. Bytes are a property of the build, so a laptop's
+   and a runner's should agree well inside the 10%; the timings recorded
+   beside them are one laptop's, and print without failing. Production
+   compresses differently from `next start`, so its numbers are read with a
+   plain run, `TEST_BASE_URL=https://… npm run test:perf -w
+   @conservation/web`, and not recorded over CI's.
+3. **`test:receipt` in `test:e2e`.** CI runs the receipt spec as its own step;
+   the `test:e2e` script in `apps/web/package.json` does not list it yet.
+4. **Decide the hooks** — `docs/test-hooks.md`. Every later workstream adopts
    them, so it wants settling before W2.
-4. **`pages.spec.mjs` / `focus.spec.mjs` onto the route table**, after the open
+5. **`pages.spec.mjs` / `focus.spec.mjs` onto the route table**, after the open
    branches merge. `focus.spec.mjs` still covers 7 paths at one width.
-5. **The `<meta name="build">` marker** in `verify-deploy.mjs`, which waits on
+6. **The `<meta name="build">` marker** in `verify-deploy.mjs`, which waits on
    W2/W3 as the brief has it.

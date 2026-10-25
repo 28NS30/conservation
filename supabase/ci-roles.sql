@@ -7,8 +7,9 @@
 -- and function `postgres` creates in `public`. 0013 and 0024 revoke that, and
 -- the tests that check they did (privacy, blurred-records-say-less,
 -- forum-schema, forum-votes) skip when the roles are missing. On CI's plain
--- PostGIS cluster they always were, so about thirty tests about who can read
--- an exact coordinate had never run anywhere but a laptop.
+-- PostGIS cluster they always were, so the thirty tests of what anon and
+-- authenticated can reach, exact points among it, had never run anywhere but
+-- a laptop.
 --
 -- The default privileges are the ones production was created with: ALL to
 -- all three, on whatever `postgres` creates in `public`. That is how 0013

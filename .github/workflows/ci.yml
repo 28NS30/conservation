@@ -1,5 +1,28 @@
 name: CI
 
+# Every pull request and every push to main. A green run says:
+#
+#   - every migration applies to a fresh PostGIS cluster that has Supabase's
+#     three API roles and the grants Supabase gives them, so the revokes that
+#     keep exact coordinates away from the REST API (0013, 0024) are tested
+#     against the shape production started from;
+#   - the unit suite skipped no more tests than ALLOWED_SKIPS below, which is
+#     none, and a test that needs the server failed rather than skipped when
+#     it was not there (requireServer, apps/web/test/helpers.mjs);
+#   - the browser specs passed against a production build, the real report
+#     form's submit among them, with axe and WCAG AA contrast on the pages a
+#     reporter uses at a phone's width and the map's JavaScript within the
+#     budget recorded from a build like this one;
+#   - no production dependency carries a high or critical advisory.
+#
+# The full axe and contrast sweeps, every route at two widths, and the
+# screenshot gallery run nightly in gallery.yml. docs/qa-harness.md says what
+# runs where and why.
+#
+# Waiting for a server is a curl loop, not wait-on: curl is on every runner,
+# asks with GET (the Supabase Auth stand-in does not answer HEAD), and leaves
+# nothing for npx to resolve before the first request.
+
 on:
   push:
     branches: [main]
@@ -73,9 +96,10 @@ jobs:
       - name: Create Supabase's API roles
         # anon, authenticated and service_role, and the ALL that Supabase
         # grants them on whatever `postgres` creates in public. Without them
-        # 0013 and 0024 had nothing to revoke here, and about thirty tests of
-        # who can read an exact coordinate through the REST API skipped on
-        # every run. supabase/ci-roles.sql says what it leaves out.
+        # 0013 and 0024 had nothing to revoke here, and the thirty tests of
+        # what the REST API's roles can reach (reports and its exact points,
+        # the public views, the site's functions, every forum table) skipped
+        # on every run. supabase/ci-roles.sql says what it leaves out.
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f supabase/ci-roles.sql
 
       - name: Apply migrations
@@ -164,9 +188,9 @@ jobs:
         # the roles above, the Auth stand-in and the fixture give every test
         # what it asks for, and one that needs the server throws here rather
         # than skipping (requireServer). Before this, 36 skipped on every run,
-        # 30 of them the checks of who can read an exact coordinate. A test
-        # that has to skip in CI raises the number in the same commit, with
-        # its name and its reason in docs/qa-harness.md.
+        # 30 of them the checks of what anon and authenticated can reach. A
+        # test that has to skip in CI raises the number in the same commit,
+        # with its name and its reason in docs/qa-harness.md.
         #
         # The count is read off node's own summary, in either of its formats:
         # TAP ("# skipped 2"), which node 22 prints when the output is not a
