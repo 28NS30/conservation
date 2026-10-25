@@ -45,6 +45,7 @@ async function shown(path) {
 
 const made = [];
 after(async () => {
+  // In case a test stopped before its own cleanup ran.
   if (made.length) await sql`delete from reports where client_nonce = any(${made})`;
   await sql.end();
 });
@@ -56,10 +57,21 @@ async function skink() {
   return t.id;
 }
 
-/** A published report, as the form and a moderator leave one. */
-async function record({ category = "invasive", taxonId, taxonSource }) {
+/**
+ * A published report, as the form and a moderator leave one, deleted when the
+ * test that made it ends.
+ *
+ * It is committed, so for as long as it exists every other test file running
+ * beside this one sees it too: the tile tests count the invasive records in a
+ * tile and hold the wildlife collection empty. So each lives only for its own
+ * test, and none is a sighting.
+ */
+async function record(t, { category = "invasive", taxonId, taxonSource }) {
   const nonce = randomUUID();
   made.push(nonce);
+  t.after(async () => {
+    await sql`delete from reports where client_nonce = ${nonce}`;
+  });
   const [row] = await sql`
     insert into reports (category, location, location_public, observed_at, taxon_id, taxon_source,
                          status, source, license, client_nonce)
@@ -97,7 +109,7 @@ describe("the receipt's promise", () => {
 describe("the record page keeps it", () => {
   test("a reporter's invasive record is marked, and says who named it", async (t) => {
     if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
-    const id = await record({ taxonId: await skink(), taxonSource: "user" });
+    const id = await record(t, { taxonId: await skink(), taxonSource: "user" });
     const zhPage = await shown(`/reports/${id}`);
     assert.ok(zhPage.includes(zh.report.receipt.notVerified), "the zh record does not say 尚未查證");
     assert.ok(zhPage.includes(zh.detail.reporterIdentified), "the zh record does not say who named it");
@@ -109,7 +121,7 @@ describe("the record page keeps it", () => {
 
   test("so is one nobody has named", async (t) => {
     if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
-    const id = await record({ taxonId: null, taxonSource: null });
+    const id = await record(t, { taxonId: null, taxonSource: null });
     const page = await shown(`/reports/${id}`);
     assert.ok(page.includes(zh.report.receipt.notVerified));
     assert.ok(!page.includes(zh.detail.reporterIdentified), "nobody named it, and the page said the reporter did");
@@ -117,7 +129,7 @@ describe("the record page keeps it", () => {
 
   test("a moderator's identification lifts it", async (t) => {
     if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
-    const id = await record({ taxonId: await skink(), taxonSource: "expert" });
+    const id = await record(t, { taxonId: await skink(), taxonSource: "expert" });
     const page = await shown(`/reports/${id}`);
     assert.ok(!page.includes(zh.report.receipt.notVerified), "a confirmed record still says 尚未查證");
     assert.ok(page.includes(zh.detail.moderatorConfirmed));
@@ -125,7 +137,7 @@ describe("the record page keeps it", () => {
 
   test("off the invasive page there is nothing to wait for, but the name is still the reporter's", async (t) => {
     if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
-    const id = await record({ category: "sighting", taxonId: await skink(), taxonSource: "user" });
+    const id = await record(t, { category: "roadkill", taxonId: await skink(), taxonSource: "user" });
     const page = await shown(`/reports/${id}`);
     assert.ok(!page.includes(zh.report.receipt.notVerified));
     assert.ok(page.includes(zh.detail.reporterIdentified));
@@ -135,7 +147,7 @@ describe("the record page keeps it", () => {
 describe("and so do the lists that lead to it", () => {
   test("/reports marks the row", async (t) => {
     if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
-    const id = await record({ taxonId: await skink(), taxonSource: "user" });
+    const id = await record(t, { taxonId: await skink(), taxonSource: "user" });
     const page = await shown(`/reports?collection=invasive`);
     const row = page.split("<tr").find((r) => r.includes(`/reports/${id}`));
     assert.ok(row, "the new record is not on the first page of the invasive list");
