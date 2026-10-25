@@ -171,7 +171,7 @@ jobs:
         # the legend then says.
         run: npm run test:mapchrome --workspace @conservation/web
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: map-render
