@@ -6,6 +6,7 @@ import { asPublic, sql } from "@/lib/db";
 import { speciesNotes } from "@/lib/speciesNotes";
 import {
   getCachedSpecies,
+  isSpeciesAddress,
   monthlyCounts,
   LIST_MAX_RECORDS,
   speciesSlug,
@@ -100,7 +101,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale, id } = await params;
   const taxonId = parseSpeciesId(id);
-  if (!taxonId) return {};
+  if (!taxonId || !(await isSpeciesAddress(id, taxonId))) return {};
   const s = await getCachedSpecies(taxonId);
   if (!s) return {};
   const t = await getTranslations({ locale, namespace: "species" });
@@ -139,14 +140,22 @@ export default async function SpeciesPage({
   const taxonId = parseSpeciesId(id);
   if (!taxonId) notFound();
 
+  // Only the taxon's own address, `32116-prionailurus-bengalensis`, is its
+  // page. A bare id never gets here: it is rewritten to species/by-id, which
+  // redirects to the slug per request (see there for why the redirect is not
+  // made in this cached page). Any other slug is not found. It used to be
+  // shown as the page it named, so every `<id>-<anything>` was a page of its
+  // own in the cache, and an id that names no taxon made a cached entry of
+  // its own; both now cost one read by the primary key, before anything
+  // cached, and a 404. While the page rendered per request a wrong slug was
+  // redirected to the right one; from this cached page a redirect is
+  // answered with its Location twice, and each slug would still be an entry.
+  // An old link from before a rename is the one casualty: nothing keeps old
+  // names, and `/species/<id>` still finds the page.
+  if (!(await isSpeciesAddress(id, taxonId))) notFound();
+
   const s = await getCachedSpecies(taxonId);
   if (!s) notFound();
-
-  // A bare id never gets here: it is rewritten to species/by-id, which
-  // redirects to the slug (see there for why the redirect is not made in this
-  // cached page). A slug that is not the taxon's own, an old one from before a
-  // rename, is shown as the page it names; the page's canonical link
-  // (generateMetadata) points at the right address.
 
   const t = await getTranslations("species");
   const nav = await getTranslations("nav");

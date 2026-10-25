@@ -288,15 +288,37 @@ describe("served from the cache", () => {
     }
   });
 
-  test("a slug that is not the taxon's own shows the page, with the right canonical", async (t) => {
+  test("only a taxon's own address is its page, with itself as canonical", async (t) => {
+    // Any other slug was a page of its own in the cache, and any id a cached
+    // entry, however many anyone asked for. Now a wrong slug and an id that
+    // names no taxon are each one read by the primary key and a 404.
     if (!(await requireServer(t))) return;
     const path = await aSpecies(0);
-    const id = /\/species\/(\d+)-/.exec(path)[1];
-    const res = await fetch(`${BASE_URL}/en/species/${id}-an-old-name`, { redirect: "manual" });
-    assert.equal(res.status, 200);
-    const html = await res.text();
-    const canonical = /<link rel="canonical" href="([^"]+)"/.exec(html)?.[1] ?? "";
+    const own = await fetch(`${BASE_URL}${path}`, { redirect: "manual" });
+    assert.equal(own.status, 200, path);
+    const canonical = /<link rel="canonical" href="([^"]+)"/.exec(await own.text())?.[1] ?? "";
     assert.ok(canonical.endsWith(path), `canonical is ${canonical}, not ${path}`);
+    const id = /\/species\/(\d+)-/.exec(path)[1];
+    const [{ top }] = await sql`select max(id)::bigint as top from taxa`;
+    // Not the right name in capitals: on a filesystem that ignores case, as
+    // a Mac's does, `next start` keeps that page's cache in the right one's
+    // file, and the two would answer for each other.
+    for (const wrong of [`/en/species/${id}-an-old-name`, `/en/species/${top + 1000}-no-such-taxon`]) {
+      const res = await fetch(`${BASE_URL}${wrong}`, { redirect: "manual" });
+      await res.arrayBuffer();
+      assert.equal(res.status, 404, wrong);
+    }
+  });
+
+  test("…and the page asks that before anything cached", () => {
+    const page = read("app", "[locale]", "(site)", "species", "[id]", "page.tsx");
+    const body = page.slice(page.indexOf("export default async function SpeciesPage"));
+    assert.ok(body.indexOf("if (!(await isSpeciesAddress(id, taxonId))) notFound();") > -1, "the page no longer checks its address");
+    assert.ok(body.indexOf("isSpeciesAddress(") < body.indexOf("getCachedSpecies("), "the page reads the cache before it checks the address");
+    const meta = page.slice(page.indexOf("export async function generateMetadata"), page.indexOf("export default async function SpeciesPage"));
+    assert.match(meta, /if \(!taxonId \|\| !\(await isSpeciesAddress\(id, taxonId\)\)\) return \{\};\s*const s = await getCachedSpecies\(taxonId\);/);
+    const species = read("lib", "species.ts");
+    assert.match(species, /export const speciesAddressName = cache\(async \(id: number\): Promise<string \| null> => \{\s*const rows = await asPublic\(\s*\(tx\) => tx<\{ name: string \}\[\]>`select scientific_name as name from taxa where id = \$\{id\}`,/);
   });
 
   test("somebody's own pages are not", async (t) => {

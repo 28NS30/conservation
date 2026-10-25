@@ -8,6 +8,7 @@ import {
 } from "@conservation/shared";
 import { asPublic } from "@/lib/db";
 import { siteFigure } from "@/lib/siteFigures";
+import { speciesSlug } from "@/lib/speciesSlug";
 import { selectionFor, type Collection } from "@conservation/shared";
 
 export type SpeciesFilter =
@@ -193,6 +194,30 @@ async function readSpecies(id: number): Promise<SpeciesDetail | null> {
  * the database separately.
  */
 export const getSpecies = cache(readSpecies);
+
+/**
+ * The scientific name a taxon's address is made of (speciesSlug), or null for
+ * an id that names no taxon. Read afresh, one row by its primary key, and
+ * once per request (React's `cache`), by the species page before anything
+ * cached: an address that is not a taxon's own then costs that one read and
+ * a 404, and no entry in the cache every reader shares.
+ */
+export const speciesAddressName = cache(async (id: number): Promise<string | null> => {
+  const rows = await asPublic(
+    (tx) => tx<{ name: string }[]>`select scientific_name as name from taxa where id = ${id}`,
+  );
+  return rows[0]?.name ?? null;
+});
+
+/**
+ * Whether `param`, the species page's address, is the taxon's own: the slug
+ * speciesSlug() makes from its id and its current name, exactly. Anything
+ * else is not found, an id with someone else's name after it included.
+ */
+export async function isSpeciesAddress(param: string, id: number): Promise<boolean> {
+  const name = await speciesAddressName(id);
+  return name !== null && param === speciesSlug({ id, scientificName: name });
+}
 
 /**
  * The same taxon for its species page, which is cached for everybody: from

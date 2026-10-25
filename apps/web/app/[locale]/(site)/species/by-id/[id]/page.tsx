@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { setRequestLocale } from "next-intl/server";
-import { getSpecies, speciesSlug } from "@/lib/species";
+import { speciesAddressName, speciesSlug } from "@/lib/species";
 
 /**
  * `/species/32116`, sent on to `/species/32116-prionailurus-bengalensis`.
@@ -15,8 +15,8 @@ import { getSpecies, speciesSlug } from "@/lib/species";
  * rendered per request has one, so the redirect is made here, per request,
  * and the cache holds only the pages themselves.
  *
- * Per request costs one indexed read of one taxon, for an address that only
- * old links, hand-typed ids and the tests still use.
+ * Per request costs one read of one taxon's name by its primary key, for an
+ * address that only old links, hand-typed ids and the tests still use.
  */
 export const dynamic = "force-dynamic";
 
@@ -29,7 +29,7 @@ export default async function SpeciesById({
   setRequestLocale(locale);
   const taxonId = /^\d{1,15}$/.test(id) ? Number(id) : null;
   if (!taxonId) notFound();
-  const s = await getSpecies(taxonId);
-  if (!s) notFound();
-  redirect(`/${locale}/species/${speciesSlug(s)}`.replace("/zh-TW/", "/"));
+  const name = await speciesAddressName(taxonId);
+  if (name === null) notFound();
+  redirect(`/${locale}/species/${speciesSlug({ id: taxonId, scientificName: name })}`.replace("/zh-TW/", "/"));
 }
