@@ -25,18 +25,19 @@ image = (
     # eagerly imports a bioacoustics module, pulling soundfile + librosa + gradio
     # + roboflow into an image-only task. The detector (off by default, see
     # pipeline.py) loads MegaDetector weights through `ultralytics` instead.
+    #
+    # The versions the thresholds were measured with, as in requirements.txt;
+    # change them together, and only with a re-run of evaluate.py. Changing
+    # this list rebuilds every layer after it, BioCLIP's baked weights
+    # included. fastapi and requests used to be here for the web endpoint and
+    # the image fetch, which have moved out of this image (see `classify`
+    # below); pinning rebuilt the image anyway, so they went with it.
     .pip_install(
-        "torch>=2.4",
-        "torchvision>=0.19",
-        "open_clip_torch>=2.24",
-        "pillow>=10.3",
-        "numpy>=1.26",
-        # The web endpoint and the image fetch have moved out of this image
-        # (see `classify` below), so these two are no longer used here. They
-        # stay because changing this list rebuilds every layer after it,
-        # BioCLIP's baked weights included.
-        "fastapi[standard]",
-        "requests>=2.32",
+        "torch==2.13.0",
+        "torchvision==0.28.0",
+        "open_clip_torch==3.3.0",
+        "pillow==12.3.0",
+        "numpy==2.3.5",
     )
     # Bake BioCLIP 2 into the image rather than fetching on first request.
     .run_commands(
@@ -102,9 +103,14 @@ class Service:
 #
 # The label keeps the URL the class endpoint had, so ML_ENDPOINT_URL in the
 # website's environment is unchanged.
+#
+# numpy is pinned with the classifier's, since contract.py runs here too.
+# fastapi is not: no evaluation used it and no version of it is recorded
+# anywhere, so there is none to match. A deploy picks the newest, and Modal
+# keeps that layer until this line changes.
 web_image = (
     modal.Image.debian_slim(python_version="3.12")
-    .pip_install("fastapi[standard]", "numpy>=1.26")
+    .pip_install("fastapi[standard]", "numpy==2.3.5")
     .add_local_file(os.path.join(os.path.dirname(__file__), "endpoint.py"), "/app/endpoint.py")
     .add_local_file(os.path.join(os.path.dirname(__file__), "contract.py"), "/app/contract.py")
 )

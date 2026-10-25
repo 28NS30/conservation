@@ -1,0 +1,39 @@
+# Dependency updates, opened as pull requests and held to CI like any other.
+#
+# Next.js published at least nine advisories against 16.3.7, two of them
+# critical, in the two weeks after its release, and none of them reached this
+# repository by itself. This makes the next fix arrive as a pull request. It
+# opens them on a schedule; the repository's "Dependabot security updates"
+# setting is what opens one the day an advisory is published, and that is
+# switched on in GitHub, not here.
+version: 2
+updates:
+  # One lockfile at the root serves every workspace (apps/web, apps/biowatch,
+  # packages/shared, scripts), so one entry covers them all. Minor and patch
+  # bumps come as a single pull request a week; a major version comes on its
+  # own, because it is the kind that needs code changes.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      timezone: Asia/Taipei
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+      timezone: Asia/Taipei
+
+  # The classifier's versions are pinned to the ones its thresholds were
+  # measured with (apps/web/lib/report/classifier-thresholds.json). A bump here
+  # is a new model as far as those numbers are concerned: re-run
+  # `apps/ml/evaluate.py --fit --write` before merging one, and make the same
+  # change in apps/ml/modal_app.py, which Dependabot does not read.
+  - package-ecosystem: pip
+    directory: /apps/ml
+    schedule:
+      interval: monthly
+      timezone: Asia/Taipei
