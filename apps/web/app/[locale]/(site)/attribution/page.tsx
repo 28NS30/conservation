@@ -3,10 +3,29 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import PageHeader from "@/components/site/PageHeader";
 import { licenseLabel } from "@/lib/license";
 import { asPublic } from "@/lib/db";
+import { siteFigure } from "@/lib/siteFigures";
 import { PHOTOS } from "@/lib/home/photos";
 import { alternates } from "@/lib/alternates";
 
 export const revalidate = 3600;
+
+/**
+ * The imported records by licence and rights holder. Counts of the public
+ * records on a cached page, so read through the cache the writers drop
+ * (lib/siteFigures.ts), like every other count the site states.
+ */
+const licenceCounts = siteFigure("licenceCounts", () =>
+  asPublic(
+    (tx) => tx<
+      { license: string | null; rightsHolder: string | null; n: number }[]
+    >`
+      select license, rights_holder as "rightsHolder", count(*)::int as n
+        from reports_public
+       where source = 'gbif'
+       group by 1, 2
+       order by n desc`,
+  ),
+);
 
 /**
  * Data attribution.
@@ -37,16 +56,7 @@ export default async function AttributionPage({
   const t = await getTranslations("attribution");
   const zhFirst = locale.startsWith("zh");
 
-  const licenses = await asPublic(
-    (tx) => tx<
-      { license: string | null; rightsHolder: string | null; n: number }[]
-    >`
-      select license, rights_holder as "rightsHolder", count(*)::int as n
-        from reports_public
-       where source = 'gbif'
-       group by 1, 2
-       order by n desc`,
-  );
+  const licenses = await licenceCounts();
 
   const total = licenses.reduce((a, b) => a + b.n, 0);
   const licenseName = (url: string | null) =>

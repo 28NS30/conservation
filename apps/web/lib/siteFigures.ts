@@ -21,6 +21,8 @@ import { revalidateTag, unstable_cache } from "next/cache";
  * records. The tag on what a page read is the only thing that drops the page
  * when a record is re-identified, blurred or thrown out; without it the page
  * kept the record's old point until it next happened to be rebuilt.
+ * test/site-figures.test.mjs walks every cached page for a read of the
+ * records that does not come through here.
  *
  * Five minutes is a figure's age when it is used, not how long a page may
  * show it. A page rebuilt from one keeps it for its own `revalidate`, and is

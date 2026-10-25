@@ -13,8 +13,8 @@ import { siteFigure } from "@/lib/siteFigures";
  *
  * The site-wide figures are cached for everybody (lib/siteFigures.ts): the
  * same for every reader, full passes over the view, and changed only by a
- * new or re-identified record. The anniversary ledger is not, because it
- * moves with the date.
+ * new or re-identified record. The anniversary ledger too, under the day it
+ * is for, because it moves with the date.
  */
 
 /**
@@ -203,9 +203,19 @@ export type LedgerRow = {
  * to 犬 (Canis familiaris), where TaiRON always had them; once it has run against
  * a database they are unremarkable exact records there, and the ledger may show
  * them.
+ *
+ * Its rows are records with their points, on a cached page, so it is cached
+ * under the reports' tag like the figures (lib/siteFigures.ts) and leaves the
+ * page when a record is re-identified or blurred. Keyed by Taipei's date,
+ * which is what the window is drawn around: the same for everybody all day.
  */
-export async function anniversaryLedger(limit = 12): Promise<LedgerRow[]> {
-  return asPublic(
+export function anniversaryLedger(limit = 12): Promise<LedgerRow[]> {
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Taipei" });
+  return ledgerAround(today, limit);
+}
+
+const ledgerAround = siteFigure("anniversaryLedger", (day: string, limit: number): Promise<LedgerRow[]> =>
+  asPublic(
     (tx) => tx<LedgerRow[]>`
       with near as (
         select r.id::text,
@@ -231,8 +241,8 @@ export async function anniversaryLedger(limit = 12): Promise<LedgerRow[]> {
            and to_char(r.observed_at at time zone 'Asia/Taipei', 'MM-DD') in (
                  select to_char(d, 'MM-DD')
                    from generate_series(
-                          (now() at time zone 'Asia/Taipei')::date - 3,
-                          (now() at time zone 'Asia/Taipei')::date + 3,
+                          ${day}::date - 3,
+                          ${day}::date + 3,
                           interval '1 day') d
                )
       )
@@ -241,8 +251,8 @@ export async function anniversaryLedger(limit = 12): Promise<LedgerRow[]> {
        -- id breaks ties between records of the same day.
        order by "observedAt" desc, id
        limit ${limit}`,
-  );
-}
+  ),
+);
 
 export type Hotspot = {
   lng: number;

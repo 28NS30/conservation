@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { asPublic } from "@/lib/db";
+import { siteFigure } from "@/lib/siteFigures";
 
 /**
  * Map coverage: how much of Taiwan has any record at all.
@@ -84,8 +85,12 @@ export type Coverage = {
  *
  * Deliberately derived rather than configured: a hardcoded end date is a date
  * that passes, and a goal page showing an expired deadline reads as abandoned.
+ *
+ * Two full passes over the public records, the same for every reader, so
+ * cached for everybody under the reports' tag (lib/siteFigures.ts); a record
+ * re-identified or blurred leaves its cell at once.
  */
-export async function coverage(): Promise<Coverage> {
+export const coverage = siteFigure("coverage", async (): Promise<Coverage> => {
   const [row] = await asPublic(
     (tx) => tx<Coverage[]>`
       with bounds as (
@@ -136,4 +141,4 @@ export async function coverage(): Promise<Coverage> {
           as "seasonEnd"`,
   );
   return row;
-}
+});
