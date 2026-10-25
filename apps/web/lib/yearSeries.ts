@@ -20,3 +20,15 @@ export function everyYear(rows: { year: number; n: number }[]): { year: number; 
     n: byYear.get(first + i) ?? 0,
   }));
 }
+
+/**
+ * A year as the chart's axis prints it: ’11 for 2011.
+ *
+ * Filled, the series runs from the first imported year to this one, sixteen
+ * columns about 16px wide on a phone, and the axis is set at 9px and cut to
+ * fit, so every "2011" read "20…". Two digits fit. The table under the chart,
+ * and the hover, carry the year in full.
+ */
+export function yearAxis(year: number): string {
+  return `’${String(year % 100).padStart(2, "0")}`;
+}

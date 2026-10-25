@@ -134,6 +134,18 @@ describe("the yearly chart", () => {
     assert.deepEqual(everyYear([{ year: 2017, n: 1 }]), [{ year: 2017, n: 1 }]);
   });
 
+  test("the axis prints two digits, and the table the whole year", async () => {
+    // Sixteen columns on a phone are about 16px each, and "2011" at 9px is
+    // about 21px: cut to fit, every year read "20…".
+    const { yearAxis } = await import("../lib/yearSeries.ts");
+    assert.equal(yearAxis(2011), "’11");
+    assert.equal(yearAxis(2005), "’05");
+    assert.match(
+      read("app", "[locale]", "(site)", "stats", "page.tsx"),
+      /key: yearAxis\(y\.year\), label: String\(y\.year\)/,
+    );
+  });
+
   test("the query is filled before the page draws it, and the page says why", () => {
     assert.match(read("lib", "stats.ts"), /return everyYear\(rows\)/);
     assert.match(read("app", "[locale]", "(site)", "stats", "page.tsx"), /t\("byYearSource"\)/);
