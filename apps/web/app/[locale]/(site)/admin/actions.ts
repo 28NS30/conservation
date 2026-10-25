@@ -174,7 +174,7 @@ export async function clearFlag(reportId: string) {
          and status = 'published'
          and flagged_reason is not null
        for update`;
-    if (!row) throw new Error("already decided");
+    if (!row) throw new Error("no flag to clear");
     await tx`update reports set flagged_reason = null where id = ${reportId}::uuid`;
     await tx`insert into moderation_actions (report_id, actor_id, action, reason)
              values (${reportId}::uuid, ${actor}::uuid, 'flag',
