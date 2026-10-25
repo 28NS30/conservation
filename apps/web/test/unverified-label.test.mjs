@@ -12,7 +12,10 @@
  * records carry the mark; these hold the pages to it.
  *
  * Records are inserted for real, because the page reads them on its own
- * connection, and deleted by client nonce afterwards.
+ * connection, and deleted by client nonce when the test that made each ends.
+ * Every one is in the wildlife collection or the invasive one, which other
+ * files count while this one runs, so each is made under the lock in
+ * test/population.mjs.
  *
  *   TEST_BASE_URL=http://localhost:3000 node --test test/unverified-label.test.mjs
  */
@@ -22,6 +25,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { sql, BASE_URL } from "./helpers.mjs";
+import { changePopulation } from "./population.mjs";
 
 const WEB = join(import.meta.dirname, "..");
 const read = (...p) => readFileSync(join(WEB, ...p), "utf8");
@@ -43,12 +47,7 @@ async function shown(path) {
     .replaceAll("&#x27;", "'");
 }
 
-const made = [];
-after(async () => {
-  // In case a test stopped before its own cleanup ran.
-  if (made.length) await sql`delete from reports where client_nonce = any(${made})`;
-  await sql.end();
-});
+after(() => sql.end());
 
 /** 多線真稜蜥: invasive, unrated, in the CI fixture (supabase/seed-test.sql). */
 async function skink() {
@@ -59,18 +58,24 @@ async function skink() {
 
 /**
  * A published report, as the form and a moderator leave one, deleted when the
- * test that made it ends.
+ * test that made it ends. One per test.
  *
- * It is committed, so for as long as it exists every other test file running
- * beside this one sees it too: the tile tests count the invasive records in a
- * tile and hold the wildlife collection empty. So each lives only for its own
- * test, and none is a sighting.
+ * It is committed, so for as long as it exists every other file sees it too.
+ * An invasive-page report is in the wildlife collection as well as being one
+ * the label is about (COLLECTIONS in @conservation/shared), and the tile and
+ * collection tests hold that collection empty and count the invasive one. So
+ * the test takes the population lock before the row exists and lets go only
+ * once it is deleted, and those files wait for it.
  */
 async function record(t, { category = "invasive", taxonId, taxonSource }) {
   const nonce = randomUUID();
-  made.push(nonce);
+  const release = await changePopulation();
   t.after(async () => {
-    await sql`delete from reports where client_nonce = ${nonce}`;
+    try {
+      await sql`delete from reports where client_nonce = ${nonce}`;
+    } finally {
+      await release();
+    }
   });
   const [row] = await sql`
     insert into reports (category, location, location_public, observed_at, taxon_id, taxon_source,
