@@ -9,6 +9,7 @@ import PageHeader from "@/components/site/PageHeader";
 import ForumAccount from "@/components/forum/ForumAccount";
 import DeleteAccount from "@/components/me/DeleteAccount";
 import ForgetOfflineCopies from "@/components/offline/ForgetOfflineCopies";
+import SentOnThisPhone from "@/components/me/SentOnThisPhone";
 import { signInHref } from "@/components/auth/signInHref";
 import { signOut } from "./actions";
 import { awaitingVerification } from "@/lib/report/verification";
@@ -85,9 +86,13 @@ export default async function MyReportsPage({
 
   const user = await currentUser();
   if (!user) {
+    // The reports sent from this phone first: for now only the team can sign
+    // in, so for every other reporter this list is the way back to what they
+    // sent. Sign-in stays, after it, for the team.
     return (
       <main className="mx-auto w-full max-w-2xl px-6 pb-24 pt-12">
         <PageHeader title={t("title")} lede={t("signedOut")} />
+        <SentOnThisPhone />
         <Link
           href={signInHref(locale, "/me")}
           className="inline-block rounded-full bg-ember-500 px-5 py-2.5 text-sm font-semibold text-bark-950 transition hover:bg-ember-400"

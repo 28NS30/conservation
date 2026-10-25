@@ -90,9 +90,12 @@ describe("offline queue challenge", () => {
     // the banner's flush used to be coalesced into it: the report stayed
     // waiting on a page that could have sent it. Seen in e2e/offline.spec.mjs
     // against a build with a Turnstile site key.
-    assert.match(flush, /if \(!getToken \|\| inFlightHasToken\) return inFlight;/);
-    assert.match(flush, /await inFlight\.catch\(\(\) => undefined\);\s*return flushQueue\(getToken\);/);
+    assert.match(flush, /if \(\(!getToken \|\| inFlightHasToken\) && \(!force \|\| inFlightForced\)\) return inFlight;/);
+    assert.match(flush, /await inFlight\.catch\(\(\) => undefined\);\s*return flushQueue\(getToken, options\);/);
     assert.match(flush, /inFlightHasToken = Boolean\(getToken\);/);
+    // Nor is a person pressing send folded into an automatic flush, which
+    // leaves alone the reports still waiting after a server error.
+    assert.match(flush, /inFlightForced = force;/);
   });
 
   test("the banner sends a report saved on a page that already sent one", () => {
@@ -119,12 +122,13 @@ describe("offline queue challenge", () => {
     // with no way through, and `fetch` rejects with a TypeError. That was
     // stored as "unknown" and shown as "something went wrong at our end" —
     // under a banner that had just said there was no signal — and each one
-    // spent one of the report's eight attempts.
+    // spent one of the report's attempts. A 5xx and a stale challenge cost
+    // none now either (test/offline-retry.test.mjs runs the queue on them).
     // One definition of "never reached us" (lib/report/errors.ts), which a
     // photograph that never reached Storage now meets too.
     assert.match(flush, /const network = isNetworkFailure\(e\);/);
     assert.match(flush, /network \? NETWORK :/);
-    assert.match(flush, /const attempts = network \|\| limited \? item\.attempts : item\.attempts \+ 1;/);
+    assert.match(flush, /const attempts = network \|\| limited \|\| later \? item\.attempts : item\.attempts \+ 1;/);
     const en = JSON.parse(read("messages", "en.json"));
     const zh = JSON.parse(read("messages", "zh-TW.json"));
     assert.match(en.report.errors.network, /report page/);
@@ -139,7 +143,7 @@ describe("offline queue challenge", () => {
     );
     assert.match(
       banner,
-      /flushQueue\(getToken\)/,
+      /flushQueue\(getToken, options\)/,
       "and must feed its tokens to the flush",
     );
   });

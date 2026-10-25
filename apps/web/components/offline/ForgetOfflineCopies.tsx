@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { forgetSent } from "@/lib/offline/sent";
+import { forgetDrafts } from "@/lib/offline/drafts";
 
 /**
  * Drop the pages this device keeps for offline use when its form is sent.
@@ -11,8 +13,12 @@ import { useEffect, useRef } from "react";
  * the next person should start from nothing. Best effort and never blocking:
  * the form posts either way, and without JavaScript it still signs out.
  *
- * Never the report queue: that is IndexedDB, not Cache Storage, and it may
- * hold a report still waiting for signal.
+ * With them go this device's list of the reports it sent (lib/offline/sent.ts),
+ * which /me shows to whoever opens it signed out, and any report half filled
+ * in (lib/offline/drafts.ts): the next person should not find either.
+ *
+ * Never the report queue: it may hold a report still waiting for signal, and
+ * losing that is worse than leaving it for the next person to send.
  */
 export default function ForgetOfflineCopies() {
   const ref = useRef<HTMLSpanElement>(null);
@@ -20,6 +26,8 @@ export default function ForgetOfflineCopies() {
     const form = ref.current?.closest("form");
     if (!form) return;
     const forget = () => {
+      void forgetSent();
+      void forgetDrafts();
       if (!("caches" in window)) return;
       void caches
         .keys()

@@ -20,7 +20,21 @@ import { preparePhoto, type PreparedPhoto } from "@/lib/image";
 import { storedSessionUserId } from "@/lib/supabase/storedSession";
 import { uploadPhoto } from "@/lib/report/upload";
 import { checkFields, observedInstant, sendableAccuracy } from "@/lib/report/fieldChecks";
+import { notesConcerns } from "@/lib/report/notesCheck";
 import { enqueue } from "@/lib/offline/queue";
+import { isBlocked } from "@/lib/offline/db";
+import { recordSent } from "@/lib/offline/sent";
+import {
+  loadDraftFields,
+  saveDraftFields,
+  dropDraftFields,
+  loadDraftPhotos,
+  saveDraftPhotos,
+  dropDraftPhotos,
+  purgeDraftPhotos,
+} from "@/lib/offline/drafts";
+import { guardLeaving } from "@/lib/report/leaveGuard";
+import { speciesLabel } from "@/lib/speciesNames";
 import { useOnline } from "@/lib/offline/online";
 import { outcomeOf } from "@/lib/report/outcome";
 import { awaitingVerification } from "@/lib/report/verification";
@@ -44,6 +58,29 @@ import type { PhotoIdentification } from "@/lib/report/photoSuggestion";
 
 type Photo = PreparedPhoto & { previewUrl: string; id: string };
 type Phase = "editing" | "submitting" | "done" | "queued" | "error";
+
+/**
+ * What the form keeps of itself while it is being filled in, in this tab's
+ * sessionStorage (lib/offline/drafts.ts). The photographs are kept apart,
+ * in IndexedDB, under `nonce`.
+ */
+type DraftFields = {
+  nonce: string;
+  category: Category | null;
+  species: SpeciesHit | null;
+  speciesFromPhoto: boolean;
+  unsure: boolean;
+  location: LatLng | null;
+  accuracyM: number | null;
+  locationFromPhoto: boolean;
+  observedAt: string;
+  timeEdited: boolean;
+  timeFromPhoto: boolean;
+  notes: string;
+  email: string;
+  /** The model's suggestions, so a restored photo is not asked about twice. */
+  photoIdea: PhotoSuggestionsState | null;
+};
 
 /** Where 路殺社 takes reports. A link only: nothing is sent there for anyone. */
 const TAIRON_URL = "https://roadkill.tw";
@@ -276,8 +313,10 @@ function ReportFormFields({
    * saved on the device, so there is no queue to point at and no retry that
    * would behave differently. Its own flag rather than an error code, because
    * it is the browser's storage refusing, not anything the server said.
+   * `held` when what refused is a tab of an older build holding the database
+   * (lib/offline/db.ts), which the reporter can do something about.
    */
-  const [queueFailed, setQueueFailed] = useState(false);
+  const [queueFailed, setQueueFailed] = useState<"failed" | "held" | null>(null);
   /** The browser refused or could not produce a fix. Says so under the map. */
   const [locationError, setLocationError] = useState(false);
 
@@ -304,6 +343,260 @@ function ReportFormFields({
   // every later retry reuses it and the server's duplicate check holds.
   const nonce = useRef<string>(crypto.randomUUID());
   const { locate, busy: locating } = useGeolocate();
+
+  /*
+   * THE DRAFT (lib/offline/drafts.ts). Android often discards the tab while
+   * the camera app is open, and a link, a back swipe or the language switch
+   * dropped the form too: the reporter came back to an empty one, with the
+   * animal still in front of them. So the form keeps itself as it is filled
+   * in — the fields in this tab's sessionStorage, the photographs in
+   * IndexedDB under the nonce — and opens with the draft, saying so.
+   *
+   * The nonce comes back with it. A tab killed after the server had stored
+   * the report but before the answer arrived then sends the same report
+   * again under the same nonce, and the server answers with the row it has.
+   */
+  const draftKey = test ? `${page}:test` : page;
+  /** The form opened with a draft, and says so until it is sent or cleared. */
+  const [restored, setRestored] = useState(false);
+  /**
+   * Nothing is saved over the draft until it is back: the effects below
+   * would otherwise write the empty form over it on the first render, and
+   * an empty photo list deletes the photographs. Two flags, because the
+   * fields come back at once and the photographs when IndexedDB answers.
+   */
+  const [draftLoaded, setDraftLoaded] = useState(false);
+  const [photosLoaded, setPhotosLoaded] = useState(false);
+  /** Cleared on purpose; nothing writes it back on the way out. */
+  const dropped = useRef(false);
+
+  // Read after hydration, never during render: the page is rendered on the
+  // server, which has no draft, and a first render that differed from the
+  // server's would not hydrate.
+  //
+  // The fields first, without waiting for the photographs. Both used to be
+  // read before anything was set, and a tab of an older build holding the
+  // database (lib/offline/db.ts) kept the photographs, and so the whole
+  // draft, from ever coming back, and no draft was saved after it either.
+  useEffect(() => {
+    let live = true;
+    void purgeDraftPhotos();
+    void (async () => {
+      const saved = loadDraftFields<DraftFields>(draftKey);
+      if (saved) {
+        nonce.current = saved.nonce;
+        if (saved.category && conditions.includes(saved.category)) setCategory(saved.category);
+        // A species chosen on the page the reporter just came from is the
+        // newer answer; see `initialSpecies`.
+        if (!initialSpecies) {
+          setSpecies(saved.species);
+          setSpeciesFromPhoto(saved.speciesFromPhoto);
+          setUnsure(saved.unsure);
+        }
+        setLocation(saved.location);
+        setAccuracyM(saved.accuracyM);
+        setLocationFromPhoto(saved.locationFromPhoto);
+        setObservedAt(saved.observedAt);
+        setTimeEdited(saved.timeEdited);
+        setTimeFromPhoto(saved.timeFromPhoto);
+        setNotes(saved.notes);
+        setEmail(saved.email);
+        if (saved.photoIdea) setPhotoIdea(saved.photoIdea);
+        // Never the partner-sharing consent (sharePartners), which is not in
+        // the draft. Consent under the personal data law is given, not
+        // restored: a box ticked again by a reload is one nobody ticked here.
+        setRestored(true);
+      }
+      setDraftLoaded(true);
+
+      const kept = saved ? await loadDraftPhotos(saved.nonce) : [];
+      if (!live) return;
+      if (kept.length) {
+        // Asked about before the page went, so not asked again.
+        photoAsked.current = true;
+        // Ahead of anything added while they were being read.
+        setPhotos((prev) =>
+          [
+            ...kept.map((p) => ({ ...p, previewUrl: URL.createObjectURL(p.blob) })),
+            ...prev,
+          ].slice(0, MAX_PHOTOS),
+        );
+      }
+      setPhotosLoaded(true);
+    })();
+    return () => {
+      live = false;
+    };
+    // Once, as the form opens: the draft is what it starts from, not
+    // something it follows.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /**
+   * Something here that leaving would lose. Wider than the photo, the place
+   * and the notes: a condition answered, an address typed, a time corrected.
+   * Not a species the page was opened with, which the link put there.
+   */
+  const hasEntries =
+    photos.length > 0 ||
+    location !== null ||
+    notes.trim() !== "" ||
+    email.trim() !== "" ||
+    (species !== null && species.id !== initialSpecies?.id) ||
+    unsure ||
+    timeEdited ||
+    (asksCondition && category !== null);
+  /** Still being filled in: not sent, and not saved as a report. */
+  const open = phase !== "done" && phase !== "queued";
+
+  const draftNow = useCallback(
+    (): DraftFields => ({
+      nonce: nonce.current,
+      category,
+      species,
+      speciesFromPhoto,
+      unsure,
+      location,
+      accuracyM,
+      locationFromPhoto,
+      observedAt,
+      timeEdited,
+      timeFromPhoto,
+      notes,
+      email,
+      photoIdea: photoIdea.status === "done" ? photoIdea : null,
+    }),
+    [
+      category,
+      species,
+      speciesFromPhoto,
+      unsure,
+      location,
+      accuracyM,
+      locationFromPhoto,
+      observedAt,
+      timeEdited,
+      timeFromPhoto,
+      notes,
+      email,
+      photoIdea,
+    ],
+  );
+
+  /** Write the fields down now, rather than after the pause below. */
+  const saveNow = useCallback(() => {
+    if (!draftLoaded || !open || dropped.current) return;
+    if (hasEntries) saveDraftFields(draftKey, draftNow());
+    else dropDraftFields(draftKey);
+  }, [draftLoaded, open, hasEntries, draftKey, draftNow]);
+  const saveNowRef = useRef(saveNow);
+  useEffect(() => {
+    saveNowRef.current = saveNow;
+  }, [saveNow]);
+
+  // As it is typed, after a pause; and at once when the page is hidden — the
+  // camera app opening is exactly that — or the form goes away.
+  useEffect(() => {
+    const id = window.setTimeout(saveNow, 400);
+    return () => window.clearTimeout(id);
+  }, [saveNow]);
+  useEffect(() => {
+    const onHidden = () => {
+      if (document.visibilityState === "hidden") saveNowRef.current();
+    };
+    const onPageHide = () => saveNowRef.current();
+    document.addEventListener("visibilitychange", onHidden);
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onHidden);
+      window.removeEventListener("pagehide", onPageHide);
+      saveNowRef.current();
+    };
+  }, []);
+
+  // The photographs whenever they change. They change rarely, and each is a
+  // few hundred KB that is not worth holding back.
+  useEffect(() => {
+    if (!photosLoaded || !open || dropped.current) return;
+    void saveDraftPhotos(
+      nonce.current,
+      photos.map((p) => ({
+        id: p.id,
+        blob: p.blob,
+        width: p.width,
+        height: p.height,
+        gps: p.gps,
+        takenAt: p.takenAt,
+      })),
+    );
+  }, [photosLoaded, open, photos]);
+
+  /** Forget the draft: sent, saved as a report, or cleared by the reporter. */
+  const forgetDraft = useCallback(() => {
+    dropped.current = true;
+    dropDraftFields(draftKey);
+    void dropDraftPhotos(nonce.current);
+  }, [draftKey]);
+  useEffect(() => {
+    if (!open) forgetDraft();
+  }, [open, forgetDraft]);
+
+  /*
+   * Asking before the page goes, while there is something to lose: the
+   * browser's own question when the tab is reloaded or closed, the form's on
+   * a link to another page of the site, and the language switch's, which
+   * navigates without a link (lib/report/leaveGuard.ts). The draft means
+   * leaving no longer loses the report on this tab; asking is for the
+   * reporter who did not mean to leave, and who would otherwise come back
+   * to it only if they came back to this page.
+   *
+   * Capture phase, so the question comes before the router's own click
+   * handler has started the navigation. Links that ask for themselves — the
+   * species picker's way to the wildlife page — are marked and left alone,
+   * and a link opening a new tab loses nothing.
+   */
+  const leaveGuarded = hasEntries && open;
+  useEffect(() => {
+    if (!leaveGuarded) return;
+    /** When the reporter last said yes to leaving, so they are not asked twice. */
+    let agreedAt = 0;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      saveNowRef.current();
+      if (Date.now() - agreedAt < 2000) return;
+      e.preventDefault();
+      // Still what some browsers read to decide whether to ask.
+      e.returnValue = "";
+    };
+    const onClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
+        return;
+      const link = (e.target as Element | null)?.closest?.("a[href]");
+      if (!(link instanceof HTMLAnchorElement)) return;
+      if ((link.target && link.target !== "_self") || link.hasAttribute("download")) return;
+      if (link.closest("[data-asks-before-leaving]")) return;
+      const to = new URL(link.href, window.location.href);
+      if (to.origin !== window.location.origin) return;
+      if (to.pathname === window.location.pathname && to.search === window.location.search) return;
+      saveNowRef.current();
+      if (window.confirm(t("leaveConfirm"))) {
+        agreedAt = Date.now();
+        return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    const standDown = guardLeaving(() => {
+      saveNowRef.current();
+      return true;
+    });
+    window.addEventListener("beforeunload", onBeforeUnload);
+    document.addEventListener("click", onClick, true);
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      document.removeEventListener("click", onClick, true);
+      standDown();
+    };
+  }, [leaveGuarded, t]);
 
   useEffect(() => {
     if (!turnstileEnabled || turnstileToken || !online) return;
@@ -513,29 +806,29 @@ function ReportFormFields({
     liveSend.current += 1;
     inFlight.current?.abort();
     setError(null);
-    setQueueFailed(false);
+    setQueueFailed(null);
     setPhase("submitting");
     try {
       await enqueue({
         id: nonce.current,
         payload: { ...entered(location, category), filedBy: signedInAs() },
         photos: photos.map((p) => p.blob),
+        label: species ? speciesLabel(species, locale) : null,
       });
-      window.dispatchEvent(new Event("conservation:queue-changed"));
       setPhase("queued");
     } catch (queueErr) {
       // `t` is the `report` namespace and this key lives in `offline`, so
       // the old call rendered the literal string "report.queueFailed" to
       // the one person whose report had just failed to save anywhere at all.
       console.error("[report] could not queue:", queueErr);
-      setQueueFailed(true);
+      setQueueFailed(isBlocked(queueErr) ? "held" : "failed");
       setPhase("error");
     }
   }
 
   async function submit() {
     setError(null);
-    setQueueFailed(false);
+    setQueueFailed(null);
     // Unreachable through the button, which is disabled without both, and the
     // sentence above it already says which requirement is unmet.
     if (!location || !category) return;
@@ -601,6 +894,17 @@ function ReportFormFields({
       const data = await res.json().catch(() => ({}));
       if (!stillMine()) return;
       if (!res.ok) throw new ReportError(data.error ?? "unknown", res.status);
+
+      // Written down on this phone, so it can be found again from /me by
+      // someone who has no account (lib/offline/sent.ts). Not a test.
+      if (!test && data.test !== true)
+        void recordSent({
+          id: String(data.id ?? ""),
+          sentAt: Date.now(),
+          page,
+          category,
+          label: species ? speciesLabel(species, locale) : null,
+        });
 
       setResult({
         id: data.id,
@@ -771,7 +1075,10 @@ function ReportFormFields({
   const another = () => (
     <button
       type="button"
-      onClick={onReportAnother}
+      onClick={() => {
+        forgetDraft();
+        onReportAnother();
+      }}
       className="inline-flex min-h-11 items-center text-sm font-medium text-ink-800 underline decoration-ink-900/30 underline-offset-2 hover:text-ink-950"
     >
       {t("receipt.another")}
@@ -865,6 +1172,8 @@ function ReportFormFields({
 
   const heldForReview =
     category !== null && CATEGORIES[category].classifiable && photos.length === 0;
+  /** The most serious thing noticed in the notes, if anything. */
+  const notesConcern = notesConcerns(notes)[0] ?? null;
 
   const busy = phase === "submitting";
   const controls = sendControls({
@@ -919,6 +1228,25 @@ function ReportFormFields({
 
   return (
     <div className="space-y-8">
+      {restored && (
+        <p
+          role="status"
+          className="flex flex-wrap items-center gap-x-2 rounded-lg border border-forest-900/20 bg-paper-100 px-4 py-1 text-sm text-ink-800"
+        >
+          <span>{t("draftRestored")}</span>
+          <span aria-hidden>·</span>
+          <button
+            type="button"
+            onClick={() => {
+              forgetDraft();
+              onReportAnother();
+            }}
+            className="inline-flex min-h-11 items-center font-medium text-forest-900 underline underline-offset-2 hover:text-ink-950"
+          >
+            {t("draftClear")}
+          </button>
+        </p>
+      )}
       {test && (
         <section
           role="note"
@@ -982,7 +1310,7 @@ function ReportFormFields({
           </label>
         ) : (
           <div className="flex flex-wrap gap-3">
-            {photos.map((p) => (
+            {photos.map((p, n) => (
               <div key={p.id} className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -1011,7 +1339,9 @@ function ReportFormFields({
                   // area inwards and downwards, over the photograph it belongs
                   // to, so growing it cannot steal a tap from the next tile.
                   className="absolute -right-1.5 -top-1.5 grid h-6 w-6 place-items-center rounded-full bg-paper-200 text-sm text-ink-800 ring-1 ring-ink-900/15 after:absolute after:-bottom-5 after:-left-5 after:right-0 after:top-0 after:content-['']"
-                  aria-label={t("removePhoto")}
+                  // Numbered: with three photos on the form a screen reader
+                  // heard three identical buttons and no way to tell them apart.
+                  aria-label={t("removePhoto", { n: n + 1 })}
                 >
                   ×
                 </button>
@@ -1169,7 +1499,9 @@ function ReportFormFields({
         </section>
       )}
 
-      <section>
+      {/* Its one link, to the wildlife page, asks for itself before leaving
+          (SpeciesPicker), so the form's own question stays out of its way. */}
+      <section data-asks-before-leaving>
         {!species && !unsure && (
           <PhotoSuggestions
             state={photoIdea}
@@ -1189,7 +1521,7 @@ function ReportFormFields({
           }}
           unsure={unsure}
           onUnsure={setUnsure}
-          hasEntries={photos.length > 0 || location !== null || notes.trim() !== ""}
+          hasEntries={hasEntries}
         />
         {errorIn("species")}
       </section>
@@ -1239,8 +1571,24 @@ function ReportFormFields({
             maxLength={MAX_NOTES}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
+            aria-describedby={notesConcern ? "notes-hint notes-warning" : "notes-hint"}
             className="w-full rounded-lg border border-ink-900/20 bg-paper-100 px-3 py-2 text-base text-ink-900"
           />
+          {/*
+            Said before anything is typed, because the notes are public on
+            every record shown at its exact place, and that is every report
+            naming an invasive animal. The warning under it is what the form
+            noticed in what was typed; it never stops the report, and the
+            server's own screen still holds one whose notes give a location.
+          */}
+          <p id="notes-hint" className="mt-1 text-sm text-ink-600">
+            {t("notesPublic")}
+          </p>
+          {notesConcern && (
+            <p id="notes-warning" role="status" className={`mt-2 ${ALERT}`}>
+              {t(`notesWarning.${notesConcern}`)}
+            </p>
+          )}
         </div>
 
         <div>
@@ -1297,7 +1645,7 @@ function ReportFormFields({
       {errorIn("form")}
       {queueFailed && (
         <p role="alert" className={ALERT}>
-          {tOffline("queueFailed")}
+          {queueFailed === "held" ? tOffline("queueHeld") : tOffline("queueFailed")}
         </p>
       )}
 

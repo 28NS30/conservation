@@ -5,6 +5,7 @@ import { getMessages, getTranslations, setRequestLocale } from "next-intl/server
 import { clientMessages } from "@/i18n/clientMessages";
 import { routing } from "@/i18n/routing";
 import ServiceWorker from "@/components/ServiceWorker";
+import QueueReminderLoader from "@/components/offline/QueueReminderLoader";
 import { Analytics } from "@vercel/analytics/next";
 import { Barlow_Condensed } from "next/font/google";
 import "../globals.css";
@@ -91,6 +92,9 @@ export default async function LocaleLayout({
         <NextIntlClientProvider messages={clientMessages(await getMessages())}>
           <ServiceWorker />
           {children}
+          {/* A report still on this phone, said on every page; idle-loaded so
+              the map's first load does not carry it. */}
+          <QueueReminderLoader />
         </NextIntlClientProvider>
         {/* Page-view counts only. Cookieless and with no cross-site identifier,
             which is what keeps the promise /privacy already makes — no
