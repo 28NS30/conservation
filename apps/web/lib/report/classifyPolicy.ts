@@ -66,7 +66,9 @@ export const AUTO_ASSIGN_CATEGORIES: ReadonlySet<string> = new Set([
 /**
  * - `assign`  — the top answer becomes the record's species.
  * - `record`  — a person already named it; the model's answer is noted beside
- *               theirs and changes nothing.
+ *               theirs and the species stays theirs. When the model is
+ *               confident of another species the record is blurred at least
+ *               as that species would be (disagreesWithPerson, below).
  * - `suggest` — the answers are kept as suggestions and the record stays
  *               unidentified.
  */

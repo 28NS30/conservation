@@ -186,8 +186,10 @@ export async function classifyQueued({ reportId = null }: { reportId?: string | 
       const best = result.predictions[0];
 
       // A person already said what this is — the reporter at submission, or a
-      // moderator. The model gets to record its opinion beside theirs and
-      // nothing more: it looked at a photograph, they looked at the animal.
+      // moderator. The model gets to record its opinion beside theirs, and the
+      // species stays theirs: it looked at a photograph, they looked at the
+      // animal. What it may still change is the blur, and only tighter (the
+      // record branch below).
       //
       // Without this the reporter's identification survived until the next cron
       // run and was then silently replaced, taking the published precision with

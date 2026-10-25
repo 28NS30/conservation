@@ -5,15 +5,16 @@
 -- own. taxon_precision() climbs from a subspecies to its species and stops
 -- there (0014): it never looks down, and was never meant to. So a record
 -- filed under a name above the species read "unrated" and was published to
--- the metre, whatever that name holds. On the local copy of production 246
--- genera recorded in Taiwan hold a protected species and computed 'exact':
--- Prionailurus, which holds 石虎, among them. A record named only "a
--- Prionailurus" is very likely a 石虎.
+-- the metre, whatever that name holds. On production on 25 October 2026,
+-- 246 genera recorded in Taiwan held a protected species and computed
+-- 'exact': Prionailurus, which holds 石虎, among them. A record named only
+-- "a Prionailurus" is very likely a 石虎.
 --
 -- Nobody can file one that way today. The picker offers species and
 -- subspecies only (OFFERED, apps/web/lib/species.ts), POST /api/reports files
 -- any other name as unidentified, and setReportTaxon now refuses one too. On
--- production on 22 October 2026 no record was on such a name. But a GBIF
+-- the same day no record on production was on such a name, nor on a row
+-- sharing a binomial with one, so this changes no published blur. But a GBIF
 -- import identified to the genus, a moderator's correction or a model's
 -- label list could put one there, and the rule should not depend on all of
 -- them staying shut.
@@ -35,7 +36,7 @@
 -- the check at the end refuses the migration if any record would.
 --
 -- This file is the database half of closing two blur loopholes; the other is
--- in the classifier (apps/web/lib/report/precision.ts, disagreementOverride):
+-- in the classifier (apps/web/lib/report/precision.ts, holdAtModelsBlur):
 -- a record whose reporter names one species while the model, confident,
 -- names a stricter one is blurred as the model's species would be.
 --
