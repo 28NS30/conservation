@@ -3,9 +3,11 @@ name: CI
 # Every pull request and every push to main. A green run says:
 #
 #   - every migration applies to a fresh PostGIS cluster that has Supabase's
-#     three API roles and the grants Supabase gives them, so the revokes that
-#     keep exact coordinates away from the REST API (0013, 0024) are tested
-#     against the shape production started from;
+#     three API roles and the default grants Supabase gives them, so the
+#     revokes that keep exact coordinates away from the REST API (0013, 0024)
+#     are tested against the shape production started from, and once they
+#     have run none of those grants reaches anything PUBLIC cannot
+#     (supabase/ci-roles-check.sql);
 #   - the unit suite skipped no more tests than ALLOWED_SKIPS below, which is
 #     none, and a test that needs the server failed rather than skipped when
 #     it was not there (requireServer, apps/web/test/helpers.mjs);
@@ -95,11 +97,12 @@ jobs:
 
       - name: Create Supabase's API roles
         # anon, authenticated and service_role, and the ALL that Supabase
-        # grants them on whatever `postgres` creates in public. Without them
-        # 0013 and 0024 had nothing to revoke here, and the thirty tests of
-        # what the REST API's roles can reach (reports and its exact points,
-        # the public views, the site's functions, every forum table) skipped
-        # on every run. supabase/ci-roles.sql says what it leaves out.
+        # grants the first two on whatever `postgres` creates in public.
+        # Without them 0013 and 0024 had nothing to revoke here, and the
+        # thirty tests of what the REST API's roles can reach (reports and its
+        # exact points, the public views, the site's functions, every forum
+        # table) skipped on every run. The file refuses any cluster but this
+        # empty one, and says what it leaves out.
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f supabase/ci-roles.sql
 
       - name: Apply migrations
@@ -113,6 +116,16 @@ jobs:
             echo "--- $f"
             psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$f"
           done
+
+      - name: The migrations took back what the API roles were given
+        # The roles step opened everything `postgres` creates in public to
+        # anon and authenticated, and 0013 and 0024 are what close it again.
+        # If either stopped doing so, or a later migration gave one of the
+        # three roles a default, a table, a column or a function, this finds
+        # it: a default left behind would open every table made after it to
+        # the anon key, on production too. The file says the one kind of
+        # grant it lets stay, and why.
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f supabase/ci-roles-check.sql
 
       - name: Load test fixture
         # A committed slice of real TaiCOL + TaiRON data. CI must not hit the live
