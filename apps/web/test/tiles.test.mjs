@@ -288,6 +288,8 @@ describe("filters discriminate", () => {
        where is_invasive and kingdom = 'Animalia'
          and taxon_status is not distinct from 'accepted' and is_in_taiwan
          and sensitivity is null and protected_status is null
+         -- A species: a name above one is blurred whatever its rating (0033).
+         and rank = 'Species'
        order by id limit 1`;
     assert.ok(invasive, "expected an unrated invasive animal in the fixture");
     const [{ id }] = await sql`

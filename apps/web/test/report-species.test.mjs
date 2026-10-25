@@ -174,7 +174,7 @@ describe("sending the same report twice", () => {
               values (${firstBody.id}, ${`test/${clientNonce}-b.webp`}, 1234, 'image/webp')`;
 
     const taxonId = await taxonWhere(
-      "sensitivity is null and protected_status is null and is_in_taiwan",
+      "sensitivity is null and protected_status is null and is_in_taiwan and rank = 'Species'",
     );
     // Only the taxon. The row deliberately stays `pending`: publishing it here
     // would put a live `sighting` at 120.9, 23.8 for the length of the run,
