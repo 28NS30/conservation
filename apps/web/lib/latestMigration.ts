@@ -32,8 +32,10 @@ export const MIGRATIONS: readonly string[] = [
   "0029_blur_protected_species_only.sql",
   "0030_forum_votes.sql",
   "0031_binomial_index_on_the_expression.sql",
+  "0032_floor_renamed_retired_twins.sql",
   "0036_job_runs_and_app_errors.sql",
+  "0037_hoopoe_to_species.sql",
 ];
 
 /** The highest-numbered of them, for reading at a glance; nothing is decided by it. */
-export const LATEST_MIGRATION = "0036_job_runs_and_app_errors.sql";
+export const LATEST_MIGRATION = "0037_hoopoe_to_species.sql";

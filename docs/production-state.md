@@ -152,12 +152,11 @@ retries and for anything that path missed. The model service was still v2 of
 `job_runs` row as it starts and completes it as it ends, and `/api/health`
 reports, per job, the hours since its last good run (`jobs`), with the
 classification queue's length and oldest wait (`queue`), whether Storage
-answers (`storage`) and the database's size (`dbSizeMb`). **0036 was not
-applied to production at the time of writing.** Until it is, the jobs run
-exactly as before and record nothing, health reports `jobs: null`, and once
-the code that expects it deploys, `/api/health` answers 503 with
-`schemaCurrent: false`. 0036 only adds two tables, so it can be applied
-before that code merges.
+answers (`storage`) and the database's size (`dbSizeMb`). **0036 was
+applied to production on 25 October 2026**, with its ledger row, before the
+code that writes the tables merged. A self-aborting dry run first showed both
+tables with row-level security on, no policy, and no grant to `anon`,
+`authenticated`, `web_anon` or PUBLIC. Both tables were empty afterwards.
 
 **A run refused for want of `CRON_SECRET` still records nothing**, by design:
 the secret is checked before the first write, or anyone could add rows. What
