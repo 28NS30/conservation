@@ -76,6 +76,23 @@ async function main() {
                                   't0125438', 't0076951', 't0123866',
                                   't0072234', 't0102479',
                                   't0102470', 't0028710'))
+      -- Rows that tests name; without them those tests skipped in CI:
+      --   Ardea cinerea t0100094     蒼鷺: "gray heron" and "grey heron" must
+      --                              find it (species-names.test.mjs)
+      --   Trachemys scripta elegans  紅耳泥龜, t0033457: "red-eared slider", a
+      --                              name only the overrides file gives it
+      --   Buergeria japonica         日本樹蛙, t0101610: a name under review
+      --                              (lib/speciesNotes.ts)
+      --   Boa constrictor t0029886   巨蚺, unrated, beside a protected subspecies
+      --     / t0122243               outside Taiwan: a species whose
+      --                              binomial_precision_floor is stricter than
+      --                              its own rule, which is what a photo pick
+      --                              of it must carry (team-feedback.test.mjs).
+      --                              Both rows, or the floor has nothing to
+      --                              find.
+      union (select id from taxa
+              where taicol_id in ('t0100094', 't0033457', 't0101610',
+                                  't0029886', 't0122243'))
       union (select id from taxa where sensitivity = '座標不開放' limit 2)
       union (select id from taxa where sensitivity = '重度' limit 2)
       union (select id from taxa where sensitivity = '輕度' limit 3)
@@ -105,14 +122,62 @@ async function main() {
   // tests need data on both sides of any cutoff, and a head-of-list sample would
   // collapse the range to a few weeks.
   const reports = await sql<Record<string, unknown>[]>`
-    with eligible as (
-      select r.*, row_number() over (order by r.observed_at) as rn,
-             count(*) over () as total
+    with candidates as (
+      select r.id, r.category, r.location, r.location_precision, r.observed_at,
+             r.taxon_id, r.taxon_source, r.status, r.source, r.source_id,
+             r.license, r.rights_holder
         from reports r
        -- Must be restricted to the taxa the fixture actually includes, or the
-       -- inserts fail on a foreign key when loaded into a fresh database.
-       where r.taxon_id = any(${sql.array(taxonIds)}::bigint[])
+       -- inserts fail on a foreign key when loaded into a fresh database. No
+       -- taxon at all is the other way to pass, for the record below.
+       where (r.taxon_id = any(${sql.array(taxonIds)}::bigint[]) or r.taxon_id is null)
          and r.source = 'gbif' and r.status = 'published' and not r.is_test
+    ),
+    eligible as (
+      select c.*, row_number() over (order by c.observed_at) as rn,
+             count(*) over () as total
+        from candidates c
+       where c.taxon_id is not null
+    ),
+    sample as (
+      select e.id, e.category, e.location, e.location_precision, e.observed_at,
+             e.taxon_id, e.taxon_source, e.status, e.source, e.source_id,
+             e.license, e.rights_holder
+        from eligible e
+       where e.rn % greatest(1, (e.total / ${REPORT_SAMPLE})::int) = 0
+          -- Always keep a few 石虎 records. An even sample across the whole
+          -- date range caught none of them, which left the species the
+          -- privacy tests name present in the checklist with nothing
+          -- recorded — and the search, which ranks a taxon with records
+          -- first, then put a recordless subspecies of the same name above it.
+          or e.id in (
+            select id from reports
+             where taxon_id = (select id from taxa
+                                where scientific_name = 'Prionailurus bengalensis' limit 1)
+               and source = 'gbif' and status = 'published' and not is_test
+             order by observed_at limit 4
+          )
+       order by e.observed_at
+       limit ${REPORT_SAMPLE}
+    ),
+    picked as (
+      select * from sample
+      union all
+      -- One record GBIF could not name. Thousands of them are on the site, and
+      -- a record page with no species is headed by what was reported instead
+      -- (page-headings.test.mjs), but every sampled record has a taxon, so CI
+      -- never rendered one. Beside the sample rather than in it, so the sample
+      -- stays the same 600, and inside the sample's dates, so no chart or
+      -- date filter gains a year.
+      (select c.id, c.category, c.location, c.location_precision, c.observed_at,
+              c.taxon_id, c.taxon_source, c.status, c.source, c.source_id,
+              c.license, c.rights_holder
+         from candidates c
+        where c.taxon_id is null
+          and c.observed_at between (select min(observed_at) from sample)
+                                and (select max(observed_at) from sample)
+        order by c.observed_at, c.id
+        limit 1)
     )
     select e.id::text, e.category,
            -- The true point only where the site publishes it; otherwise the
@@ -125,25 +190,11 @@ async function main() {
                 else st_y(e.location::geometry) end as lat,
            e.observed_at, e.taxon_id, e.taxon_source, e.status, e.source, e.source_id,
            e.license, e.rights_holder
-      from eligible e
+      from picked e
       cross join lateral (
         select case when e.location_precision = 'exact' then 0
                     else precision_cell_deg(e.location_precision) end as deg) c
-     where e.rn % greatest(1, (e.total / ${REPORT_SAMPLE})::int) = 0
-        -- Always keep a few 石虎 records. An even sample across the whole date
-        -- range caught none of them, which left the species the privacy tests
-        -- name present in the checklist with nothing recorded — and the search,
-        -- which ranks a taxon with records first, then put a recordless
-        -- subspecies of the same name above it.
-        or e.id in (
-          select id from reports
-           where taxon_id = (select id from taxa
-                              where scientific_name = 'Prionailurus bengalensis' limit 1)
-             and source = 'gbif' and status = 'published' and not is_test
-           order by observed_at limit 4
-        )
-     order by e.observed_at
-     limit ${REPORT_SAMPLE}`;
+     order by e.observed_at, e.id`;
 
   const taxaCols = [
     "id","taicol_id","parent_taicol_id","taxon_status",
