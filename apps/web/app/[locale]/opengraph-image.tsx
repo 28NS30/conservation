@@ -49,6 +49,10 @@ export const contentType = "image/png";
  * what that deploy serves, as it would have been for a request.
  */
 export const dynamic = "force-static";
+// Only the two locales are drawn. Any other first segment is a 404 that is
+// neither rendered nor stored, rather than an on-demand render whose 404
+// response would be cached like a card.
+export const dynamicParams = false;
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
