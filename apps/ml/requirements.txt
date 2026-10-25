@@ -13,7 +13,7 @@
 # the third decimal does not survive that unmeasured. Change a version only
 # with a re-run of `evaluate.py --fit --write`, and make the same change in
 # modal_app.py.
-torch==2.13.0
+torch==2.14.1
 torchvision==0.28.0
 open_clip_torch==3.3.0
 pillow==12.3.0
