@@ -66,6 +66,7 @@ export async function openDB(name, version, { upgrade } = {}) {
     },
   };
   const transaction = {
+    done: Promise.resolve(),
     abort() {
       aborted = true;
     },

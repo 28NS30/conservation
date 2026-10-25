@@ -85,7 +85,12 @@ export async function readExisting<T>(
       upgrade(_database, oldVersion, _newVersion, transaction) {
         // There was no database. Abort, so that none is created: an empty
         // version-1 database would skip the step that creates the queue.
-        if (oldVersion === 0) transaction.abort();
+        // The aborted transaction's own promise is caught here, or every
+        // page a phone with no queue opened logged an uncaught AbortError.
+        if (oldVersion === 0) {
+          transaction.done.catch(() => {});
+          transaction.abort();
+        }
       },
       blocking() {
         db?.close();
