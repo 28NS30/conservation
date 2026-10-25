@@ -275,9 +275,10 @@ describe("what clearing precision_override is allowed to undo", () => {
         category: "sighting",
         override: "coarse_10km",
       });
-      // A species: a name above one is blurred whatever its rating (0033).
+      // A species: a name above one is blurred whatever its rating (0033). And
+      // one whose rule is exact, since a floor can blur an unrated one.
       const taxonId = await taxonWhere(
-        "sensitivity is null and protected_status is null and is_in_taiwan and rank = 'Species'",
+        "sensitivity is null and protected_status is null and is_in_taiwan and rank = 'Species' and taxon_precision(id) = 'exact'",
       );
       // The action's own statement, reduced to the columns under test.
       await tx`update reports
@@ -300,9 +301,10 @@ describe("what clearing precision_override is allowed to undo", () => {
     // justified a blur the corrected name would not. Clearing it would
     // publish a location somebody decided to withhold.
     await inRollback(async (tx) => {
-      // Species: a name above one is blurred whatever its rating (0033).
+      // Species: a name above one is blurred whatever its rating (0033). And
+      // exact by rule, or a floor's 50 km would hide the 10 km under test.
       const before = await taxonWhere(
-        "sensitivity is null and protected_status is null and is_in_taiwan and rank = 'Species'",
+        "sensitivity is null and protected_status is null and is_in_taiwan and rank = 'Species' and taxon_precision(id) = 'exact'",
       );
       const r = await insertReport(tx, {
         taxonId: before,
@@ -312,7 +314,7 @@ describe("what clearing precision_override is allowed to undo", () => {
       assert.equal(r.location_precision, "coarse_10km", "the fixture starts blurred");
 
       const after = await taxonWhere(
-        "sensitivity is null and protected_status is null and is_in_taiwan and rank = 'Species' and id <> " +
+        "sensitivity is null and protected_status is null and is_in_taiwan and rank = 'Species' and taxon_precision(id) = 'exact' and id <> " +
           String(before),
       );
       await tx`update reports

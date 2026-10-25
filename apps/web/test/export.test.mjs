@@ -113,7 +113,7 @@ describe("a licence is the contributor's to grant", () => {
    */
   async function userRecord(tx, { license = null } = {}) {
     const taxonId = await taxonWhere(
-      "is_in_taiwan and sensitivity is null and protected_status is null and rank = 'Species'",
+      "is_in_taiwan and sensitivity is null and protected_status is null and rank = 'Species' and taxon_precision(id) = 'exact'",
     );
     const r = await insertReport(tx, { taxonId });
     await tx`update reports set source = 'user', license = ${license}
@@ -173,7 +173,7 @@ describe("the reporter's notes stay here", () => {
   test("no field of the archive carries them", async () => {
     await inRollback(async (tx) => {
       const taxonId = await taxonWhere(
-        "is_in_taiwan and sensitivity is null and protected_status is null and rank = 'Species'",
+        "is_in_taiwan and sensitivity is null and protected_status is null and rank = 'Species' and taxon_precision(id) = 'exact'",
       );
       const r = await insertReport(tx, { taxonId });
       await tx`update reports set source = 'user', license = ${CC_BY}, notes = ${NOTE}
