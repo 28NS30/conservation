@@ -15,10 +15,24 @@ import { revalidateTag, unstable_cache } from "next/cache";
  * `reportsChanged()` wherever the reports change. A page built from one also
  * carries the tag, so a cached page is rebuilt with it.
  *
- * Only for figures that are the same for every reader: what is cached here
- * is served to anyone who asks. Nothing that depends on who is looking, and
- * nothing read on the privileged connection that the public view would not
- * show.
+ * Which is why a cached page that shows records reads them through here even
+ * where the read is cheap: a species page's taxon, its monthly counts and its
+ * list of records with their points (lib/species.ts), a collection's newest
+ * records. The tag on what a page read is the only thing that drops the page
+ * when a record is re-identified, blurred or thrown out; without it the page
+ * kept the record's old point until it next happened to be rebuilt.
+ *
+ * Five minutes is a figure's age when it is used, not how long a page may
+ * show it. A page rebuilt from one keeps it for its own `revalidate`, and is
+ * served stale for at most `expireTime` (next.config.ts), so a blur tightened
+ * in the database, where no writer calls `reportsChanged()`, is off every
+ * page within that hour and these five minutes. Rebuilding a page waits for
+ * its stale figures to be read again rather than reusing them, so the two
+ * never chain.
+ *
+ * Only for what is the same for every reader: what is cached here is served
+ * to anyone who asks. Nothing that depends on who is looking, and nothing
+ * read on the privileged connection that the public view would not show.
  */
 export const REPORTS_TAG = "reports";
 
@@ -40,7 +54,7 @@ export function siteFigure<A extends unknown[], R>(
 
 /**
  * Drop every cached figure, and every cached page built from one, after a
- * report is published, rejected or given another species.
+ * report is published, rejected, given another species, or blurred.
  *
  * `expire: 0` rather than serving the old figures once more while new ones
  * are made: these change a few times a day, and the person who has just
@@ -51,6 +65,11 @@ export function siteFigure<A extends unknown[], R>(
  * Only from a Server Action or a Route Handler, after the write has
  * committed: called before, the next reader could cache the old figures
  * again for five minutes.
+ *
+ * A change made in the database itself, a migration's re-blur or a floor,
+ * calls nothing. It reaches every page within the bound `expireTime` sets
+ * (next.config.ts); when it cannot wait that long, a production deploy is
+ * the purge.
  */
 export function reportsChanged(): void {
   revalidateTag(REPORTS_TAG, { expire: 0 });

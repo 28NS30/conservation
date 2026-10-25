@@ -14,12 +14,21 @@
  * reads the request; and the pages that are somebody's own (/me, /admin,
  * /login, a report's receipt, the forum) still render per request.
  *
+ * And a page cached for everybody must not go on showing a record after the
+ * record has moved: a sparse species lists its records with their points, and
+ * one re-identified as a blurred species, or blurred where it stands, leaves
+ * the cached page when the reports' tag is dropped (lib/siteFigures.ts). How
+ * long a page may be served stale at all is bounded too (`expireTime`,
+ * next.config.ts), for a blur no writer announces.
+ *
  *   node --test test/public-pages-cache.test.mjs      # TEST_BASE_URL for the live half
  */
-import { test, describe, after } from "node:test";
+import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
+import { randomBytes, randomUUID } from "node:crypto";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
+import { createServerClient } from "@supabase/ssr";
 import { sql, BASE_URL } from "./helpers.mjs";
 
 after(() => sql.end());
@@ -191,6 +200,11 @@ describe("served from the cache", () => {
       const cc = res.headers.get("cache-control") ?? "";
       assert.match(cc, /s-maxage=\d+/, `${path}: ${cc}`);
       assert.doesNotMatch(cc, /private|no-store/, `${path}: ${cc}`);
+      // Served stale for an hour at most from when it was made, not Next's
+      // default year: that is the bound on a blur no writer announces.
+      const age = Number(/s-maxage=(\d+)/.exec(cc)?.[1]);
+      const stale = Number(/stale-while-revalidate=(\d+)/.exec(cc)?.[1]);
+      assert.ok(stale > 0 && age + stale <= 3600, `${path}: ${cc}`);
       assert.deepEqual(res.headers.getSetCookie(), [], path);
       assert.doesNotMatch(res.headers.get("link") ?? "", /rel="?alternate/, path);
     }
@@ -234,5 +248,190 @@ describe("served from the cache", () => {
       const res = await fetch(`${BASE_URL}${path}`, { redirect: "manual" });
       assert.match(res.headers.get("cache-control") ?? "", /no-store/, path);
     }
+  });
+});
+
+describe("…and dropped when a record on it moves", () => {
+  const AUTH = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "http://127.0.0.1:54321";
+  const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+  const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+  const MANIFEST = join(WEB, ".next", "server", "server-reference-manifest.json");
+  const made = { reports: [], accounts: [] };
+  let moderator = null;
+  let skip = null;
+
+  /** An account with a session, the way test/test-reports-signed-in.test.mjs makes one. */
+  async function createModerator() {
+    const email = `cache-moderator-${randomUUID().slice(0, 8)}@example.test`;
+    const password = randomBytes(18).toString("base64url");
+    const res = await fetch(`${AUTH}/auth/v1/admin/users`, {
+      method: "POST",
+      headers: { apikey: SERVICE, authorization: `Bearer ${SERVICE}`, "content-type": "application/json" },
+      body: JSON.stringify({ email, password, email_confirm: true }),
+    });
+    if (!res.ok) throw new Error(`could not create a test account: ${res.status}`);
+    const user = await res.json();
+    made.accounts.push(user.id);
+    await sql`insert into profiles (id, role) values (${user.id}::uuid, 'moderator')
+              on conflict (id) do update set role = 'moderator'`;
+    const jar = new Map();
+    const client = createServerClient(AUTH, ANON_KEY, {
+      cookies: {
+        getAll: () => [...jar].map(([name, value]) => ({ name, value })),
+        setAll: (list) => list.forEach((c) => (c.value ? jar.set(c.name, c.value) : jar.delete(c.name))),
+      },
+    });
+    const { error } = await client.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(`could not sign the test account in: ${error.message}`);
+    return { id: user.id, cookie: [...jar].map(([n, v]) => `${n}=${v}`).join("; ") };
+  }
+
+  /** A server action called the way the browser calls it, from the page that renders it. */
+  async function act(name, path, args) {
+    const manifest = JSON.parse(readFileSync(MANIFEST, "utf8"));
+    const id = Object.entries(manifest.node ?? {}).find(([, e]) => e.exportedName === name)?.[0];
+    assert.ok(id, `the build lists no server action ${name}`);
+    const res = await fetch(`${BASE_URL}${path}`, {
+      method: "POST",
+      headers: {
+        "Next-Action": id,
+        Origin: new URL(BASE_URL).origin,
+        "Content-Type": "text/plain;charset=UTF-8",
+        Cookie: moderator.cookie,
+      },
+      body: JSON.stringify(args),
+      redirect: "manual",
+    });
+    await res.arrayBuffer();
+    assert.equal(res.status, 200, `${name} answered ${res.status}`);
+  }
+
+  const slug = (r) => `${r.id}-${r.scientific_name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+
+  /**
+   * A species nobody has recorded, so its page has never been asked for on
+   * this server, that is published to the metre; and one record of it, at a
+   * point of its own.
+   */
+  async function aSparseSpecies() {
+    const [taxon] = await sql`
+      select t.id, t.scientific_name from taxa t
+       where t.rank = 'Species' and t.taxon_status is not distinct from 'accepted' and t.is_in_taiwan
+         and t.kingdom = 'Animalia' and taxon_precision(t.id) = 'exact'
+         and not exists (select 1 from reports r where r.taxon_id = t.id)
+       order by t.id offset ${Math.floor(Math.random() * 20000)} limit 1`;
+    const lng = 120.6 + Math.random() * 0.6;
+    const lat = 23.2 + Math.random() * 0.8;
+    const [record] = await sql`
+      insert into reports (category, location, location_public, observed_at, taxon_id,
+                           taxon_source, status, source)
+      values ('roadkill', st_setsrid(st_makepoint(${lng}, ${lat}), 4326)::geography,
+              st_setsrid(st_makepoint(${lng}, ${lat}), 4326)::geography,
+              now() - interval '1 day', ${taxon.id}, 'imported', 'published', 'user')
+      returning id::text`;
+    made.reports.push(record.id);
+    return { path: `/en/species/${slug(taxon)}`, taxonId: taxon.id, record: record.id, point: await shownPoint(record.id) };
+  }
+
+  /** A record's point as its species page prints it, from the public view. */
+  async function shownPoint(id) {
+    const [p] = await sql`
+      select st_y(location_public::geometry) as lat, st_x(location_public::geometry) as lng
+        from reports_public where id = ${id}::uuid`;
+    assert.ok(p, `record ${id} is not public`);
+    return `${p.lat.toFixed(3)}, ${p.lng.toFixed(3)}`;
+  }
+
+  /** The page's HTML, without the markers React puts between text nodes. */
+  async function page(path) {
+    const res = await fetch(`${BASE_URL}${path}`);
+    assert.equal(res.status, 200, path);
+    return { cache: res.headers.get("x-nextjs-cache"), html: (await res.text()).replaceAll("<!-- -->", "") };
+  }
+
+  /** Asked until the cache answers, so what is checked next is the cached copy. */
+  async function cached(path) {
+    for (let i = 0; i < 4; i++) {
+      const got = await page(path);
+      if (got.cache === "HIT") return got;
+    }
+    assert.fail(`${path} was never served from the cache`);
+  }
+
+  before(async () => {
+    if (!(await up())) return void (skip = `no server at ${BASE_URL}`);
+    if (!(await fetch(`${AUTH}/auth/v1/health`).catch(() => null))?.ok) return void (skip = `no auth at ${AUTH}`);
+    if (!SERVICE || !ANON_KEY) return void (skip = "no Supabase keys in the environment");
+    if (!existsSync(MANIFEST)) return void (skip = "no build to read the server actions from");
+    moderator = await createModerator();
+  });
+
+  after(async () => {
+    await sql`delete from reports where id = any(${made.reports}::uuid[])`;
+    for (const id of made.accounts) {
+      await fetch(`${AUTH}/auth/v1/admin/users/${id}`, {
+        method: "DELETE",
+        headers: { apikey: SERVICE, authorization: `Bearer ${SERVICE}` },
+      }).catch(() => {});
+      await sql`delete from profiles where id = ${id}::uuid`.catch(() => {});
+    }
+  });
+
+  test("a record a moderator names as a blurred species leaves its old species page at once", async (t) => {
+    if (skip) return t.skip(skip);
+    const s = await aSparseSpecies();
+    const before = await cached(s.path);
+    assert.ok(before.html.includes(`/reports/${s.record}`), "the page does not list the record");
+    assert.ok(before.html.includes(s.point), `the page does not show ${s.point}`);
+
+    // Named as a species published to 10 km at best, as a moderator does it
+    // from the record's page.
+    const [blurred] = await sql`
+      select t.id from taxa t
+       where t.rank = 'Species' and t.taxon_status is not distinct from 'accepted' and t.is_in_taiwan
+         and taxon_precision(t.id) in ('coarse_10km', 'coarse_50km')
+       order by t.id limit 1`;
+    await act("confirmSpecies", `/en/reports/${s.record}`, [s.record, blurred.id]);
+    const [row] = await sql`select taxon_id from reports where id = ${s.record}::uuid`;
+    assert.equal(row.taxon_id, blurred.id, "the action did not rename the record");
+
+    const after = await page(s.path);
+    assert.ok(!after.html.includes(`/reports/${s.record}`), "the old species page still lists the record");
+    assert.ok(!after.html.includes(s.point), `the old species page still shows ${s.point}`);
+  });
+
+  test("a record blurred in the database leaves the cached page once the tag is dropped", async (t) => {
+    if (skip) return t.skip(skip);
+    const s = await aSparseSpecies();
+    await cached(s.path);
+
+    // As a migration or a floor would: in the database, with no writer of the
+    // app's to say so.
+    await sql`update reports set precision_override = 'coarse_10km' where id = ${s.record}::uuid`;
+    const blurred = await shownPoint(s.record);
+    assert.notEqual(blurred, s.point, "the blur did not move the record");
+
+    // The control: until something drops the tag, the cached copy still has
+    // the old point. That window is what `expireTime` bounds. Unless another
+    // suite's writer dropped the tag meanwhile, which only makes it shorter.
+    const still = await page(s.path);
+    if (still.cache === "HIT") assert.ok(still.html.includes(s.point), "the cached copy changed with nothing dropping it");
+    else t.diagnostic(`the page was rebuilt before the tag was dropped here (${still.cache})`);
+
+    // Any writer that changes the reports drops it: here a moderator
+    // publishing a held report.
+    const [held] = await sql`
+      insert into reports (category, location, location_public, observed_at, status, source)
+      values ('roadkill', st_setsrid(st_makepoint(121.0, 24.0), 4326)::geography,
+              st_setsrid(st_makepoint(121.0, 24.0), 4326)::geography, now(), 'pending', 'user')
+      returning id::text`;
+    made.reports.push(held.id);
+    await act("publishReport", "/en/admin", [held.id]);
+    const [row] = await sql`select status from reports where id = ${held.id}::uuid`;
+    assert.equal(row.status, "published", "the action did not publish the report");
+
+    const after = await page(s.path);
+    assert.ok(!after.html.includes(s.point), `the page still shows the record at ${s.point}`);
+    assert.ok(after.html.includes(blurred), `the page does not show the record blurred, at ${blurred}`);
   });
 });

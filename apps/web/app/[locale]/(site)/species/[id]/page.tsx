@@ -5,7 +5,7 @@ import { Link } from "@/i18n/navigation";
 import { asPublic, sql } from "@/lib/db";
 import { speciesNotes } from "@/lib/speciesNotes";
 import {
-  getSpecies,
+  getCachedSpecies,
   monthlyCounts,
   recentRecords,
   speciesSlug,
@@ -26,10 +26,20 @@ const HEATMAP_MIN_RECORDS = 6;
 const LIST_MAX_RECORDS = 5;
 
 /**
- * Rendered once, then served from the cache and rebuilt in the background at
- * most every five minutes, so a new record reaches its species page within
- * that. Until the header stopped reading cookies (components/auth/AccountLink)
- * every species page rendered per request and this had nothing to act on.
+ * Rendered once, then served from the cache for everybody, and rebuilt when it
+ * is asked for more than five minutes on. Until the header stopped reading
+ * cookies (components/auth/AccountLink) every species page rendered per
+ * request and this had nothing to act on.
+ *
+ * Five minutes is not what keeps a record off a page it has left. A sparse
+ * species lists its records with their points, and a record re-identified as
+ * a blurred species, or thrown out, must not stay listed under its old name
+ * until somebody happens to ask twice. Everything below about records is read
+ * through the cache tagged with the reports (getCachedSpecies, recentRecords,
+ * monthlyCounts; lib/siteFigures.ts), so the page carries the tag, and every
+ * writer that changes a record drops it at once. A blur tightened in the
+ * database, where no writer runs, is bounded by `expireTime` in
+ * next.config.ts instead.
  */
 export const revalidate = 300;
 
@@ -85,7 +95,7 @@ export async function generateMetadata({
   const { locale, id } = await params;
   const taxonId = parseSpeciesId(id);
   if (!taxonId) return {};
-  const s = await getSpecies(taxonId);
+  const s = await getCachedSpecies(taxonId);
   if (!s) return {};
   const t = await getTranslations({ locale, namespace: "species" });
   // Both names in the title, the page's language first: a search result for
@@ -123,7 +133,7 @@ export default async function SpeciesPage({
   const taxonId = parseSpeciesId(id);
   if (!taxonId) notFound();
 
-  const s = await getSpecies(taxonId);
+  const s = await getCachedSpecies(taxonId);
   if (!s) notFound();
 
   // A bare id never gets here: it is rewritten to species/by-id, which

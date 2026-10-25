@@ -75,6 +75,32 @@ const config: NextConfig = {
     // 60-second prerender timeout running.
     staticGenerationMaxConcurrency: 4,
   },
+  /**
+   * How old a cached page may be when it is served, at most: an hour, where
+   * Next's default is a year.
+   *
+   * A page past its `revalidate` is still served once more while a fresh one
+   * is made, and only an hour from when it was made; after that its next
+   * visitor waits for a fresh render. It is also the response's
+   * `stale-while-revalidate` (an hour less the page's `revalidate`), so a CDN
+   * keeps it no longer either.
+   *
+   * What it bounds is a change no writer announces. The app's own writers
+   * drop every page that shows records the moment one changes
+   * (reportsChanged() in lib/siteFigures.ts). A blur tightened in the
+   * database, by a migration, a floor or a TaiCOL refresh, runs none of
+   * them, and with a year's allowance a quiet species page went on listing
+   * the record's old point to whoever opened it next, however much later.
+   * Now it is gone within an hour and five minutes: the page's hour, plus
+   * the five minutes the cached reads it was rebuilt from may already have
+   * been old (lib/siteFigures.ts).
+   *
+   * When that is too long, deploy. A production deploy starts the page cache
+   * afresh, as it does the tiles', and it is the procedure after an urgent
+   * re-blur run by hand or by migration: apply it, then deploy, then check a
+   * page that listed the record.
+   */
+  expireTime: 3600,
   // The shared package ships TypeScript source rather than a build artifact.
   transpilePackages: ["@conservation/shared"],
   /**

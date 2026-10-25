@@ -70,7 +70,13 @@ describe("the other pages", () => {
   });
 
   test("a species page and its title share one read", () => {
-    assert.match(code("lib/species.ts"), /export const getSpecies = cache\(async \(id: number\)/);
+    const species = code("lib/species.ts");
+    assert.match(species, /export const getSpecies = cache\(readSpecies\);/);
+    // The species page's own, from the cache every reader shares, and still
+    // once per request on top of it.
+    assert.match(species, /export const getCachedSpecies = cache\(siteFigure\("species", readSpecies\)\);/);
+    const page = code("app/[locale]/(site)/species/[id]/page.tsx");
+    assert.equal(page.match(/await getCachedSpecies\(taxonId\)/g)?.length, 2, "the page and generateMetadata");
   });
 
   test("the map's panel links to the species page's own address", () => {
