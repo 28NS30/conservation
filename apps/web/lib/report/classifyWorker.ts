@@ -2,13 +2,14 @@ import { sql } from "@/lib/db";
 import { downloadPhoto } from "@/lib/supabase/service";
 import { UNIDENTIFIED_PRECISION } from "@conservation/shared";
 import {
-  holdAtModelsBlur,
   photoIdentificationOverride,
   suggestionOverride,
 } from "@/lib/report/precision";
+import { recordBesidePerson } from "@/lib/report/classificationHold";
 import {
   AUTO_ASSIGN_BANDS,
   classifierAction,
+  disagreesAtBinomial,
   mlContract,
 } from "@/lib/report/classifyPolicy";
 import { callModel, callEvidenceModel, ModelRefused } from "@/lib/report/model";
@@ -188,8 +189,10 @@ export async function classifyQueued({ reportId = null }: { reportId?: string | 
       // A person already said what this is — the reporter at submission, or a
       // moderator. The model gets to record its opinion beside theirs, and the
       // species stays theirs: it looked at a photograph, they looked at the
-      // animal. What it may still change is the blur, and only tighter (the
-      // record branch below).
+      // animal. What it may still change is the blur: a reporter's record is
+      // held at 10 km until this runs, and is then released to its species'
+      // rule, or to the model's species' blur when the model is sure of
+      // another (the record branch below).
       //
       // Without this the reporter's identification survived until the next cron
       // run and was then silently replaced, taking the published precision with
@@ -237,6 +240,9 @@ export async function classifyQueued({ reportId = null }: { reportId?: string | 
                    ai_confidence = ${best.score},
                    ai_band = ${result.band},
                    precision_override = ${photoIdentificationOverride(best.taxon_id)},
+                   -- The model has looked: any hold a named report was filed
+                   -- under is released (lib/report/classificationHold.ts).
+                   held_for_classification = false,
                    -- Claim and process are two transactions, so a moderator can
                    -- reject a report in between. Publishing may lift a hold; it
                    -- may not reverse a decision.
@@ -252,23 +258,32 @@ export async function classifyQueued({ reportId = null }: { reportId?: string | 
           // so if the two disagree. The species stays theirs. The blur does
           // not, when the model is confident: a protected animal filed as an
           // unrated one was published to the metre on the reporter's word,
-          // flagged where nobody looked. holdAtModelsBlur blurs the record as
-          // the model's species would be, and only ever more than it is now.
-          const disagrees =
-            Boolean(best) &&
-            AUTO_ASSIGN_BANDS.has(result.band) &&
-            best.taxon_id !== job.taxon_id;
-          await tx`
-            update reports
-               set ai_confidence = ${best?.score ?? null},
-                   ai_band = ${result.band},
-                   flagged_reason = coalesce(flagged_reason, ${
-                     disagrees
-                       ? "the model and the reporter name different species"
-                       : null
-                   })
-             where id = ${job.report_id}::uuid`;
-          if (disagrees) await holdAtModelsBlur(tx, job.report_id, best.taxon_id);
+          // flagged where nobody looked. recordBesidePerson blurs the record
+          // at least as the model's species would be, and releases the 10 km
+          // a named report is held at until the model has looked
+          // (lib/report/classificationHold.ts).
+          //
+          // Compared at the binomial, as the evidence worker does: a reporter
+          // who picked a subspecies agrees with a model that names its
+          // species. Comparing ids flagged and blurred those records too.
+          const [model] = best
+            ? await tx<{ scientific_name: string }[]>`
+                select scientific_name from taxa where id = ${best.taxon_id}`
+            : [];
+          await recordBesidePerson(tx, {
+            reportId: job.report_id,
+            claimedTaxonId: job.taxon_id,
+            claimedSource: job.taxon_source,
+            score: best?.score ?? null,
+            band: result.band,
+            disagreeingTaxonId: disagreesAtBinomial(
+              result.band,
+              model?.scientific_name ?? null,
+              job.taxon_name,
+            )
+              ? best.taxon_id
+              : null,
+          });
         } else {
           // Not a species the model may name: either it is not confident enough,
           // or this is a report whose answer can only ever be a suggestion (an
@@ -292,6 +307,7 @@ export async function classifyQueued({ reportId = null }: { reportId?: string | 
                  result.band !== "low",
                )},
                    status = case when status = 'pending' and flagged_reason is null then 'published' else status end,
+                   held_for_classification = false,
                    ai_band = ${result.band},
                    flagged_reason = coalesce(flagged_reason, ${
                      result.band === "low"
@@ -345,6 +361,11 @@ export async function classifyQueued({ reportId = null }: { reportId?: string | 
           //
           // At least the unidentified blur, never less than the record already
           // has: see suggestionOverride for who else may have held it coarser.
+          //
+          // A published record a reporter named is not touched here, and need
+          // not be: it was filed held at 10 km until the model had looked
+          // (held_for_classification), and only a run that finishes releases
+          // that. Giving up leaves it held, which is the safe way to fail.
           await tx`
             update reports
                set precision_override = stricter_precision(precision_override,

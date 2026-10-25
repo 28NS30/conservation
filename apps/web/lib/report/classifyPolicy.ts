@@ -68,7 +68,9 @@ export const AUTO_ASSIGN_CATEGORIES: ReadonlySet<string> = new Set([
  * - `record`  — a person already named it; the model's answer is noted beside
  *               theirs and the species stays theirs. When the model is
  *               confident of another species the record is blurred at least
- *               as that species would be (disagreesWithPerson, below).
+ *               as that species would be (disagreesWithPerson, below), and the
+ *               10 km a named report is held at until then is released
+ *               (lib/report/classificationHold.ts).
  * - `suggest` — the answers are kept as suggestions and the record stays
  *               unidentified.
  */
@@ -440,19 +442,32 @@ export function binomialOf(name: string): string {
  * Whether the model, confident, names a different species from the person.
  *
  * At the binomial: the model names species, and a reporter who picked
- * 白頭翁's subspecies agrees with a model that says 白頭翁.
+ * 白頭翁's subspecies agrees with a model that says 白頭翁. Both workers ask
+ * this, the legacy one through disagreesAtBinomial with the name it looks up
+ * for the model's taxon, so the two flag and blur the same records.
  *
- * Confident means a band the model may name a species in by itself, the same
- * set the legacy worker asks. It is not only a note any more: a record the
- * model disagrees with is held at the model's species' blur
- * (holdAtModelsBlur, lib/report/precision.ts).
+ * Confident means a band the model may name a species in by itself. It is not
+ * only a note any more: a record the model disagrees with is blurred at least
+ * as the model's species would be (settleClassificationHold,
+ * lib/report/classificationHold.ts).
  */
 export function disagreesWithPerson(decision: EvidenceDecision, personName: string | null): boolean {
   return (
     decision.best !== null &&
+    disagreesAtBinomial(decision.band, decision.best.scientificName, personName)
+  );
+}
+
+export function disagreesAtBinomial(
+  band: string,
+  modelName: string | null,
+  personName: string | null,
+): boolean {
+  return (
+    modelName !== null &&
     personName !== null &&
-    AUTO_ASSIGN_BANDS.has(decision.band) &&
-    binomialOf(decision.best.scientificName) !== binomialOf(personName)
+    AUTO_ASSIGN_BANDS.has(band) &&
+    binomialOf(modelName) !== binomialOf(personName)
   );
 }
 

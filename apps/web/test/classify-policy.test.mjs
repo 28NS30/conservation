@@ -21,8 +21,13 @@ import { join } from "node:path";
 import { sql, inRollback, insertReport } from "./helpers.mjs";
 import {
   classifierAction,
+  disagreesAtBinomial,
   AUTO_ASSIGN_CATEGORIES,
 } from "../lib/report/classifyPolicy.ts";
+import {
+  DISAGREES_FLAG,
+  recordBesidePerson,
+} from "../lib/report/classificationHold.ts";
 
 after(() => sql.end());
 
@@ -369,7 +374,8 @@ describe("a record the model, confident, says is another species", () => {
   // the whole of it: a dead 石虎 filed as 家貓 was published at the cat's blur,
   // to the metre, with a flag on a published record that no page showed. Now
   // the record keeps the reporter's species and takes the model's species'
-  // blur, in both workers, through holdAtModelsBlur.
+  // blur. Both workers write it through recordBesidePerson, and these tests
+  // run that function itself on the database.
   const EVIDENCE = read("lib", "report", "classifyEvidence.ts");
   let seq = 0;
   const genus = () => `Testudofixtura d${process.pid}x${Date.now()}x${seq++}`;
@@ -383,44 +389,62 @@ describe("a record the model, confident, says is another species", () => {
     return t;
   }
 
-  /**
-   * holdAtModelsBlur's statement, read out of precision.ts and run as written,
-   * so the test cannot drift from what the workers send.
-   */
-  const HOLD = (() => {
-    const from = PRECISION.slice(PRECISION.indexOf("export const holdAtModelsBlur"));
-    const body = from.slice(from.indexOf("tx`") + 3, from.indexOf("`;"));
-    return body.replaceAll("${reportId}", "$1").replaceAll("${modelTaxonId}", "$2");
-  })();
-  const hold = (tx, reportId, modelTaxonId) => tx.unsafe(HOLD, [reportId, modelTaxonId]);
-
-  /** A record the reporter named, as POST /api/reports writes one. */
-  async function named(tx, taxonId, override = null) {
+  /** A record its reporter named, as POST /api/reports writes one. */
+  async function named(tx, taxonId, { override = null, held = false, source = "user" } = {}) {
     const r = await insertReport(tx, { taxonId, override });
-    await tx`update reports set taxon_source = 'user' where id = ${r.id}`;
-    return r;
+    await tx`update reports set taxon_source = ${source}, held_for_classification = ${held}
+              where id = ${r.id}`;
+    return { ...r, taxonId, source };
   }
+  /** What the classifier writes for it, the model's answer being `model`. */
+  const classify = (tx, r, model, band = "high") =>
+    recordBesidePerson(tx, {
+      reportId: r.id,
+      claimedTaxonId: r.taxonId,
+      claimedSource: r.source,
+      score: 0.97,
+      band,
+      disagreeingTaxonId: model ?? null,
+    });
   const state = async (tx, id) =>
-    (await tx`select taxon_id, precision_override, location_precision,
+    (await tx`select taxon_id, taxon_source, precision_override, location_precision,
+                     flagged_reason, ai_band, held_for_classification as held,
                      st_distance(location, location_public) as offset_m
                 from reports where id = ${id}`)[0];
 
-  test("both workers hold the record when the model disagrees, and only then", () => {
-    assert.doesNotMatch(HOLD, /\$\{/, "the statement interpolates something the test does not supply");
+  /** keepDeliberateOverride, read out of precision.ts, as every naming path sends it. */
+  const KEEP = (() => {
+    const raw = /export const keepDeliberateOverride = \(\) =>\s*sql`([^`]+)`/.exec(PRECISION)?.[1];
+    assert.ok(raw, "keepDeliberateOverride is no longer a plain fragment");
+    return raw.replaceAll("${UNIDENTIFIED_PRECISION}", "'coarse_10km'");
+  })();
+
+  test("both workers write the record branch through recordBesidePerson", () => {
+    assert.doesNotMatch(KEEP, /\$\{/, "keepDeliberateOverride interpolates something new");
     const route = code(ROUTE);
     const evidence = code(EVIDENCE);
-    assert.match(route, /AUTO_ASSIGN_BANDS\.has\(result\.band\) &&\s*best\.taxon_id !== job\.taxon_id/);
-    assert.match(route, /if \(disagrees\) await holdAtModelsBlur\(tx, job\.report_id, best\.taxon_id\);/);
-    assert.match(evidence, /const disagrees = disagreesWithPerson\(decision, job\.taxon_name\);/);
-    assert.match(evidence, /if \(disagrees && best\) await holdAtModelsBlur\(tx, job\.report_id, best\.taxonId\);/);
-    // In the record branch, beside the flag, not in another branch.
+    // At the binomial in both: the legacy worker looks up the model's name.
+    assert.match(route, /select scientific_name from taxa where id = \$\{best\.taxon_id\}/);
+    assert.match(route, /disagreeingTaxonId: disagreesAtBinomial\(\s*result\.band,\s*model\?\.scientific_name \?\? null,\s*job\.taxon_name,\s*\)/);
+    assert.match(evidence, /best && disagreesWithPerson\(decision, job\.taxon_name\) \? best\.taxonId : null/);
+    assert.doesNotMatch(route, /best\.taxon_id !== job\.taxon_id/, "the legacy worker compares ids again");
     for (const src of [route, evidence]) {
       const branch = src.slice(src.indexOf('=== "record"'));
       assert.ok(
-        branch.indexOf("holdAtModelsBlur(") < branch.indexOf("} else {"),
-        "the hold is not in the record branch",
+        branch.indexOf("await recordBesidePerson(tx, {") > 0 &&
+          branch.indexOf("await recordBesidePerson(tx, {") < branch.indexOf("} else {"),
+        "the record branch does not write through recordBesidePerson",
       );
+      assert.match(branch.slice(0, branch.indexOf("} else {")), /claimedTaxonId: job\.taxon_id,\s*claimedSource: job\.taxon_source,/);
     }
+  });
+
+  test("disagreement is judged at the binomial, and only when the model is sure", () => {
+    assert.equal(disagreesAtBinomial("high", "Pycnonotus sinensis", "Pycnonotus sinensis formosae"), false);
+    assert.equal(disagreesAtBinomial("high", "Prionailurus bengalensis", "Felis catus"), true);
+    assert.equal(disagreesAtBinomial("medium", "Prionailurus bengalensis", "Felis catus"), false);
+    assert.equal(disagreesAtBinomial("high", null, "Felis catus"), false);
+    assert.equal(disagreesAtBinomial("high", "Prionailurus bengalensis", null), false);
   });
 
   test("a reporter names an unrated species, the model is sure of a 10 km one: 10 km", async () => {
@@ -430,12 +454,15 @@ describe("a record the model, confident, says is another species", () => {
       const r = await named(tx, cat.id);
       assert.equal(r.location_precision, "exact", "fixture: the reporter's species is unrated");
 
-      await hold(tx, r.id, protectedOne.id);
+      await classify(tx, r, protectedOne.id);
       const after_ = await state(tx, r.id);
       assert.equal(after_.location_precision, "coarse_10km",
         "the model's protected species was published at the reporter's exact point");
       assert.equal(Number(after_.taxon_id), Number(cat.id), "the reporter's species is kept");
+      assert.equal(after_.taxon_source, "user");
       assert.equal(after_.precision_override, "coarse_10km");
+      assert.equal(after_.flagged_reason, DISAGREES_FLAG);
+      assert.equal(after_.ai_band, "high");
       assert.ok(after_.offset_m > 0, "the public point moved off the true one");
     });
   });
@@ -447,7 +474,7 @@ describe("a record the model, confident, says is another species", () => {
       const species = await row(tx);
       await row(tx, { name: `${species.scientific_name} endemica`, rank: "Subspecies", sensitivity: "重度" });
       const r = await named(tx, cat.id);
-      await hold(tx, r.id, species.id);
+      await classify(tx, r, species.id);
       assert.equal((await state(tx, r.id)).location_precision, "coarse_50km");
     });
   });
@@ -458,36 +485,32 @@ describe("a record the model, confident, says is another species", () => {
       const dog = await row(tx);
       const protectedOne = await row(tx, { protectedStatus: "II" });
       const r = await named(tx, cat.id);
-      await hold(tx, r.id, protectedOne.id);
+      await classify(tx, r, protectedOne.id);
 
-      // A moderator's correction to another unrated species (setReportTaxon
-      // and a moderator's confirmSpecies: photoIdentificationOverride).
+      // A moderator's correction to another unrated species, with the
+      // override every naming path writes (keepDeliberateOverride, through
+      // photoIdentificationOverride).
       await tx`
         update reports
            set taxon_id = ${dog.id}, taxon_source = 'expert',
-               precision_override = stricter_precision(
-                 case when taxon_id is null
-                      then case when precision_rank(precision_override)
-                                     > precision_rank('coarse_10km'::text)
-                                then precision_override end
-                      else precision_override end,
-                 binomial_precision_floor(${dog.id}))
+               precision_override = stricter_precision(${tx.unsafe(KEEP)},
+                                                       binomial_precision_floor(${dog.id}))
          where id = ${r.id}`;
       assert.equal((await state(tx, r.id)).location_precision, "coarse_10km",
         "a correction to an unrated species dropped the model's blur");
 
-      // The reporter re-picking (confirmSpecies, a record already named).
+      // The reporter re-picking (confirmSpecies on a record already named).
       await tx`
         update reports
            set taxon_id = ${cat.id}, taxon_source = 'user',
                precision_override = stricter_precision(
-                 stricter_precision(precision_override, binomial_precision_floor(${cat.id})),
+                 stricter_precision(${tx.unsafe(KEEP)}, binomial_precision_floor(${cat.id})),
                  location_precision)
          where id = ${r.id}`;
       assert.equal((await state(tx, r.id)).location_precision, "coarse_10km");
 
       // And the model running again over the same report.
-      await hold(tx, r.id, protectedOne.id);
+      await classify(tx, { ...r, taxonId: cat.id }, protectedOne.id);
       assert.equal((await state(tx, r.id)).location_precision, "coarse_10km");
     });
   });
@@ -497,7 +520,7 @@ describe("a record the model, confident, says is another species", () => {
       const cat = await row(tx);
       const dog = await row(tx);
       const r = await named(tx, cat.id);
-      await hold(tx, r.id, dog.id);
+      await classify(tx, r, dog.id);
       const after_ = await state(tx, r.id);
       assert.equal(after_.precision_override, null, "an 'exact' stamp says nothing and outlives corrections");
       assert.equal(after_.location_precision, "exact");
@@ -508,8 +531,8 @@ describe("a record the model, confident, says is another species", () => {
     await inRollback(async (tx) => {
       const cat = await row(tx);
       const protectedOne = await row(tx, { protectedStatus: "II" });
-      const r = await named(tx, cat.id, "coarse_50km");
-      await hold(tx, r.id, protectedOne.id);
+      const r = await named(tx, cat.id, { override: "coarse_50km" });
+      await classify(tx, r, protectedOne.id);
       const after_ = await state(tx, r.id);
       assert.equal(after_.precision_override, "coarse_50km");
       assert.equal(after_.location_precision, "coarse_50km");
@@ -521,27 +544,67 @@ describe("a record the model, confident, says is another species", () => {
       const owl = await row(tx, { sensitivity: "重度" });
       const protectedOne = await row(tx, { protectedStatus: "II" });
       const r = await named(tx, owl.id);
-      await hold(tx, r.id, protectedOne.id);
+      await classify(tx, r, protectedOne.id);
       assert.equal((await state(tx, r.id)).location_precision, "coarse_50km");
     });
   });
 
-  test("and a record held harder than its rules now say is left as it is", async () => {
+  test("a record held harder than its rules now say keeps that blur, and the model's is recorded", async () => {
     // Writing the override re-runs the blur trigger, which derives the blur
     // afresh. A record whose rating was withdrawn keeps its old blur (the
-    // re-blur only tightens), so a fresh derivation would loosen it.
+    // re-blur only tightens), so a fresh derivation would loosen it: the blur
+    // it has goes into the override with the model's.
     await inRollback(async (tx) => {
       const once = await row(tx, { sensitivity: "重度" });
+      const cat = await row(tx);
       const protectedOne = await row(tx, { protectedStatus: "II" });
       const r = await named(tx, once.id);
       await tx`update taxa set sensitivity = null where id = ${once.id}`;
       assert.equal((await state(tx, r.id)).location_precision, "coarse_50km",
         "fixture: the withdrawn rating's blur is kept");
 
-      await hold(tx, r.id, protectedOne.id);
+      await classify(tx, r, protectedOne.id);
       const after_ = await state(tx, r.id);
-      assert.equal(after_.location_precision, "coarse_50km", "the hold loosened a record");
-      assert.equal(after_.precision_override, null, "nothing was written");
+      assert.equal(after_.location_precision, "coarse_50km", "the model's answer loosened a record");
+      assert.equal(after_.precision_override, "coarse_50km", "the blur the record had was not kept");
+
+      // So a moderator's later rename to an unrated species stays at 50 km.
+      await tx`
+        update reports
+           set taxon_id = ${cat.id}, taxon_source = 'expert',
+               precision_override = stricter_precision(${tx.unsafe(KEEP)},
+                                                       binomial_precision_floor(${cat.id}))
+         where id = ${r.id}`;
+      assert.equal((await state(tx, r.id)).location_precision, "coarse_50km");
+    });
+  });
+
+  test("a moderator's identification is not held at the model's blur, nor flagged", async () => {
+    await inRollback(async (tx) => {
+      const cat = await row(tx);
+      const protectedOne = await row(tx, { protectedStatus: "II" });
+      const r = await named(tx, cat.id, { source: "expert" });
+      await classify(tx, r, protectedOne.id);
+      const after_ = await state(tx, r.id);
+      assert.equal(after_.location_precision, "exact");
+      assert.equal(after_.precision_override, null);
+      assert.equal(after_.flagged_reason, null);
+      assert.equal(after_.ai_band, "high", "the model's answer is still recorded");
+    });
+  });
+
+  test("nor is a record renamed while the model ran: its answer was about another name", async () => {
+    await inRollback(async (tx) => {
+      const cat = await row(tx);
+      const dog = await row(tx);
+      const protectedOne = await row(tx, { protectedStatus: "II" });
+      const r = await named(tx, cat.id, { held: true });
+      await tx`update reports set taxon_id = ${dog.id}, taxon_source = 'expert' where id = ${r.id}`;
+      await classify(tx, r, protectedOne.id);
+      const after_ = await state(tx, r.id);
+      assert.equal(after_.precision_override, null);
+      assert.equal(after_.held, false, "the classifier has run: the hold is released");
+      assert.equal(after_.location_precision, "exact");
     });
   });
 });

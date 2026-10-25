@@ -1,4 +1,7 @@
--- A record named above the species is blurred at least 10 km.
+-- Two blur loopholes closed: a name above the species, and a reporter's name
+-- the model has not checked yet.
+--
+-- 1. A RECORD NAMED ABOVE THE SPECIES IS BLURRED AT LEAST 10 KM.
 --
 -- TaiCOL rates sensitivity on species rows, and the protected-species list
 -- names species, so a genus, a family or an order carries no rating of its
@@ -12,12 +15,12 @@
 --
 -- Nobody can file one that way today. The picker offers species and
 -- subspecies only (OFFERED, apps/web/lib/species.ts), POST /api/reports files
--- any other name as unidentified, and setReportTaxon now refuses one too. On
+-- any other name as unidentified, and a moderator's naming now takes only
+-- an OFFERED name or one of the model's own candidates for the record. On
 -- the same day no record on production was on such a name, nor on a row
 -- sharing a binomial with one, so this changes no published blur. But a GBIF
--- import identified to the genus, a moderator's correction or a model's
--- label list could put one there, and the rule should not depend on all of
--- them staying shut.
+-- import identified to the genus or a model's label list could put one
+-- there, and the rule should not depend on all of them staying shut.
 --
 -- So a name whose rank is above the species — anything but 'Species', an
 -- infraspecific rank (is_infraspecific, 0014) or 'Hybrid Formula' — takes at
@@ -32,13 +35,37 @@
 -- record trigger, tighten_reports(), binomial_precision() and through it the
 -- model's suggestions, and the species page's blur notice. It can only
 -- tighten. The records already published are brought up to it through
--- tighten_reports() and tighten_binomial_siblings(), which never loosen, and
--- the check at the end refuses the migration if any record would.
+-- tighten_reports() and tighten_binomial_siblings(), which never loosen.
 --
--- This file is the database half of closing two blur loopholes; the other is
--- in the classifier (apps/web/lib/report/precision.ts, holdAtModelsBlur):
--- a record whose reporter names one species while the model, confident,
--- names a stricter one is blurred as the model's species would be.
+-- 2. A NAMED REPORT WITH A PHOTO IS HELD AT 10 KM UNTIL THE MODEL HAS LOOKED.
+--
+-- A reporter who names the species is published at once, at that species'
+-- blur, and the model's opinion was only ever recorded beside theirs. A dead
+-- 石虎 filed as 家貓 was therefore public to the metre, with its notes, on the
+-- reporter's word. The classifier now blurs such a record as the model's
+-- species would be when the model is sure of another
+-- (apps/web/lib/report/classificationHold.ts), but it runs after the record
+-- is public, and a run that fails waits for the next day's cron or never
+-- comes. So POST /api/reports sets `held_for_classification` on a named
+-- report with a photo, and the trigger below blurs a held record at least
+-- 10 km, the unidentified blur, until the classifier has run on it and
+-- released the hold. If the model never answers, the hold stays.
+--
+-- Releasing the hold is not a loosening of the blur policy. The owner decided
+-- where a named record ends (30 September 2026: an invasive species at its
+-- exact spot, a protected one at its rating's blur), and the hold is a short
+-- technical state on the way there, while the one check that could
+-- contradict the reporter has not run. It is its own column so that it can
+-- never be read as, or cleared with, anything that IS a decision: a
+-- moderator's or the model's precision_override, the unidentified stamp, a
+-- floor. The classifier is the only thing that releases it.
+--
+-- No existing record is held (the column starts false), so this part moves
+-- no blur either. The check at the end refuses the migration if any record
+-- would loosen.
+--
+-- Apply this before the app that writes the column is deployed: until it is,
+-- POST /api/reports cannot insert a named report with a photo.
 --
 -- Safe to re-run.
 
@@ -118,6 +145,59 @@ begin
   return p;
 end
 $$;
+
+-- The hold. Only when the column is missing: ALTER TABLE takes ACCESS
+-- EXCLUSIVE on `reports` even when it changes nothing, and every page reads
+-- it, so re-running this file would stop the site for as long as it waited.
+do $$
+begin
+  if not exists (select 1 from information_schema.columns
+                  where table_schema = 'public' and table_name = 'reports'
+                    and column_name = 'held_for_classification') then
+    alter table public.reports
+      add column held_for_classification boolean not null default false;
+    comment on column public.reports.held_for_classification is
+      'A named report with a photo, published and blurred at least 10 km until the classifier has run on it. Set by POST /api/reports, released only by the classifier (apps/web/lib/report/classificationHold.ts). Not a precision_override: nothing that reads or clears overrides touches it.';
+  end if;
+end $$;
+
+-- 0014's trigger function, with the hold as one more term. report_precision()
+-- still decides everything else, so tighten_reports()' question ("are the
+-- rules now stricter than this record?") is the one the trigger answers; the
+-- hold can only make the trigger's answer stricter than that, never looser.
+create or replace function public.set_report_public_location() returns trigger
+language plpgsql set search_path = public as $$
+declare
+  p text;
+begin
+  p := stricter_precision(report_precision(new.taxon_id, new.precision_override),
+                          case when new.held_for_classification then 'coarse_10km' end);
+
+  new.location_precision := p;
+  new.location_public := case
+    when p = 'exact' then new.location
+    else obscure_point(new.location, new.id, precision_cell_deg(p))
+  end;
+  return new;
+end $$;
+
+-- And it fires when the hold is released, so the record is re-blurred to its
+-- decided precision in the same statement. Replaced in place (0014 explains
+-- why not drop-then-create), and only when it does not fire on the hold yet:
+-- the replacement takes SHARE ROW EXCLUSIVE on `reports`.
+do $$
+begin
+  if not exists (select 1 from pg_trigger t
+                   join pg_class c on c.oid = t.tgrelid
+                  where c.relname = 'reports'
+                    and t.tgname = 'reports_set_public_location'
+                    and pg_get_triggerdef(t.oid) like '%held_for_classification%') then
+    create or replace trigger reports_set_public_location
+      before insert or update of location, taxon_id, precision_override, held_for_classification
+      on public.reports
+      for each row execute function public.set_report_public_location();
+  end if;
+end $$;
 
 -- The records already named above the species, re-blurred, tightening only.
 select tighten_reports(array(

@@ -1,5 +1,4 @@
 import "server-only";
-import type postgres from "postgres";
 import { sql } from "@/lib/db";
 import { UNIDENTIFIED_PRECISION } from "@conservation/shared";
 
@@ -31,6 +30,13 @@ import { UNIDENTIFIED_PRECISION } from "@conservation/shared";
  *     its exact spot, and an invasive-page report is treated like any other.
  *     A protected look-alike is still caught by its own rating once anyone
  *     names it, which re-blurs the record.
+ *
+ *   - The model's blur, when it is sure of a different species from the
+ *     reporter, is an override on a named record too, and kept by the same
+ *     rule (settleClassificationHold, classificationHold.ts). The 10 km a
+ *     named report with a photo is held at until the model has looked is NOT
+ *     an override: it is its own column, `held_for_classification`, which
+ *     nothing here reads or clears.
  *
  *   - On a report with no taxon, only the stamp's own value is a stamp. A hold
  *     STRICTER than the unidentified blur is a decision too: the route writes
@@ -76,55 +82,6 @@ export const keepDeliberateOverride = () =>
  */
 export const photoIdentificationOverride = (taxonId: number) =>
   sql`stricter_precision(${keepDeliberateOverride()}, binomial_precision_floor(${taxonId}))`;
-
-/**
- * Hold a record at the model's blur when the model, confident, names a
- * different species from the person who named it.
- *
- * The model's view used to be noted beside the person's and nothing more, on
- * the rule that they saw the animal and the model saw a photograph. That rule
- * was the loophole: a dead 石虎 filed as 家貓 was published at the cat's blur,
- * to the metre, and the only trace was a flag on a published record that no
- * page showed. So the record keeps the species the person gave, and is
- * blurred at least as hard as the model's species would be, at its binomial's
- * strictest (as when the model names one itself, photoIdentificationOverride).
- *
- * As an override, so that it outlives what comes after. Every later naming
- * keeps an override on a record that already has a taxon
- * (keepDeliberateOverride), so a re-pick, or a correction to the cat, leaves
- * the record at least where the model's answer put it. Loosening it is a
- * person's decision, made as one, not a side effect of renaming. It only ever
- * raises the override that is there.
- *
- * Two conditions on writing it at all:
- *
- *   - the model's species is blurred. An unrated one asks for nothing, and an
- *     'exact' written as an override would be a stamp that says nothing;
- *   - the blur the record ends with is no looser than the one it has. Writing
- *     `precision_override` re-runs the blur trigger, which derives the blur
- *     afresh from today's rules, and a record can be blurred harder than those
- *     say (tighten_reports, 0014, never loosens one whose rating was
- *     withdrawn). Such a record is already held past the model's species, and
- *     is left as it is.
- *
- * A statement rather than a fragment, because the second condition is a WHERE
- * and the two must never be used apart. `tx` is the caller's transaction, so
- * it commits or fails with the rest of the classification.
- */
-export const holdAtModelsBlur = (
-  tx: postgres.TransactionSql,
-  reportId: string,
-  modelTaxonId: number,
-) => tx`
-  with model as (select binomial_precision(${modelTaxonId}) as p)
-  update reports r
-     set precision_override = stricter_precision(r.precision_override, model.p)
-    from model
-   where r.id = ${reportId}::uuid
-     and precision_rank(model.p) > precision_rank('exact')
-     and precision_rank(report_precision(r.taxon_id,
-                                         stricter_precision(r.precision_override, model.p)))
-         >= precision_rank(r.location_precision)`;
 
 /**
  * The blur for a record the model only made suggestions for.
