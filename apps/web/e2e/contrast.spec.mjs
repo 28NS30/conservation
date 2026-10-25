@@ -30,7 +30,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { BASE, LOCALES, ROUTES, pathFor, resolveIds, routesFor } from "./routes.mjs";
-import { subsetOf } from "./a11y.spec.mjs";
+import { subsetOf, unvisited } from "./a11y.spec.mjs";
 
 /** The phone and the laptop. A page is two different documents at these widths. */
 export const CONTRAST_WIDTHS = [390, 1440];
@@ -252,6 +252,11 @@ async function main() {
   const { ids, notes } = await resolveIds();
   for (const n of notes) console.log(`  id   ${n}`);
   const { run, skipped } = routesFor("contrast", ids);
+  const missing = unvisited(only, run, skipped);
+  if (missing.length) {
+    for (const e of missing) console.error(`  ${e}`);
+    return 1;
+  }
   const routes = only.length ? run.filter((r) => only.includes(r.name)) : run;
   for (const s of skipped) console.log(`  skip ${s.name}: ${s.why}`);
 

@@ -126,6 +126,18 @@ export function subsetOf(env, routes, defaults) {
   return { only, widths: widths.length ? widths : defaults, partial: only.length > 0 || widths.length > 0, errors };
 }
 
+/**
+ * The names in ONLY that this run will not visit, each with routesFor's
+ * reason. subsetOf can only check ONLY against the route table; a route that
+ * later gains a skip, or a parameterised one that resolves no id, would drop
+ * out of the slice here and the slice would pass on fewer pages.
+ */
+export function unvisited(only, run, skipped) {
+  return only
+    .filter((name) => !run.some((r) => r.name === name))
+    .map((name) => `ONLY names ${name}, which this run skips: ${skipped.find((s) => s.name === name)?.why ?? "it is not in the run"}`);
+}
+
 async function main() {
   const { only, widths, partial, errors } = subsetOf(process.env, ROUTES, AXE_WIDTHS);
   if (partial && process.env.UPDATE_A11Y === "1")
@@ -137,6 +149,11 @@ async function main() {
   const { ids, notes } = await resolveIds();
   for (const n of notes) console.log(`  id   ${n}`);
   const { run, skipped } = routesFor("axe", ids);
+  const missing = unvisited(only, run, skipped);
+  if (missing.length) {
+    for (const e of missing) console.error(`  ${e}`);
+    return 1;
+  }
   const routes = only.length ? run.filter((r) => only.includes(r.name)) : run;
   for (const s of skipped) console.log(`  skip ${s.name}: ${s.why}`);
 
