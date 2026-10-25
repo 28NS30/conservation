@@ -205,6 +205,17 @@ jobs:
         # that look like product bugs.
         run: npm run test:offline
 
+      - name: Filing a report, and the card it leaves
+        # The one spec that submits the real form: a tap on the map and the
+        # submit button, on the wildlife page in both languages, then on the
+        # roadkill page (with its dead-or-hurt answer) and the invasive page.
+        # The browser's /api/reports is stubbed with each answer the route
+        # can give, so what is checked is the card: that its words describe
+        # the report just filed, that its link opens a real record (planted
+        # for the run and removed after), and what the roadkill and invasive
+        # pages add to it. It ran nowhere before this step.
+        run: npm run test:receipt --workspace @conservation/web
+
       - name: Every page renders in both locales
         # Catches what HTTP-level checks cannot: next-intl renders a missing
         # message as its own key path rather than throwing, so the page still

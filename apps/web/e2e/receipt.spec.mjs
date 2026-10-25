@@ -84,7 +84,16 @@ try {
   pendingId = held.id;
 
   const fresh = await servingCurrentCatalogue();
-  if (!fresh) {
+  if (!fresh && /^(1|true)$/i.test(process.env.CI ?? "")) {
+    // CI serves a production build of this checkout, which cannot hold an old
+    // catalogue. There the probe is what is out of date, and skipping every
+    // copy check over it would pass a run that checked half of what it says.
+    check(
+      "the server is serving the catalogue on disk",
+      false,
+      "servingCurrentCatalogue() no longer recognises /report/wildlife; update the words it looks for",
+    );
+  } else if (!fresh) {
     console.log(
       "\n  NOTE: the dev server is serving a stale message catalogue " +
         "(next dev does not reload messages/*.json). Copy checks are skipped; " +
