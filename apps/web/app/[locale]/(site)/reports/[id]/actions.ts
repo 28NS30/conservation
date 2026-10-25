@@ -5,6 +5,7 @@ import { sql } from "@/lib/db";
 import { currentRole } from "@/lib/auth";
 import { withinRateLimit } from "@/lib/abuse";
 import { photoIdentificationOverride } from "@/lib/report/precision";
+import { OFFERED } from "@/lib/species";
 
 /**
  * Confirm or correct a report's species.
@@ -27,8 +28,15 @@ import { photoIdentificationOverride } from "@/lib/report/precision";
  * the photograph actually showed. Harmless while nobody had a reason to want it;
  * the moment any reward attaches to a species, this is the endpoint that mints it.
  *
- * Moderators are deliberately unconstrained: the whole point of an expert
- * correction is that the classifier's five guesses were wrong.
+ * Moderators are not held to the five: the whole point of an expert
+ * correction is that the classifier's guesses were wrong. But they are held to
+ * a name a report can be filed under (OFFERED, lib/species.ts), as POST
+ * /api/reports and setReportTaxon are, or to one of the model's own
+ * candidates, which SpeciesConfirm shows them too. Until then a moderator
+ * could set any of the ~136k rows in `taxa`: a retired twin, unrated beside
+ * the row the law protects under a new name, or a genus. The species search
+ * a moderator types into offers only OFFERED names, so the screens do not
+ * change.
  *
  * A reporter who knows the species and does not see it listed has no path here.
  * That is a real loss — it is the highest-value correction of all — and the fix
@@ -77,6 +85,20 @@ export async function confirmSpecies(reportId: string, taxonId: number) {
        limit 1`;
     if (!candidate) {
       throw new Error("pick one of the suggested species");
+    }
+  } else {
+    // A candidate is named as the model's own answer would be, at its
+    // binomial's strictest (photoIdentificationOverride, below), so a retired
+    // row among them is blurred as its accepted twin.
+    const [taxon] = await sql<{ offered: boolean; candidate: boolean }[]>`
+      select ${sql.unsafe(OFFERED)} as offered,
+             exists (select 1 from classifications c
+                      where c.report_id = ${reportId}::uuid
+                        and c.taxon_id = t.id) as candidate
+        from taxa t where t.id = ${taxonId}`;
+    if (!taxon) throw new Error("taxon not found");
+    if (!taxon.offered && !taxon.candidate) {
+      throw new Error("not a name a report can be filed under");
     }
   }
 

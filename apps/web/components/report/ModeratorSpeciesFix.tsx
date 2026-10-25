@@ -10,9 +10,10 @@ import { confirmSpecies } from "@/app/[locale]/(site)/reports/[id]/actions";
 /**
  * A moderator names the species, whatever it is.
  *
- * confirmSpecies has always let a moderator set any species ("the whole point
- * of an expert correction is that the classifier's five guesses were wrong"),
- * but the only control on the page was the list of those five guesses. A
+ * confirmSpecies lets a moderator set any species a report can be filed
+ * under ("the whole point of an expert correction is that the classifier's
+ * five guesses were wrong"), but the only control on the page was the list of
+ * those five guesses. A
  * moderator who knew the animal and did not see it listed had no way to say
  * so. This is that way: a search over every animal on Taiwan's species list,
  * the same one the wildlife page's picker uses, and one button to save.
