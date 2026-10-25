@@ -87,9 +87,21 @@ describe("where each sent report stands", () => {
     // as a stranger, never as the signed-in reporter.
     assert.match(ROUTE, /asPublic\(/);
     assert.match(ROUTE, /from reports_public where id = any/);
-    assert.match(ROUTE, /receiptState\(id, null\)/);
+    assert.match(ROUTE, /heldAmong\(/);
+    const RECEIPT = read("lib", "receipt.ts");
+    const batch = RECEIPT.slice(RECEIPT.indexOf("export async function heldAmong"));
+    assert.match(batch, /r\.status === "pending"/, "the list answers only held, as receiptState does to a stranger");
+    assert.doesNotMatch(batch, /viewer|reporter_id|rejected/, "the list must never disclose a rejection");
+    assert.match(batch, /source = 'user'/);
     assert.doesNotMatch(ROUTE, /import \{[^}]*\bsql\b[^}]*\} from "@\/lib\/db"/, "no privileged read of its own");
     assert.doesNotMatch(ROUTE, /from reports\b(?!_public)/, "the base table is lib/receipt.ts's to read");
+  });
+
+  test("it is held to a budget per address, before it reads anything", () => {
+    assert.match(ROUTE, /withinBudgets\(\[/);
+    assert.match(ROUTE, /addressKey\(clientIp\(req\)\)/);
+    assert.ok(ROUTE.indexOf("withinBudgets(") < ROUTE.indexOf("asPublic("));
+    assert.doesNotMatch(ROUTE, /for \(const id of wanted\) \{\s*states\[id\] = [^;]*await/, "one read per id again");
   });
 });
 
