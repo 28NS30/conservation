@@ -552,13 +552,12 @@ export type SpeciesRecord = {
 /**
  * Individual records, for species too sparse to justify a heatmap.
  *
- * Each with its point, on a page cached for everybody, so from the cache the
- * writers drop (lib/siteFigures.ts): a record re-identified, blurred or thrown
- * out leaves the list when the reports change, not when the page next happens
- * to be rebuilt.
+ * Each with its point, so read afresh, never from the figures' cache: a point
+ * may be no older than the page it is on (lib/siteFigures.ts), and a cached
+ * copy could be five minutes old before the page was even made.
  */
-export const recentRecords = siteFigure("recentRecords", (taxonId: number, limit: number = 12): Promise<SpeciesRecord[]> =>
-  asPublic(
+export function recentRecords(taxonId: number, limit: number = 12): Promise<SpeciesRecord[]> {
+  return asPublic(
     (tx) => tx<SpeciesRecord[]>`
       select id, observed_at as "observedAt",
              st_y(location_public::geometry) as lat,
@@ -569,5 +568,5 @@ export const recentRecords = siteFigure("recentRecords", (taxonId: number, limit
        -- id breaks ties, so the same records are shown on every load.
        order by observed_at desc, id
        limit ${limit}`,
-  ),
-);
+  );
+}

@@ -34,12 +34,13 @@ const LIST_MAX_RECORDS = 5;
  * Five minutes is not what keeps a record off a page it has left. A sparse
  * species lists its records with their points, and a record re-identified as
  * a blurred species, or thrown out, must not stay listed under its old name
- * until somebody happens to ask twice. Everything below about records is read
- * through the cache tagged with the reports (getCachedSpecies, recentRecords,
+ * until somebody happens to ask twice. The taxon and its monthly counts are
+ * read through the cache tagged with the reports (getCachedSpecies,
  * monthlyCounts; lib/siteFigures.ts), so the page carries the tag, and every
- * writer that changes a record drops it at once. A blur tightened in the
- * database, where no writer runs, is bounded by `expireTime` in
- * next.config.ts instead.
+ * writer that changes a record drops it at once. The records' points are
+ * read afresh at each rebuild (recentRecords), never from that cache, so a
+ * blur tightened in the database, where no writer runs, is off the page
+ * within `expireTime` in next.config.ts.
  */
 export const revalidate = 300;
 

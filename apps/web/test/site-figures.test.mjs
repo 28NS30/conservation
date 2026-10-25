@@ -9,11 +9,16 @@
  * drops them, so a published record is counted on the next view rather than
  * five minutes later.
  *
- * The tag is also what drops a cached PAGE that shows records. A species page
- * lists a sparse species' records with their points; it is dropped when a
- * record leaves it only because what it read carries the tag. So every read
- * of the records a cached page makes, through every module it reaches, comes
- * through the tagged cache, and the walk below says which one does not.
+ * The tag is also what drops a cached PAGE that shows records: a page is
+ * dropped when a record on it changes only because something it read carries
+ * the tag. So every cached page that reads the records reads at least one of
+ * them through the tagged cache, and the walk below says which page does not.
+ *
+ * Except a record's point, which no cache may hold: a cached figure can be
+ * five minutes old when a page is made from it, and the page is served for
+ * ten more, so a blur tightened in the database stayed on a species page for
+ * fifteen minutes. Every read that places a record is made afresh, and the
+ * walk below says which one is behind a cache.
  *
  * Source-level: what matters is which function a page calls and which writer
  * says the reports changed. A rendered comparison would pass whether or not
@@ -54,9 +59,9 @@ describe("the site-wide figures are cached", () => {
   });
 
   for (const [file, names] of [
-    ["lib/stats.ts", ["recordedSpeciesCount", "checklistAnimalTaxaCount", "overview", "monthlyTotals", "yearlyTotals", "topSpecies", "mapEntrySpecies", "hotspots"]],
+    ["lib/stats.ts", ["recordedSpeciesCount", "checklistAnimalTaxaCount", "overview", "monthlyTotals", "yearlyTotals", "topSpecies", "mapEntrySpecies"]],
     ["lib/collections.ts", ["collectionTotals", "collectionSummary", "newestRecords", "invasiveSpeciesList"]],
-    ["lib/species.ts", ["monthlyCounts", "recentRecords"]],
+    ["lib/species.ts", ["monthlyCounts"]],
     ["lib/coverage.ts", ["coverage"]],
   ])
     test(`${file}: ${names.join(", ")}`, () => {
@@ -65,15 +70,19 @@ describe("the site-wide figures are cached", () => {
         assert.match(src, new RegExp(`export const ${name} = siteFigure\\(\\s*"${name}",`), name);
     });
 
-  test("the anniversary ledger too, under the day it is for", () => {
-    // It moves with the date, so the date is in the key, and the window is
-    // drawn around that date rather than around whenever the entry was made.
+  test("the anniversary ledger and the hotspots, which place records, afresh, and none when the database fails", () => {
+    // The ledger's window is drawn around Taipei's date, passed in, rather
+    // than around the database's now().
     const src = code("lib/stats.ts");
-    assert.match(src, /export function anniversaryLedger\(limit = 12\)[\s\S]*?timeZone: "Asia\/Taipei"[\s\S]*?return ledgerAround\(today, limit\);/);
-    assert.match(src, /const ledgerAround = siteFigure\("anniversaryLedger", \(day: string, limit: number\)/);
-    const ledger = src.slice(src.indexOf("const ledgerAround"));
+    assert.match(src, /export function anniversaryLedger\(limit = 12\)[\s\S]*?timeZone: "Asia\/Taipei"[\s\S]*?return freshPoints\("anniversaryLedger", \(\) => ledgerAround\(today, limit\)\);/);
+    const ledger = src.slice(src.indexOf("function ledgerAround"));
     assert.match(ledger, /generate_series\(\s*\$\{day\}::date - 3,\s*\$\{day\}::date \+ 3,/);
     assert.doesNotMatch(ledger.slice(0, ledger.indexOf("limit ${limit}")), /now\(\)/);
+    assert.match(src, /export function hotspots\(limit: number = 8\): Promise<Hotspot\[\]> \{\s*return freshPoints\("hotspots", \(\) => asPublic\(/);
+    // No points rather than an error: a rebuild that throws keeps the old
+    // page, and the old page has the old points.
+    const fresh = code("lib/siteFigures.ts");
+    assert.match(fresh, /export async function freshPoints<R>\(name: string, read: \(\) => Promise<R\[\]>\): Promise<R\[\]> \{\s*try \{\s*return await read\(\);\s*\} catch \(e\) \{[\s\S]*?return \[\];\s*\}\s*\}/);
   });
 
   test("the home page, the map and the list read their counts from the cached overview", () => {
@@ -131,16 +140,22 @@ describe("everything that changes the reports drops them", () => {
 });
 
 /* ------------------------------------------------------------------ *
- * Every cached page's reads of the records carry the tag
+ * Every cached page's reads of the records carry the tag, and no cache
+ * holds a record's point
  * ------------------------------------------------------------------ */
 
 /** A read of the public records, or of the table under them. */
 const READS_RECORDS = /\b(?:reports_public|reports_published|species_report_stats)\b|\b(?:from|join)\s+reports\b/;
 /** A declaration that is a read through the tagged cache. */
 const TAGGED = /^(?:export\s+)?const\s+[\w$]+\s*=\s*(?:cache\(\s*)?siteFigure\(/;
+/** A declaration that caches what it reads, through the figures or not. */
+const CACHED = /\b(?:siteFigure|unstable_cache)\(|^\s*["']use cache["']/m;
+/** A read that hands back where a record is: a latitude or a longitude. */
+const PLACES_RECORDS = /\bas\s+"?(?:lat|lng)"?\b/;
 /**
- * Reads of the records a cached page may make outside the tag, each with why
- * it cannot hold anything a re-identification or a blur would change.
+ * Reads of the records a cached page may make without a tagged one beside
+ * them, each with why it cannot hold anything a re-identification or a blur
+ * would change.
  */
 const UNTAGGED = new Map([
   // Cached on its own for five minutes, untagged. It answers whether any person
@@ -242,6 +257,48 @@ function untaggedRead(file, asked, trail, seen) {
   return null;
 }
 
+/**
+ * The first declaration `name` reaches, itself included, for which
+ * `found(key, text)` holds, as the path to it, or null. Follows declarations
+ * and imports as untaggedRead does; does not go past one for which
+ * `stop(key, text)` holds, nor into the browser's modules.
+ */
+function reaches(file, asked, { found, stop = () => false }, trail = [], seen = new Set()) {
+  const mod = parse(file);
+  if (mod.client) return null;
+  const name = asked === "default" ? (mod.defaultName ?? asked) : asked;
+  const key = `${relative(WEB, file)}#${name}`;
+  if (seen.has(key)) return null;
+  seen.add(key);
+  const text = mod.decls.get(name);
+  if (text === undefined) {
+    const re = mod.reexports.get(name);
+    const target = re && resolveModule(file, re.spec);
+    return target ? reaches(target, re.imported, { found, stop }, trail, seen) : null;
+  }
+  const here = [...trail, key];
+  if (found(key, text)) return here.join(" -> ");
+  if (stop(key, text)) return null;
+  for (const id of new Set(text.match(/[A-Za-z_$][\w$]*/g))) {
+    if (id === name || id === "default") continue;
+    let hit = null;
+    if (mod.decls.has(id)) hit = reaches(file, id, { found, stop }, here, seen);
+    else if (mod.imports.has(id)) {
+      const { spec, imported } = mod.imports.get(id);
+      const target = resolveModule(file, spec);
+      if (target) hit = reaches(target, imported, { found, stop }, here, seen);
+    }
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/** Where `name` in `file` reads through the tagged cache, or null. */
+const taggedRead = (file, name) => reaches(file, name, { found: (_, text) => TAGGED.test(text) });
+
+/** Where something `name` in `file` reaches places a record, or null. */
+const placesRecords = (file, name) => reaches(file, name, { found: (_, text) => PLACES_RECORDS.test(text) });
+
 function pageFiles(dir) {
   const out = [];
   for (const entry of readdirSync(dir)) {
@@ -294,6 +351,17 @@ function untaggedReads(file) {
   return out;
 }
 
+/** Every .ts and .tsx file under `dir`. */
+function sourceFiles(dir) {
+  const out = [];
+  for (const entry of readdirSync(dir)) {
+    const p = join(dir, entry);
+    if (statSync(p).isDirectory()) out.push(...sourceFiles(p));
+    else if (/\.tsx?$/.test(entry)) out.push(p);
+  }
+  return out;
+}
+
 describe("every cached page reads the records through the tag", () => {
   test("the walk finds the cached pages, and only those", () => {
     const pages = cachedPages().map((p) => relative(WEB, p));
@@ -328,10 +396,77 @@ describe("every cached page reads the records through the tag", () => {
     assert.equal(untaggedRead(species, "getCachedSpecies", [], new Set()), null);
   });
 
-  test("no cached page, or the layouts it renders in, reads the records outside the tag", () => {
+  test("the walk sees a tagged read, and sees there is none", () => {
+    // The control for the rule below: the species page reads its taxon
+    // through the tag, and the bare-id redirect, rendered per request, reads
+    // nothing through it.
+    const species = join(WEB, "app", "[locale]", "(site)", "species", "[id]", "page.tsx");
+    assert.match(taggedRead(species, "default") ?? "", /lib\/species\.ts#getCachedSpecies$/);
+    const byId = join(WEB, "app", "[locale]", "(site)", "species", "by-id", "[id]", "page.tsx");
+    assert.equal(taggedRead(byId, "default"), null);
+  });
+
+  test("a cached page that reads the records outside the tag reads something through it too", () => {
+    // An untagged read is how a point is read, afresh, and it is fine on a
+    // page that carries the tag through another read: the writers drop the
+    // page with that one. On a page with no tagged read at all, nothing but
+    // the page's own lifetime would drop it when a record changes.
     const pages = cachedPages();
     assert.ok(pages.length >= 12, `only ${pages.length} cached pages found; is the walk broken?`);
-    const files = [...new Set(pages.flatMap((p) => [p, ...layoutsOf(p)]))];
-    assert.deepEqual(files.flatMap((f) => untaggedReads(f)), []);
+    const untagged = [];
+    const riding = [];
+    for (const page of pages) {
+      const files = [page, ...layoutsOf(page)];
+      const reads = files.flatMap((f) => untaggedReads(f));
+      if (reads.length === 0) continue;
+      const tagged = files.flatMap((f) => [...parse(f).decls.keys()]
+        .filter((n) => n !== "generateStaticParams")
+        .map((n) => taggedRead(f, n))
+        .filter(Boolean));
+      if (tagged.length === 0) untagged.push(...reads);
+      else riding.push(relative(WEB, page));
+    }
+    assert.deepEqual(untagged, []);
+    // The control: /stats reads its hotspots afresh, beside its tagged counts.
+    assert.ok(riding.includes("app/[locale]/(site)/stats/page.tsx"), `the walk saw no untagged read on /stats: ${riding}`);
+  });
+});
+
+describe("no cache holds a record's point", () => {
+  const files = [...sourceFiles(join(WEB, "lib")), ...sourceFiles(join(WEB, "app"))];
+
+  test("the walk finds the reads that place records", () => {
+    // The control: each of these hands back a latitude and a longitude, and
+    // the walk sees through the helper that reads two of them.
+    const found = [];
+    for (const file of files)
+      for (const [name, text] of parse(file).decls)
+        if (PLACES_RECORDS.test(text)) found.push(`${relative(WEB, file)}#${name}`);
+    for (const read of ["lib/species.ts#recentRecords", "lib/stats.ts#ledgerAround", "lib/stats.ts#hotspots"])
+      assert.ok(found.includes(read), `${read} no longer places records; is the pattern wrong?`);
+    assert.match(placesRecords(join(WEB, "lib", "stats.ts"), "anniversaryLedger") ?? "", /lib\/stats\.ts#ledgerAround$/);
+  });
+
+  test("none of them is read through a cache, directly or through anything it calls", () => {
+    // A cached figure can be five minutes old when a page is made from it,
+    // and the page is served for ten more: a point read through one stayed
+    // on a species page fifteen minutes after its blur was tightened.
+    const cachedPoints = [];
+    for (const file of files)
+      for (const [name, text] of parse(file).decls) {
+        if (!CACHED.test(text)) continue;
+        const hit = placesRecords(file, name);
+        if (hit) cachedPoints.push(hit);
+      }
+    assert.deepEqual(cachedPoints, []);
+  });
+
+  test("and the walk would see one that is", () => {
+    // The control: a figure the walk knows is cached, and one that reaches a
+    // point read, so the two halves of the rule above are both seen.
+    const stats = join(WEB, "lib", "stats.ts");
+    assert.ok(CACHED.test(parse(stats).decls.get("overview")), "overview is no longer seen as cached");
+    assert.equal(placesRecords(stats, "overview"), null);
+    assert.ok(placesRecords(stats, "hotspots"));
   });
 });

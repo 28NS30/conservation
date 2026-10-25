@@ -15,34 +15,41 @@ import { revalidateTag, unstable_cache } from "next/cache";
  * `reportsChanged()` wherever the reports change. A page built from one also
  * carries the tag, so a cached page is rebuilt with it.
  *
- * Which is why a cached page that shows records reads them through here even
- * where the read is cheap: a species page's taxon, its monthly counts and its
- * list of records with their points (lib/species.ts), a collection's newest
- * records. The tag on what a page read is the only thing that drops the page
- * when a record is re-identified, blurred or thrown out; without it the page
- * kept the record's old point until it next happened to be rebuilt.
- * test/site-figures.test.mjs walks every cached page for a read of the
- * records that does not come through here.
+ * Which is why a cached page that shows records reads something through
+ * here even where the read is cheap: a species page's taxon and its monthly
+ * counts (lib/species.ts), a collection's newest records. The tag on what a
+ * page read is the only thing that drops the page when a record is
+ * re-identified, blurred or thrown out.
  *
- * Five minutes is a figure's age when it is used, not how long a page may
- * show it. A page rebuilt from one keeps it for its own `revalidate`, and is
- * served for at most `expireTime` (next.config.ts) from when it was made.
- * Rebuilding a page waits for its stale figures to be read again rather than
- * reusing them, so the two do not chain: when the rebuild's reads succeed, a
- * blur tightened in the database, where no writer calls `reportsChanged()`,
- * is off every page within those ten minutes and these five.
+ * Except a record's point, which is never read through here. A figure may be
+ * up to five minutes old when a page is rebuilt from it, and the page is then
+ * served for up to ten more (`expireTime`, next.config.ts): a point read
+ * through the cache kept a blur tightened in the database, where no writer
+ * calls `reportsChanged()`, on a species page for fifteen minutes. So every
+ * read that places a record (the hotspots, the anniversary ledger, a sparse
+ * species' list) is made afresh, through freshPoints() below or per request,
+ * and is never older than the page it is on; the page carries the tag through
+ * the other figures it reads. test/site-figures.test.mjs walks every cached
+ * page for a read of the records that comes through neither, for a page whose
+ * untagged reads ride on no tagged one, and for a point behind any cache.
  *
- * When they fail, it is not. A stale figure whose read fails, a database
- * timeout say, is handed to the rebuild anyway (Next logs "revalidating
- * cache with key"), and the page made from it is cached as if it were
- * fresh, old points and all, until it is next rebuilt; the figure stays
- * stale, so that rebuild reads it again. A rebuild that throws, as one does
- * when a figure it has no copy of cannot be read, leaves the previous page
- * in place, stored afresh for thirty seconds, and the first visit after
- * those tries again. Either way an old point outlasts the bound for as long
- * as the database keeps failing, and goes at the first rebuild after it
- * recovers. A re-blur made during an outage wants a deploy
- * (docs/launch-checklist.md).
+ * When the database fails, the page bound needs that too. A rebuild that
+ * throws keeps the previous page: Next stores it again with a `revalidate` of
+ * thirty seconds and an `expire` of ten minutes from then, so every failed
+ * retry, one a visit at most every thirty seconds, serves the old copy for up
+ * to ten minutes more, and a page past its expire whose blocking rebuild
+ * fails is put back the same way (response-cache/index.js,
+ * retainPreviousCacheEntry). A cached figure does not throw once it has a
+ * copy: a stale one whose read fails is handed to the rebuild as it was (Next
+ * logs "revalidating cache with key"). So the reads that can make a rebuild
+ * throw are the uncached ones, and the ones that place records answer no
+ * points rather than throw: the rebuild succeeds, and the old points go with
+ * the old page, at the bound, outage or not. What the bound then does not
+ * cover is a page whose rebuild throws anyway, which is a page with a cached
+ * figure it has no copy of at all (the data cache evicted it, or it was never
+ * read on this deployment) while the database is down: that page keeps its
+ * old copy until a rebuild succeeds. A re-blur made during an outage wants a
+ * deploy (docs/launch-checklist.md).
  *
  * Only for what is the same for every reader: what is cached here is served
  * to anyone who asks. Nothing that depends on who is looking, and nothing
@@ -67,6 +74,25 @@ export function siteFigure<A extends unknown[], R>(
 }
 
 /**
+ * A read that places records, `read`, made afresh each time it is asked; and
+ * no records at all when the database cannot answer.
+ *
+ * Afresh, because a point may be no older than the page it is on (above).
+ * None rather than an error, because an error is what keeps an old page, old
+ * points and all: a page whose rebuild throws is stored again as it was. With
+ * nothing to place, the rebuild succeeds and the page shows no places until
+ * it is next rebuilt, five minutes on at most.
+ */
+export async function freshPoints<R>(name: string, read: () => Promise<R[]>): Promise<R[]> {
+  try {
+    return await read();
+  } catch (e) {
+    console.error(`[${name}] no records placed, the database did not answer:`, (e as Error).message);
+    return [];
+  }
+}
+
+/**
  * Drop every cached figure, and every cached page built from one, after a
  * report is published, rejected, given another species, or blurred.
  *
@@ -81,9 +107,9 @@ export function siteFigure<A extends unknown[], R>(
  * again for five minutes.
  *
  * A change made in the database itself, a migration's re-blur or a floor,
- * calls nothing. It reaches every page within fifteen minutes while the
- * database answers (above); when it cannot wait that long, a production
- * deploy is the purge.
+ * calls nothing. Its points are off every page within ten minutes, and its
+ * counts within fifteen (above); when that cannot wait, a production deploy
+ * is the purge.
  */
 export function reportsChanged(): void {
   revalidateTag(REPORTS_TAG, { expire: 0 });

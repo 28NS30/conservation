@@ -1,6 +1,6 @@
 import { asPublic } from "@/lib/db";
 import { countSpecies } from "@/lib/species";
-import { siteFigure } from "@/lib/siteFigures";
+import { freshPoints, siteFigure } from "@/lib/siteFigures";
 
 /**
  * Aggregates behind /stats.
@@ -13,8 +13,9 @@ import { siteFigure } from "@/lib/siteFigures";
  *
  * The site-wide figures are cached for everybody (lib/siteFigures.ts): the
  * same for every reader, full passes over the view, and changed only by a
- * new or re-identified record. The anniversary ledger too, under the day it
- * is for, because it moves with the date.
+ * new or re-identified record. Not the two that place records, the
+ * anniversary ledger and the hotspots: a point may be no older than the page
+ * it is on, so they are read afresh each time a page is built from them.
  */
 
 /**
@@ -204,18 +205,22 @@ export type LedgerRow = {
  * a database they are unremarkable exact records there, and the ledger may show
  * them.
  *
- * Its rows are records with their points, on a cached page, so it is cached
- * under the reports' tag like the figures (lib/siteFigures.ts) and leaves the
- * page when a record is re-identified or blurred. Keyed by Taipei's date,
- * which is what the window is drawn around: the same for everybody all day.
+ * Its rows are records with their points, on a cached page, so it is read
+ * afresh each time the page is built, never from the figures' cache
+ * (freshPoints, lib/siteFigures.ts): an exact record blurred in the database
+ * leaves the ledger with the page that showed it, ten minutes at most, where
+ * a cached copy could keep it for fifteen. The page drops it at once when a
+ * writer says the reports changed, through the tagged figures it also reads.
+ * The window is drawn around Taipei's date, which is passed in rather than
+ * read from now(): the same for everybody all day.
  */
 export function anniversaryLedger(limit = 12): Promise<LedgerRow[]> {
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Taipei" });
-  return ledgerAround(today, limit);
+  return freshPoints("anniversaryLedger", () => ledgerAround(today, limit));
 }
 
-const ledgerAround = siteFigure("anniversaryLedger", (day: string, limit: number): Promise<LedgerRow[]> =>
-  asPublic(
+function ledgerAround(day: string, limit: number): Promise<LedgerRow[]> {
+  return asPublic(
     (tx) => tx<LedgerRow[]>`
       with near as (
         select r.id::text,
@@ -251,8 +256,8 @@ const ledgerAround = siteFigure("anniversaryLedger", (day: string, limit: number
        -- id breaks ties between records of the same day.
        order by "observedAt" desc, id
        limit ${limit}`,
-  ),
-);
+  );
+}
 
 export type Hotspot = {
   lng: number;
@@ -279,9 +284,15 @@ const HOTSPOT_CELL_M = 5000;
  *
  * Grouping is on integer cell indices rather than a snapped geometry so the
  * aggregation never depends on PostGIS geometry equality.
+ *
+ * Each hotspot places the records in it to 5 km, and an exact record blurred
+ * in the database must leave its cell with the page that counted it. So it
+ * is read afresh each time /stats is built, not from the figures' cache
+ * (freshPoints, lib/siteFigures.ts): a full pass over the view, at most once
+ * in five minutes, since the page is cached and rebuilt no more often.
  */
-export const hotspots = siteFigure("hotspots", (limit: number = 8): Promise<Hotspot[]> =>
-  asPublic(
+export function hotspots(limit: number = 8): Promise<Hotspot[]> {
+  return freshPoints("hotspots", () => asPublic(
     (tx) => tx<Hotspot[]>`
       with cells as (
         select floor(st_x(geom_3857) / ${HOTSPOT_CELL_M})::int as gx,
@@ -320,5 +331,5 @@ export const hotspots = siteFigure("hotspots", (limit: number = 8): Promise<Hots
         left join dominant d on d.gx = t.gx and d.gy = t.gy
         left join taxa tx_ on tx_.id = d.taxon_id
        order by t.n desc`,
-  ),
-);
+  ));
+}
