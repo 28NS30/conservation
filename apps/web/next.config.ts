@@ -78,6 +78,22 @@ const config: NextConfig = {
   // The shared package ships TypeScript source rather than a build artifact.
   transpilePackages: ["@conservation/shared"],
   /**
+   * A bare species id, `/species/32116`, goes to a page that redirects it to
+   * the slug per request (app/[locale]/(site)/species/by-id), rather than to
+   * the cached species page, which would answer its first visitor with the
+   * Location header twice. Both spellings of the path, because which one a
+   * rewrite here sees, the address as asked or as the proxy rewrote it for
+   * the default locale, is Next's business.
+   */
+  async rewrites() {
+    return {
+      beforeFiles: [
+        { source: "/:locale(zh-TW|en)/species/:id(\\d+)", destination: "/:locale/species/by-id/:id" },
+        { source: "/species/:id(\\d+)", destination: "/zh-TW/species/by-id/:id" },
+      ],
+    };
+  },
+  /**
    * `/:path*{/}?` is every path, with or without a trailing slash.
    *
    * `X-Frame-Options: DENY` rather than SAMEORIGIN: nothing here is meant to be

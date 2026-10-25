@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { asPublic, sql } from "@/lib/db";
@@ -126,10 +126,11 @@ export default async function SpeciesPage({
   const s = await getSpecies(taxonId);
   if (!s) notFound();
 
-  // Canonicalise `/species/32116` to `/species/32116-prionailurus-bengalensis`.
-  const canonical = speciesSlug(s);
-  if (id !== canonical)
-    redirect(`/${locale}/species/${canonical}`.replace("/zh-TW/", "/"));
+  // A bare id never gets here: it is rewritten to species/by-id, which
+  // redirects to the slug (see there for why the redirect is not made in this
+  // cached page). A slug that is not the taxon's own, an old one from before a
+  // rename, is shown as the page it names; the page's canonical link
+  // (generateMetadata) points at the right address.
 
   const t = await getTranslations("species");
   const nav = await getTranslations("nav");

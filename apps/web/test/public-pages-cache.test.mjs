@@ -196,6 +196,37 @@ describe("served from the cache", () => {
     }
   });
 
+  test("a bare species id redirects with one Location, even on its first visit", async (t) => {
+    // A cached page that redirects sends Location twice on the render that
+    // fills its cache, and fetch follows "a, a" to a 404. So a bare id is
+    // redirected per request, by species/by-id. Each run asks for ids nobody
+    // has asked for yet on this server, which is the case that broke.
+    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    const rows = await sql`
+      select t.id from taxa t join species_report_stats s on s.taxon_id = t.id
+       order by s.report_count desc, t.id
+       offset ${100 + Math.floor(Math.random() * 200)} limit 2`;
+    for (const [prefix, r] of [["", rows[0]], ["/en", rows[1]]]) {
+      const res = await fetch(`${BASE_URL}${prefix}/species/${r.id}`, { redirect: "manual" });
+      assert.equal(res.status, 307, `${prefix}/species/${r.id}`);
+      const location = res.headers.get("location") ?? "";
+      assert.match(location, new RegExp(`^${prefix}/species/${r.id}-[a-z0-9-]+$`), location);
+      const followed = await fetch(`${BASE_URL}${prefix}/species/${r.id}`);
+      assert.equal(followed.status, 200, followed.url);
+    }
+  });
+
+  test("a slug that is not the taxon's own shows the page, with the right canonical", async (t) => {
+    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    const path = await aSpecies(0);
+    const id = /\/species\/(\d+)-/.exec(path)[1];
+    const res = await fetch(`${BASE_URL}/en/species/${id}-an-old-name`, { redirect: "manual" });
+    assert.equal(res.status, 200);
+    const html = await res.text();
+    const canonical = /<link rel="canonical" href="([^"]+)"/.exec(html)?.[1] ?? "";
+    assert.ok(canonical.endsWith(path), `canonical is ${canonical}, not ${path}`);
+  });
+
   test("somebody's own pages are not", async (t) => {
     if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
     const [r] = await sql`select id from reports_public limit 1`;
