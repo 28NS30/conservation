@@ -10,8 +10,10 @@ version: 2
 updates:
   # One lockfile at the root serves every workspace (apps/web, apps/biowatch,
   # packages/shared, scripts), so one entry covers them all. Minor and patch
-  # bumps come as a single pull request a week; a major version comes on its
-  # own, because it is the kind that needs code changes.
+  # bumps come as a single pull request a week. Major versions are not opened
+  # here: the first run offered TypeScript 7 and ESLint 10, each a migration
+  # someone has to plan, not a bump to merge on a green check. A security fix
+  # still arrives through the "Dependabot security updates" setting.
   - package-ecosystem: npm
     directory: /
     schedule:
@@ -20,20 +22,33 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
+  # All the workflows' actions in one pull request a month, so a bump lands
+  # as one CI run rather than four that each edit the same files.
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
       timezone: Asia/Taipei
+    groups:
+      actions:
+        patterns: ["*"]
 
   # The classifier's versions are pinned to the ones its thresholds were
   # measured with (apps/web/lib/report/classifier-thresholds.json). A bump here
   # is a new model as far as those numbers are concerned: re-run
   # `apps/ml/evaluate.py --fit --write` before merging one, and make the same
   # change in apps/ml/modal_app.py, which Dependabot does not read.
+  #
+  # So no routine version updates are opened (a limit of 0 turns them off).
+  # Security updates still come through the repository's security-updates
+  # setting, and those also need the re-run before merging.
   - package-ecosystem: pip
     directory: /apps/ml
     schedule:
       interval: monthly
       timezone: Asia/Taipei
+    open-pull-requests-limit: 0
