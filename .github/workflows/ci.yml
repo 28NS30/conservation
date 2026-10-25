@@ -29,6 +29,20 @@ jobs:
       - name: Classifier contract tests
         run: python -m unittest discover -s apps/ml -p "test_*.py" -v
 
+  audit:
+    # Known advisories in what ships: dependencies, not devDependencies, at
+    # high or critical. Reads package-lock.json and asks the registry, so it
+    # needs no install and no database, and runs beside the suite rather than
+    # in front of it.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: npm audit, production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
   test:
     runs-on: ubuntu-latest
 
