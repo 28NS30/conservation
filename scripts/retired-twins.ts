@@ -10,7 +10,13 @@
  * preflight.ts and test/stricter-wins.test.mjs fail on the same pairs; this
  * says what each one is, so the owner can decide its floor: both names, both
  * rules, whether TaiCOL's own successor id or only a name links them, and how
- * many records the name in use and the rows under it hold.
+ * many published records the name in use and the rows under it hold, which
+ * are the ones a floor would blur further.
+ *
+ * Published records only, from reports_public. It runs against production
+ * and its output goes into pull requests, beside retired names that may be
+ * rated 座標不開放; a count from `reports` would say such a taxon has been
+ * recorded, which is what that rating withholds (as in import-english-names).
  *
  * `--from` takes the successor ids from a snapshot instead of
  * taxa.new_taicol_id, for a database that does not have them yet: one where
@@ -58,7 +64,7 @@ select x.retired_taicol_id, d.common_name_zh as retired_name_zh,
        x.retired_scientific_name, x.retired_precision,
        x.taicol_id, n.common_name_zh as name_zh, x.scientific_name, x.precision,
        x.by_successor,
-       (select count(*)::int from reports r
+       (select count(*)::int from reports_public r
          where r.taxon_id in (select taxon_and_inheritors(x.taicol_id))) as records
   from (${retiredTwinsSql(successors)}) x
   join taxa d on d.taicol_id = x.retired_taicol_id
@@ -89,7 +95,7 @@ async function main() {
     for (const r of rows) {
       console.log(
         `${r.taicol_id} ${r.name_zh ?? ""} ${r.scientific_name} (${r.precision}, ` +
-          `${r.records} record${r.records === 1 ? "" : "s"})  <  ` +
+          `${r.records} published record${r.records === 1 ? "" : "s"})  <  ` +
           `${r.retired_taicol_id} ${r.retired_name_zh ?? ""} ${r.retired_scientific_name} ` +
           `(${r.retired_precision})  ${r.by_successor ? "TaiCOL's successor" : "same name"}`,
       );
@@ -97,7 +103,7 @@ async function main() {
     console.log(
       rows.length === 0
         ? "No name in use is blurred less than a retired row it replaced."
-        : `\n${rows.length} pair(s) need a floor in scripts/taxa-overrides.csv, or the owner's decision that they do not.`,
+        : `\n${rows.length} pair(s) need a floor in scripts/taxa-overrides.csv, or the owner's decision against one in NO_FLOOR (taxa-overrides.ts).`,
     );
     process.exitCode = rows.length === 0 ? 0 : 1;
   } finally {

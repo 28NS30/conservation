@@ -173,6 +173,15 @@ describe("the successor ids, for rows imported before 0034", () => {
     });
   });
 
+  test("and the check counts and names published records only", () => {
+    // It runs against production and its output is pasted into pull requests,
+    // beside retired names that may be rated 座標不開放. `reports` holds the
+    // suppressed records; reports_public does not.
+    const src = readFileSync(join(ROOT, "scripts", "retired-twins.ts"), "utf8");
+    assert.doesNotMatch(src, /\b(?:from|join)\s+reports\b(?!_public)/i, "retired-twins.ts reads reports");
+    assert.match(src, /\bfrom reports_public\b/);
+  });
+
   test("and the check reads them from a snapshot where the column is empty", async () => {
     // How production was checked before 0034 reached it: the snapshot's ids,
     // the database's ratings and floors.
