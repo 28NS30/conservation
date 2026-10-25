@@ -1,5 +1,30 @@
 name: CI
 
+# Every pull request and every push to main. A green run says:
+#
+#   - every migration applies to a fresh PostGIS cluster that has Supabase's
+#     three API roles and the default grants Supabase gives them, so the
+#     revokes that keep exact coordinates away from the REST API (0013, 0024)
+#     are tested against the shape production started from, and once they
+#     have run none of those grants reaches anything PUBLIC cannot
+#     (supabase/ci-roles-check.sql);
+#   - the unit suite skipped no more tests than ALLOWED_SKIPS below, which is
+#     none, and a test that needs the server failed rather than skipped when
+#     it was not there (requireServer, apps/web/test/helpers.mjs);
+#   - the browser specs passed against a production build, the real report
+#     form's submit among them, with axe and WCAG AA contrast on the pages a
+#     reporter uses at a phone's width and the map's JavaScript within the
+#     budget recorded from a build like this one;
+#   - no production dependency carries a high or critical advisory.
+#
+# The full axe and contrast sweeps, every route at two widths, and the
+# screenshot gallery run nightly in gallery.yml. docs/qa-harness.md says what
+# runs where and why.
+#
+# Waiting for a server is a curl loop, not wait-on: curl is on every runner,
+# asks with GET (the Supabase Auth stand-in does not answer HEAD), and leaves
+# nothing for npx to resolve before the first request.
+
 on:
   push:
     branches: [main]
@@ -29,6 +54,20 @@ jobs:
       - name: Classifier contract tests
         run: python -m unittest discover -s apps/ml -p "test_*.py" -v
 
+  audit:
+    # Known advisories in what ships: dependencies, not devDependencies, at
+    # high or critical. Reads package-lock.json and asks the registry, so it
+    # needs no install and no database, and runs beside the suite rather than
+    # in front of it.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: npm audit, production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
   test:
     runs-on: ubuntu-latest
 
@@ -56,14 +95,37 @@ jobs:
 
       - run: npm ci
 
+      - name: Create Supabase's API roles
+        # anon, authenticated and service_role, and the ALL that Supabase
+        # grants the first two on whatever `postgres` creates in public.
+        # Without them 0013 and 0024 had nothing to revoke here, and the
+        # thirty tests of what the REST API's roles can reach (reports and its
+        # exact points, the public views, the site's functions, every forum
+        # table) skipped on every run. The file refuses any cluster but this
+        # empty one, and says what it leaves out.
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f supabase/ci-roles.sql
+
       - name: Apply migrations
         # The migrations are written to run on a vanilla PostGIS cluster as well as
-        # on Supabase — Supabase-only objects sit behind DO-block guards.
+        # on Supabase — Supabase-only objects sit behind DO-block guards. The
+        # guards that test for a role now find one, so the blocks behind them
+        # run here too; the ones that call auth.uid() also test for the auth
+        # schema, which this cluster does not have.
         run: |
           for f in supabase/migrations/*.sql; do
             echo "--- $f"
             psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$f"
           done
+
+      - name: The migrations took back what the API roles were given
+        # The roles step opened everything `postgres` creates in public to
+        # anon and authenticated, and 0013 and 0024 are what close it again.
+        # If either stopped doing so, or a later migration gave one of the
+        # three roles a default, a table, a column or a function, this finds
+        # it: a default left behind would open every table made after it to
+        # the anon key, on production too. The file says the one kind of
+        # grant it lets stay, and why.
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f supabase/ci-roles-check.sql
 
       - name: Load test fixture
         # A committed slice of real TaiCOL + TaiRON data. CI must not hit the live
@@ -107,11 +169,12 @@ jobs:
         # way GoTrue does; apps/web/test/stub-gotrue.mjs says which. Locally
         # the same tests run against the real local Supabase stack instead.
         #
-        # http-get, not http: wait-on otherwise asks with HEAD, which the
-        # stand-in does not answer.
+        # Up to 30 tries a second apart, quietly; then once more aloud, so a
+        # stand-in that never came up fails the step with curl's own reason.
         run: |
           node apps/web/test/stub-gotrue.mjs &
-          npx wait-on http-get://127.0.0.1:54321/auth/v1/health --timeout 30000
+          for i in $(seq 30); do curl -fs -o /dev/null --max-time 5 http://127.0.0.1:54321/auth/v1/health && break; sleep 1; done
+          curl -fsS -o /dev/null --max-time 5 http://127.0.0.1:54321/auth/v1/health
 
       - name: Start server
         run: |
@@ -127,11 +190,45 @@ jobs:
           # /api/health queries through asPublic(), so a 200 from it means a
           # real round-trip to Postgres has completed. Same lesson as the QA
           # harness: a check that passes against a server which is not serving
-          # is worse than no check.
-          npx wait-on http://localhost:3000/api/health --timeout 90000
+          # is worse than no check. -f makes anything but a 2xx a failure, so a
+          # health check answering 500 is waited out like a closed port.
+          for i in $(seq 90); do curl -fs -o /dev/null --max-time 5 http://localhost:3000/api/health && break; sleep 1; done
+          curl -fsS -o /dev/null --max-time 5 http://localhost:3000/api/health
 
       - name: Tests (privacy invariants, tile contract, shared logic)
-        run: npm test
+        # A skipped test is printed beside the passes and read as one, so the
+        # step fails when more tests skip than ALLOWED_SKIPS. That is none:
+        # the roles above, the Auth stand-in and the fixture give every test
+        # what it asks for, and one that needs the server throws here rather
+        # than skipping (requireServer). Before this, 36 skipped on every run,
+        # 30 of them the checks of what anon and authenticated can reach. A
+        # test that has to skip in CI raises the number in the same commit,
+        # with its name and its reason in docs/qa-harness.md.
+        #
+        # The count is read off node's own summary, in either of its formats:
+        # TAP ("# skipped 2"), which node 22 prints when the output is not a
+        # terminal, and spec ("ℹ skipped 2"), its default from node 23 on. No
+        # summary at all fails too: then nothing says what ran.
+        env:
+          ALLOWED_SKIPS: "0"
+        shell: bash
+        run: |
+          set +e
+          npm test 2>&1 | tee "$RUNNER_TEMP/unit-tests.log"
+          status=${PIPESTATUS[0]}
+          set -e
+          skipped=$(grep -aE '^(# |ℹ )skipped [0-9]+$' "$RUNNER_TEMP/unit-tests.log" | tail -n 1 | grep -oE '[0-9]+$' || true)
+          if [ -z "$skipped" ]; then
+            echo "::error::npm test printed no summary, so nothing says what ran."
+            exit 1
+          fi
+          if [ "$skipped" -gt "$ALLOWED_SKIPS" ]; then
+            grep -aE '# SKIP|^ *﹣ ' "$RUNNER_TEMP/unit-tests.log" || true
+            echo "::error::$skipped tests skipped and $ALLOWED_SKIPS may. Give each what it needs here, or raise ALLOWED_SKIPS with its reason in docs/qa-harness.md."
+            exit 1
+          fi
+          echo "$skipped skipped, $ALLOWED_SKIPS allowed."
+          exit "$status"
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
@@ -144,6 +241,17 @@ jobs:
         # just times out and the two offline-caching checks degrade into failures
         # that look like product bugs.
         run: npm run test:offline
+
+      - name: Filing a report, and the card it leaves
+        # The one spec that submits the real form: a tap on the map and the
+        # submit button, on the wildlife page in both languages, then on the
+        # roadkill page (with its dead-or-hurt answer) and the invasive page.
+        # The browser's /api/reports is stubbed with each answer the route
+        # can give, so what is checked is the card: that its words describe
+        # the report just filed, that its link opens a real record (planted
+        # for the run and removed after), and what the roadkill and invasive
+        # pages add to it. It ran nowhere before this step.
+        run: npm run test:receipt --workspace @conservation/web
 
       - name: Every page renders in both locales
         # Catches what HTTP-level checks cannot: next-intl renders a missing
@@ -184,13 +292,11 @@ jobs:
       # installed further up, and everything except the self-test needs the
       # server started further up.
       #
-      # axe and contrast are NOT here yet, deliberately. Both ratchet against a
-      # recorded list of today's known issues, and neither list has ever been
-      # recorded, because this harness was written without a server to record
-      # it from. They run nightly in gallery.yml instead. The first nightly run
-      # prints what is actually there; once somebody records it
-      # (UPDATE_A11Y=1 / UPDATE_CONTRAST=1 and a reason per line), move the two
-      # steps here — they are written to be moved, not rewritten.
+      # axe and contrast run here on the pages a reporter uses, at a phone's
+      # width, and over every route at both widths nightly in gallery.yml.
+      # Both ratchet against a recorded list of known issues, and both lists
+      # are empty and have stayed clean every night since they were first
+      # run, so any finding on these pages fails the pull request that made it.
 
       - name: The audits still find what they are for
         # Three seconds, no server, no database: it serves one fixture page with
@@ -207,11 +313,31 @@ jobs:
         # three times the width of the Chinese name beside it.
         run: npm run test:reflow --workspace @conservation/web
 
+      - name: axe on the report pages and the map, at 390px
+        # The chooser, the three report pages and /map, in both languages, at
+        # the width of the phones they are filled in on: the pages a student
+        # uses with one thumb at a roadside.
+        env:
+          ONLY: report,report-roadkill,report-invasive,report-wildlife,map
+          WIDTHS: "390"
+        run: npm run test:a11y --workspace @conservation/web
+
+      - name: WCAG AA contrast on the same pages
+        # The same five routes, both languages, 390px. Measured on the
+        # composited page, so map chrome is read against the map's dark
+        # ground and not the light page behind it.
+        env:
+          ONLY: report,report-roadkill,report-invasive,report-wildlife,map
+          WIDTHS: "390"
+        run: npm run test:contrast --workspace @conservation/web
+
       - name: The map's load path is intact
-        # Structural only, and hard: both MapLibre modulepreload hints, the
+        # Structural and hard: both MapLibre modulepreload hints, the
         # OpenFreeMap preconnect and style preload, no webfont on /map, every
-        # tile gzipped, CLS under 0.05. The byte and millisecond budgets print
-        # and do not fail until someone records them against production.
+        # tile gzipped, CLS under 0.05. The JavaScript budgets in
+        # e2e/perf-budget.json were recorded from a build like this one
+        # (PERF_LABEL=ci) and fail at 10% over. The timings print and do not
+        # fail: a runner's clock is too noisy to gate on.
         run: npm run test:perf --workspace @conservation/web
 
       - name: Deleting your own account
@@ -247,5 +373,6 @@ jobs:
           FORUM_ENABLED: "1"
         run: |
           npm run start --workspace @conservation/web -- -p 3001 &
-          npx wait-on http://localhost:3001/api/health --timeout 90000
+          for i in $(seq 90); do curl -fs -o /dev/null --max-time 5 http://localhost:3001/api/health && break; sleep 1; done
+          curl -fsS -o /dev/null --max-time 5 http://localhost:3001/api/health
           TEST_BASE_URL=http://localhost:3001 node apps/web/e2e/forum.spec.mjs

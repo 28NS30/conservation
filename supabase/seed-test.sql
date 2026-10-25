@@ -815,4 +815,35 @@ insert into taxa (id,taicol_id,parent_taicol_id,taxon_status,scientific_name,com
   (102479,'t0102479','t0102569','deleted','Thainycteris torquatus','黃頸蝠','Species','Animalia','Chordata','Mammalia','Chiroptera','Vespertilionidae',true,true,'native',false,NULL,'縣市','a photo of Animalia Chordata Mammalia Chiroptera Vespertilionidae Thainycteris torquatus.')
 on conflict (id) do nothing;
 
+-- Rows that tests name, added October 2026; without them those tests skipped
+-- in CI:
+--   Ardea cinerea t0100094     蒼鷺: "gray heron" and "grey heron" must find it
+--   Trachemys scripta elegans  紅耳泥龜, t0033457: "red-eared slider", a name
+--                              only the overrides file gives it
+--   Buergeria japonica         日本樹蛙, t0101610: a name under review
+--   Boa constrictor t0029886   巨蚺, unrated, and a protected subspecies outside
+--     / t0122243               Taiwan: a species whose binomial_precision_floor
+--                              is stricter than its own rule
+-- The generator's `wanted` takes the same rows. They are appended rather than
+-- regenerated: run against today's local database, the generator replaces 591
+-- of the 604 records above, because migration 0022 moved records to Taiwan's
+-- names and the sample follows the taxa. Nobody could review that diff.
+insert into taxa (id,taicol_id,parent_taicol_id,taxon_status,scientific_name,common_name_zh,rank,kingdom,phylum,class,"order",family,is_in_taiwan,is_endemic,alien_type,is_invasive,protected_status,sensitivity,alt_names_zh,iucn,redlist,cites,bioclip_prompt) values
+  (29886,'t0029886','t0010919','accepted','Boa constrictor','巨蚺','Species','Animalia','Chordata','Reptilia','Squamata','Boidae',true,false,'cultured',false,NULL,NULL,NULL,'LC',NULL,'I/II','a photo of Animalia Chordata Reptilia Squamata Boidae Boa constrictor.'),
+  (33457,'t0033457','t0099216','accepted','Trachemys scripta elegans','紅耳泥龜','Subspecies','Animalia','Chordata','Reptilia','Testudines','Emydidae',true,false,'invasive',true,NULL,NULL,array['紅耳龜','巴西龜','巴西彩龜','翠龜','麻將龜','秀麗錦龜','七彩龜','彩龜']::text[],NULL,'NA',NULL,'a photo of Animalia Chordata Reptilia Testudines Emydidae Trachemys scripta elegans.'),
+  (100094,'t0100094','t0010297','accepted','Ardea cinerea','蒼鷺','Species','Animalia','Chordata','Aves','Pelecaniformes','Ardeidae',true,false,'native',false,NULL,NULL,NULL,'LC','NLC',NULL,'a photo of Animalia Chordata Aves Pelecaniformes Ardeidae Ardea cinerea.'),
+  (101610,'t0101610','t0006913','accepted','Buergeria japonica','日本樹蛙','Species','Animalia','Chordata','Amphibia','Anura','Rhacophoridae',false,false,NULL,false,NULL,NULL,NULL,'LC',NULL,NULL,NULL),
+  (122212,'t0122243','t0029886','accepted','Boa constrictor occidentalis','虹尾蚺阿根廷亞種','Subspecies','Animalia','Chordata','Reptilia','Squamata','Boidae',false,false,NULL,false,'I',NULL,NULL,NULL,NULL,'I',NULL)
+on conflict (id) do nothing;
+
+-- One record GBIF could not name, the earliest inside the sample's dates. A
+-- record page with no species is headed by what was reported
+-- (page-headings.test.mjs), and every record above had a species. Unnamed
+-- records are blurred to 10 km, so like every blurred row here it sits at the
+-- centre of its cell.
+insert into reports (id, category, location, location_public, observed_at, taxon_id,
+                     taxon_source, status, source, source_id, license, rights_holder) values
+  ('4e150310-e94d-4e22-ab74-c40f54edb6d0'::uuid, 'roadkill', st_setsrid(st_makepoint(121.45,24.15),4326)::geography, st_setsrid(st_makepoint(121.45,24.15),4326)::geography, '2016-01-04T00:00:00.000Z', NULL, 'imported', 'published', 'gbif', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31765', 'http://creativecommons.org/licenses/by/4.0/legalcode', 'Taiwan Biodiversity Research Institute (臺灣生物多樣性研究所)')
+on conflict (id) do nothing;
+
 select setval(pg_get_serial_sequence('taxa','id'), (select max(id) from taxa));

@@ -11,22 +11,20 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { sql, BASE_URL } from "./helpers.mjs";
+import { sql, BASE_URL, requireServer } from "./helpers.mjs";
 
 after(() => sql.end());
 
 const WEB = join(import.meta.dirname, "..");
 const read = (...p) => readFileSync(join(WEB, ...p), "utf8");
 const catalogue = (l) => JSON.parse(read("messages", `${l}.json`));
-const up = async () => Boolean(await fetch(BASE_URL).catch(() => null));
-
 describe("Chinese unless someone chooses English", () => {
   test("language detection is off", () => {
     assert.match(read("i18n", "routing.ts"), /localeDetection: false/);
   });
 
   test("an English-language browser gets the Chinese page at an unprefixed address", async (t) => {
-    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const res = await fetch(`${BASE_URL}/report`, { headers: { "accept-language": "en-US,en;q=0.9" }, redirect: "manual" });
     assert.equal(res.status, 200, `redirected to ${res.headers.get("location")}`);
     assert.match(await res.text(), /<html[^>]*lang="zh-TW"/);
@@ -105,7 +103,7 @@ describe("the identification, as soon as a photo is added", () => {
   });
 
   test("it answers malformed requests before any model is asked", async (t) => {
-    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const post = (body) =>
       fetch(`${BASE_URL}/api/identify`, { method: "POST", headers: { "content-type": "application/json" }, body });
     assert.equal((await post("not json")).status, 400);
@@ -115,7 +113,7 @@ describe("the identification, as soon as a photo is added", () => {
   });
 
   test("a species picked from the photo's suggestions is blurred as a photo identification", async (t) => {
-    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     // A species whose binomial has a stricter row than its own (a protected
     // subspecies beside it): named from a photo, it takes that row's blur.
     const [taxon] = await sql`

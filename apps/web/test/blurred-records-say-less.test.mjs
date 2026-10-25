@@ -12,7 +12,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { sql, inRollback, insertReport, BASE_URL } from "./helpers.mjs";
+import { sql, inRollback, insertReport, BASE_URL, requireServer } from "./helpers.mjs";
 
 after(() => sql.end());
 
@@ -149,7 +149,7 @@ describe("words that give a location are held for a moderator", () => {
     ["a map link in the notes", { notes: "https://maps.app.goo.gl/abc123 here" }],
   ]) {
     test(what, async (t) => {
-      if (!(await fetch(BASE_URL).catch(() => null))) return t.skip(`no server at ${BASE_URL}`);
+      if (!(await requireServer(t))) return;
       await sql`delete from rate_limits where key like 'submit-%'`;
       const clientNonce = randomUUID();
       nonces.push(clientNonce);
@@ -183,7 +183,7 @@ describe("a credit name that gives a place or a way to reach someone is not kept
     ["a nickname", "小明", "小明"],
   ]) {
     test(`${what}: ${kept ? "kept" : "dropped, and the report is not held for it"}`, async (t) => {
-      if (!(await fetch(BASE_URL).catch(() => null))) return t.skip(`no server at ${BASE_URL}`);
+      if (!(await requireServer(t))) return;
       await sql`delete from rate_limits where key like 'submit-%'`;
       const clientNonce = randomUUID();
       nonces.push(clientNonce);

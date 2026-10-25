@@ -1,7 +1,9 @@
 name: QA gallery
 
 # The slow half of the QA harness: a screenshot of every page in both locales
-# at three widths, plus the two audits that ratchet against a recorded list.
+# at three widths, plus the two audits that ratchet against a recorded list,
+# over every route at both of their widths. ci.yml runs the same two audits on
+# every pull request, on the report pages and /map at 390px only.
 #
 # Not on every push, on purpose. The matrix is about a hundred page loads and
 # four minutes of browser time, and a reviewer looks at it when a page is
@@ -53,6 +55,12 @@ jobs:
 
       - run: npm ci
 
+      - name: Create Supabase's API roles
+        # As in ci.yml: the database the pages are photographed against has
+        # the roles and grants a Supabase project starts with, and the
+        # migrations' revokes run against them.
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f supabase/ci-roles.sql
+
       - name: Apply migrations
         run: |
           for f in supabase/migrations/*.sql; do
@@ -75,9 +83,14 @@ jobs:
         run: npm run build
 
       - name: Start server
+        id: server
+        # /api/health rather than /, as in ci.yml: the root is prerendered and
+        # answers before the app can serve anything that needs the database.
+        # A curl loop rather than wait-on, for the reasons at the top of ci.yml.
         run: |
           npm run start --workspace @conservation/web &
-          npx wait-on http://localhost:3000 --timeout 90000
+          for i in $(seq 90); do curl -fs -o /dev/null --max-time 5 http://localhost:3000/api/health && break; sleep 1; done
+          curl -fsS -o /dev/null --max-time 5 http://localhost:3000/api/health
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
@@ -86,24 +99,24 @@ jobs:
         run: npm run shots --workspace @conservation/web
 
       - name: axe over every route, both locales, 390 and 1440
-        # Ratchets against e2e/a11y-known.json, which ships empty: the first run
-        # here is what records what is actually on the site. Until it is
-        # recorded this step is red and its output is the list to record.
-        # continue-on-error until the baselines exist. Both known-issue files
-        # ship empty on purpose, so the first run of each is red by
-        # construction — and Actions stops a job at its first failed step, so
-        # a red axe step meant the contrast step below never ran at all and
-        # nobody could record ITS baseline either. The artifact upload is
-        # `if: always()`, so the output a recording pass needs survives. Drop
-        # both flags once the two files have real contents.
-        continue-on-error: true
+        # Ratchets against e2e/a11y-known.json. It shipped empty, ran here
+        # with continue-on-error so a red first run could not stop the
+        # contrast step below from recording its own baseline, and has found
+        # nothing every night since: the empty file is the baseline. So a
+        # finding now turns the run red.
+        #
+        # Each audit runs whenever the server is up, whatever the step before
+        # it did, so a failed screenshot or a red axe step does not hide what
+        # the next check would have said.
+        if: ${{ !cancelled() && steps.server.outcome == 'success' }}
         run: npm run test:a11y --workspace @conservation/web
 
       - name: WCAG AA contrast on the rendered pages
-        continue-on-error: true
-        # Same: e2e/contrast-known.json ships empty. `dark-tokens-on-light`
-        # shipped while the file that would have caught it sat in the tree
-        # unrun, which is the whole reason this step exists.
+        # Same, against e2e/contrast-known.json, which is also empty and also
+        # clean every night. `dark-tokens-on-light` shipped while the file that
+        # would have caught it sat in the tree unrun, which is the whole reason
+        # this step exists.
+        if: ${{ !cancelled() && steps.server.outcome == 'success' }}
         run: npm run test:contrast --workspace @conservation/web
 
       - uses: actions/upload-artifact@v4

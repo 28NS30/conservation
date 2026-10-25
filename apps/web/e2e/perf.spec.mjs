@@ -22,11 +22,14 @@
  *               generous and the number that means anything is the one recorded
  *               from production. Byte budgets are real gates once recorded.
  *
- * THE BUDGET FILE SHIPS UNRECORDED. Writing this harness needed a served site
- * and there was none; every `null` in perf-budget.json is a number nobody has
- * measured yet. Unrecorded budgets print and do not fail, because a budget
- * invented at a desk is worse than an honest blank — it would be enforced for
- * years as though someone had meant it.
+ * THE BUDGET FILE SHIPPED UNRECORDED, because writing this harness needed a
+ * served site and there was none, and a budget invented at a desk is worse
+ * than an honest blank: it would be enforced for years as though someone had
+ * meant it. A `null` still prints and does not fail. The JavaScript budgets are
+ * now recorded from a build made the way CI makes one (UPDATE_PERF=1
+ * PERF_LABEL=ci), which is what CI compares against: bytes are a property of
+ * the build, not of the machine that served it. The timings recorded beside
+ * them are one laptop's, printed for comparison, and no timing fails a run.
  */
 import { chromium } from "playwright";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -77,24 +80,43 @@ export function linkTags(html) {
 }
 
 /**
- * @param html  the document as it arrived
- * @param dom   the links in the page after hydration
+ * Every hint in a `Link` response header, as {rel, href, as}.
  *
- * A hint that is in the DOM but not in the HTML is reported separately and does
- * not fail. app/[locale]/map/layout.tsx exists so these reach the first HTML
- * flush rather than the streamed page behind the statistics query, so arriving
- * late is worth saying out loud — but it is a weaker claim than "the hint is
- * gone", and only the strong one should stop a merge.
+ * React puts a preconnect there rather than in the HTML whenever the header
+ * has room (preconnect() in react-dom/server), so the OpenFreeMap preconnect
+ * never appears as a <link> in what arrives. Reading only the HTML reported it
+ * as late on every run, for both twins, while it was reaching the browser
+ * before the first byte of the document did.
  */
-export function checkHints(html, dom = []) {
-  const inHtml = linkTags(html);
+export function linkHeader(value = "") {
+  return [...value.matchAll(/<([^>]*)>([^,\n]*)/g)].map(([, href, params]) => {
+    const param = (name) =>
+      (params.match(new RegExp(`;\\s*${name}\\s*=\\s*("[^"]*"|[^;\\s]+)`, "i")) ?? [])[1]?.replace(/^"|"$/g, "") ?? "";
+    return { rel: param("rel"), href, as: param("as") };
+  });
+}
+
+/**
+ * @param html    the document as it arrived
+ * @param dom     the links in the page after hydration
+ * @param header  the hints in the response's Link header (linkHeader)
+ *
+ * A hint in the header counts as arrived: it is earlier than any tag. A hint
+ * that is in the DOM but in neither is reported separately and does not fail.
+ * app/[locale]/map/layout.tsx exists so these reach the first HTML flush
+ * rather than the streamed page behind the statistics query, so arriving late
+ * is worth saying out loud — but it is a weaker claim than "the hint is gone",
+ * and only the strong one should stop a merge.
+ */
+export function checkHints(html, dom = [], header = []) {
+  const inHtml = [...linkTags(html), ...header];
   const errs = [];
   const late = [];
   for (const want of WANTED) {
     if (inHtml.some(want.ok)) continue;
     if (dom.some(want.ok)) {
       late.push(
-        `${want.what} is in the DOM but not in the HTML that arrived. app/[locale]/map/layout.tsx puts MapHints outside the Suspense boundary precisely so it reaches the first flush.`,
+        `${want.what} is in the DOM but neither in the HTML that arrived nor in its Link header. app/[locale]/map/layout.tsx puts MapHints outside the Suspense boundary precisely so it reaches the first flush.`,
       );
       continue;
     }
@@ -106,7 +128,7 @@ export function checkHints(html, dom = []) {
 }
 
 /** One load of a page, reporting what it fetched and how fast it painted. */
-async function load(browser, path, { width = 1440, locale = "zh-TW" } = {}) {
+async function load(browser, path, { width = 1440, locale = "zh-TW", settle } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height: 900 }, locale });
   const page = await ctx.newPage();
   const started = Date.now();
@@ -137,7 +159,8 @@ async function load(browser, path, { width = 1440, locale = "zh-TW" } = {}) {
   });
   const res = await page.goto(BASE + path, { waitUntil: "load" }).catch(() => null);
   const html = res ? await res.text().catch(() => "") : "";
-  await page.waitForTimeout(path.includes("map") ? 9000 : 4000);
+  const headerLinks = linkHeader(res?.headers().link ?? "");
+  await page.waitForTimeout(settle ?? (path.includes("map") ? 9000 : 4000));
   const domLinks = await page
     .evaluate(() =>
       [...document.querySelectorAll("link")].map((l) => ({
@@ -174,7 +197,7 @@ async function load(browser, path, { width = 1440, locale = "zh-TW" } = {}) {
       }),
   );
   await ctx.close();
-  return { html, domLinks, fonts, tiles, firstTile, requests, ...vitals };
+  return { html, domLinks, headerLinks, fonts, tiles, firstTile, requests, ...vitals };
 }
 
 const kb = (n) => Math.round(n / 1024);
@@ -194,7 +217,7 @@ async function main() {
   // and a routing change can drop them from one twin and not the other.
   for (const path of ["/map", "/en/map"]) {
     const r = await load(browser, path, { locale: path.startsWith("/en") ? "en-US" : "zh-TW" });
-    const hints = checkHints(r.html, r.domLinks);
+    const hints = checkHints(r.html, r.domLinks, r.headerLinks);
     errs.push(...hints.errs.map((e) => `${path}: ${e}`));
     soft.push(...hints.late.map((e) => `${path}: ${e}`));
     if (r.fonts.length)
@@ -231,9 +254,16 @@ async function main() {
       `first tile ${first}ms is over the ${budget.firstTileMs.ceilingMs}ms CI ceiling. Runner timings are noisy — check it twice before believing it, and compare against the production number in ${BUDGET_PATH}.`,
     );
 
-  // CLS on the two pages whose content arrives in pieces.
-  for (const path of ["/", "/species"]) {
-    const r = await load(browser, path);
+  // CLS on the pages whose content arrives in pieces. /report/roadkill is the
+  // form for the kind of record nearly every one on this site is, filled in on
+  // a phone at a roadside: a form with a live map inside it, so it is loaded
+  // at a phone's width and given a map's time to settle.
+  for (const [path, opts] of [
+    ["/", {}],
+    ["/species", {}],
+    ["/report/roadkill", { width: 390, settle: 9000 }],
+  ]) {
+    const r = await load(browser, path, opts);
     measured.js[path] = r.js;
     measured.requests[path] = r.requests;
     measured.lcpMs[path] = r.lcp;

@@ -13,7 +13,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { sql, BASE_URL } from "./helpers.mjs";
+import { sql, BASE_URL, requireServer } from "./helpers.mjs";
 import { checkFields, observedInstant, sendableAccuracy } from "../lib/report/fieldChecks.ts";
 import {
   errorKey,
@@ -30,8 +30,6 @@ after(() => sql.end());
 const WEB = join(import.meta.dirname, "..");
 const read = (...p) => readFileSync(join(WEB, ...p), "utf8");
 const catalogue = (l) => JSON.parse(read("messages", `${l}.json`));
-const up = async () => Boolean(await fetch(BASE_URL).catch(() => null));
-
 // In the same local time as the field's value, like the form: CI runs in UTC.
 const NOW = new Date("2026-09-30T12:00").getTime();
 const ok = { observedAt: "2026-09-30T11:30", email: "", creditName: "" };
@@ -181,7 +179,7 @@ describe("a saved report is filed under the account that saved it", () => {
   };
 
   test("saved under an account, sent by nobody: it waits", async (t) => {
-    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     await sql`delete from rate_limits where key like 'submit-%'`;
     const { res, body, clientNonce } = await post({ filedBy: randomUUID() });
     assert.equal(res.status, 409);
@@ -191,7 +189,7 @@ describe("a saved report is filed under the account that saved it", () => {
   });
 
   test("saved signed out: filed with no reporter", async (t) => {
-    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     await sql`delete from rate_limits where key like 'submit-%'`;
     const { res, clientNonce } = await post({ filedBy: "anonymous" });
     assert.equal(res.status, 201);

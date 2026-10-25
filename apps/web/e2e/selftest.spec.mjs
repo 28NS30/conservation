@@ -27,7 +27,7 @@ import { auditContrast, ratchet as contrastRatchet, signature } from "./contrast
 import { checkWidths } from "./reflow.spec.mjs";
 import { runAxe, ratchet as a11yRatchet } from "./a11y.spec.mjs";
 import { galleryHtml } from "./shots.mjs";
-import { checkHints, linkTags } from "./perf.spec.mjs";
+import { checkHints, linkHeader, linkTags } from "./perf.spec.mjs";
 import { LOCALES, ROUTES, SHOT_WIDTHS, shotName } from "./routes.mjs";
 
 const FIXTURE = readFileSync(join(import.meta.dirname, "fixtures", "selftest.html"));
@@ -177,6 +177,16 @@ check(
     "a hint that only arrives after hydration is reported, but does not fail",
     checkHints("", linkTags(head.join(""))).errs.length === 0 &&
       checkHints("", linkTags(head.join(""))).late.length === 4,
+  );
+  // Where React actually sends the preconnect: the Link header, not the HTML.
+  const header = linkHeader('<https://tiles.openfreemap.org>; rel=preconnect; crossorigin="anonymous"');
+  const rest = head.filter((l) => !l.includes("preconnect")).join("");
+  check(
+    "a preconnect sent in the Link header counts as arrived",
+    (() => {
+      const r = checkHints(rest, linkTags(head.join("")), header);
+      return r.errs.length === 0 && r.late.length === 0;
+    })(),
   );
 }
 

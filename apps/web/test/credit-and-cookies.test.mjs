@@ -11,14 +11,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { sql, BASE_URL } from "./helpers.mjs";
+import { sql, BASE_URL, requireServer } from "./helpers.mjs";
 import { licenseLabel } from "../lib/license.ts";
 import { CONTRIBUTOR_LICENSES } from "@conservation/shared";
 
 after(() => sql.end());
 
 const read = (...p) => readFileSync(join(import.meta.dirname, "..", ...p), "utf8");
-const up = async () => Boolean(await fetch(BASE_URL).catch(() => null));
+
 /**
  * A record page as rendered, and what it shows: every page carries the whole
  * message catalogue in its scripts, so a label's words are always somewhere in
@@ -57,7 +57,7 @@ describe("a person's record carries the credit their licence asks for", () => {
   }
 
   test("the name they gave, and the licence", async (t) => {
-    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const id = await record({ license: CONTRIBUTOR_LICENSES["cc-by-4.0"], credit: "林小明" });
     const { shown } = await recordPage(id);
     assert.match(shown, /Shared by/);
@@ -66,7 +66,7 @@ describe("a person's record carries the credit their licence asks for", () => {
   });
 
   test("CC0: open data, with no name", async (t) => {
-    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const id = await record({ license: CONTRIBUTOR_LICENSES["cc0-1.0"], credit: null });
     const { shown } = await recordPage(id);
     assert.match(shown, /Open data: anyone may use this record/);
@@ -77,7 +77,7 @@ describe("a person's record carries the credit their licence asks for", () => {
   test("a blurred record's credit is the default contributor, whatever name was given", async (t) => {
     // The name is the reporter's own words, withheld on a blurred record like
     // the notes (0025); it stays in the export.
-    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const id = await record({ license: CONTRIBUTOR_LICENSES["cc-by-4.0"], credit: "大雪山林道巡守隊", blurred: true });
     const { html, shown } = await recordPage(id);
     assert.doesNotMatch(html, /大雪山林道巡守隊/, "the name is somewhere in the page, scripts included");

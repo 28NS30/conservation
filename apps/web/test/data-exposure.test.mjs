@@ -12,7 +12,7 @@ import { test, describe, after } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { sql, BASE_URL } from "./helpers.mjs";
+import { sql, BASE_URL, requireServer } from "./helpers.mjs";
 import { TILE_AGGREGATION_MAX_ZOOM } from "@conservation/shared";
 
 after(() => sql.end());
@@ -20,8 +20,6 @@ after(() => sql.end());
 const WEB = join(import.meta.dirname, "..");
 const ROOT = join(WEB, "..", "..");
 const read = (...p) => readFileSync(join(ROOT, ...p), "utf8");
-const up = async () => Boolean(await fetch(BASE_URL).catch(() => null));
-
 /** The tile containing a point, at a zoom. */
 function tileOf(lng, lat, z) {
   const n = 2 ** z;
@@ -33,7 +31,7 @@ function tileOf(lng, lat, z) {
 
 describe("a point tile follows a moderator's decision within minutes", () => {
   test("a tile that can place a record closer than a blur is cached for two minutes", async (t) => {
-    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     // Points above the aggregation zoom, and cells under 10 km below it.
     for (const z of [TILE_AGGREGATION_MAX_ZOOM + 2, TILE_AGGREGATION_MAX_ZOOM, 9, 5]) {
       const res = await fetch(`${BASE_URL}/api/tiles/${tileOf(121.5, 25.03, z)}`);
@@ -43,7 +41,7 @@ describe("a point tile follows a moderator's decision within minutes", () => {
   });
 
   test("only coarse tiles, with cells of 10 km or more, keep the long cache", async (t) => {
-    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const coarse = await fetch(`${BASE_URL}/api/tiles/${tileOf(121.5, 25.03, 4)}`);
     assert.equal(coarse.status, 200);
     assert.match(coarse.headers.get("cache-control") ?? "", /s-maxage=3600/);
