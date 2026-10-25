@@ -1,7 +1,9 @@
 name: QA gallery
 
 # The slow half of the QA harness: a screenshot of every page in both locales
-# at three widths, plus the two audits that ratchet against a recorded list.
+# at three widths, plus the two audits that ratchet against a recorded list,
+# over every route at both of their widths. ci.yml runs the same two audits on
+# every pull request, on the report pages and /map at 390px only.
 #
 # Not on every push, on purpose. The matrix is about a hundred page loads and
 # four minutes of browser time, and a reviewer looks at it when a page is

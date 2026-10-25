@@ -255,13 +255,11 @@ jobs:
       # installed further up, and everything except the self-test needs the
       # server started further up.
       #
-      # axe and contrast are NOT here yet, deliberately. Both ratchet against a
-      # recorded list of today's known issues, and neither list has ever been
-      # recorded, because this harness was written without a server to record
-      # it from. They run nightly in gallery.yml instead. The first nightly run
-      # prints what is actually there; once somebody records it
-      # (UPDATE_A11Y=1 / UPDATE_CONTRAST=1 and a reason per line), move the two
-      # steps here — they are written to be moved, not rewritten.
+      # axe and contrast run here on the pages a reporter uses, at a phone's
+      # width, and over every route at both widths nightly in gallery.yml.
+      # Both ratchet against a recorded list of known issues, and both lists
+      # are empty and have stayed clean every night since they were first
+      # run, so any finding on these pages fails the pull request that made it.
 
       - name: The audits still find what they are for
         # Three seconds, no server, no database: it serves one fixture page with
@@ -277,6 +275,24 @@ jobs:
         # text. This was live on two English pages, where a Latin binomial is
         # three times the width of the Chinese name beside it.
         run: npm run test:reflow --workspace @conservation/web
+
+      - name: axe on the report pages and the map, at 390px
+        # The chooser, the three report pages and /map, in both languages, at
+        # the width of the phones they are filled in on: the pages a student
+        # uses with one thumb at a roadside.
+        env:
+          ONLY: report,report-roadkill,report-invasive,report-wildlife,map
+          WIDTHS: "390"
+        run: npm run test:a11y --workspace @conservation/web
+
+      - name: WCAG AA contrast on the same pages
+        # The same five routes, both languages, 390px. Measured on the
+        # composited page, so map chrome is read against the map's dark
+        # ground and not the light page behind it.
+        env:
+          ONLY: report,report-roadkill,report-invasive,report-wildlife,map
+          WIDTHS: "390"
+        run: npm run test:contrast --workspace @conservation/web
 
       - name: The map's load path is intact
         # Structural only, and hard: both MapLibre modulepreload hints, the
