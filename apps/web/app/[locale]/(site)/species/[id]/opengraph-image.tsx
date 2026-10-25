@@ -19,7 +19,6 @@ import { routing } from "@/i18n/routing";
 import { getSpecies, parseSpeciesId } from "@/lib/species";
 import { speciesLabel, speciesNames } from "@/lib/speciesNames";
 import { subsetFont } from "@/lib/ogFont";
-import { routing } from "@/i18n/routing";
 
 /**
  * The share card for one species.
