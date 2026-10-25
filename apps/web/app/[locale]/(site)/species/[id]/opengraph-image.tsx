@@ -63,9 +63,13 @@ export async function generateImageMetadata({
   params: ImageParams | Promise<ImageParams> | undefined;
 }) {
   const params = await given;
-  const locale = params?.locale ?? routing.defaultLocale;
+  // A first segment that is not a locale costs no read here: the image itself
+  // refuses it, and the route asks this first.
+  const asked = params?.locale;
+  const known = hasLocale(routing.locales, asked);
+  const locale = known ? asked : routing.defaultLocale;
   const zh = locale.startsWith("zh");
-  const taxonId = params?.id ? parseSpeciesId(params.id) : null;
+  const taxonId = known && params?.id ? parseSpeciesId(params.id) : null;
   const s = taxonId ? await getSpecies(taxonId) : null;
   const name = s ? speciesLabel(s, locale) : null;
   return [

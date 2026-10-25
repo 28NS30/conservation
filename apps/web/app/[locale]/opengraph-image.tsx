@@ -72,7 +72,8 @@ export async function generateImageMetadata({
   // build time.
   params: { locale?: string } | Promise<{ locale?: string }> | undefined;
 }) {
-  const locale = (await params)?.locale ?? routing.defaultLocale;
+  const asked = (await params)?.locale;
+  const locale = hasLocale(routing.locales, asked) ? asked : routing.defaultLocale;
   const site = await getTranslations({ locale, namespace: "site" });
   return [
     {
