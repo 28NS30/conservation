@@ -1,4 +1,39 @@
 // Written by scripts/latest-migration.mjs before every build; do not edit.
-// The newest file in supabase/migrations, which lib/migrationLedger.ts asks
-// production's ledger for.
+// Every file in supabase/migrations, each of which lib/migrationLedger.ts asks
+// production's ledger for. Regenerate with `node scripts/latest-migration.mjs`.
+export const MIGRATIONS: readonly string[] = [
+  "0001_init.sql",
+  "0002_lineage.sql",
+  "0003_reporting.sql",
+  "0004_supabase_auth_rls.sql",
+  "0005_taxa_search.sql",
+  "0006_ai_band.sql",
+  "0007_gbif_rights_holder.sql",
+  "0008_report_categories.sql",
+  "0009_reporter_identification.sql",
+  "0010_capture_accuracy.sql",
+  "0011_blur_unknown_taxa.sql",
+  "0012_reblur_on_reclassification.sql",
+  "0013_close_the_rest_api.sql",
+  "0014_stricter_wins_blur.sql",
+  "0015_english_names.sql",
+  "0016_reports_public_is_invasive.sql",
+  "0017_contributor_consent.sql",
+  "0018_test_reports.sql",
+  "0019_forum.sql",
+  "0021_red_list_blur.sql",
+  "0022_records_to_taiwan_names.sql",
+  "0023_taicol_refresh_floors.sql",
+  "0024_close_rest_functions.sql",
+  "0025_blurred_records_say_less.sql",
+  "0026_reblur_binomial_siblings.sql",
+  "0027_one_report_per_photo.sql",
+  "0028_binomial_index_and_pins.sql",
+  "0029_blur_protected_species_only.sql",
+  "0030_forum_votes.sql",
+  "0031_binomial_index_on_the_expression.sql",
+  "0036_job_runs_and_app_errors.sql",
+];
+
+/** The highest-numbered of them, for reading at a glance; nothing is decided by it. */
 export const LATEST_MIGRATION = "0036_job_runs_and_app_errors.sql";

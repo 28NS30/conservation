@@ -28,9 +28,9 @@ import {
   jobDetail,
   requestErrorKey,
 } from "../lib/monitoring.ts";
-import { ledgerCheck, ledgerKept } from "../lib/migrationLedger.ts";
-import { LATEST_MIGRATION } from "../lib/latestMigration.ts";
-import { latestMigration } from "../scripts/latest-migration.mjs";
+import { LEDGER_UNREADABLE, ledgerCheck, ledgerKept, ledgerMissingName } from "../lib/migrationLedger.ts";
+import { LATEST_MIGRATION, MIGRATIONS } from "../lib/latestMigration.ts";
+import { migrationFiles } from "../scripts/latest-migration.mjs";
 
 after(() => sql.end());
 
@@ -213,47 +213,68 @@ describe("an error row", () => {
 });
 
 describe("the migration ledger", () => {
-  test("lib/latestMigration.ts names the newest migration (run `node scripts/latest-migration.mjs`)", () => {
-    assert.equal(LATEST_MIGRATION, latestMigration(join(REPO, "supabase", "migrations")));
-    const newest = readdirSync(join(REPO, "supabase", "migrations")).filter((f) => f.endsWith(".sql")).sort().at(-1);
-    assert.equal(LATEST_MIGRATION, newest);
+  const DIR = join(REPO, "supabase", "migrations");
+  const prod = { VERCEL_ENV: "production" };
+
+  test("lib/latestMigration.ts lists every migration file (run `node scripts/latest-migration.mjs`)", () => {
+    const files = readdirSync(DIR).filter((f) => f.endsWith(".sql")).sort();
+    assert.deepEqual([...MIGRATIONS], migrationFiles(DIR));
+    assert.deepEqual([...MIGRATIONS], files, "a .sql file whose name the generator does not take is never asked for");
+    assert.equal(LATEST_MIGRATION, files.at(-1));
   });
 
-  test("is asked in production only", () => {
-    assert.equal(ledgerKept({ VERCEL_ENV: "production" }), true);
+  test("a number with no file is not asked for: 0020 was never written", () => {
+    // Production's ledger has no 0020 either (read 25 October 2026). Were a
+    // 0020 written now, out of order, it would simply be one more file asked for.
+    assert.equal(MIGRATIONS.some((m) => m.startsWith("0020_")), false);
+    assert.ok(MIGRATIONS.includes("0019_forum.sql") && MIGRATIONS.includes("0021_red_list_blur.sql"));
+  });
+
+  test("is asked in production only, for every file", () => {
+    assert.equal(ledgerKept(prod), true);
     for (const env of [{}, { VERCEL_ENV: "preview" }, { VERCEL_ENV: "development" }, { NODE_ENV: "production" }])
-      assert.equal(ledgerCheck(LATEST_MIGRATION, env), null, JSON.stringify(env));
-    const check = ledgerCheck("0036_job_runs_and_app_errors.sql", { VERCEL_ENV: "production" });
-    assert.equal(check.name, "0036 is recorded in the migration ledger");
-    assert.match(check.sql, /left\(name, 5\) = '0036_'/);
+      assert.equal(ledgerCheck(MIGRATIONS, env), null, JSON.stringify(env));
+    const check = ledgerCheck(MIGRATIONS, prod);
+    assert.deepEqual(check.params, [[...MIGRATIONS]]);
+    assert.match(check.sql, /unnest\(\$1::text\[\]\)/, "the names are a parameter, not SQL");
   });
 
   test("refuses a name that is not a migration's", () => {
-    assert.throws(() => ledgerCheck("0036'; drop table x; --.sql", { VERCEL_ENV: "production" }));
+    assert.throws(() => ledgerCheck(["0036'; drop table x; --.sql"], prod));
+    assert.throws(() => ledgerCheck(["0036_x.sql", "README.md"], prod));
+    assert.throws(() => ledgerCheck([], prod));
   });
 
-  test("its SQL answers by number, with or without .sql", async () => {
-    const check = ledgerCheck("0036_job_runs_and_app_errors.sql", { VERCEL_ENV: "production" });
+  test("names each missing file to the operator, and an unreadable ledger as such", () => {
+    assert.equal(ledgerMissingName("0032_floor_renamed_retired_twins.sql"), "0032_floor_renamed_retired_twins is recorded in the migration ledger");
+    assert.equal(typeof LEDGER_UNREADABLE, "string");
+  });
+
+  test("its SQL answers with every file the ledger lacks, whatever order they came in", async () => {
+    // Names no real migration has, so the database's own rows decide nothing.
+    const files = ["9031_a.sql", "9032_b.sql", "9033_c.sql", "9036_d.sql", "9036_e.sql"];
+    const check = ledgerCheck(files, prod);
     const marker = Symbol("rollback");
     const answers = [];
     await sql
       .begin(async (tx) => {
         // CI's database has no ledger at all; a laptop's stops wherever the
-        // runner last ran. Either way this transaction makes its own.
+        // runner last ran. Either way this transaction makes its own rows.
         await tx`create table if not exists _migrations (name text primary key, applied_at timestamptz not null default now())`;
-        await tx`delete from _migrations where left(name, 5) = '0036_'`;
-        answers.push((await tx.unsafe(check.sql))[0].ok);
-        await tx`insert into _migrations (name) values ('0036_job_runs_and_app_errors')`;
-        answers.push((await tx.unsafe(check.sql))[0].ok);
-        await tx`delete from _migrations where left(name, 5) = '0036_'`;
-        await tx`insert into _migrations (name) values ('0036_job_runs_and_app_errors.sql')`;
-        answers.push((await tx.unsafe(check.sql))[0].ok);
+        const missing = async () => (await tx.unsafe(check.sql, check.params))[0].missing;
+        answers.push(await missing());
+        // The highest first and a lower one later, as branches merge; with
+        // and without .sql; and one of two files that share a number.
+        await tx`insert into _migrations (name) values ('9036_d.sql'), ('9031_a'), ('9033_c.sql')`;
+        answers.push(await missing());
+        await tx`insert into _migrations (name) values ('9032_b.sql'), ('9036_e')`;
+        answers.push(await missing());
         throw marker;
       })
       .catch((e) => {
         if (e !== marker) throw e;
       });
-    assert.deepEqual(answers, [false, true, true]);
+    assert.deepEqual(answers, [files, ["9032_b.sql", "9036_e.sql"], []]);
   });
 });
 

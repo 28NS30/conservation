@@ -1,7 +1,12 @@
 import "server-only";
 import { sql } from "@/lib/db";
 import { forumEnabled, type ForumEnv } from "@/lib/forum/gate";
-import { ledgerCheck } from "@/lib/migrationLedger";
+import {
+  LEDGER_UNREADABLE,
+  ledgerCheck,
+  ledgerMissingName,
+  type LedgerCheck,
+} from "@/lib/migrationLedger";
 
 /**
  * Whether the database has what the deployed code writes.
@@ -14,9 +19,10 @@ import { ledgerCheck } from "@/lib/migrationLedger";
  * `_migrations` could not answer this when this was written: production's
  * schema was created by looping psql over the files, which never populated
  * that table. Production's ledger has been kept since, and in production it
- * is asked too (lib/migrationLedger.ts); but CI's database and a laptop's have
- * no ledger worth asking, so each check here still asks about the shape
- * itself, and these are what every database is held to.
+ * is asked too, for every migration file this build has (lib/migrationLedger.ts);
+ * but CI's database and a laptop's have no ledger worth asking, so each check
+ * here still asks about the shape itself, and these are what every database
+ * is held to.
  *
  * Add one whenever a migration adds something the app writes.
  */
@@ -273,7 +279,7 @@ export function requiredSchema(env: ForumEnv = process.env): SchemaCheck[] {
  */
 export async function schemaStatus(
   checks: SchemaCheck[] = requiredSchema(),
-  ledger: SchemaCheck | null = ledgerCheck(),
+  ledger: LedgerCheck | null = ledgerCheck(),
 ): Promise<{ current: boolean; missing: string[] }> {
   const missing: string[] = [];
   for (const c of checks) {
@@ -281,13 +287,14 @@ export async function schemaStatus(
     if (!row?.ok) missing.push(c.name);
   }
   if (ledger) {
-    // A ledger that cannot be read is a ledger that does not record it; an
-    // error here must not read as "database unreachable".
+    // A ledger that cannot be read records nothing; an error here must not
+    // read as "database unreachable".
     const row = await sql
-      .unsafe<{ ok: boolean }[]>(ledger.sql)
+      .unsafe<{ missing: string[] }[]>(ledger.sql, ledger.params)
       .then(([r]) => r)
       .catch(() => null);
-    if (!row?.ok) missing.push(ledger.name);
+    if (!row) missing.push(LEDGER_UNREADABLE);
+    else missing.push(...row.missing.map(ledgerMissingName));
   }
   return { current: missing.length === 0, missing };
 }
