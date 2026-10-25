@@ -295,10 +295,12 @@ jobs:
         run: npm run test:contrast --workspace @conservation/web
 
       - name: The map's load path is intact
-        # Structural only, and hard: both MapLibre modulepreload hints, the
+        # Structural and hard: both MapLibre modulepreload hints, the
         # OpenFreeMap preconnect and style preload, no webfont on /map, every
-        # tile gzipped, CLS under 0.05. The byte and millisecond budgets print
-        # and do not fail until someone records them against production.
+        # tile gzipped, CLS under 0.05. The JavaScript budgets in
+        # e2e/perf-budget.json were recorded from a build like this one
+        # (PERF_LABEL=ci) and fail at 10% over. The timings print and do not
+        # fail: a runner's clock is too noisy to gate on.
         run: npm run test:perf --workspace @conservation/web
 
       - name: Deleting your own account
