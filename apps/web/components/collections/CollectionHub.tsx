@@ -17,8 +17,11 @@ import { PHOTOS, type PhotoKey } from "@/lib/home/photos";
 import { SectionTitle } from "@/components/home/StoryRow";
 import InvasiveBadge from "@/components/collections/InvasiveBadge";
 import InvasiveSpeciesList from "@/components/collections/InvasiveSpeciesList";
+import UnverifiedBadge from "@/components/report/UnverifiedBadge";
+import { awaitingVerification } from "@/lib/report/verification";
 import { alternates } from "@/lib/alternates";
 import SpeciesName from "@/components/species/SpeciesName";
+import { formatTaipeiDate } from "@/lib/dates";
 
 /**
  * One page per collection: /roadkill, /invasive and /wildlife.
@@ -80,6 +83,7 @@ export default async function CollectionHub({
   const tp = await getTranslations("precision");
   const td = await getTranslations("detail");
   const tHome = await getTranslations("home");
+  const tr = await getTranslations("report");
   const zh = locale.startsWith("zh");
 
   const [summary, newest, species] = await Promise.all([
@@ -90,10 +94,7 @@ export default async function CollectionHub({
 
   const n = (v: number) => v.toLocaleString(locale);
   const day = (d: Date | string) =>
-    new Date(d).toLocaleDateString(locale, {
-      timeZone: "Asia/Taipei",
-      dateStyle: "medium",
-    });
+    formatTaipeiDate(d, locale, { dateStyle: "medium" });
   const photo = PHOTOS[PHOTO[collection]];
   const name = t(`name.${collection}`);
   const empty = summary.records === 0;
@@ -357,6 +358,12 @@ export default async function CollectionHub({
                           label={t(r.taxonId ? "badge.invasive" : "badge.reported")}
                           title={t(r.taxonId ? "badge.invasiveWhy" : "badge.reportedWhy")}
                         />
+                      )}
+                      {/* Unlike that mark it differs from row to row, so it
+                          repeats on the invasive page too: it is what the
+                          receipt promised until a moderator confirms. */}
+                      {awaitingVerification(r) && (
+                        <UnverifiedBadge label={tr("receipt.notVerified")} />
                       )}
                     </span>
                     <span className="col-start-2 flex items-center gap-2 text-[14px] text-ink-600 sm:col-start-3 sm:justify-end">

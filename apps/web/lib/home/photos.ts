@@ -145,8 +145,3 @@ export type PhotoKey = keyof typeof PHOTOS;
 
 /** The rotating hero, in the order it plays. Animals only — no roads, no rivers. */
 export const HERO: PhotoKey[] = ["blueMagpie", "mikado", "muntjac", "macaque", "swinhoe", "blackBear"];
-
-/** The name to show for a photo, in the reader's language first. */
-export function photoName(p: HomePhoto, zh: boolean): string {
-  return zh ? p.name.zh : p.name.en;
-}

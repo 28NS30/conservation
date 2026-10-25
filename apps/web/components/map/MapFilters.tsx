@@ -288,7 +288,10 @@ export default function MapFilters({
                   onFocus={() => setOpen(true)}
                   placeholder={t("map.filterSpecies")}
                   aria-label={t("map.filterSpecies")}
-                  className="w-44 rounded-full border border-parchment-200/20 bg-bark-900/90 px-3 py-1.5 text-xs text-parchment-200 backdrop-blur placeholder:text-parchment-500"
+                  // 16px on a phone: iOS Safari zooms the page into any field
+                  // set smaller when it takes focus, and on the map that
+                  // leaves the reader panning a magnified canvas to get back.
+                  className="w-44 rounded-full border border-parchment-200/20 bg-bark-900/90 px-3 py-1.5 text-base text-parchment-200 backdrop-blur placeholder:text-parchment-500 sm:text-xs"
                 />
               )}
 
@@ -346,7 +349,7 @@ export default function MapFilters({
                   value={yearOf(value.from)}
                   onChange={(e) => setYear("from", e.target.value)}
                   aria-label={t("map.fromYear")}
-                  className="bg-transparent text-xs"
+                  className="bg-transparent text-base sm:text-xs"
                 >
                   <option value="">{t("map.anyYear")}</option>
                   {yearOptions.map((y) => (
@@ -360,7 +363,7 @@ export default function MapFilters({
                   value={yearOf(value.to)}
                   onChange={(e) => setYear("to", e.target.value)}
                   aria-label={t("map.toYear")}
-                  className="bg-transparent text-xs"
+                  className="bg-transparent text-base sm:text-xs"
                 >
                   <option value="">{t("map.anyYear")}</option>
                   {yearOptions.map((y) => (

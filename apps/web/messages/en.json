@@ -113,7 +113,7 @@
     "exifOffer": "This photo contains a location — use it?",
     "exifUse": "Use",
     "exifSkip": "Skip",
-    "observedAt": "Observed",
+    "observedAt": "When did you see it?",
     "observedFromPhoto": "(from the photo)",
     "notes": "Notes",
     "email": "Email",
@@ -161,7 +161,7 @@
       "test": "Test report received",
       "testPublished": "It went through every step a real report takes, and a real one would now be on the map. This one is a test, so only moderators can see it."
     },
-    "needChallenge": "Complete the check above first",
+    "needChallenge": "Complete the bot check at the end of the form",
     "preparingPhotos": "Processing photos…",
     "group": {
       "invasive": "Invasive species",
@@ -238,7 +238,8 @@
     "blurredUnknownNotice": "{precision} — this record has not been identified, and until we know what the animal is we cannot tell whether it is sensitive.",
     "suggestions": "The AI's suggestions",
     "pickCorrect": "Pick the correct species to fix this record.",
-    "confirmedBy": "Confirmed by the reporter or a moderator.",
+    "reporterIdentified": "Reporter's own identification",
+    "moderatorConfirmed": "Confirmed by a moderator",
     "source": "Source",
     "sourceGbif": "open data from {holder}, shared through GBIF, the international open database of species records",
     "sourceGbifNoHolder": "open data shared through GBIF, the international open database of species records",
@@ -379,6 +380,8 @@
     "nameUnderReview": "Name under review. These records were published under this name, which does not apply in Taiwan; they probably belong to a Taiwanese species, and a biologist will decide which. Until then they stay here, blurred as before.",
     "coordinatesWithheld": "Under the Taiwan species checklist's sensitivity rating, coordinates for this species are not published, so no records are shown on the map.",
     "metaDescription": "Records and distribution of {name} in Taiwan ({count, plural, one {# record} other {# records}}).",
+    "metaDescriptionWithheld": "{name} in Taiwan. Under the Taiwan species checklist's sensitivity rating, coordinates for this species are not published.",
+    "metaDescriptionNone": "{name} in Taiwan. Nobody has reported this species here yet.",
     "habitat": {
       "terrestrial": "Terrestrial",
       "freshwater": "Freshwater",
@@ -586,6 +589,7 @@
     "peakMonth": "Peaks in {month}.",
     "byYear": "By year",
     "byYearHint": "Changes reflect both what happened and how much surveying was done; the two are hard to separate.",
+    "byYearSource": "TaiRON's records, imported through GBIF, end in 2017; the years after hold only reports filed on this site.",
     "topSpecies": "Most recorded species",
     "topSpeciesHint": "Follow a species for its distribution map and details.",
     "protected": "Protected",
@@ -1168,6 +1172,7 @@
   "terms": {
     "title": "Terms for contributors",
     "lede": "What you agree to when you file a report here, in plain words. Version {version}.",
+    "metaDescription": "What you agree to when you report to Project FormosaWatch: records are published under CC0, which locations are blurred, sharing with TaiRON, and how to take a report back.",
     "whatTitle": "What a report is",
     "whatBody": "A report is the animal you saw, where and when, any photos you add, and any notes. We publish it on the map, in the list of records and in the statistics, so that anyone working to protect Taiwan's wildlife can use it.",
     "licenceTitle": "How others may use it",

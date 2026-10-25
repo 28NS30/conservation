@@ -114,13 +114,4 @@ export function useMapMode(): [MapMode, (m: MapMode) => void] {
   return [mode, modeStore.set];
 }
 
-export function useMapColour(): [MapColour, (c: MapColour) => void] {
-  const colour = useSyncExternalStore(
-    colourStore.subscribe,
-    colourStore.get,
-    colourStore.getServer,
-  );
-  return [colour, colourStore.set];
-}
-
 export { MODES, modeStore, COLOURS, colourStore };

@@ -15,6 +15,8 @@ import {
   type LocationPrecision,
 } from "@conservation/shared";
 import InvasiveBadge from "@/components/collections/InvasiveBadge";
+import UnverifiedBadge from "@/components/report/UnverifiedBadge";
+import { awaitingVerification } from "@/lib/report/verification";
 import { publicSpeciesName, speciesSlug } from "@/lib/species";
 import { signedPhotoUrls } from "@/lib/supabase/service";
 import { sql } from "@/lib/db";
@@ -22,6 +24,7 @@ import Pager from "@/components/site/Pager";
 import { alternates } from "@/lib/alternates";
 import SpeciesName from "@/components/species/SpeciesName";
 import { speciesLabel } from "@/lib/speciesNames";
+import { formatTaipeiDate } from "@/lib/dates";
 
 export const revalidate = 120;
 
@@ -41,6 +44,7 @@ type Row = {
   commonNameEn: string | null;
   taicolId: string | null;
   isInvasive: boolean;
+  taxonSource: string | null;
 };
 
 /** The swatch beside a collection's chip, as on the map's toggles. */
@@ -101,6 +105,7 @@ export default async function ReportsListPage({
   const tp = await getTranslations("precision");
   // The map already has a word for this and the two controls do the same thing.
   const tm = await getTranslations("map");
+  const tr = await getTranslations("report");
 
   // The filter jumps here from the map, so it has to be the same collections
   // the map offers, read by the same selectionFor() the tiles use — this page
@@ -126,7 +131,8 @@ export default async function ReportsListPage({
              t.common_name_zh as "commonNameZh",
              t.common_name_en as "commonNameEn",
              t.taicol_id as "taicolId",
-             rp.is_invasive as "isInvasive"
+             rp.is_invasive as "isInvasive",
+             rp.taxon_source as "taxonSource"
         from reports_public rp
         left join taxa t on t.id = rp.taxon_id
        where (${categories}::text[] is null or rp.category = any(${categories}))
@@ -274,8 +280,7 @@ export default async function ReportsListPage({
    * here. When that lookup answers nothing, the line simply omits the name.
    */
   const named = taxonId ? await publicSpeciesName(taxonId) : null;
-  const day = (d: string) =>
-    new Date(d).toLocaleDateString(locale, { timeZone: "Asia/Taipei" });
+  const day = (d: string) => formatTaipeiDate(d, locale);
   const dates =
     from && to
       ? t("dateRange", { from: day(from), to: day(to) })
@@ -495,9 +500,7 @@ export default async function ReportsListPage({
                       prefetch={false}
                       className="flex min-h-11 items-center pr-3 text-ink-800 underline underline-offset-2 hover:text-ember-700"
                     >
-                      {new Date(r.observedAt).toLocaleDateString(locale, {
-                        timeZone: "Asia/Taipei",
-                      })}
+                      {day(r.observedAt)}
                     </Link>
                   </td>
                   <td className="py-1.5 pr-3 text-ink-500">{tc(r.category)}</td>
@@ -525,6 +528,11 @@ export default async function ReportsListPage({
                           label={tcol(r.taxonId ? "badge.invasive" : "badge.reported")}
                           title={tcol(r.taxonId ? "badge.invasiveWhy" : "badge.reportedWhy")}
                         />
+                      )}
+                      {/* As on the record itself: what the receipt promised
+                          until a moderator confirms the species. */}
+                      {awaitingVerification(r) && (
+                        <UnverifiedBadge label={tr("receipt.notVerified")} />
                       )}
                     </span>
                   </td>

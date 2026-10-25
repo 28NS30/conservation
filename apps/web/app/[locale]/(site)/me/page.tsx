@@ -275,8 +275,8 @@ export default async function MyReportsPage({
                       )}
                       {/* The same words as the receipt the reporter was shown
                           when they sent it (lib/report/verification.ts): an
-                          invasive-page report is public, blurred, and not yet
-                          checked by a moderator. */}
+                          invasive-page report is public and not yet checked by
+                          a moderator. */}
                       {r.status !== "rejected" &&
                         awaitingVerification(r) && (
                           <span className="shrink-0 rounded-full border border-ink-900/20 bg-paper-50 px-2.5 py-0.5 text-sm text-ink-800">

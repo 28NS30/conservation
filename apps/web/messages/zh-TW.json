@@ -109,7 +109,7 @@
     "locating": "定位中…",
     "tapToAdjust": "點地圖可調整位置",
     "tapToMark": "點地圖標出位置",
-    "outsideTaiwan": "不在台灣範圍內",
+    "outsideTaiwan": "不在臺灣範圍內",
     "exifOffer": "照片內含拍攝地點，要使用嗎？",
     "exifUse": "使用",
     "exifSkip": "略過",
@@ -145,7 +145,7 @@
       "onMap": "已經在地圖上了",
       "held": "收到了，還沒公開",
       "withheld": "已收到，但不會公開顯示",
-      "heldForIdentification": "辨識模型會先試著從你的照片判斷是什麼動物；判斷不出來，就會以未鑑定、位置模糊化的方式公開。這需要一段時間。",
+      "heldForIdentification": "AI 辨識模型會先試著從你的照片判斷是什麼動物；判斷不出來，就會以尚未辨識、位置模糊化的方式公開。這需要一段時間。",
       "heldNoPhoto": "沒有照片的通報，會先由人看過才公開。",
       "heldForReview": "這筆通報會先由人看過才公開。",
       "withheldSpecies": "臺灣物種名錄將這個物種的座標列為不公開。這筆紀錄會保存下來，但不會出現在地圖、通報列表或任何統計裡。",
@@ -182,7 +182,7 @@
     "speciesInvasive": "入侵種",
     "speciesChange": "更改",
     "speciesUnsure": "我不確定那是什麼",
-    "speciesUnsureHint": "這比亂猜好。我們會記為未鑑定。有照片的話，辨識模型會先試著從照片判斷物種；判斷不出來，就會以未鑑定、位置模糊化的方式公開。",
+    "speciesUnsureHint": "這比亂猜好。我們會記為尚未辨識。有照片的話，AI 辨識模型會先試著從照片判斷物種；判斷不出來，就會以尚未辨識、位置模糊化的方式公開。",
     "accuracy": "誤差約 {m} 公尺",
     "pages": {
       "roadkill": "通報路殺或受傷動物",
@@ -196,7 +196,7 @@
     "needCondition": "請先選擇動物已經死亡，還是活著但受傷",
     "alsoInvasive": "這是外來入侵種，這筆紀錄也會列入入侵種的資料，不需要另外處理。",
     "speciesNoHitsInvasive": "入侵種名單裡沒有這個名稱。",
-    "speciesUnsureHintInvasive": "這比亂猜好。我們會記為未鑑定，在確認物種之前，位置都會模糊化。",
+    "speciesUnsureHintInvasive": "這比亂猜好。我們會記為尚未辨識，在確認物種之前，位置都會模糊化。",
     "notOnListLead": "名單裡沒有？",
     "notOnListLink": "改用野生動物目擊通報",
     "saveOnPhone": "先存在手機裡",
@@ -214,7 +214,7 @@
     "metaDescription": "通報你在臺灣看到的動物：路上死亡或受傷的動物、入侵種，或活生生的野生動物。不需要帳號。",
     "testMode": {
       "title": "測試通報",
-      "body": "這筆通報會走完真實通報的每一步：上傳照片、辨識模型判斷物種、人工審核。它永遠不會公開：不會出現在地圖、統計或我們分享的資料裡。只有審核人員能送出測試通報。",
+      "body": "這筆通報會走完真實通報的每一步：上傳照片、AI 辨識模型判斷物種、人工審核。它永遠不會公開：不會出現在地圖、統計或我們分享的資料裡。只有審核人員能送出測試通報。",
       "realInstead": "改為送出真實通報"
     },
     "speciesSearchFailed": "沒有訊號，沒辦法搜尋。可以勾選「我不確定那是什麼」，或把名稱寫在備註裡。",
@@ -238,14 +238,15 @@
     "blurredUnknownNotice": "{precision}——這筆紀錄還沒辨識出物種；在還不知道是什麼動物之前，我們無法判斷牠是否敏感。",
     "suggestions": "AI 建議",
     "pickCorrect": "選擇正確的物種以修正這筆紀錄。",
-    "confirmedBy": "由通報者或審核人員確認。",
+    "reporterIdentified": "通報者自行辨識",
+    "moderatorConfirmed": "由審核人員確認",
     "source": "資料來源",
     "sourceGbif": "{holder}的公開資料，經 GBIF（國際公開的物種紀錄資料庫）取得",
     "sourceGbifNoHolder": "經 GBIF（國際公開的物種紀錄資料庫）取得的公開資料",
     "unavailableTitle": "無法顯示這筆紀錄",
     "receipt": {
       "title": "收到了，目前沒有公開",
-      "body": "有些通報要等一下才會公開：有照片但沒有物種名稱的，要等辨識模型試著判斷物種；沒有照片的，要等人看過。部分物種的位置不會公開。"
+      "body": "有些通報要等一下才會公開：有照片但沒有物種名稱的，要等 AI 辨識模型試著判斷物種；沒有照片的，要等人看過。部分物種的位置不會公開。"
     },
     "aiSuggested": "AI 建議",
     "testTitle": "測試通報",
@@ -379,6 +380,8 @@
     "nameUnderReview": "名稱待確認。這些紀錄以這個名稱發布，但這個名稱不適用於臺灣；牠們很可能屬於某個臺灣的物種，將由生物學者判定。在那之前，紀錄仍留在這裡，並維持原本的模糊化。",
     "coordinatesWithheld": "依據臺灣物種名錄的敏感度分級，此物種的座標不予公開，因此地圖上不會顯示任何紀錄。",
     "metaDescription": "{name} 在臺灣的紀錄與分布（{count, number} 筆）。",
+    "metaDescriptionWithheld": "{name} 在臺灣的物種資料。依據臺灣物種名錄的敏感度分級，此物種的座標不予公開。",
+    "metaDescriptionNone": "{name} 在臺灣的物種資料。這裡還沒有人通報過這個物種。",
     "habitat": {
       "terrestrial": "陸域",
       "freshwater": "淡水",
@@ -586,6 +589,7 @@
     "peakMonth": "{month}最多。",
     "byYear": "逐年紀錄",
     "byYearHint": "數量變化同時反映實際狀況與調查投入，兩者不易分離。",
+    "byYearSource": "經 GBIF 取得的路殺社（TaiRON）紀錄只到 2017 年；之後的年份只有在本站送出的通報。",
     "topSpecies": "紀錄最多的物種",
     "topSpeciesHint": "點擊可查看該物種的分布圖與詳細資料。",
     "protected": "保育類",
@@ -1168,6 +1172,7 @@
   "terms": {
     "title": "通報者條款",
     "lede": "在這裡送出通報時，你同意的事項，用白話說明。版本 {version}。",
+    "metaDescription": "在福爾摩沙守望計畫送出通報時你同意的事項：紀錄以 CC0 公開、哪些位置會模糊化、如何分享給路殺社，以及怎麼撤回通報。",
     "whatTitle": "通報包含什麼",
     "whatBody": "通報是你看到的動物、時間與地點、你附上的照片和備註。我們會把它公開在地圖、紀錄列表和統計中，讓所有致力保護臺灣野生動物的人都能使用。",
     "licenceTitle": "其他人可以怎麼使用",

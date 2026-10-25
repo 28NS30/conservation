@@ -1,4 +1,5 @@
 import type postgres from "postgres";
+import { cache } from "react";
 import {
   REPORT_PAGES,
   REPORT_PAGE_KEYS,
@@ -181,7 +182,15 @@ export function isIndexworthy(s: {
   );
 }
 
-export async function getSpecies(id: number): Promise<SpeciesDetail | null> {
+/**
+ * One species, as its page and its share card show it.
+ *
+ * Memoised for the length of one request (React's cache): a species page asks
+ * for it in its metadata, in its share card's alt text and in its body, and
+ * those were separate identical reads of the same row. Outside a request it is
+ * simply called.
+ */
+export const getSpecies = cache(async (id: number): Promise<SpeciesDetail | null> => {
   const rows = await asPublic(
     (tx) => tx<SpeciesDetail[]>`
       select ${tx.unsafe(SUMMARY_COLS)},
@@ -196,7 +205,7 @@ export async function getSpecies(id: number): Promise<SpeciesDetail | null> {
        where t.id = ${id}`,
   );
   return rows[0] ?? null;
-}
+});
 
 /**
  * A species a "report this species" link may carry, and the report pages that

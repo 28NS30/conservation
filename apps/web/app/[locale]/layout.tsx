@@ -29,6 +29,12 @@ const display = Barlow_Condensed({
   preload: false,
 });
 
+/**
+ * Open Graph's form of each locale, language_TERRITORY. The English catalogue
+ * is written in British spelling ("colour", "licence").
+ */
+const OG_LOCALE: Record<string, string> = { "zh-TW": "zh_TW", en: "en_GB" };
+
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
 }
@@ -49,6 +55,19 @@ export async function generateMetadata({
     metadataBase: new URL(SITE_URL),
     title: { default: t("title"), template: `%s · ${t("title")}` },
     description: t("description"),
+    // What a shared link's preview names the site as, and in which language.
+    // Next fills og:title and og:description from each page's own title and
+    // description; these three were missing from every page, so a preview had
+    // no site name beside the page's. No page sets openGraph of its own, so
+    // this is every page's.
+    openGraph: {
+      siteName: t("title"),
+      type: "website",
+      locale: OG_LOCALE[locale] ?? OG_LOCALE[routing.defaultLocale],
+      alternateLocale: routing.locales
+        .filter((l) => l !== locale)
+        .map((l) => OG_LOCALE[l]),
+    },
   };
 }
 

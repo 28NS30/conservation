@@ -36,7 +36,15 @@ const BADGE = `data:image/png;base64,${(
  * Everything is drawn with flexbox and inline styles because that is all satori
  * supports — no grid, no external stylesheet, no Tailwind classes.
  */
-export const alt = "Project FormosaWatch — Taiwan";
+/**
+ * One alt text for both languages, naming the site in each. Per-locale alt
+ * would need generateImageMetadata, which moves the card to an id segment
+ * (/opengraph-image/card) and replaces the force-static, locale-only build
+ * below, so the address that previews have already cached would 404. A
+ * bilingual line says the same to a screen reader in either language without
+ * moving the card.
+ */
+export const alt = "福爾摩沙守望計畫 · Project FormosaWatch · 臺灣 Taiwan";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
