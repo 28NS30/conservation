@@ -29,6 +29,7 @@ import {
   readOverrides,
   parseOverrides,
   RETIRED_TWINS_SQL,
+  retiredTwinsSql,
 } from "../../../scripts/taxa-overrides.ts";
 
 after(() => sql.end());
@@ -308,7 +309,8 @@ describe("a rating TaiCOL left on a retired name", () => {
       .map((p) => `${p.taicol_id} ${p.scientific_name} (${p.precision}) < ` +
                   `${p.retired_taicol_id} (${p.retired_precision})`);
     assert.deepEqual(looser, [],
-      "add a floor for each to scripts/taxa-overrides.csv and apply it " +
+      "add a floor for each to scripts/taxa-overrides.csv and apply it, or the " +
+      "owner's decision against one to NO_FLOOR in scripts/taxa-overrides.ts " +
       "(npx tsx scripts/retired-twins.ts says what each is)");
   });
 
@@ -374,6 +376,39 @@ describe("a rating TaiCOL left on a retired name", () => {
       const found = rows.find((r) => r.retired_taicol_id === first.taicol_id);
       assert.ok(found, "the first name's rating did not reach the row in use");
       assert.equal(found.looser, true);
+    });
+  });
+
+  test("but not a retired genus TaiCOL points at a species", async () => {
+    // 厚距花屬 Pachycentria points at 臺灣厚距花 Medinilla taiwaniana. A genus
+    // carries no rating of its own; the 10 km a name above the species can get
+    // (0033) is about records named that vaguely, not about the species.
+    await inRollback(async (tx) => {
+      const used = await taxon(tx);
+      await taxon(tx, { name: "Testudofixtura", rank: "Genus", status: "deleted",
+                        successor: used.taicol_id });
+      assert.equal((await twinsOf(tx, used.taicol_id)).length, 0, "a retired genus was paired");
+    });
+  });
+
+  test("and passes over a pair the owner decided needs no floor, and only that pair", async () => {
+    // NO_FLOOR in taxa-overrides.ts: a decision on one retired row must not
+    // hide the next rated row TaiCOL moves onto the same name.
+    await inRollback(async (tx) => {
+      const used = await taxon(tx);
+      const decided = await taxon(tx, { status: "deleted", sensitivity: "輕度",
+                                        successor: used.taicol_id });
+      const other = await taxon(tx, { status: "deleted", sensitivity: "輕度",
+                                      successor: used.taicol_id });
+      const query = retiredTwinsSql(undefined, [
+        { taicol_id: used.taicol_id, retired_taicol_id: decided.taicol_id, reason: "test" },
+      ]);
+      const rows = await tx.unsafe(`select * from (${query}) x where taicol_id = $1`,
+                                   [used.taicol_id]);
+      const by = new Map(rows.map((r) => [r.retired_taicol_id, r]));
+      assert.equal(by.get(decided.taicol_id)?.looser, false, "a decided pair still fails the check");
+      assert.equal(by.get(other.taicol_id)?.looser, true,
+        "the decision hid another retired row on the same name");
     });
   });
 

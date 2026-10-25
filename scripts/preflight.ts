@@ -127,7 +127,8 @@ async function main(): Promise<void> {
 
   // A TaiCOL refresh can retire a name and leave its rating on the retired row.
   // The picker offers only the name in use, so without a floor that rating
-  // blurs nothing. Fatal: the fix is a line in scripts/taxa-overrides.csv.
+  // blurs nothing. Fatal: the fix is a line in scripts/taxa-overrides.csv, or
+  // the owner's decision against one in NO_FLOOR (scripts/taxa-overrides.ts).
   // scripts/retired-twins.ts says what each pair is.
   try {
     const looser = await sql.unsafe<{ taicol_id: string; retired_taicol_id: string }[]>(
