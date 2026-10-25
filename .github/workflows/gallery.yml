@@ -81,9 +81,14 @@ jobs:
         run: npm run build
 
       - name: Start server
+        id: server
+        # /api/health rather than /, as in ci.yml: the root is prerendered and
+        # answers before the app can serve anything that needs the database.
+        # A curl loop rather than wait-on, for the reasons at the top of ci.yml.
         run: |
           npm run start --workspace @conservation/web &
-          npx wait-on http://localhost:3000 --timeout 90000
+          for i in $(seq 90); do curl -fs -o /dev/null --max-time 5 http://localhost:3000/api/health && break; sleep 1; done
+          curl -fsS -o /dev/null --max-time 5 http://localhost:3000/api/health
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
