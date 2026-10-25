@@ -14,10 +14,10 @@ import { SPECIES_NOTES, speciesNotes } from "../lib/speciesNotes.ts";
 
 after(() => sql.end());
 
-const MIGRATION = readFileSync(
-  join(import.meta.dirname, "../../../supabase/migrations/0022_records_to_taiwan_names.sql"),
-  "utf8",
-);
+const migration = (file) =>
+  readFileSync(join(import.meta.dirname, "../../../supabase/migrations", file), "utf8");
+const MIGRATION = migration("0022_records_to_taiwan_names.sql");
+const HOOPOE = migration("0037_hoopoe_to_species.sql");
 const MOVES = [
   ["t0032116", "t0105762"],
   ["t0124472", "t0028707"],
@@ -69,37 +69,59 @@ describe("migration 0022 moves records without loosening any", () => {
     for (const [from, to] of MOVES) assert.match(code, new RegExp(`\\('${from}', '${to}'\\)`));
   });
 
-  test("run against this database: moved, none looser, nothing else touched, and a second run is a no-op", async () => {
-    const body = MIGRATION.replace(/^set local lock_timeout.*$/m, "");
-    const marker = Symbol("rollback");
-    try {
-      await sql.begin(async (tx) => {
-        await tx.unsafe(`create temp table _snap on commit drop as
-          select id, taxon_id, location_precision, st_astext(location_public::geometry) as pub from reports`);
-        await tx.unsafe(body);
-        const [c] = await tx`
-          select
-            count(*) filter (where r.taxon_id is distinct from s.taxon_id)::int as moved,
-            count(*) filter (where precision_rank(r.location_precision) < precision_rank(s.location_precision))::int as looser,
-            count(*) filter (where r.taxon_id is not distinct from s.taxon_id
-                               and (r.location_precision is distinct from s.location_precision
-                                    or st_astext(r.location_public::geometry) is distinct from s.pub))::int as other
-            from reports r join _snap s using (id)`;
-        assert.equal(c.looser, 0, "a moved record came out less blurred");
-        assert.equal(c.other, 0, "a record that was not moved changed");
-        const [left] = await tx`
-          select count(*)::int as n from reports r join taxa t on t.id = r.taxon_id
-           where r.source = 'gbif' and t.taicol_id = any(${MOVES.map((m) => m[0])})`;
-        assert.equal(left.n, 0, "records remain on a name that does not apply in Taiwan");
-        const again = await tx.unsafe(body);
-        assert.equal(again.count, 0, "a second run moved something");
-        throw marker;
-      });
-    } catch (e) {
-      if (e !== marker) throw e;
-    }
-  });
+  test("run against this database: moved, none looser, nothing else touched, and a second run is a no-op", () =>
+    runAgainstThisDatabase(MIGRATION, MOVES.map((m) => m[0])));
 });
+
+describe("migration 0037 moves the hoopoe's records to the species", () => {
+  test("it stamps the record's current blur, as 0022 does, and moves only imported records", () => {
+    const code = HOOPOE.replace(/--.*$/gm, "");
+    assert.match(code, /stricter_precision\(r\.precision_override, r\.location_precision\)/);
+    assert.match(code, /when r\.location_precision = 'exact' then r\.precision_override/);
+    assert.match(code, /and r\.source = 'gbif'/);
+    assert.match(code, /not in \('expert', 'user'\)/);
+    assert.match(code, /src\.taicol_id = 't0102553'/);
+    assert.match(code, /dst\.taicol_id = 't0096620'/);
+  });
+
+  test("run against this database: moved, none looser, nothing else touched, and a second run is a no-op", () =>
+    runAgainstThisDatabase(HOOPOE, ["t0102553"]));
+});
+
+/**
+ * Runs a record-moving migration inside a transaction that is always rolled
+ * back, and checks what it did to every report against a snapshot.
+ */
+async function runAgainstThisDatabase(file, fromTaicolIds) {
+  const body = file.replace(/^set local lock_timeout.*$/m, "");
+  const marker = Symbol("rollback");
+  try {
+    await sql.begin(async (tx) => {
+      await tx.unsafe(`create temp table _snap on commit drop as
+        select id, taxon_id, location_precision, st_astext(location_public::geometry) as pub from reports`);
+      await tx.unsafe(body);
+      const [c] = await tx`
+        select
+          count(*) filter (where precision_rank(r.location_precision) < precision_rank(s.location_precision))::int as looser,
+          count(*) filter (where r.taxon_id is not distinct from s.taxon_id
+                             and (r.location_precision is distinct from s.location_precision
+                                  or st_astext(r.location_public::geometry) is distinct from s.pub))::int as other
+          from reports r join _snap s using (id)`;
+      assert.equal(c.looser, 0, "a moved record came out less blurred");
+      assert.equal(c.other, 0, "a record that was not moved changed");
+      const [left] = await tx`
+        select count(*)::int as n from reports r join taxa t on t.id = r.taxon_id
+         where r.source = 'gbif' and coalesce(r.taxon_source, 'imported') not in ('expert', 'user')
+           and t.taicol_id = any(${fromTaicolIds})`;
+      assert.equal(left.n, 0, "records remain on a name that does not apply in Taiwan");
+      const again = await tx.unsafe(body);
+      assert.equal(again.count, 0, "a second run moved something");
+      throw marker;
+    });
+  } catch (e) {
+    if (e !== marker) throw e;
+  }
+}
 
 describe("the species page", () => {
   test("says a species' locations are blurred whenever they are, not only when TaiCOL rates it", async (t) => {
