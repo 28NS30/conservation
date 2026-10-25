@@ -131,9 +131,10 @@ async function main(): Promise<void> {
   // the owner's decision against one in NO_FLOOR (scripts/taxa-overrides.ts).
   // scripts/retired-twins.ts says what each pair is.
   try {
-    const looser = await sql.unsafe<{ taicol_id: string; retired_taicol_id: string }[]>(
-      `select taicol_id, retired_taicol_id from (${RETIRED_TWINS_SQL}) x where looser`,
-    );
+    const twins = await sql.unsafe<
+      { taicol_id: string; retired_taicol_id: string; by_successor: boolean; looser: boolean }[]
+    >(`select taicol_id, retired_taicol_id, by_successor, looser from (${RETIRED_TWINS_SQL}) x`);
+    const looser = twins.filter((r) => r.looser);
     check(
       "no name in use is blurred less than its retired twin",
       looser.length === 0,
@@ -144,6 +145,26 @@ async function main(): Promise<void> {
               .slice(0, 10)
               .map((r) => `${r.taicol_id} (rated on ${r.retired_taicol_id})`)
               .join(", "),
+    );
+
+    // The check above finds a rename only through TaiCOL's successor ids
+    // (taxa.new_taicol_id). Where they are missing it matches names alone and
+    // passes, as it did while 鉛色水蛇's records went from hidden to 10 km:
+    // 0034 applied but its fill not run, a database restored from an older
+    // dump, or a TaiCOL import that stopped carrying the field and cleared them.
+    const [ids] = await sql<{ deleted: number; pointed: number }[]>`
+      select count(*) filter (where taxon_status = 'deleted')::int as deleted,
+             count(*) filter (where taxon_status = 'deleted'
+                                and new_taicol_id is not null)::int as pointed
+        from taxa`;
+    const linked = twins.filter((r) => r.by_successor).length;
+    const live = ids.deleted === 0 || (ids.pointed > 0 && linked > 0);
+    check(
+      "retired TaiCOL rows carry the id of the row that replaced them",
+      live,
+      `${ids.pointed.toLocaleString()} of ${ids.deleted.toLocaleString()} retired rows point to a successor, ` +
+        `${linked.toLocaleString()} retired twins found that way` +
+        (live ? "" : " — fill them with scripts/taicol-successors-sql.ts, or the twin check misses renames"),
     );
   } catch (e) {
     check(

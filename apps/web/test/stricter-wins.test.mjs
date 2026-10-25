@@ -379,6 +379,44 @@ describe("a rating TaiCOL left on a retired name", () => {
     });
   });
 
+  test("the query follows a real rename by TaiCOL's id, so that path is not vacuous either", async () => {
+    // 鉛色水蛇's two deleted rows name 韋氏水蛇 as their successor, and 0032's
+    // floor holds the snake hidden. CI's fixture has the floor, which is a
+    // migration, but not the rows, so they are added here and rolled back. A
+    // database that has the rows must have TaiCOL's pointers on them too: with
+    // the column empty the check matches names only and misses every rename.
+    await inRollback(async (tx) => {
+      await tx`
+        insert into taxa (taicol_id, scientific_name, common_name_zh, rank, kingdom,
+                          is_in_taiwan, taxon_status, protected_status)
+        values ('t0029845', 'Hypsiscopus wettsteini', '韋氏水蛇', 'Species', 'Animalia',
+                true, 'accepted', 'III')
+        on conflict (taicol_id) do nothing`;
+      await tx`
+        insert into taxa (taicol_id, scientific_name, common_name_zh, rank, kingdom,
+                          is_in_taiwan, taxon_status, sensitivity, new_taicol_id)
+        select id, 'Enhydris plumbea', '鉛色水蛇', 'Species', 'Animalia',
+               true, 'deleted', '座標不開放', 't0029845'
+          from unnest(array['t0101462', 't0105945']) id
+        on conflict (taicol_id) do nothing`;
+      const pointers = await tx`
+        select new_taicol_id from taxa
+         where taicol_id in ('t0101462', 't0105945') order by taicol_id`;
+      assert.deepEqual(pointers.map((p) => p.new_taicol_id), ["t0029845", "t0029845"],
+        "the retired snake rows carry no successor id: run scripts/taicol-successors-sql.ts");
+
+      const rows = (await twinsOf(tx, "t0029845"))
+        .filter((r) => ["t0101462", "t0105945"].includes(r.retired_taicol_id));
+      assert.equal(rows.length, 2, "the rename was not found by TaiCOL's id");
+      for (const r of rows) {
+        assert.equal(r.by_successor, true);
+        assert.equal(r.retired_precision, "suppressed", "fixture precondition");
+        assert.equal(r.precision, "suppressed", "0032's floor on 韋氏水蛇 is not in force");
+        assert.equal(r.looser, false);
+      }
+    });
+  });
+
   test("but not a retired genus TaiCOL points at a species", async () => {
     // 厚距花屬 Pachycentria points at 臺灣厚距花 Medinilla taiwaniana. A genus
     // carries no rating of its own; the 10 km a name above the species can get
