@@ -497,6 +497,22 @@ are the only non-GBIF reports in production, and both are anonymous.
   It opens no routine pip pull requests: the classifier's thresholds were
   measured with its pinned versions, and a bump also needs a paid GPU deploy.
 
+**Retired TaiCOL rows now carry their successor's id (0034)**, applied 25
+October with a ledger row.
+- `taxa.new_taicol_id` was added.
+- The fill from the 29 September snapshot set it on 2,352 retired rows. A dry
+  run of the fill moved no record, though `taxa_reblur_reports` fires on taxa
+  updates.
+- 15 plants got coarse_10km floors, so there are now 103 floors. None of the
+  plants has a record, and the dry run changed 0 records.
+- `npx tsx scripts/retired-twins.ts --sql`, run through the Management API
+  afterwards, lists nothing. No name in use is blurred less than a retired
+  row it replaced, now matched by id as well as by name.
+
+**TaiRON's 13 hoopoe records moved to the species 戴勝 (0037, #159)**, applied
+25 October with a ledger row. All 13 are still exact, and the public total did
+not change.
+
 **Counts on 25 October:**
 - 46,305 public records, 0 of them from users;
 - 0 accounts, so 0 moderators;
