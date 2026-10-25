@@ -26,6 +26,7 @@ import {
   healthUnreachable,
   hours,
   jobDetail,
+  platformWaitUntil,
   requestErrorKey,
 } from "../lib/monitoring.ts";
 import { LEDGER_UNREADABLE, ledgerCheck, ledgerKept, ledgerMissingName } from "../lib/migrationLedger.ts";
@@ -209,6 +210,42 @@ describe("an error row", () => {
     assert.match(src, /\} catch \{/);
     // server-only throws outside a server component, which instrumentation is not.
     assert.ok(!/server-only/.test(read("lib", "appErrors.ts").replace(/\/\*[\s\S]*?\*\//g, "")));
+  });
+
+  test("instrumentation hands the write to the platform, and still awaits it", () => {
+    const code = read("instrumentation.ts").replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
+    const body = code.slice(code.indexOf("try {"));
+    // Looked up before the first await, while the request's context is current.
+    assert.ok(body.indexOf("platformWaitUntil()") < body.indexOf("await"), "waitUntil must be found before anything is awaited");
+    assert.match(body, /waitUntil\?\.\(write\);\s*await write;/);
+    assert.match(body, /\.catch\(\(\) => \{\}\)/, "the write handed over must never reject");
+  });
+});
+
+describe("the platform's waitUntil", () => {
+  const scope = (name, ctx) => ({ [Symbol.for(name)]: { get: () => ctx } });
+
+  test("is Next.js's request context's, as its after() uses, or else Vercel's", () => {
+    for (const name of ["@next/request-context", "@vercel/request-context"]) {
+      const handed = [];
+      const ctx = { waitUntil(p) { handed.push([this, p]); } };
+      const waitUntil = platformWaitUntil(scope(name, ctx));
+      const task = Promise.resolve();
+      waitUntil(task);
+      assert.equal(handed.length, 1, name);
+      assert.equal(handed[0][0], ctx, "called on its context");
+      assert.equal(handed[0][1], task);
+    }
+  });
+
+  test("is null where there is none, and nothing about a strange context can throw", () => {
+    assert.equal(platformWaitUntil({}), null);
+    assert.equal(platformWaitUntil(scope("@next/request-context", undefined)), null);
+    assert.equal(platformWaitUntil(scope("@next/request-context", { waitUntil: "no" })), null);
+    const throwing = { [Symbol.for("@next/request-context")]: { get: () => { throw new Error("outside a request"); } } };
+    assert.equal(platformWaitUntil(throwing), null);
+    const refusing = platformWaitUntil(scope("@vercel/request-context", { waitUntil: () => { throw new Error("late"); } }));
+    assert.doesNotThrow(() => refusing(Promise.resolve()));
   });
 });
 

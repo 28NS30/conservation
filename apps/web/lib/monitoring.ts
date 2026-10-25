@@ -110,6 +110,48 @@ export function requestErrorKey(err: unknown, context: unknown): { route: string
   return { route, digest };
 }
 
+type WaitUntil = (task: Promise<unknown>) => void;
+type RequestContextHolder = { get?: () => { waitUntil?: unknown } | undefined };
+
+/**
+ * The platform's `waitUntil` for the request being answered, or null where
+ * there is none (`next start`, a test).
+ *
+ * Next.js awaits onRequestError for a route handler or a server action, but
+ * for an error while rendering a page it is called from React's error
+ * callback, whose answer nothing awaits. On Vercel the function can be frozen
+ * as soon as the response is sent, so a write still in flight then is lost.
+ * Handing it to `waitUntil` keeps the invocation alive until it ends.
+ *
+ * Read from the two request contexts Vercel's runtime provides: Next.js's own,
+ * which is where its `after()` gets `waitUntil` from (server/after/
+ * builtin-request-context.js, the same in 16.3 and 16.4), and Vercel's, which
+ * is what `@vercel/functions` reads. Both are looked up by a global symbol and
+ * guarded, so a release that drops either finds null here and the write falls
+ * back to being awaited, as it was before. Must be called while the request is
+ * being answered: each context is per request.
+ */
+export function platformWaitUntil(scope: object = globalThis): WaitUntil | null {
+  for (const name of ["@next/request-context", "@vercel/request-context"]) {
+    try {
+      const holder = (scope as Record<symbol, RequestContextHolder | undefined>)[Symbol.for(name)];
+      const ctx = holder?.get?.();
+      const waitUntil = ctx?.waitUntil;
+      if (typeof waitUntil === "function")
+        return (task) => {
+          try {
+            waitUntil.call(ctx, task);
+          } catch {
+            /* the task still runs; it is only not waited for */
+          }
+        };
+    } catch {
+      /* not this one */
+    }
+  }
+  return null;
+}
+
 /** Hours, to one decimal: what the health endpoint reports a job's age in. */
 export function hours(seconds: number | null): number | null {
   return seconds === null || !Number.isFinite(seconds) ? null : Math.round(seconds / 360) / 10;
