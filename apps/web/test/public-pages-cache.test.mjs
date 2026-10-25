@@ -29,13 +29,12 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { createServerClient } from "@supabase/ssr";
-import { sql, BASE_URL } from "./helpers.mjs";
+import { sql, BASE_URL, requireServer } from "./helpers.mjs";
 
 after(() => sql.end());
 
 const WEB = join(import.meta.dirname, "..");
 const read = (...p) => readFileSync(join(WEB, ...p), "utf8");
-const up = async () => Boolean(await fetch(BASE_URL).catch(() => null));
 
 /** Modules that read the request, and so make whatever renders them per request. */
 const READS_REQUEST = new Set(["lib/supabase/server.ts", "lib/auth.ts", "lib/forum/server.ts"]);
@@ -243,7 +242,7 @@ describe("served from the cache", () => {
   }
 
   test("the public pages are shared, and set no cookie", async (t) => {
-    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     // One species built with the site, and one far down the list, which is
     // rendered on its first visit and cached from then on.
     const paths = [
@@ -273,7 +272,7 @@ describe("served from the cache", () => {
     // fills its cache, and fetch follows "a, a" to a 404. So a bare id is
     // redirected per request, by species/by-id. Each run asks for ids nobody
     // has asked for yet on this server, which is the case that broke.
-    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const rows = await sql`
       select t.id from taxa t join species_report_stats s on s.taxon_id = t.id
        order by s.report_count desc, t.id
@@ -289,7 +288,7 @@ describe("served from the cache", () => {
   });
 
   test("a slug that is not the taxon's own shows the page, with the right canonical", async (t) => {
-    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const path = await aSpecies(0);
     const id = /\/species\/(\d+)-/.exec(path)[1];
     const res = await fetch(`${BASE_URL}/en/species/${id}-an-old-name`, { redirect: "manual" });
@@ -300,7 +299,7 @@ describe("served from the cache", () => {
   });
 
   test("somebody's own pages are not", async (t) => {
-    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const [r] = await sql`select id from reports_public limit 1`;
     for (const path of ["/en/me", "/en/login", "/en/admin", `/en/reports/${r.id}`]) {
       const res = await fetch(`${BASE_URL}${path}`, { redirect: "manual" });
@@ -435,7 +434,7 @@ describe("…and dropped when a record on it moves", () => {
   }
 
   before(async () => {
-    if (!(await up())) return void (skip = `no server at ${BASE_URL}`);
+    if (!(await requireServer())) return void (skip = `no server at ${BASE_URL}`);
     if (!(await fetch(`${AUTH}/auth/v1/health`).catch(() => null))?.ok) return void (skip = `no auth at ${AUTH}`);
     if (!SERVICE || !ANON_KEY) return void (skip = "no Supabase keys in the environment");
     if (!existsSync(MANIFEST)) return void (skip = "no build to read the server actions from");
