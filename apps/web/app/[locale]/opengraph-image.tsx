@@ -68,9 +68,11 @@ export function generateStaticParams() {
 export async function generateImageMetadata({
   params,
 }: {
-  params: { locale?: string } | undefined;
+  // Awaited, as on the species card: a plain object in Next 16.3, partial at
+  // build time.
+  params: { locale?: string } | Promise<{ locale?: string }> | undefined;
 }) {
-  const locale = params?.locale ?? routing.defaultLocale;
+  const locale = (await params)?.locale ?? routing.defaultLocale;
   const site = await getTranslations({ locale, namespace: "site" });
   return [
     {

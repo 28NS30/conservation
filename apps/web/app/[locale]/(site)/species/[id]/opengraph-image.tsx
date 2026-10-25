@@ -40,6 +40,8 @@ import { routing } from "@/i18n/routing";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
+type ImageParams = { locale?: string; id?: string };
+
 /**
  * The card's alt text: the species it is about, in the page's language.
  *
@@ -52,12 +54,15 @@ export const contentType = "image/png";
  * card that is not already in the CDN reads the row twice.
  */
 export async function generateImageMetadata({
-  params,
+  params: given,
 }: {
   // Partial at build time: Next asks this for the image's static params with
   // only the segments above that have their own, and the species id has none.
-  params: { locale?: string; id?: string } | undefined;
+  // A plain object in Next 16.3; awaited all the same, so a version that
+  // passes a Promise here, as it already does to the image itself, reads it.
+  params: ImageParams | Promise<ImageParams> | undefined;
 }) {
+  const params = await given;
   const locale = params?.locale ?? routing.defaultLocale;
   const zh = locale.startsWith("zh");
   const taxonId = params?.id ? parseSpeciesId(params.id) : null;
