@@ -432,7 +432,7 @@ describe("the running server", () => {
   test("a job called with the cron secret records a finished run", async (t) => {
     if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
     const secret = process.env.CRON_SECRET;
-    if (!secret) return t.skip("no CRON_SECRET here (CI has none, and its server refuses every job)");
+    if (!secret) return t.skip("no CRON_SECRET here (CI sets one; a local run may not)");
     const [{ since }] = await sql`select now() as since`;
     // cleanup-orphans: the job whose work is harmless here, deleting only
     // what its own retention says is old. classify would send queued photos

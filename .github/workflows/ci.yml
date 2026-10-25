@@ -37,6 +37,9 @@ env:
   NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
   NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
   SUPABASE_SERVICE_ROLE_KEY: ci-placeholder
+  # So the server runs a job that is called with it, and the monitoring test
+  # can see a run reach job_runs. A placeholder: CI's database is throwaway.
+  CRON_SECRET: ci-cron-placeholder
 
 jobs:
   ml:
