@@ -26,11 +26,23 @@ import { revalidateTag, unstable_cache } from "next/cache";
  *
  * Five minutes is a figure's age when it is used, not how long a page may
  * show it. A page rebuilt from one keeps it for its own `revalidate`, and is
- * served stale for at most `expireTime` (next.config.ts), so a blur tightened
- * in the database, where no writer calls `reportsChanged()`, is off every
- * page within that hour and these five minutes. Rebuilding a page waits for
- * its stale figures to be read again rather than reusing them, so the two
- * never chain.
+ * served for at most `expireTime` (next.config.ts) from when it was made.
+ * Rebuilding a page waits for its stale figures to be read again rather than
+ * reusing them, so the two do not chain: when the rebuild's reads succeed, a
+ * blur tightened in the database, where no writer calls `reportsChanged()`,
+ * is off every page within those ten minutes and these five.
+ *
+ * When they fail, it is not. A stale figure whose read fails, a database
+ * timeout say, is handed to the rebuild anyway (Next logs "revalidating
+ * cache with key"), and the page made from it is cached as if it were
+ * fresh, old points and all, until it is next rebuilt; the figure stays
+ * stale, so that rebuild reads it again. A rebuild that throws, as one does
+ * when a figure it has no copy of cannot be read, leaves the previous page
+ * in place, stored afresh for thirty seconds, and the first visit after
+ * those tries again. Either way an old point outlasts the bound for as long
+ * as the database keeps failing, and goes at the first rebuild after it
+ * recovers. A re-blur made during an outage wants a deploy
+ * (docs/launch-checklist.md).
  *
  * Only for what is the same for every reader: what is cached here is served
  * to anyone who asks. Nothing that depends on who is looking, and nothing
@@ -69,9 +81,9 @@ export function siteFigure<A extends unknown[], R>(
  * again for five minutes.
  *
  * A change made in the database itself, a migration's re-blur or a floor,
- * calls nothing. It reaches every page within the bound `expireTime` sets
- * (next.config.ts); when it cannot wait that long, a production deploy is
- * the purge.
+ * calls nothing. It reaches every page within fifteen minutes while the
+ * database answers (above); when it cannot wait that long, a production
+ * deploy is the purge.
  */
 export function reportsChanged(): void {
   revalidateTag(REPORTS_TAG, { expire: 0 });

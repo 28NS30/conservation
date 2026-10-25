@@ -76,31 +76,44 @@ const config: NextConfig = {
     staticGenerationMaxConcurrency: 4,
   },
   /**
-   * How old a cached page may be when it is served, at most: an hour, where
-   * Next's default is a year.
+   * How old a cached page may be when it is served, at most: ten minutes,
+   * where Next's default is a year.
    *
-   * A page past its `revalidate` is still served once more while a fresh one
-   * is made, and only an hour from when it was made; after that its next
-   * visitor waits for a fresh render. It is also the response's
-   * `stale-while-revalidate` (an hour less the page's `revalidate`), so a CDN
-   * keeps it no longer either.
+   * A page past its `revalidate`, five minutes, is still served while a
+   * fresh one is made, but only until ten minutes from when it was made;
+   * after that its next visitor waits for a fresh render. It is also the
+   * response's `stale-while-revalidate` (ten minutes less the page's
+   * `revalidate`: `s-maxage=300, stale-while-revalidate=300`), so a CDN keeps
+   * it no longer either. A page whose `revalidate` came to more than this
+   * would lose its stale-while-revalidate and be kept by the CDN for the
+   * whole of it. So nothing cached, a page or a read it is made from, may
+   * last longer than five minutes, which keeps the header's two halves and
+   * the fifteen minutes below (test/public-pages-cache.test.mjs).
    *
    * What it bounds is a change no writer announces. The app's own writers
    * drop every page that shows records the moment one changes
    * (reportsChanged() in lib/siteFigures.ts). A blur tightened in the
    * database, by a migration, a floor or a TaiCOL refresh, runs none of
-   * them, and with a year's allowance a quiet species page went on listing
-   * the record's old point to whoever opened it next, however much later.
-   * Now it is gone within an hour and five minutes: the page's hour, plus
-   * the five minutes the cached reads it was rebuilt from may already have
-   * been old (lib/siteFigures.ts).
+   * them. Anything that places a record more precisely than its blur may do
+   * so for a few minutes at most, and an hour here left a quiet species page
+   * listing the record's old point for sixty-five. Now it is gone within
+   * fifteen: these ten, plus the five the cached reads the page was rebuilt
+   * from may already have been old. That assumes the rebuild's reads
+   * succeed; lib/siteFigures.ts says what happens when they do not.
    *
-   * When that is too long, deploy. A production deploy starts the page cache
-   * afresh, as it does the tiles', and it is the procedure after an urgent
-   * re-blur run by hand or by migration: apply it, then deploy, then check a
-   * page that listed the record.
+   * It costs no extra renders: a page is rebuilt at most once in five
+   * minutes, and only when somebody asks for it, whatever this is. What it
+   * changes is who waits. A page nobody has asked for in ten minutes is
+   * rendered while its next visitor waits, where an hour served it old once
+   * more and rebuilt it behind them; at this site's traffic that is most
+   * visits to a page.
+   *
+   * When fifteen minutes is too long, deploy. A production deploy starts the
+   * page cache afresh, as it does the tiles', and it is the procedure after a
+   * re-blur run by hand or by migration (docs/launch-checklist.md, "After a
+   * change to a blur made in the database").
    */
-  expireTime: 3600,
+  expireTime: 600,
   // The shared package ships TypeScript source rather than a build artifact.
   transpilePackages: ["@conservation/shared"],
   /**

@@ -6,7 +6,8 @@ import { checklistAnimalTaxaCount, recordedSpeciesCount } from "@/lib/stats";
 import PageHeader from "@/components/site/PageHeader";
 import { alternates } from "@/lib/alternates";
 
-export const revalidate = 900;
+/** Five minutes, as its cached figures make it anyway (`expireTime`, next.config.ts). */
+export const revalidate = 300;
 
 export async function generateMetadata({
   params,

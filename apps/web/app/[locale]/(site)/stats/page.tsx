@@ -18,7 +18,12 @@ import { alternates } from "@/lib/alternates";
 import { speciesNames } from "@/lib/speciesNames";
 import { seasonOpen } from "@/lib/coverage";
 
-export const revalidate = 900;
+/**
+ * Five minutes, as its cached figures make it anyway. The hotspots place
+ * records to 5 km, so the page may last no longer than anything else that
+ * places one (`expireTime`, next.config.ts).
+ */
+export const revalidate = 300;
 
 /** The swatch beside each collection, as on the map's toggles. */
 const COLLECTION_SWATCH: Record<Collection, string> = {

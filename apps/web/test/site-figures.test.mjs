@@ -143,7 +143,7 @@ const TAGGED = /^(?:export\s+)?const\s+[\w$]+\s*=\s*(?:cache\(\s*)?siteFigure\(/
  * it cannot hold anything a re-identification or a blur would change.
  */
 const UNTAGGED = new Map([
-  // Cached on its own for 15 minutes, untagged. It answers whether any person
+  // Cached on its own for five minutes, untagged. It answers whether any person
   // has filed a report at all: no record, no place and no count.
   ["lib/coverage.ts#seasonOpen", "yes or no, nothing about any record"],
 ]);

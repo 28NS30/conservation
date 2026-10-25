@@ -181,6 +181,59 @@ describe("nothing on a public page asks who is looking", () => {
   });
 });
 
+describe("nothing cached outlasts the bound", () => {
+  // A blur tightened in the database reaches a cached page only when the page
+  // is rebuilt, so every lifetime that can carry a record's point is short:
+  // a page is served for ten minutes at most (expireTime), and nothing it is
+  // made from lasts more than five. Next caches a page for the shortest
+  // lifetime among its own `revalidate` and the cached reads it makes, so one
+  // longer read anywhere a page reaches is a longer page; and a page whose
+  // lifetime exceeds expireTime loses its stale-while-revalidate, so a CDN
+  // keeps it for the whole of it.
+  const code = (src) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const EXPIRE = Number(/^\s*expireTime:\s*(\d+),/m.exec(code(read("next.config.ts")))?.[1]);
+
+  function sources(dir) {
+    const out = [];
+    for (const name of readdirSync(join(WEB, dir))) {
+      const rel = join(dir, name);
+      if (statSync(join(WEB, rel)).isDirectory()) out.push(...sources(rel));
+      else if (/\.tsx?$/.test(name)) out.push(rel);
+    }
+    return out;
+  }
+
+  /** Every cache lifetime written in app/ and lib/, in seconds, with where. */
+  function lifetimes() {
+    const found = [];
+    for (const file of [...sources("app"), ...sources("lib")]) {
+      const src = code(read(file));
+      const constant = (name) => Number(new RegExp(`\\bconst ${name} = (\\d+);`).exec(src)?.[1]);
+      for (const m of src.matchAll(/export const revalidate = (\d+);/g))
+        found.push({ where: `${file}: export const revalidate`, seconds: Number(m[1]) });
+      // unstable_cache's options, and a fetch's `next: { revalidate }`.
+      for (const m of src.matchAll(/\brevalidate:\s*([A-Za-z_$][\w$]*|\d+)/g))
+        found.push({ where: `${file}: revalidate: ${m[1]}`, seconds: /^\d+$/.test(m[1]) ? Number(m[1]) : constant(m[1]) });
+    }
+    return found;
+  }
+
+  test("a page is served for ten minutes at most", () => {
+    assert.equal(EXPIRE, 600);
+  });
+
+  test("and nothing a page is made from, nor the page itself, lasts more than five", () => {
+    const all = lifetimes();
+    // The control: the walk sees the figures' lifetime, through its constant,
+    // the footer's read and the pages' own.
+    assert.ok(all.some((l) => l.where === "lib/siteFigures.ts: revalidate: FIVE_MINUTES" && l.seconds === 300), "the walk missed siteFigure");
+    assert.ok(all.some((l) => l.where.startsWith("lib/coverage.ts: revalidate:")), "the walk missed seasonOpen");
+    assert.ok(all.filter((l) => l.where.endsWith("export const revalidate")).length >= 10, "the walk missed the pages");
+    const over = all.filter((l) => !(l.seconds > 0 && l.seconds <= EXPIRE / 2));
+    assert.deepEqual(over, []);
+  });
+});
+
 describe("served from the cache", () => {
   async function aSpecies(offset) {
     const [s] = await sql`
@@ -193,18 +246,23 @@ describe("served from the cache", () => {
     if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
     // One species built with the site, and one far down the list, which is
     // rendered on its first visit and cached from then on.
-    const paths = ["/", "/en", "/about", "/en/stats", "/season", "/roadkill", await aSpecies(0), await aSpecies(200)];
+    const paths = [
+      "/", "/en", "/about", "/en/privacy", "/attribution", "/en/stats", "/season", "/roadkill", "/wildlife",
+      await aSpecies(0), await aSpecies(200),
+    ];
     for (const path of paths) {
       const res = await fetch(`${BASE_URL}${path}`, { redirect: "manual" });
       assert.equal(res.status, 200, path);
       const cc = res.headers.get("cache-control") ?? "";
       assert.match(cc, /s-maxage=\d+/, `${path}: ${cc}`);
       assert.doesNotMatch(cc, /private|no-store/, `${path}: ${cc}`);
-      // Served stale for an hour at most from when it was made, not Next's
-      // default year: that is the bound on a blur no writer announces.
+      // Served for ten minutes at most from when it was made, stale for the
+      // second five, not Next's default year: that is the bound on a blur no
+      // writer announces. A page with no stale-while-revalidate at all is one
+      // whose cached reads outlast expireTime, and the CDN keeps it for them.
       const age = Number(/s-maxage=(\d+)/.exec(cc)?.[1]);
       const stale = Number(/stale-while-revalidate=(\d+)/.exec(cc)?.[1]);
-      assert.ok(stale > 0 && age + stale <= 3600, `${path}: ${cc}`);
+      assert.ok(stale > 0 && age + stale <= 600, `${path}: ${cc}`);
       assert.deepEqual(res.headers.getSetCookie(), [], path);
       assert.doesNotMatch(res.headers.get("link") ?? "", /rel="?alternate/, path);
     }

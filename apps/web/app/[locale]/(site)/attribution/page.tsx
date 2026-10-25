@@ -7,7 +7,8 @@ import { siteFigure } from "@/lib/siteFigures";
 import { PHOTOS } from "@/lib/home/photos";
 import { alternates } from "@/lib/alternates";
 
-export const revalidate = 3600;
+/** Five minutes, as its cached counts make it anyway (`expireTime`, next.config.ts). */
+export const revalidate = 300;
 
 /**
  * The imported records by licence and rights holder. Counts of the public

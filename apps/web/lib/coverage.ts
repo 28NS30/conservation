@@ -40,6 +40,14 @@ import { siteFigure } from "@/lib/siteFigures";
  * records when the answer is no. The first public report opens it within the
  * cache window. A database error answers "closed": a missing footer link costs
  * nothing, and a footer that throws takes the page down with it.
+ *
+ * For five minutes, like the site's figures, and not the fifteen it had. Next
+ * caches a page for the shortest lifetime among the cached reads it makes,
+ * and the footer makes this one on every page, so on the pages with no other
+ * (/about, /team, /privacy, /terms) its lifetime was theirs. Fifteen minutes
+ * is longer than a page may be served at all (`expireTime`, next.config.ts),
+ * and a page that outlives that loses its stale-while-revalidate and is kept
+ * by the CDN for the whole fifteen.
  */
 export const seasonOpen = unstable_cache(
   async (): Promise<boolean> => {
@@ -55,7 +63,7 @@ export const seasonOpen = unstable_cache(
     }
   },
   ["season-open"],
-  { revalidate: 900 },
+  { revalidate: 300 },
 );
 
 /** Matches the hotspot grid on /stats, so the two describe the same squares. */
