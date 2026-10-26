@@ -12,6 +12,7 @@ import { withBase } from "@/lib/basePath";
 import { turnstileEnabled } from "@/lib/turnstile";
 import { ReportError, NETWORK, isNetworkFailure } from "@/lib/report/errors";
 import { uploadPhoto } from "@/lib/report/upload";
+import { fitForUpload } from "@/lib/report/photoEncoding";
 import { pageOf } from "@conservation/shared";
 import { recordSent } from "./sent.ts";
 
@@ -142,7 +143,9 @@ async function uploadPhotos(item: QueuedReport): Promise<string[]> {
   // Resume rather than restart: re-uploading photos that already landed would
   // orphan objects in Storage on every retry.
   const done = item.uploadedPaths.slice(0, item.photos.length);
-  const pending = item.photos.slice(done.length);
+  // A report saved under an older build may hold photos the bucket no longer
+  // takes (fitForUpload); they are written again, never left to be refused.
+  const pending = await Promise.all(item.photos.slice(done.length).map(fitForUpload));
   if (pending.length === 0) return done;
 
   const res = await fetch(withBase("/api/uploads/sign"), {
@@ -150,7 +153,8 @@ async function uploadPhotos(item: QueuedReport): Promise<string[]> {
     headers: { "content-type": "application/json" },
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     // The queued blobs came out of the same canvas re-encode, so their own
-    // type is the honest answer.
+    // type is the honest answer: WebP, or JPEG where the browser cannot
+    // write WebP.
     body: JSON.stringify({
       count: pending.length,
       contentType: pending[0]?.type || "image/webp",

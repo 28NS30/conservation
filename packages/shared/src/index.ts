@@ -538,6 +538,12 @@ export function isAcceptedImageType(v: unknown): v is AcceptedImageType {
 /** Longest edge after client-side downscale, before upload. */
 export const IMAGE_MAX_EDGE = 2048;
 export const IMAGE_WEBP_QUALITY = 0.82;
+/**
+ * For a browser that cannot write WebP from a canvas, which is every browser
+ * on an iPhone (apps/web/lib/report/photoEncoding.ts). About a megabyte for a
+ * 2048 px photograph, inside MAX_UPLOAD_BYTES.
+ */
+export const IMAGE_JPEG_QUALITY = 0.85;
 
 /* ------------------------------------------------------------------ *
  * Contributor terms

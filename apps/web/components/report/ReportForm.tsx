@@ -19,6 +19,7 @@ import {
 import { preparePhoto, type PreparedPhoto } from "@/lib/image";
 import { storedSessionUserId } from "@/lib/supabase/storedSession";
 import { uploadPhoto } from "@/lib/report/upload";
+import { fitForUpload } from "@/lib/report/photoEncoding";
 import { checkFields, observedInstant, sendableAccuracy } from "@/lib/report/fieldChecks";
 import { notesConcerns } from "@/lib/report/notesCheck";
 import { enqueue } from "@/lib/offline/queue";
@@ -844,17 +845,21 @@ function ReportFormFields({
       let paths: string[] = [];
 
       if (photos.length) {
+        // A draft from the build before may hold a photo the bucket no
+        // longer takes; it is written again rather than refused.
+        const blobs = await Promise.all(photos.map((p) => fitForUpload(p.blob)));
+        if (!stillMine()) return;
         const signRes = await fetch(withBase("/api/uploads/sign"), {
           method: "POST",
           headers: { "content-type": "application/json" },
           signal: controller.signal,
-          // Say what is being uploaded rather than leaning on the default.
-          // `stripAndDownscale` always writes WebP through a canvas, so this
-          // is the truth here — and stating it is what lets the key match the
-          // bytes for a client whose canvas cannot.
+          // Say what is being uploaded rather than leaning on the default:
+          // `stripAndDownscale` writes WebP where the browser can and JPEG
+          // where it cannot, and stating it is what lets the key match the
+          // bytes.
           body: JSON.stringify({
-            count: photos.length,
-            contentType: photos[0].blob.type || "image/webp",
+            count: blobs.length,
+            contentType: blobs[0].type || "image/webp",
           }),
         });
         if (!signRes.ok) {
@@ -873,7 +878,7 @@ function ReportFormFields({
         // saves the report on the phone below, and PHOTO_UPLOAD_FAILED when
         // Storage refused it (lib/report/upload.ts).
         await Promise.all(
-          uploads.map((u, i) => uploadPhoto(u.path, u.token, photos[i].blob)),
+          uploads.map((u, i) => uploadPhoto(u.path, u.token, blobs[i])),
         );
         if (!stillMine()) return;
         paths = uploads.map((u) => u.path);
