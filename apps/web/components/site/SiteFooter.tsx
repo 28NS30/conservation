@@ -121,7 +121,9 @@ export default async function SiteFooter({
             {t("footer.about")}
           </h2>
           <ul className="mt-3 space-y-1 text-sm">
-            {legal.map((l) => (
+            {/* The poster only here: in the strip under the map, one more
+                link made /en/map scroll sideways at 320px. */}
+            {[...legal, { href: "/poster", label: t("nav.poster") }].map((l) => (
               <li key={l.href}>
                 <Link href={l.href} className={link}>
                   {l.label}
