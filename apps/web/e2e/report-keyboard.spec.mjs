@@ -178,8 +178,9 @@ try {
     // and says so, rather than pinning a point in the Central Range.
     await page.keyboard.press("Enter");
     await page.waitForTimeout(600);
-    check(`${locale}: too far out, the button zooms in and says why`, (await coords(page)) === "" &&
-      (await page.locator(`text=${r.pinZoomFirst}`).count()) === 1);
+    // The status line says why rather than giving a position.
+    check(`${locale}: too far out, the button zooms in and says why`, (await coords(page)) === r.pinZoomFirst,
+      await coords(page));
     check(`${locale}: to at least the zoom it aims at`, await page.evaluate(() => window.__pickerMap.getZoom() >= 12.9));
     await page.keyboard.press("Enter");
     await page.waitForTimeout(600);
