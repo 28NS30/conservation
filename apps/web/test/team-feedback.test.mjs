@@ -101,7 +101,10 @@ describe("the identification, as soon as a photo is added", () => {
     assert.equal((await post("not json")).status, 400);
     assert.equal((await post(JSON.stringify({ page: "nowhere", imageBase64: "AAAA" }))).status, 400);
     assert.equal((await post(JSON.stringify({ page: "wildlife", imageBase64: "not base64!" }))).status, 400);
-    assert.equal((await post(JSON.stringify({ page: "wildlife", imageBase64: "A".repeat(2_000_004) }))).status, 400);
+    // One character past the base64 of the largest upload the route takes.
+    const { MAX_UPLOAD_BYTES } = await import("@conservation/shared");
+    const maxBase64 = Math.ceil(MAX_UPLOAD_BYTES / 3) * 4;
+    assert.equal((await post(JSON.stringify({ page: "wildlife", imageBase64: "A".repeat(maxBase64 + 4) }))).status, 400);
   });
 
   test("a species picked from the photo's suggestions is blurred as a photo identification", async (t) => {
