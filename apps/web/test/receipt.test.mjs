@@ -182,9 +182,12 @@ describe("what every other id gets is the same 404", () => {
     const res = await fetch(`${BASE_URL}/reports/${row.id}`);
     assert.equal(res.status, 200);
     const html = await res.text();
+    // Not the receipt's `noindex, nofollow`. A record imported from GBIF is
+    // `noindex, follow` by the indexing policy, and a report filed here is
+    // indexed; test/crawl-and-ranks.test.mjs holds both.
     assert.ok(
-      !/<meta name="robots" content="noindex/.test(html),
-      "publishing a record should not have become noindex",
+      !/<meta name="robots" content="noindex, nofollow/.test(html),
+      "a published record is served as a receipt is",
     );
   });
 });

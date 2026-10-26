@@ -21,3 +21,25 @@ export function alternates(locale: string, path: string): Metadata["alternates"]
     languages: { "zh-TW": zh, en, "x-default": zh },
   };
 }
+
+/**
+ * The path a paged list gives alternates(): the page it is on.
+ *
+ * Page 2 of the records is not page 1. Naming page 1 as every page's
+ * canonical tells a search engine that pages 2 onward are copies of it, so
+ * it drops them and with them the only links to most records and species;
+ * each page of a sequence is its own canonical instead. A filtered view
+ * (?filter=, ?taxonId=, a date range) still names the unfiltered list, page
+ * and all, as it always has: it is a view of that list, not a page of its
+ * own. `page=1` and anything that is not a whole number above 1 is page 1.
+ */
+export function pagedPath(
+  path: string,
+  params: Record<string, string | string[] | undefined>,
+): string {
+  const given = Object.keys(params).filter((k) => params[k] !== undefined);
+  if (given.some((k) => k !== "page")) return path;
+  const raw = params.page;
+  const n = Math.floor(Number(Array.isArray(raw) ? raw[0] : raw));
+  return Number.isFinite(n) && n >= 2 ? `${path}?page=${n}` : path;
+}

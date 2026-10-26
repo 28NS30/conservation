@@ -22,7 +22,7 @@ import { test, describe, after } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { sql, BASE_URL } from "./helpers.mjs";
+import { sql, BASE_URL, sitemapFiles } from "./helpers.mjs";
 import { forumEnabled } from "../lib/forum/gate.ts";
 
 after(() => sql.end());
@@ -291,7 +291,9 @@ describe("the running server, with the forum off", { skip: forumEnabled(process.
   });
 
   test("the sitemap does not list it", async () => {
-    assert.ok(!(await (await fetch(`${BASE_URL}/sitemap.xml`)).text()).includes("/community"));
+    const files = await sitemapFiles();
+    assert.ok(files.length > 0, "no sitemaps in the index");
+    for (const f of files) assert.ok(!f.xml.includes("/community"), f.path);
   });
 });
 

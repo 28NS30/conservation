@@ -27,12 +27,12 @@ import { awaitingVerification } from "@/lib/report/verification";
 import { alternates } from "@/lib/alternates";
 import { speciesLabel } from "@/lib/speciesNames";
 import SpeciesName from "@/components/species/SpeciesName";
+import ShareButton from "@/components/site/ShareButton";
+import { blurKm, UUID } from "@/lib/recordMeta";
+import { formatTaipeiDate } from "@/lib/dates";
 import { serverTiming } from "@/lib/serverTiming";
 
 export const dynamic = "force-dynamic";
-
-/** A real UUID's shape: 36 dashes passed the old pattern and 500'd on ::uuid. */
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * The date a record was seen, as the source actually recorded it.
@@ -78,6 +78,24 @@ function seenOn(observedAt: string, source: string, locale: string) {
  * page keeps the neutral title rather than asking who is looking. See
  * lib/receipt.ts for why confirming a pending id to its holder is safe.
  *
+ * A published record has a description of its own too: what, when, which
+ * kind of record, and that it is blurred when it is. Every record page used
+ * to fall back to the site's description, so a shared record previewed as
+ * the site. It never names a place or a coordinate, and nothing in it is
+ * more than the page shows anybody (lib/recordMeta.ts).
+ *
+ * WHICH RECORD PAGES ARE INDEXED. The 46,305 records imported from GBIF are
+ * `noindex, follow`. Each page is one row of TaiRON's dataset — a name, a
+ * date and a point — and 46,000 near-identical pages of somebody else's
+ * already-published data are exactly the thin pages that teach a search
+ * engine to think less of a whole site; the species pages and the list
+ * already carry them. `follow`, so the links out of them still count. A
+ * public report filed here is indexed: it is this project's own record,
+ * there are few of them, and the sitemap lists them (lib/sitemaps.ts). The
+ * paged lists that link to all of them stay indexable, each page its own
+ * canonical (lib/alternates.ts, pagedPath). test/crawl-and-ranks.test.mjs
+ * holds all three.
+ *
  * The record is the page's own read (publicRecord, below), made once for both.
  */
 export async function generateMetadata({
@@ -108,7 +126,7 @@ export async function generateMetadata({
 
   // Both names, the page's language first (lib/speciesNames.ts); the
   // category when nobody has named the animal.
-  const name = pub.scientific_name
+  const named = pub.scientific_name
     ? speciesLabel(
         {
           scientificName: pub.scientific_name,
@@ -118,10 +136,24 @@ export async function generateMetadata({
         },
         locale,
       )
-    : t(`categories.${pub.category}`);
+    : null;
+  const collection = t(`categories.${pub.category}`);
+  // The day alone, on Taiwan's calendar, whatever the source: a description
+  // is a sentence, and "17:42" is not what a search result needs.
+  const date = formatTaipeiDate(pub.observed_at, locale, { dateStyle: "long" });
+  const sentence = named
+    ? t("recordMeta.description", { name: named, collection, date })
+    : t("recordMeta.descriptionUnnamed", { collection, date });
+  const km = blurKm(pub.location_precision);
+  const blurred = km ? t("recordMeta.blurred", { km }) : null;
   return {
-    title: `${name} · ${seenOn(pub.observed_at, pub.source, locale)}`,
+    title: `${named ?? collection} · ${seenOn(pub.observed_at, pub.source, locale)}`,
+    // Chinese sentences run on without a space; English ones take one.
+    description: blurred
+      ? `${sentence}${locale.startsWith("zh") ? "" : " "}${blurred}`
+      : sentence,
     alternates: alternates(locale, `/reports/${id}`),
+    ...(pub.source === "gbif" ? { robots: { index: false, follow: true } } : null),
   };
 }
 
@@ -478,6 +510,15 @@ export default async function ReportPage({
       <p className="mt-1 text-sm text-ink-600">
         {seenOn(row.observed_at, row.source, locale)}
       </p>
+
+      {/* Only a public record is offered for sharing: a moderator's test
+          report is never public, and its link would open a 404 for anyone
+          they sent it to. */}
+      {publicRow && (
+        <div className="mt-3">
+          <ShareButton path={`/reports/${row.id}`} what="record" />
+        </div>
+      )}
 
       {/* Only a moderator ever reaches a test report's page (see above), and
           it says what it is before anything else could be mistaken for a

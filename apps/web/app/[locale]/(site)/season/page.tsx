@@ -5,6 +5,7 @@ import { coverage, seasonOpen, SEASON_TARGET, COVERAGE_CELL_M } from "@/lib/cove
 import { checklistAnimalTaxaCount, recordedSpeciesCount } from "@/lib/stats";
 import PageHeader from "@/components/site/PageHeader";
 import { alternates } from "@/lib/alternates";
+import ShareButton from "@/components/site/ShareButton";
 
 /** Five minutes, as its cached figures make it anyway (`expireTime`, next.config.ts). */
 export const revalidate = 300;
@@ -111,12 +112,17 @@ export default async function SeasonPage({
           {c.newThisSeason === 0 ? t("noneYet") : t("progress")}
         </p>
 
-        <Link
-          href="/report"
-          className="mt-6 inline-block rounded-full bg-ember-500 px-5 py-2.5 text-sm font-semibold text-bark-950 transition hover:bg-ember-400"
-        >
-          {t("cta")}
-        </Link>
+        <div className="mt-6 flex flex-wrap items-start gap-3">
+          <Link
+            href="/report"
+            className="inline-block rounded-full bg-ember-500 px-5 py-2.5 text-sm font-semibold text-bark-950 transition hover:bg-ember-400"
+          >
+            {t("cta")}
+          </Link>
+          {/* The goal is shared by everyone, so it is worth passing on: a
+              class that files together fills squares faster. */}
+          <ShareButton path="/season" what="page" />
+        </div>
       </section>
 
       {/* ---------------- where the map stands ---------------- */}

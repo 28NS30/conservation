@@ -55,6 +55,7 @@ import { Link } from "@/i18n/navigation";
 import LocationPicker, { useGeolocate, type LatLng } from "./LocationPicker";
 import PhotoSuggestions, { type PhotoSuggestionsState } from "./PhotoSuggestions";
 import type { PhotoIdentification } from "@/lib/report/photoSuggestion";
+import ShareButton from "@/components/site/ShareButton";
 
 type Photo = PreparedPhoto & { previewUrl: string; id: string };
 type Phase = "editing" | "submitting" | "done" | "queued" | "error";
@@ -1133,39 +1134,51 @@ function ReportFormFields({
       result.test,
     );
     return (
-      <div
-        role="status"
-        className="rounded-xl border border-ember-500/30 bg-ember-500/10 p-5"
-      >
-        <h2 className="text-lg font-semibold text-ember-700">
-          {t(`receipt.${outcome.title}`)}
-        </h2>
-        {unverified && unverifiedTag()}
-        {outcome.body && (
-          <p className="mt-2 text-sm leading-relaxed text-ink-800">
-            {t(`receipt.${outcome.body}`)}
-          </p>
-        )}
-        {afterwards()}
-        <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-1">
-          {/*
-            Offered only where there is something to open. The old card always
-            linked to /reports/{id}, and that page reads `reports_public`, which
-            by design excludes every pending report — so the majority of
-            reporters were handed a link to a 404 as their receipt. `Link` from
-            @/i18n/navigation, not a bare <a>, or an English reader is bounced
-            out of /en and back into Chinese.
-          */}
-          {outcome.link && (
-            <Link
-              href={`/reports/${result.id}`}
-              className="inline-flex min-h-11 items-center text-sm font-medium text-ember-700 underline underline-offset-2"
-            >
-              {t(`receipt.${outcome.link}`)}
-            </Link>
+      <div className="rounded-xl border border-ember-500/30 bg-ember-500/10 p-5">
+        {/* The receipt is announced; the share button below it is not part of
+            the announcement, and has a live region of its own. */}
+        <div role="status">
+          <h2 className="text-lg font-semibold text-ember-700">
+            {t(`receipt.${outcome.title}`)}
+          </h2>
+          {unverified && unverifiedTag()}
+          {outcome.body && (
+            <p className="mt-2 text-sm leading-relaxed text-ink-800">
+              {t(`receipt.${outcome.body}`)}
+            </p>
           )}
-          {another()}
+          {afterwards()}
+          <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-1">
+            {/*
+              Offered only where there is something to open. The old card always
+              linked to /reports/{id}, and that page reads `reports_public`, which
+              by design excludes every pending report — so the majority of
+              reporters were handed a link to a 404 as their receipt. `Link` from
+              @/i18n/navigation, not a bare <a>, or an English reader is bounced
+              out of /en and back into Chinese.
+            */}
+            {outcome.link && (
+              <Link
+                href={`/reports/${result.id}`}
+                className="inline-flex min-h-11 items-center text-sm font-medium text-ember-700 underline underline-offset-2"
+              >
+                {t(`receipt.${outcome.link}`)}
+              </Link>
+            )}
+            {another()}
+          </div>
         </div>
+        {/*
+          Shared only once the record is public. A held report's link opens
+          the receipt, and lib/receipt.ts rests on its id being held by the
+          one person who filed it; a test is never public at all. When a held
+          report is published, its own page has the button.
+        */}
+        {outcome.link === "viewRecord" && !result.test && (
+          <div className="mt-3">
+            <ShareButton path={`/reports/${result.id}`} what="record" />
+          </div>
+        )}
       </div>
     );
   }

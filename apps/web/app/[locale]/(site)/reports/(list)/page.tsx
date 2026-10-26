@@ -22,7 +22,7 @@ import { signedPhotoUrls } from "@/lib/supabase/service";
 import { sql } from "@/lib/db";
 import { overview } from "@/lib/stats";
 import Pager from "@/components/site/Pager";
-import { alternates } from "@/lib/alternates";
+import { alternates, pagedPath } from "@/lib/alternates";
 import SpeciesName from "@/components/species/SpeciesName";
 import { speciesLabel } from "@/lib/speciesNames";
 import { formatTaipeiDate } from "@/lib/dates";
@@ -57,12 +57,20 @@ const COLLECTION_SWATCH: Record<Collection, string> = {
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "list" });
-  return { title: t("title"), description: t("subtitle"), alternates: alternates(locale, "/reports") };
+  // Each page of the list is its own canonical, and a filtered view names
+  // the unfiltered list (pagedPath).
+  return {
+    title: t("title"),
+    description: t("subtitle"),
+    alternates: alternates(locale, pagedPath("/reports", await searchParams)),
+  };
 }
 
 /**

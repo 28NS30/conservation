@@ -13,7 +13,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { selectionFor } from "@conservation/shared";
-import { sql, BASE_URL } from "./helpers.mjs";
+import { sql, BASE_URL, sitemapUrls } from "./helpers.mjs";
 import { steadyPopulation } from "./population.mjs";
 
 after(() => sql.end());
@@ -178,10 +178,10 @@ describe("/stats by collection", () => {
 
 describe("the sitemap", () => {
   test("lists the three collection pages in both languages", async () => {
-    const xml = await (await fetch(`${BASE_URL}/sitemap.xml`)).text();
+    const paths = (await sitemapUrls()).map((u) => new URL(u).pathname);
     for (const c of ["roadkill", "invasive", "wildlife"]) {
-      assert.match(xml, new RegExp(`<loc>[^<]*/${c}</loc>`));
-      assert.match(xml, new RegExp(`<loc>[^<]*/en/${c}</loc>`));
+      assert.ok(paths.includes(`/${c}`), `/${c}`);
+      assert.ok(paths.includes(`/en/${c}`), `/en/${c}`);
     }
   });
 });

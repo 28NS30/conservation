@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { asPublic, sql } from "@/lib/db";
-import { speciesNotes } from "@/lib/speciesNotes";
+import { displayNameZh, speciesNotes } from "@/lib/speciesNotes";
 import {
   getCachedSpecies,
   isSpeciesAddress,
@@ -22,6 +22,9 @@ import SpeciesRecords from "@/components/species/SpeciesRecords";
 import { speciesLabel } from "@/lib/speciesNames";
 import { alternates } from "@/lib/alternates";
 import { speciesDescription } from "@/lib/speciesMeta";
+import ShareButton from "@/components/site/ShareButton";
+import JsonLd from "@/components/site/JsonLd";
+import { localeUrl, taxonLd } from "@/lib/structuredData";
 
 /** A heatmap built from a handful of points is noise; below this we plot them. */
 const HEATMAP_MIN_RECORDS = 6;
@@ -112,6 +115,7 @@ export async function generateMetadata({
   // No count for a withheld species, and no "0 筆" for one nobody has
   // reported: lib/speciesMeta.ts.
   const description = speciesDescription(s, name);
+  const indexworthy = await isIndexworthy(s.id);
   return {
     title: name,
     description: t(description.key, description.values),
@@ -121,15 +125,16 @@ export async function generateMetadata({
      * finds a hundred thousand near-identical ones forms a view of the whole
      * domain from them. But "has anyone reported it" was the wrong test: this
      * page renders a lineage, a habitat and up to four conservation assessments
-     * without any user data at all. See isIndexworthy() — it asks whether the
-     * page says something distinguishing, which 24,243 species do and the rest
-     * do not.
+     * without any user data at all. See INDEXWORTHY (lib/indexworthy.ts) —
+     * it asks whether the page says something distinguishing, which 29,468
+     * species do and the rest do not. The sitemap lists exactly those, by the
+     * same SQL, so it never offers a crawler a page that then says noindex.
      *
      * The rest stay reachable and useful either way: the directory links them,
      * search within the site finds them, and `follow` stays on so the taxonomy
      * links out of them still carry.
      */
-    ...(isIndexworthy(s) ? null : { robots: { index: false, follow: true } }),
+    ...(indexworthy ? null : { robots: { index: false, follow: true } }),
   };
 }
 
@@ -160,6 +165,9 @@ export default async function SpeciesPage({
 
   const s = await getCachedSpecies(taxonId);
   if (!s) notFound();
+  // The address this page is at, which isSpeciesAddress has just held to the
+  // taxon's own slug: the one to share and to name in structured data.
+  const canonical = speciesSlug(s);
 
   const t = await getTranslations("species");
   const nav = await getTranslations("nav");
@@ -229,6 +237,9 @@ export default async function SpeciesPage({
             chips that were here asked a reader to know four schemes first;
             lists and cards keep them. See SpeciesStatus. */}
         <SpeciesStatus {...s} />
+        <div className="mt-4">
+          <ShareButton path={`/species/${canonical}`} what="species" />
+        </div>
       </header>
 
       {lineage.length > 0 && (
@@ -307,6 +318,26 @@ export default async function SpeciesPage({
           {s.reportCount > 0 ? t("seenOne") : t("beFirst")}
         </Link>
       )}
+
+      {/* The taxon as Bioschemas describes one, from the same TaiCOL fields
+          the page prints (lib/structuredData.ts). */}
+      <JsonLd
+        data={taxonLd({
+          url: localeUrl(locale, `/species/${canonical}`),
+          scientificName: s.scientificName,
+          nameAuthor: s.nameAuthor,
+          rank: s.rank,
+          names: [
+            ...new Set(
+              [displayNameZh(s.taicolId, s.commonNameZh), s.commonNameEn, ...(s.altNamesZh ?? [])]
+                .map((n) => n?.trim())
+                .filter((n): n is string => Boolean(n)),
+            ),
+          ],
+          genus: s.genus,
+          taicolId: s.taicolId,
+        })}
+      />
     </main>
   );
 }

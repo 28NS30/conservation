@@ -525,7 +525,14 @@
     "ourData": "Data produced here",
     "ourDataBody": "Reports filed on this site are not published anywhere else yet. We plan to share them as open data through GBIF, so the records can be used beyond this site.",
     "photos": "Photographs",
-    "photosBody": "The photographs on the home page are from Wikimedia Commons, all taken in Taiwan. Each is credited where it appears; the photographer and licence are listed here too."
+    "photosBody": "The photographs on the home page are from Wikimedia Commons, all taken in Taiwan. Each is credited where it appears; the photographer and licence are listed here too.",
+    "datasetName": "Project FormosaWatch: wildlife records from Taiwan",
+    "datasetDescription": "Records of wild animals in Taiwan: roadkill and injured animals, invasive species and wildlife sightings, shown on an open map. It holds the Taiwan Roadkill Observation Network (TaiRON, 路殺社)'s open roadkill records for 2011–2017, shared through GBIF under CC BY 4.0, and the reports people file on this site, published under CC0. The location of a protected or sensitive species, and of a record not yet identified, is blurred before it is published.",
+    "datasetOwnName": "Reports filed on Project FormosaWatch",
+    "datasetOwnDescription": "Reports filed by the public on this site: roadkill or injured animals, invasive species, and wildlife sightings, published under CC0. Locations are blurred where the species needs it.",
+    "datasetTaironName": "Taiwan Roadkill Observation Network (TaiRON) roadkill records",
+    "datasetTaironCreator": "Taiwan Roadkill Observation Network (TaiRON, 路殺社)",
+    "datasetPlace": "Taiwan"
   },
   "about": {
     "title": "About",
@@ -1233,5 +1240,25 @@
     "publish": "Publish puts it on the map, at the location its species allows. Protected and sensitive species stay blurred whatever is decided here.",
     "reject": "Reject keeps it off the map for good. Write why: the reporter only sees that it was not used, and the reason stays in the moderation log. The map catches up with a decision within about five minutes.",
     "tests": "To try every step without anything being shown, use the test links further down."
+  },
+  "share": {
+    "record": "Share this record",
+    "species": "Share this species",
+    "page": "Share this page",
+    "line": "Send on LINE",
+    "newTab": "(opens in a new tab)",
+    "copy": "Copy link",
+    "copied": "Link copied.",
+    "copyFailed": "Copying didn't work here. Press and hold the link below to copy it.",
+    "linkLabel": "Link to this page"
+  },
+  "recordMeta": {
+    "description": "{name}: {collection}, recorded in Taiwan on {date}.",
+    "descriptionUnnamed": "{collection}, recorded in Taiwan on {date}. The animal has not been identified yet.",
+    "blurred": "Its location is blurred to about {km} km.",
+    "cardUnnamed": "Not yet identified",
+    "cardSite": "Project FormosaWatch",
+    "cardBlurred": "Location blurred to about {km} km",
+    "cardFooter": "Roadkill and wildlife records from Taiwan"
   }
 }

@@ -140,12 +140,18 @@ const config: NextConfig = {
    * Location header twice. Both spellings of the path, because which one a
    * rewrite here sees, the address as asked or as the proxy rewrote it for
    * the default locale, is Next's business.
+   *
+   * And the sitemap index at the address robots.txt and every crawler
+   * already knows. It is app/sitemap-index.xml/route.ts, which cannot sit at
+   * /sitemap.xml itself while app/sitemap.ts exists; see that file.
+   * `beforeFiles`, so both are decided before the pages and metadata routes.
    */
   async rewrites() {
     return {
       beforeFiles: [
         { source: "/:locale(zh-TW|en)/species/:id(\\d+)", destination: "/:locale/species/by-id/:id" },
         { source: "/species/:id(\\d+)", destination: "/zh-TW/species/by-id/:id" },
+        { source: "/sitemap.xml", destination: "/sitemap-index.xml" },
       ],
     };
   },
