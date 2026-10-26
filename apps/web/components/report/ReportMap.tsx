@@ -2,38 +2,12 @@
 
 import { useEffect, useRef } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { createMap, type MapHandle } from "@/lib/map";
+import { circlePolygon, createMap, polygonBounds, type MapHandle } from "@/lib/map";
+import { useMapStrings } from "@/lib/mapStrings";
 import {
   LOCATION_PRECISION,
   type LocationPrecision,
 } from "@conservation/shared";
-
-/**
- * A circle of `radiusKm` around a point, as a real polygon in geographic
- * coordinates.
- *
- * Not a `circle-radius` paint property: that is measured in screen pixels, so it
- * describes an area only by coincidence of zoom. The first version drew a fixed
- * 46px disc next to a caption reading "generalised to about 10 km", which looked
- * authoritative about a distance it was not measuring. On the one page whose job
- * is being honest about location, the shape has to be the actual footprint.
- */
-function circlePolygon(lng: number, lat: number, radiusKm: number, steps = 64) {
-  const latKm = 110.574;
-  const lngKm = 111.32 * Math.cos((lat * Math.PI) / 180);
-  const ring = Array.from({ length: steps + 1 }, (_, i) => {
-    const a = (i / steps) * 2 * Math.PI;
-    return [
-      lng + (radiusKm / lngKm) * Math.cos(a),
-      lat + (radiusKm / latKm) * Math.sin(a),
-    ];
-  });
-  return {
-    type: "Feature" as const,
-    properties: {},
-    geometry: { type: "Polygon" as const, coordinates: [ring] },
-  };
-}
 
 /**
  * Where one report is, on a map.
@@ -67,6 +41,7 @@ export default function ReportMap({
 }) {
   const container = useRef<HTMLDivElement>(null);
   const handleRef = useRef<MapHandle | null>(null);
+  const strings = useMapStrings();
 
   // `suppressed` never reaches this page (those reports 404), and `exact` gets a
   // pin. Everything else is drawn at the radius the schema actually applied.
@@ -86,6 +61,7 @@ export default function ReportMap({
         static: true,
         // Nothing can pan this, and maxBounds would fight the fitBounds below.
         bounded: false,
+        strings,
         // addSource/addLayer throw until the style has been applied, so the
         // obscured circle goes through onReady rather than running straight
         // after the promise resolves. onReady fires once, at style.load; the
@@ -114,16 +90,7 @@ export default function ReportMap({
             },
           });
           // Frame the footprint itself, so the zoom always matches the claim.
-          const ring = poly.geometry.coordinates[0];
-          const xs = ring.map((c) => c[0]);
-          const ys = ring.map((c) => c[1]);
-          map.fitBounds(
-            [
-              [Math.min(...xs), Math.min(...ys)],
-              [Math.max(...xs), Math.max(...ys)],
-            ],
-            { padding: 24, duration: 0 },
-          );
+          map.fitBounds(polygonBounds(poly), { padding: 24, duration: 0 });
         },
       });
       if (cancelled) return h.destroy();
@@ -142,7 +109,7 @@ export default function ReportMap({
       handleRef.current?.destroy();
       handleRef.current = null;
     };
-  }, [lat, lng, radiusKm, maptilerKey]);
+  }, [lat, lng, radiusKm, maptilerKey, strings]);
 
   return (
     <div

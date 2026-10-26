@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { ExpressionSpecification } from "maplibre-gl";
 import { createMap, type MapHandle } from "@/lib/map";
+import { useMapStrings } from "@/lib/mapStrings";
 import { withBase } from "@/lib/basePath";
 import MapModeToggle from "@/components/map/MapModeToggle";
 import { useMapMode, type MapMode } from "@/components/map/mapMode";
@@ -58,6 +59,7 @@ export default function SpeciesMap({
 }) {
   const container = useRef<HTMLDivElement>(null);
   const handleRef = useRef<MapHandle | null>(null);
+  const strings = useMapStrings();
   const [stored, setMode] = useMapMode();
   const allowHeat = reportCount >= HEAT_MIN_RECORDS;
   // Falls back rather than showing an empty map when the shared preference is
@@ -90,6 +92,7 @@ export default function SpeciesMap({
         // island came out cropped at the bottom. Same clamp that broke the hero.
         bounded: false,
         onReady: addLayers,
+        strings,
       });
       if (cancelled) return handle.destroy();
       handleRef.current = handle;
@@ -257,7 +260,7 @@ export default function SpeciesMap({
       handleRef.current?.destroy();
       handleRef.current = null;
     };
-  }, [taxonId, mode, maptilerKey]);
+  }, [taxonId, mode, maptilerKey, strings]);
 
   return (
     <div className="relative">
