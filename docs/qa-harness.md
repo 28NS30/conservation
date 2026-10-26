@@ -15,11 +15,12 @@ nobody ran with checks that fail.
 | Check | Command | Runs |
 |---|---|---|
 | The audits still find what they are for | `npm run test:selftest -w @conservation/web` | every PR |
-| No page scrolls sideways at 320/390 | `npm run test:reflow -w @conservation/web` | every PR |
+| No page scrolls sideways at 320/390; the report pages also at 667×375 and 320×256, with at most a fifth of the screen pinned | `npm run test:reflow -w @conservation/web` | every PR |
 | The map's load path, and its JS budget | `npm run test:perf -w @conservation/web` | every PR |
 | The map actually paints | `npm run test:map` | every PR (it can now fail) |
 | Route table, namespaces, known-issue shape | `npm test` | every PR, and no test may skip |
-| The report form submitted, and the card it leaves | `npm run test:receipt -w @conservation/web` | every PR |
+| The report form submitted, and the card it leaves, focused | `npm run test:receipt -w @conservation/web` | every PR |
+| The report form by keyboard with no location, and by touch under the crosshair; axe and contrast in the states a load never shows | `npm run test:keyboard -w @conservation/web` | every PR |
 | axe on `/report`, its three pages and `/map`, 390 | `ONLY=… WIDTHS=390 npm run test:a11y -w @conservation/web` | every PR |
 | WCAG AA contrast on the same five, 390 | `ONLY=… WIDTHS=390 npm run test:contrast -w @conservation/web` | every PR |
 | Screenshot matrix + gallery | `npm run shots` | nightly + `gh workflow run gallery.yml` |

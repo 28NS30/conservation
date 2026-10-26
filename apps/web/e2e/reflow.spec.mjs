@@ -30,7 +30,9 @@ import { join } from "node:path";
 import {
   BASE,
   LOCALES,
+  MAX_PINNED_SHARE,
   REFLOW_WIDTHS,
+  SHORT_VIEWPORTS,
   pathFor,
   resolveIds,
   routesFor,
@@ -38,9 +40,13 @@ import {
 
 const KNOWN_PATH = join(import.meta.dirname, "reflow-known.json");
 
+/** Where an error says it happened: `at 320px`, or `at 667x375` for a short screen. */
+const AT = /at (\d+(?:x\d+)?)(?:px)?[: ]/;
+
 /**
  * @param page      a Playwright page already loaded at the route
- * @param widths    viewport widths to sweep
+ * @param widths    viewport widths to sweep, or { width, height } for a short
+ *                  screen (SHORT_VIEWPORTS); a bare width is 844px tall
  * @param restore   viewport to leave the page at, for callers that keep using it
  */
 export async function checkWidths(
@@ -49,8 +55,10 @@ export async function checkWidths(
   restore = { width: 1000, height: 800 },
 ) {
   const errs = [];
-  for (const w of widths) {
-    await page.setViewportSize({ width: w, height: 844 });
+  for (const v of widths) {
+    const { width: w, height = 844 } = typeof v === "number" ? { width: v } : v;
+    const at = typeof v === "number" ? `${w}px` : `${w}x${height}`;
+    await page.setViewportSize({ width: w, height });
     await page.waitForTimeout(400);
     const m = await page.evaluate(() => {
       const doc = document.documentElement;
@@ -98,10 +106,79 @@ export async function checkWidths(
             .map((c) => `${c.at} reaches ${c.right}px ("${c.text}")`)
             .join("; ")
         : "no element sticks out — the overflow is a margin, a shadow or a transform";
-      errs.push(`scrolls sideways at ${w}px: ${m.sw} > ${m.iw} — ${worst}`);
+      errs.push(`scrolls sideways at ${at}: ${m.sw} > ${m.iw} — ${worst}`);
     }
   }
   if (restore) await page.setViewportSize(restore);
+  return errs;
+}
+
+/**
+ * How much of the screen stays where it is while the page scrolls under it,
+ * as a share of the viewport's height, and what is doing it.
+ *
+ * `fixed` is pinned by definition. `sticky` is pinned only while stuck, so the
+ * page is scrolled to two points in its middle, where a header stuck at the
+ * top and a bar stuck at the bottom both are, and an element that did not
+ * move between them is counted. One inside another pinned one is counted
+ * once, with its ancestor.
+ */
+export async function pinnedShare(page) {
+  return page.evaluate(async () => {
+    const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const candidates = [...document.querySelectorAll("body *")].filter((el) => {
+      const p = getComputedStyle(el).position;
+      return p === "fixed" || p === "sticky";
+    });
+    const room = document.documentElement.scrollHeight - innerHeight;
+    const y0 = window.scrollY;
+    const a = Math.round(room * 0.4);
+    const b = Math.round(room * 0.6);
+    window.scrollTo(0, a);
+    await frame();
+    const before = new Map(candidates.map((el) => [el, el.getBoundingClientRect().top]));
+    window.scrollTo(0, b);
+    await frame();
+    const pinned = candidates.filter((el) => {
+      const cs = getComputedStyle(el);
+      if (cs.display === "none" || cs.visibility === "hidden") return false;
+      if (cs.position === "fixed") return true;
+      // Nothing to scroll, nothing stuck.
+      return b - a > 1 && Math.abs(el.getBoundingClientRect().top - before.get(el)) < 1;
+    });
+    let covered = 0;
+    const at = [];
+    for (const el of pinned) {
+      if (pinned.some((o) => o !== el && o.contains(el))) continue;
+      const r = el.getBoundingClientRect();
+      const h = Math.min(innerHeight, r.bottom) - Math.max(0, r.top);
+      if (h < 1 || r.width < 2) continue;
+      covered += h;
+      const cls = (el.getAttribute("class") ?? "").split(/\s+/).slice(0, 3).join(".");
+      at.push(`${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ""}${cls ? `.${cls}` : ""} ${Math.round(h)}px`);
+    }
+    window.scrollTo(0, y0);
+    return { share: covered / innerHeight, at };
+  });
+}
+
+/**
+ * The short screens: sideways scroll, as at the widths, and the pinned share.
+ * Errors are worded like checkWidths's, `at {w}x{h}`, so reflow-known.json
+ * can record one as `path@{w}x{h}`.
+ */
+export async function checkShort(page, viewports = SHORT_VIEWPORTS) {
+  const errs = await checkWidths(page, viewports, null);
+  for (const v of viewports) {
+    await page.setViewportSize(v);
+    await page.waitForTimeout(400);
+    const { share, at } = await pinnedShare(page);
+    if (share > MAX_PINNED_SHARE)
+      errs.push(
+        `pins ${Math.round(share * 100)}% of the screen at ${v.width}x${v.height} ` +
+          `(at most ${Math.round(MAX_PINNED_SHARE * 100)}%) — ${at.join("; ")}`,
+      );
+  }
   return errs;
 }
 
@@ -145,12 +222,17 @@ async function main() {
       await page.waitForTimeout(route.settle ?? 2500);
       const errs = await checkWidths(page, REFLOW_WIDTHS, null);
       checked += REFLOW_WIDTHS.length;
+      if (route.short) {
+        errs.push(...(await checkShort(page)));
+        checked += SHORT_VIEWPORTS.length;
+      }
       // Split against the recorded list before deciding. An entry is
-      // `path@width`, so a page listed at 320 still fails at 390: the ratchet
-      // forgives the defect that was there, not the page.
+      // `path@width` (or `path@{w}x{h}` for a short screen), so a page listed
+      // at 320 still fails at 390: the ratchet forgives the defect that was
+      // there, not the page.
       const fresh = [];
       for (const e of errs) {
-        const w = /at (\d+)px/.exec(e)?.[1];
+        const w = AT.exec(e)?.[1];
         const key = `${path}@${w}`;
         if (known[key]) {
           seen.add(key);
@@ -172,7 +254,7 @@ async function main() {
       next.known[k] = { why: known[k]?.why ?? "RECORDED, NOT EXPLAINED" };
     for (const f of failures)
       for (const e of f.errs) {
-        const w = /at (\d+)px/.exec(e)?.[1];
+        const w = AT.exec(e)?.[1];
         next.known[`${f.path}@${w}`] = { why: "RECORDED, NOT EXPLAINED" };
       }
     writeFileSync(KNOWN_PATH, JSON.stringify(next, null, 2) + "\n");
