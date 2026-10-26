@@ -61,19 +61,28 @@ export async function verifyTurnstile(token: string | undefined, ip: string | nu
  * Rate limiting
  * ------------------------------------------------------------------ */
 
-/** Returns true when the caller is still within budget. Backed by bump_rate_limit(). */
+/**
+ * Returns true when the caller is still within budget. Backed by
+ * bump_rate_limit(), which adds one; a request that costs more (signing three
+ * photos) calls it that many times in one statement, so the count rises by
+ * the cost and the answer is whether the last of them still fit.
+ */
 export async function withinRateLimit(
   key: string,
   windowSeconds: number,
   budget: number,
+  cost = 1,
 ): Promise<boolean> {
+  if (!Number.isInteger(cost) || cost < 1) throw new Error(`a request costs at least 1, not ${cost}`);
   const [row] = await sql<{ ok: boolean }[]>`
-    select bump_rate_limit(${key}, ${windowSeconds}, ${budget}) as ok`;
+    select bool_and(ok) as ok
+      from (select bump_rate_limit(${key}, ${windowSeconds}, ${budget}) as ok
+              from generate_series(1, ${cost}::int)) charged`;
   return row.ok;
 }
 
-/** One budget: a key, its window and how many it allows. */
-export type Budget = { key: string; windowSeconds: number; budget: number };
+/** One budget: a key, its window, how many it allows, and how many this request uses (1 if unsaid). */
+export type Budget = { key: string; windowSeconds: number; budget: number; cost?: number };
 
 /**
  * Whether a request is within every budget, charging them in order and
@@ -88,20 +97,27 @@ export type Budget = { key: string; windowSeconds: number; budget: number };
  */
 export async function withinBudgets(budgets: Budget[]): Promise<boolean> {
   for (const b of budgets) {
-    if (!(await withinRateLimit(b.key, b.windowSeconds, b.budget))) return false;
+    if (!(await withinRateLimit(b.key, b.windowSeconds, b.budget, b.cost))) return false;
   }
   return true;
 }
 
 /**
- * Photo upload URLs, per address. One report is one signing call for up to four
- * photos, so these sit just above SUBMIT_LIMITS: a sender cannot sign far more
- * uploads than they could ever attach. They were 40 calls per 5 minutes, which
- * let one address fill the bucket with about 460 GB a day that no report used.
+ * Photo upload URLs, per address, counted in photos.
+ *
+ * They were counted in signing calls, eight per two minutes and 150 a day, and
+ * a call signs up to four: 600 photos a day of up to 10 MB each, so one
+ * address could fill the free plan's 1 GB of storage in minutes, with uploads
+ * that no report used and that are kept a week before the cleanup deletes
+ * them (photo-pipeline review, 26 October 2026). Now each photo counts, and a
+ * day holds sixty, at most 180 MB at the 3 MB limit: fifteen reports with all
+ * four photos, or sixty with one. The burst lets six four-photo reports go in
+ * two minutes, which is what SUBMIT_LIMITS lets a sender file and what a
+ * phone sends when it finds signal after a morning on a mountain road.
  */
 export const SIGN_LIMITS = {
-  burst: { windowSeconds: 120, budget: 8 },
-  daily: { windowSeconds: 86_400, budget: 150 },
+  burst: { windowSeconds: 120, budget: 24 },
+  daily: { windowSeconds: 86_400, budget: 60 },
 } as const;
 
 /**

@@ -36,7 +36,8 @@ export const MIGRATIONS: readonly string[] = [
   "0034_taxa_successor_ids.sql",
   "0036_job_runs_and_app_errors.sql",
   "0037_hoopoe_to_species.sql",
+  "0038_photo_bucket_limit.sql",
 ];
 
 /** The highest-numbered of them, for reading at a glance; nothing is decided by it. */
-export const LATEST_MIGRATION = "0037_hoopoe_to_species.sql";
+export const LATEST_MIGRATION = "0038_photo_bucket_limit.sql";
