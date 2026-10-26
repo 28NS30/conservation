@@ -19,7 +19,12 @@ import { alternates } from "@/lib/alternates";
 import { speciesNames } from "@/lib/speciesNames";
 import { seasonOpen } from "@/lib/coverage";
 
-export const revalidate = 900;
+/**
+ * Five minutes, as its cached figures make it anyway. The hotspots place
+ * records to 5 km, so the page may last no longer than anything else that
+ * places one (`expireTime`, next.config.ts).
+ */
+export const revalidate = 300;
 
 /** The swatch beside each collection, as on the map's toggles. */
 const COLLECTION_SWATCH: Record<Collection, string> = {
@@ -265,8 +270,10 @@ export default async function StatsPage({
               const share = ov.reports ? (s.reportCount / ov.reports) * 100 : 0;
               return (
                 <li key={s.id}>
+                  {/* Not prefetched, like the directory's (see there). */}
                   <Link
                     href={`/species/${speciesSlug(s)}`}
+                    prefetch={false}
                     className="flex items-center gap-3 rounded-lg px-2 py-1.5 transition hover:bg-ink-900/5"
                   >
                     <span className="w-6 shrink-0 text-right text-sm tabular-nums text-ink-600">

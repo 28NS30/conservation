@@ -371,20 +371,36 @@ describe("signed in", () => {
       refresh_token: s.refresh_token,
       user: { id: s.user.id },
     };
-    return { cookie: `${authCookie()}=${encode(stored)}`, refreshToken: s.refresh_token };
+    return { cookie: `${authCookie()}=${encode(stored)}`, refreshToken: s.refresh_token, email };
   }
 
   const signedInHeader = /href="\/en\/me"/;
   const signedOutHeader = /href="\/en\/login\?next=/;
+  /** /me says whose account it is, so it is the page that shows who the server saw. */
+  const knows = (email) => new RegExp(`Signed in as ${email.replace(/[.]/g, "\\.")}`);
 
-  test("the header knows who is signed in", async (t) => {
+  test("/me knows who is signed in", async (t) => {
     // The control for everything below: a session these tests make is one the
     // app accepts.
     if (unusable) return t.skip(unusable);
+    const { cookie, email } = await signedIn();
+    const html = await fetch(`${BASE_URL}/en/me`, { headers: { cookie } }).then((r) => r.text());
+    assert.match(html, knows(email));
+  });
+
+  test("…and a public page is the same page it is for everyone", async (t) => {
+    // The header decides between "My reports" and "Sign in" in the browser
+    // (components/auth/AccountLink.tsx), so the server's page carries no
+    // trace of who asked for it and the CDN may hand it to anybody.
+    if (unusable) return t.skip(unusable);
     const { cookie } = await signedIn();
-    const html = await fetch(`${BASE_URL}/en/about`, { headers: { cookie } }).then((r) => r.text());
-    assert.match(html, signedInHeader);
-    assert.doesNotMatch(html, signedOutHeader);
+    const res = await fetch(`${BASE_URL}/en/about`, { headers: { cookie } });
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.headers.getSetCookie(), []);
+    assert.doesNotMatch(res.headers.get("cache-control") ?? "", /private|no-store/);
+    const html = await res.text();
+    assert.doesNotMatch(html, signedInHeader);
+    assert.match(html, signedOutHeader);
   });
 
   test("/login sends someone already signed in on to where they were going", async (t) => {
@@ -422,8 +438,10 @@ describe("signed in", () => {
     // cookies, which next-intl forwards). The unit test drives a hand-built
     // request; this is the built app under `next start`.
     if (unusable) return t.skip(unusable);
-    const { cookie, refreshToken } = await signedIn({ expired: true });
-    const res = await fetch(`${BASE_URL}/en/about`, { headers: { cookie } });
+    const { cookie, refreshToken, email } = await signedIn({ expired: true });
+    // /me, which renders per request and asks who is there. A public page is
+    // served from the cache now, and has nobody's session in it to renew.
+    const res = await fetch(`${BASE_URL}/en/me`, { headers: { cookie } });
     assert.equal(res.status, 200);
     const set = res.headers.getSetCookie().find((c) => c.startsWith(`${authCookie()}=`));
     assert.ok(set, "the renewed session must be sent to the browser");
@@ -431,7 +449,19 @@ describe("signed in", () => {
     assert.notEqual(renewed.refresh_token, refreshToken, "the refresh token was not rotated");
     assert.ok(renewed.expires_at > now(), "the new session is already expired");
     assert.match(res.headers.get("cache-control") ?? "", /no-store/);
-    assert.match(await res.text(), signedInHeader, "the page rendered without the renewal");
+    assert.match(await res.text(), knows(email), "the page rendered without the renewal");
+  });
+
+  test("a renewal on a public page is never cached for anyone else", async (t) => {
+    // The same renewal on a page the CDN would otherwise share: the response
+    // carries this person's new session, so it has to say no-store even
+    // though the page itself is everybody's.
+    if (unusable) return t.skip(unusable);
+    const { cookie } = await signedIn({ expired: true });
+    const res = await fetch(`${BASE_URL}/en/about`, { headers: { cookie } });
+    assert.equal(res.status, 200);
+    assert.ok(res.headers.getSetCookie().some((c) => c.startsWith(`${authCookie()}=`)));
+    assert.match(res.headers.get("cache-control") ?? "", /no-store/);
   });
 
   test("a Supabase that stops answering costs a page seconds, not the page", async (t) => {
@@ -440,14 +470,16 @@ describe("signed in", () => {
     // this request waited for as long as the socket did.
     if (unusable) return t.skip(unusable);
     if (!stub) return t.skip("needs the stand-in, which can be made to hang");
-    const { cookie } = await signedIn({ prefix: "hang" });
+    const { cookie, email } = await signedIn({ prefix: "hang" });
     const started = Date.now();
-    const res = await fetch(`${BASE_URL}/en/about`, {
+    // /me, because it is the page that asks Supabase who is there; public
+    // pages no longer ask at all.
+    const res = await fetch(`${BASE_URL}/en/me`, {
       headers: { cookie },
       signal: AbortSignal.timeout(20_000),
     });
     assert.equal(res.status, 200);
-    assert.match(await res.text(), signedOutHeader, "with no answer, nobody is signed in");
+    assert.doesNotMatch(await res.text(), knows(email), "with no answer, nobody is signed in");
     assert.ok(Date.now() - started < 10_000, `took ${Date.now() - started}ms`);
   });
 });

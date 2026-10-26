@@ -34,6 +34,7 @@ export const MIGRATIONS: readonly string[] = [
   "0031_binomial_index_on_the_expression.sql",
   "0032_floor_renamed_retired_twins.sql",
   "0034_taxa_successor_ids.sql",
+  "0035_reports_recent_index.sql",
   "0036_job_runs_and_app_errors.sql",
   "0037_hoopoe_to_species.sql",
   "0039_drop_rest_era_policies.sql",
