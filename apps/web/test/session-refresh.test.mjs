@@ -24,6 +24,9 @@ import {
   refreshSession,
   settledBy,
 } from "../lib/supabase/proxy.ts";
+import { SESSION_COOKIE_MAX_AGE, withSessionLifetime } from "../lib/supabase/cookieOptions.ts";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 /** What the stand-in does with the next refresh: "ok", "reject", "unavailable" or "hang". */
 let mode = "ok";
@@ -260,5 +263,72 @@ describe("previews", () => {
     } finally {
       process.env.NEXT_PUBLIC_SUPABASE_URL = saved;
     }
+  });
+});
+
+/**
+ * How the renewed session is written (lib/supabase/cookieOptions.ts): Secure
+ * in production, SameSite=Lax, and 30 days rather than @supabase/ssr's 400.
+ * Read off the Set-Cookie the browser is sent, which is where it counts.
+ */
+describe("the cookie it writes", () => {
+  /** The renewed session's Set-Cookie, under VERCEL_ENV as given. */
+  async function renewedCookie(vercelEnv) {
+    const saved = process.env.VERCEL_ENV;
+    if (vercelEnv === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = vercelEnv;
+    try {
+      mode = "ok";
+      const req = request({ [cookieName()]: encode(session("old-access", "old-refresh", now() - 60)) });
+      const res = applyRefreshed(NextResponse.next(), await refreshSession(req));
+      const set = res.headers.getSetCookie().find((c) => c.startsWith(`${cookieName()}=`));
+      assert.ok(set, "the renewed session must be sent to the browser");
+      return set.split(";").slice(1).map((a) => a.trim().toLowerCase());
+    } finally {
+      if (saved === undefined) delete process.env.VERCEL_ENV;
+      else process.env.VERCEL_ENV = saved;
+    }
+  }
+
+  test("in production it is Secure, SameSite=Lax, and lasts 30 days", async () => {
+    const attrs = await renewedCookie("production");
+    assert.ok(attrs.includes("secure"), `no Secure in ${attrs.join("; ")}`);
+    assert.ok(attrs.includes("samesite=lax"));
+    assert.ok(attrs.includes("path=/"));
+    assert.ok(attrs.includes(`max-age=${SESSION_COOKIE_MAX_AGE}`), `not 30 days: ${attrs.join("; ")}`);
+    assert.equal(SESSION_COOKIE_MAX_AGE, 30 * 24 * 60 * 60);
+    // The browser client reads the session from this cookie, and so does the
+    // page that names who a report saved on the phone belongs to.
+    assert.ok(!attrs.includes("httponly"), "HttpOnly would sign the browser client out");
+  });
+
+  test("on a laptop's http://localhost it is not Secure, and still 30 days", async () => {
+    // A Secure cookie set over plain http is refused by a browser that does not
+    // count localhost as secure, and nobody could stay signed in.
+    const attrs = await renewedCookie(undefined);
+    assert.ok(!attrs.includes("secure"));
+    assert.ok(attrs.includes(`max-age=${SESSION_COOKIE_MAX_AGE}`));
+  });
+
+  test("the lifetime cap shortens a write and leaves a deletion alone", () => {
+    assert.equal(withSessionLifetime({ maxAge: 400 * 24 * 60 * 60, path: "/" }).maxAge, SESSION_COOKIE_MAX_AGE);
+    assert.equal(withSessionLifetime({ maxAge: 60 }).maxAge, 60);
+    assert.equal(withSessionLifetime({ maxAge: 0 }).maxAge, 0);
+    assert.deepEqual(withSessionLifetime({ path: "/" }), { path: "/" });
+    assert.equal(withSessionLifetime(undefined), undefined);
+  });
+
+  test("the server's page client and the browser client write it the same way", () => {
+    // Neither can be run here, one needing a request and the other a browser,
+    // so this reads that each passes the options and the cap. A client left on
+    // the library's defaults would write a 400-day cookie without Secure over
+    // the server's on every renewal.
+    const read = (p) => readFileSync(join(import.meta.dirname, "..", p), "utf8");
+    const server = read("lib/supabase/server.ts");
+    assert.match(server, /cookieOptions: serverSessionCookieOptions\(\)/);
+    assert.match(server, /store\.set\(name, value, withSessionLifetime\(options\)\)/);
+    const browser = read("lib/supabase/client.ts");
+    assert.match(browser, /cookieOptions: sessionCookieOptions\(window\.location\.protocol === "https:"\)/);
+    assert.match(browser, /serializeCookieHeader\(name, value, withSessionLifetime\(options\)\)/);
   });
 });
