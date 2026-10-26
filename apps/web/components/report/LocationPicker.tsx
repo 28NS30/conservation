@@ -77,6 +77,8 @@ export default function LocationPicker({
   }, [strings]);
   /** The map exists, so the centre button has something to read. */
   const [ready, setReady] = useState(false);
+  /** The centre button was pressed too far out, and zoomed in instead. */
+  const [aimHint, setAimHint] = useState(false);
   /**
    * Puts the pin at the middle of the map, under the crosshair: the way to
    * place it with no pointer at all. Clicking and dragging were the only ways,
@@ -209,6 +211,10 @@ export default function LocationPicker({
           // moved by keyboard reaches the form exactly as a dragged one does.
           m.on("dragend", () => {
             const p = m.getLngLat();
+            // Moved by hand, so the camera stays where the reporter has it:
+            // framing it at zoom 14 threw a keyboard user, nudging the pin a
+            // step at a time, to street level after the first key.
+            placedAtCentre.current = { lat: p.lat, lng: p.lng };
             onChangeRef.current({ lat: p.lat, lng: p.lng });
           });
           marker.current = m;
@@ -236,6 +242,15 @@ export default function LocationPicker({
       // a drag does.
       placeAtCentre.current = () => {
         const c = h.map.getCenter();
+        // At the whole island's zoom the centre is a point in the Central
+        // Range, about 3 km a pixel. Zoom in on the crosshair first, and say
+        // so; the next press puts the pin down.
+        if (h.map.getZoom() < AIM_ZOOM) {
+          h.map.easeTo({ center: c, zoom: AIM_ZOOM, duration: 300 });
+          setAimHint(true);
+          return;
+        }
+        setAimHint(false);
         placedAtCentre.current = { lat: c.lat, lng: c.lng };
         place.current?.(c.lng, c.lat);
         onChangeRef.current({ lat: c.lat, lng: c.lng });
@@ -354,6 +369,7 @@ export default function LocationPicker({
         {/* ink, not parchment: parchment is the map's palette, and this line
             sits on cream under the picker, where it measured 2.90:1. */}
         <p role="status" className="text-sm tabular-nums text-ink-600">
+          {aimHint && !value && t("pinZoomFirst")}
           {value && (
             <>
               {value.lat.toFixed(5)}, {value.lng.toFixed(5)}
@@ -372,6 +388,12 @@ export default function LocationPicker({
  * Bring the pin into view: at street zoom, or, for a rough fix, framing the
  * whole circle the device claimed, so its edge is on screen and not a guess.
  */
+/**
+ * The least zoom at which the centre button puts a pin down: about 10 m a
+ * pixel, enough to aim at a stretch of road.
+ */
+const AIM_ZOOM = 13;
+
 function frame(map: MLMap, at: LatLng, accuracyM: number | null, duration: number) {
   if (isRoughFix(accuracyM)) {
     map.fitBounds(polygonBounds(circlePolygon(at.lng, at.lat, accuracyM / 1000)), {

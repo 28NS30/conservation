@@ -174,6 +174,13 @@ try {
       await tabTo(page, { label: r.pinAtCentre, max: 20 }),
     );
     check(`${locale}: no pin yet`, (await coords(page)) === "");
+    // At the whole island's zoom the first press zooms in on the crosshair
+    // and says so, rather than pinning a point in the Central Range.
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(600);
+    check(`${locale}: too far out, the button zooms in and says why`, (await coords(page)) === "" &&
+      (await page.locator(`text=${r.pinZoomFirst}`).count()) === 1);
+    check(`${locale}: to at least the zoom it aims at`, await page.evaluate(() => window.__pickerMap.getZoom() >= 12.9));
     await page.keyboard.press("Enter");
     await page.waitForTimeout(600);
     const first = await coords(page);
@@ -237,6 +244,9 @@ try {
     const page = await ctx.newPage();
     await stubReports(page, { status: 422, body: { error: "taxon_not_found" } });
     await open(page, "/report/wildlife");
+    // Twice: the first press zooms in on the crosshair.
+    await page.getByRole("button", { name: r.pinAtCentre }).click();
+    await page.waitForTimeout(500);
     await page.getByRole("button", { name: r.pinAtCentre }).click();
     await page.waitForTimeout(500);
     await page.getByRole("button", { name: r.submit }).click();
@@ -278,6 +288,9 @@ try {
     check("a rough fix: the circle is drawn on the map", circle === "Polygon", String(circle));
     await audit(page, "zh-TW · a rough fix");
     // Moving the pin answers the prompt: the reporter has said where it was.
+    // Twice, as the circle may be framed wider than the button aims at.
+    await page.getByRole("button", { name: r.pinAtCentre }).click();
+    await page.waitForTimeout(600);
     await page.getByRole("button", { name: r.pinAtCentre }).click();
     await page.waitForTimeout(600);
     check("a rough fix: placing the pin by hand clears the prompt", (await page.locator(`text=${prompt}`).count()) === 0);

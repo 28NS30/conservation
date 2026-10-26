@@ -149,6 +149,7 @@
     "needLocation": "Tap the map to mark where you saw it",
     "locationError": "Couldn't get your location. Tap the map instead.",
     "pinAtCentre": "Put the pin at the map's centre",
+    "pinZoomFirst": "Zoomed in first: aim the cross at where you saw it, then press again to put the pin down.",
     "pickerMap": "Map for choosing where you saw it",
     "pickerKeys": "Arrow keys move the map, + and − zoom, and Enter puts the pin on the cross in the middle.",
     "pickerPin": "Your pin. Move it with the arrow keys",

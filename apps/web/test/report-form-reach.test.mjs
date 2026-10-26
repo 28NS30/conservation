@@ -72,7 +72,17 @@ describe("the pin goes down without a pointer", () => {
   });
 
   test("a pin put down is said, not only drawn", () => {
-    assert.match(PICKER, /<p role="status" className="text-sm tabular-nums text-ink-600">\s*\{value && \(/);
+    assert.match(PICKER, /<p role="status" className="text-sm tabular-nums text-ink-600">\s*\{aimHint && !value && t\("pinZoomFirst"\)\}\s*\{value && \(/);
+  });
+
+  test("too far out to aim, the button zooms in on the crosshair rather than pinning it", () => {
+    assert.match(PICKER, /const AIM_ZOOM = 13;/);
+    assert.match(PICKER, /if \(h\.map\.getZoom\(\) < AIM_ZOOM\) \{\s*h\.map\.easeTo\(\{ center: c, zoom: AIM_ZOOM, duration: 300 \}\);\s*setAimHint\(true\);\s*return;/);
+    for (const l of LOCALES) assert.equal(typeof catalogue(l).report.pinZoomFirst, "string", l);
+  });
+
+  test("a pin moved by hand or by keys leaves the camera where it is", () => {
+    assert.match(PICKER, /m\.on\("dragend", \(\) => \{\s*const p = m\.getLngLat\(\);[\s\S]*?placedAtCentre\.current = \{ lat: p\.lat, lng: p\.lng \};\s*onChangeRef\.current/);
   });
 });
 
@@ -105,7 +115,10 @@ describe("a refused location says how to allow it", () => {
     assert.match(PICKER, /export const ROUGH_FIX_M = 100;/);
     assert.match(PICKER, /circlePolygon\(v\.lng, v\.lat, r \/ 1000\)/);
     assert.match(FORM, /accuracyM=\{accuracyM\}/);
-    assert.match(FORM, /location && isRoughFix\(accuracyM\) && \(\s*<p role="status"/);
+    // The region is always there, and filled when the fix is rough: one that
+    // arrives already speaking is not announced.
+    assert.match(FORM, /<p\s+role="status"\s+className=\{\s*location && isRoughFix\(accuracyM\)/);
+    assert.match(FORM, /\{location && isRoughFix\(accuracyM\) \? t\("roughFix", \{ m: accuracyM \}\) : ""\}/);
     for (const l of LOCALES) assert.match(catalogue(l).report.roughFix, /\{m\}/, l);
   });
 });

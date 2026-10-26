@@ -1551,11 +1551,19 @@ function ReportFormFields({
           status, not an alert: the reporter asked for the location and got
           one, and this qualifies it.
         */}
-        {location && isRoughFix(accuracyM) && (
-          <p role="status" className="mt-2 border-l-4 border-ember-700 pl-3 text-sm leading-relaxed text-ink-800">
-            {t("roughFix", { m: accuracyM })}
-          </p>
-        )}
+        {/* Always rendered, filled when the fix is rough: a status region
+            that arrives already speaking is not announced by most screen
+            readers. */}
+        <p
+          role="status"
+          className={
+            location && isRoughFix(accuracyM)
+              ? "mt-2 border-l-4 border-ember-700 pl-3 text-sm leading-relaxed text-ink-800"
+              : "sr-only"
+          }
+        >
+          {location && isRoughFix(accuracyM) ? t("roughFix", { m: accuracyM }) : ""}
+        </p>
         {locationError && locateError !== "denied" && (
           <p role="alert" className="mt-1.5 text-sm text-ember-700">
             {t("locationError")}
