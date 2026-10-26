@@ -177,8 +177,10 @@ export type InvasiveSpecies = {
  * view, so a count can never reveal a withheld record.
  *
  * TaiCOL's note on a species' alien status is not listed here. It is the
- * checklist's raw text, printed on 117 of 209 rows, and the page was 364 KB;
- * the species page keeps it, under its sources.
+ * checklist's raw text, printed on 117 of 209 rows, and it went to the
+ * browser twice, in the HTML and again in the list's props: with the folding,
+ * /invasive went from 366 to 324 KB (64 to 60 KB compressed), built locally
+ * on production's data. The species page keeps the note, under its sources.
  */
 export async function invasiveSpeciesList(): Promise<InvasiveSpecies[]> {
   return asPublic(
