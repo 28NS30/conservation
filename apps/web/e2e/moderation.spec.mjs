@@ -200,8 +200,13 @@ try {
   await sql`insert into classification_jobs (report_id, status, attempts, last_error)
             values (${ids.stuck}, 'failed', 5, 'the model refused the photo')`;
   check("a held record starts at 10 km", stuck.location_precision === "coarse_10km", stuck.location_precision);
-  await page.goto(`${BASE}/en/admin`, { waitUntil: "networkidle" });
+  // "load" and the row itself, not "networkidle": after the OK above, the
+  // header's prefetches of cached pages are left pending in the browser and
+  // the network never goes quiet, though clicking those links still loads
+  // them at once (checked by hand on 26 October).
+  await page.goto(`${BASE}/en/admin`, { waitUntil: "load" });
   const stuckRow = page.locator("li", { has: page.locator(`a[href$="/reports/${ids.stuck}"]`) });
+  await stuckRow.first().waitFor({ timeout: 15000 }).catch(() => {});
   check("a record held for good is listed", (await stuckRow.count()) === 1);
   check(
     "it says the photo could not be checked and the record stays at 10 km",
@@ -240,8 +245,10 @@ try {
             now(), 'published', 'user')
     returning id`;
   ids.unnamed = unnamed.id;
-  await page.goto(`${BASE}/en/reports/${ids.unnamed}`, { waitUntil: "networkidle" });
+  // "load" and the search box, as for the queue above.
+  await page.goto(`${BASE}/en/reports/${ids.unnamed}`, { waitUntil: "load" });
   const search = page.getByRole("searchbox", { name: /Search by Chinese/ });
+  await search.waitFor({ timeout: 15000 }).catch(() => {});
   check("a moderator can search every species on a record", await search.isVisible());
   await search.fill("石虎");
   await page.getByRole("button", { name: /石虎/ }).first().click();
