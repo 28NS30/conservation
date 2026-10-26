@@ -89,16 +89,12 @@ describe("the identification, as soon as a photo is added", () => {
     assert.match(form, /withBase\("\/api\/identify"\)/);
   });
 
-  test("a species the model puts under 1% is not offered", () => {
-    const src = read("lib", "report", "identify.ts");
-    assert.match(src, /const MIN_OFFERED_SCORE = 0\.01;/);
-    assert.match(src, /ranked = ranked\.filter\(\(r\) => r\.score >= MIN_OFFERED_SCORE\);\s+\/\/ A list that is wrong/);
-  });
+  // What is offered (nothing under 1%, nothing off the page, nothing from the
+  // low band), the challenge, the budgets and the site's cap are run against
+  // a stand-in model in test/identify.test.mjs.
 
-  test("the route is rate-limited by address and capped for the whole site", () => {
+  test("the route stores nothing", () => {
     const route = read("app", "api", "identify", "route.ts");
-    assert.match(route, /key: "identify-site"/);
-    assert.match(route, /await withinBudgets\(budgets\)/);
     assert.doesNotMatch(route, /storage|report_photos|insert into/i, "the identify route stores something");
   });
 

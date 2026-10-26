@@ -83,6 +83,13 @@ type DraftFields = {
   photoIdea: PhotoSuggestionsState | null;
 };
 
+/**
+ * How long an identification waits for its challenge. Long enough for a
+ * reporter to tick a box if Cloudflare asks for one; after it the form says
+ * the model is unavailable, and that is all.
+ */
+const IDENTIFY_TOKEN_WAIT_MS = 30_000;
+
 /** Where 路殺社 takes reports. A link only: nothing is sent there for anyone. */
 const TAIRON_URL = "https://roadkill.tw";
 
@@ -301,6 +308,16 @@ function ReportFormFields({
   const [photoIdea, setPhotoIdea] = useState<PhotoSuggestionsState>({ status: "idle" });
   const [speciesFromPhoto, setSpeciesFromPhoto] = useState(false);
   const photoAsked = useRef(false);
+  /**
+   * The challenge in front of the model (app/api/identify), its own widget
+   * and not the send button's: a token is single-use, and the one for sending
+   * has to be there when the reporter presses send. Mounted for one
+   * identification and keyed by it, so each gets a challenge of its own, and
+   * taken away once it has answered. Invisible unless Cloudflare needs a tick.
+   */
+  const [identifyChallenge, setIdentifyChallenge] = useState<number | null>(null);
+  const identifyRound = useRef(0);
+  const identifyAnswer = useRef<((token: string | null) => void) | null>(null);
   /** The place on the map was read from the photo, and the form says so. */
   const [locationFromPhoto, setLocationFromPhoto] = useState(false);
   const [preparing, setPreparing] = useState(false);
@@ -613,25 +630,56 @@ function ReportFormFields({
   }, [phase, sendNumber]);
 
   /**
+   * A fresh token for one identification, or null if none came: no widget
+   * could load, Cloudflare refused, or the reporter left a box unticked for
+   * IDENTIFY_TOKEN_WAIT_MS. Without a site key there is no challenge, and
+   * nothing to wait for.
+   */
+  const identifyToken = useCallback(
+    () =>
+      new Promise<string | null>((resolve) => {
+        const timer = window.setTimeout(() => answer(null), IDENTIFY_TOKEN_WAIT_MS);
+        function answer(token: string | null) {
+          window.clearTimeout(timer);
+          if (identifyAnswer.current === answer) identifyAnswer.current = null;
+          setIdentifyChallenge(null);
+          resolve(token);
+        }
+        identifyAnswer.current = answer;
+        identifyRound.current += 1;
+        setIdentifyChallenge(identifyRound.current);
+      }),
+    [],
+  );
+
+  /**
    * Ask the model about a photo, once per report, with a signal. Offline it
    * is not asked at all: the queue sends the report later, and the model
    * looks at it then, as it always did.
+   *
+   * Anything that goes wrong here, the challenge included, leaves the form
+   * saying the model is unavailable, and nothing else: the report is filed
+   * exactly as it would be without a suggestion.
    */
   const identifyPhoto = useCallback(
     async (blob: Blob) => {
       if (typeof navigator !== "undefined" && navigator.onLine === false) return;
       setPhotoIdea({ status: "working" });
       try {
-        const imageBase64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(String(reader.result).replace(/^data:[^,]*,/, ""));
-          reader.onerror = () => reject(reader.error);
-          reader.readAsDataURL(blob);
-        });
+        const [imageBase64, turnstileToken] = await Promise.all([
+          new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result).replace(/^data:[^,]*,/, ""));
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(blob);
+          }),
+          turnstileEnabled ? identifyToken() : Promise.resolve(null),
+        ]);
+        if (turnstileEnabled && !turnstileToken) throw new Error("identify: no challenge token");
         const res = await fetch(withBase("/api/identify"), {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ imageBase64, page }),
+          body: JSON.stringify({ imageBase64, page, turnstileToken: turnstileToken ?? undefined }),
           signal: AbortSignal.timeout(60_000),
         });
         if (!res.ok) throw new Error(`identify ${res.status}`);
@@ -642,7 +690,7 @@ function ReportFormFields({
         setPhotoIdea({ status: "failed" });
       }
     },
-    [page],
+    [page, identifyToken],
   );
 
   const addFiles = useCallback(
@@ -1515,6 +1563,18 @@ function ReportFormFields({
               setSpeciesFromPhoto(true);
               setUnsure(false);
             }}
+          />
+        )}
+        {/* Beside the line saying the model is looking, so that a box
+            Cloudflare asks to be ticked is where the reporter is reading.
+            Draws nothing otherwise, and nothing without a site key. */}
+        {identifyChallenge !== null && online && (
+          <Turnstile
+            key={identifyChallenge}
+            onToken={(token) => identifyAnswer.current?.(token)}
+            locale={locale}
+            theme="light"
+            appearance="interaction-only"
           />
         )}
         <SpeciesPicker
