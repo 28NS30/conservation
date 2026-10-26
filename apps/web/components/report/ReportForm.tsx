@@ -317,6 +317,8 @@ function ReportFormFields({
    */
   const [identifyChallenge, setIdentifyChallenge] = useState<number | null>(null);
   const identifyRound = useRef(0);
+  /** Which identification may still write its answer; see identifyPhoto. */
+  const identifySeq = useRef(0);
   const identifyAnswer = useRef<((token: string | null) => void) | null>(null);
   /** The place on the map was read from the photo, and the form says so. */
   const [locationFromPhoto, setLocationFromPhoto] = useState(false);
@@ -639,15 +641,16 @@ function ReportFormFields({
     () =>
       new Promise<string | null>((resolve) => {
         const timer = window.setTimeout(() => answer(null), IDENTIFY_TOKEN_WAIT_MS);
+        const round = ++identifyRound.current;
         function answer(token: string | null) {
           window.clearTimeout(timer);
           if (identifyAnswer.current === answer) identifyAnswer.current = null;
-          setIdentifyChallenge(null);
+          // Only this round's widget: a newer photo's may be waiting.
+          if (identifyRound.current === round) setIdentifyChallenge(null);
           resolve(token);
         }
         identifyAnswer.current = answer;
-        identifyRound.current += 1;
-        setIdentifyChallenge(identifyRound.current);
+        setIdentifyChallenge(round);
       }),
     [],
   );
@@ -664,6 +667,10 @@ function ReportFormFields({
   const identifyPhoto = useCallback(
     async (blob: Blob) => {
       if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+      // Superseded by a newer photo, or by every photo being taken off, an
+      // answer is about a photo the form no longer asks about.
+      const mine = ++identifySeq.current;
+      const current = () => identifySeq.current === mine;
       setPhotoIdea({ status: "working" });
       try {
         const [imageBase64, challenge] = await Promise.all([
@@ -684,10 +691,10 @@ function ReportFormFields({
         });
         if (!res.ok) throw new Error(`identify ${res.status}`);
         const data = (await res.json()) as PhotoIdentification;
-        setPhotoIdea({ status: "done", suggestions: data.suggestions, outsidePage: data.outsidePage });
+        if (current()) setPhotoIdea({ status: "done", suggestions: data.suggestions, outsidePage: data.outsidePage });
       } catch (e) {
         console.error("[report] identify:", e);
-        setPhotoIdea({ status: "failed" });
+        if (current()) setPhotoIdea({ status: "failed" });
       }
     },
     [page, identifyToken],
@@ -1381,6 +1388,7 @@ function ReportFormFields({
                       // of them, and the next photo is asked about afresh.
                       if (left.length === 0) {
                         photoAsked.current = false;
+                        identifySeq.current += 1;
                         setPhotoIdea({ status: "idle" });
                       }
                       return left;
