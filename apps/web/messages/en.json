@@ -523,7 +523,14 @@
     "ourData": "Data produced here",
     "ourDataBody": "Reports filed on this site are not published anywhere else yet. We plan to share them as open data through GBIF, so the records can be used beyond this site.",
     "photos": "Photographs",
-    "photosBody": "The photographs on the home page are from Wikimedia Commons, all taken in Taiwan. Each is credited where it appears; the photographer and licence are listed here too."
+    "photosBody": "The photographs on the home page are from Wikimedia Commons, all taken in Taiwan. Each is credited where it appears; the photographer and licence are listed here too.",
+    "datasetName": "Project FormosaWatch: wildlife records from Taiwan",
+    "datasetDescription": "Records of wild animals in Taiwan: roadkill and injured animals, invasive species and wildlife sightings, shown on an open map. It holds the Taiwan Roadkill Observation Network (TaiRON, 路殺社)'s open roadkill records for 2011–2017, shared through GBIF under CC BY 4.0, and the reports people file on this site, published under CC0. The location of a protected or sensitive species, and of a record not yet identified, is blurred before it is published.",
+    "datasetOwnName": "Reports filed on Project FormosaWatch",
+    "datasetOwnDescription": "Reports filed by the public on this site: roadkill or injured animals, invasive species, and wildlife sightings, published under CC0. Locations are blurred where the species needs it.",
+    "datasetTaironName": "Taiwan Roadkill Observation Network (TaiRON) roadkill records",
+    "datasetTaironCreator": "Taiwan Roadkill Observation Network (TaiRON, 路殺社)",
+    "datasetPlace": "Taiwan"
   },
   "about": {
     "title": "About",

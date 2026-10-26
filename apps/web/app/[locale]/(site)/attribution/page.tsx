@@ -5,6 +5,8 @@ import { licenseLabel } from "@/lib/license";
 import { asPublic } from "@/lib/db";
 import { PHOTOS } from "@/lib/home/photos";
 import { alternates } from "@/lib/alternates";
+import JsonLd from "@/components/site/JsonLd";
+import { datasetLd } from "@/lib/structuredData";
 
 export const revalidate = 3600;
 
@@ -37,16 +39,28 @@ export default async function AttributionPage({
   const t = await getTranslations("attribution");
   const zhFirst = locale.startsWith("zh");
 
-  const licenses = await asPublic(
-    (tx) => tx<
-      { license: string | null; rightsHolder: string | null; n: number }[]
-    >`
-      select license, rights_holder as "rightsHolder", count(*)::int as n
-        from reports_public
-       where source = 'gbif'
-       group by 1, 2
-       order by n desc`,
-  );
+  const [licenses, [span]] = await Promise.all([
+    asPublic(
+      (tx) => tx<
+        { license: string | null; rightsHolder: string | null; n: number }[]
+      >`
+        select license, rights_holder as "rightsHolder", count(*)::int as n
+          from reports_public
+         where source = 'gbif'
+         group by 1, 2
+         order by n desc`,
+    ),
+    // The first and last day a public record was seen, on Taiwan's calendar,
+    // for the dataset's temporal coverage: the span /stats states in years.
+    asPublic(
+      (tx) => tx<{ firstDay: string | null; lastDay: string | null }[]>`
+        select min(observed_at at time zone 'Asia/Taipei')::date::text as "firstDay",
+               max(observed_at at time zone 'Asia/Taipei')::date::text as "lastDay"
+          from reports_public`,
+    ),
+  ]);
+  const site = await getTranslations("site");
+  const otherSite = await getTranslations({ locale: zhFirst ? "en" : "zh-TW", namespace: "site" });
 
   const total = licenses.reduce((a, b) => a + b.n, 0);
   const licenseName = (url: string | null) =>
@@ -222,6 +236,26 @@ export default async function AttributionPage({
           {t("ourDataBody")}
         </p>
       </section>
+
+      {/* The records as a dataset, for Google's Dataset Search and anything
+          else that reads schema.org: what they are, under which licences,
+          where and when, and whose they are (lib/structuredData.ts). */}
+      <JsonLd
+        data={datasetLd({
+          locale,
+          name: t("datasetName"),
+          description: t("datasetDescription"),
+          ownPartName: t("datasetOwnName"),
+          ownPartDescription: t("datasetOwnDescription"),
+          taironName: t("datasetTaironName"),
+          taironCreator: t("datasetTaironCreator"),
+          siteName: site("title"),
+          siteAlternateName: otherSite("title"),
+          place: t("datasetPlace"),
+          firstDay: span?.firstDay ?? null,
+          lastDay: span?.lastDay ?? null,
+        })}
+      />
     </main>
   );
 }

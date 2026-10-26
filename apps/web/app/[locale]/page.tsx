@@ -14,6 +14,8 @@ import HeroSlideshow from "@/components/home/HeroSlideshow";
 import StoryRow, { SectionTitle } from "@/components/home/StoryRow";
 import SpeciesName from "@/components/species/SpeciesName";
 import { alternates } from "@/lib/alternates";
+import JsonLd from "@/components/site/JsonLd";
+import { homeGraph } from "@/lib/structuredData";
 
 export const revalidate = 300;
 
@@ -117,6 +119,13 @@ export default async function HomePage({
   setRequestLocale(locale);
 
   const t = await getTranslations("home");
+  const site = await getTranslations("site");
+  // The site's name in the other language, for alternateName: a search for
+  // "Project FormosaWatch" and one for 福爾摩沙守望計畫 are for the same site.
+  const otherSite = await getTranslations({
+    locale: routing.locales.find((l) => l !== locale) ?? routing.defaultLocale,
+    namespace: "site",
+  });
   const [s, entrySpecies] = await Promise.all([getStats(), mapEntrySpecies(3)]);
   const zh = locale.startsWith("zh");
   const photoBy = t("photoBy");
@@ -323,6 +332,18 @@ export default async function HomePage({
       </section>
 
       <SiteFooter obscured={s.obscured} />
+
+      {/* What the site is called and who runs it, for search engines: a
+          search for the project's own name found nothing
+          (lib/structuredData.ts). */}
+      <JsonLd
+        data={homeGraph({
+          locale,
+          name: site("title"),
+          alternateName: otherSite("title"),
+          description: site("description"),
+        })}
+      />
     </main>
   );
 }

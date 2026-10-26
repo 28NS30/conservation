@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { asPublic, sql } from "@/lib/db";
-import { speciesNotes } from "@/lib/speciesNotes";
+import { displayNameZh, speciesNotes } from "@/lib/speciesNotes";
 import {
   getSpecies,
   monthlyCounts,
@@ -21,6 +21,8 @@ import { speciesLabel } from "@/lib/speciesNames";
 import { alternates } from "@/lib/alternates";
 import { speciesDescription } from "@/lib/speciesMeta";
 import ShareButton from "@/components/site/ShareButton";
+import JsonLd from "@/components/site/JsonLd";
+import { localeUrl, taxonLd } from "@/lib/structuredData";
 
 /** A heatmap built from a handful of points is noise; below this we plot them. */
 const HEATMAP_MIN_RECORDS = 6;
@@ -296,6 +298,26 @@ export default async function SpeciesPage({
           {s.reportCount > 0 ? t("seenOne") : t("beFirst")}
         </Link>
       )}
+
+      {/* The taxon as Bioschemas describes one, from the same TaiCOL fields
+          the page prints (lib/structuredData.ts). */}
+      <JsonLd
+        data={taxonLd({
+          url: localeUrl(locale, `/species/${canonical}`),
+          scientificName: s.scientificName,
+          nameAuthor: s.nameAuthor,
+          rank: s.rank,
+          names: [
+            ...new Set(
+              [displayNameZh(s.taicolId, s.commonNameZh), s.commonNameEn, ...(s.altNamesZh ?? [])]
+                .map((n) => n?.trim())
+                .filter((n): n is string => Boolean(n)),
+            ),
+          ],
+          genus: s.genus,
+          taicolId: s.taicolId,
+        })}
+      />
     </main>
   );
 }
