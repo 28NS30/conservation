@@ -112,7 +112,7 @@ describe("a species page", () => {
   test("describes its taxon as Bioschemas does", async (t) => {
     if (!(await requireServer(t))) return;
     const [s] = await sql`
-      select id, scientific_name, taicol_id, common_name_zh from taxa
+      select id, scientific_name, taicol_id, common_name_zh, genus from taxa
        where scientific_name = 'Prionailurus bengalensis' and rank = 'Species' limit 1`;
     assert.ok(s, "the fixture lacks 豹貓");
     const b = await blocks(`/species/${s.id}`);
@@ -123,7 +123,9 @@ describe("a species page", () => {
     assert.equal(taxon.scientificName.name, s.scientific_name);
     assert.ok(taxon.alternateName.includes(s.common_name_zh));
     assert.equal(taxon.sameAs, `https://taicol.tw/zh-hant/taxon/${s.taicol_id}`);
-    assert.equal(taxon.parentTaxon.taxonRank, "genus");
+    // TaiCOL's genus, or the binomial's first word where that column is
+    // empty, as it is in CI's fixture.
+    assert.deepEqual(taxon.parentTaxon, { "@type": "Taxon", name: s.genus || "Prionailurus", taxonRank: "genus" });
     assert.match(new URL(taxon.url).pathname, new RegExp(`^/species/${s.id}-`));
   });
 });

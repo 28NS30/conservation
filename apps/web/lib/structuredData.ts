@@ -195,12 +195,13 @@ export function taxonLd(o: {
 }) {
   const rank = o.rank?.toLowerCase() ?? null;
   // The rank directly above: a subspecies' species is the first two words of
-  // its name, and a species' genus is TaiCOL's.
+  // its name, and a species' genus is TaiCOL's, or, where that column is
+  // empty, the binomial's first word, which is the genus by definition.
   const parent =
     rank === "subspecies"
       ? { name: o.scientificName.split(/\s+/).slice(0, 2).join(" "), taxonRank: "species" }
-      : rank === "species" && o.genus
-        ? { name: o.genus, taxonRank: "genus" }
+      : rank === "species"
+        ? { name: o.genus || o.scientificName.split(/\s+/)[0], taxonRank: "genus" }
         : null;
   return {
     "@context": SCHEMA,
