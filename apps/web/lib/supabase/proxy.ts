@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import type { NextRequest, NextResponse } from "next/server";
+import { serverSessionCookieOptions, withSessionLifetime } from "./cookieOptions.ts";
 
 /*
  * Giving up on Supabase Auth in time.
@@ -208,6 +209,7 @@ export async function refreshSession(
   try {
     const supabase = createServerClient(url, key, {
       global: { fetch: fetchUntil(deadline) },
+      cookieOptions: serverSessionCookieOptions(),
       cookies: {
         getAll: () => request.cookies.getAll(),
         setAll: (list, headers) => {
@@ -221,7 +223,7 @@ export async function refreshSession(
             else request.cookies.set(name, value);
           }
           out = {
-            cookies: list.map((c) => ({ ...c, options: { ...c.options } })),
+            cookies: list.map((c) => ({ ...c, options: withSessionLifetime({ ...c.options }) })),
             headers: { ...headers },
           };
         },

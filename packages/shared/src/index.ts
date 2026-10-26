@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+// No `new Function` from zod. Its object parsers compile themselves with
+// `new Function` where they may, and it finds out whether they may by trying
+// one as each schema is built, so every page importing this file tried, and
+// the site's Content-Security-Policy, which allows no eval
+// (apps/web/next.config.ts), reported it on every map and report page.
+// Without the compiled path a parse takes the plain one, as it does wherever
+// eval is refused; what this site validates is a request's few fields.
+z.config({ jitless: true });
+
 /* ------------------------------------------------------------------ *
  * Report categories
  * ------------------------------------------------------------------ */

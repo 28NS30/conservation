@@ -3,6 +3,7 @@ import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { LATE, fetchUntil, settledBy, passwordSession, refusesPasswordSessions } from "./proxy";
+import { serverSessionCookieOptions, withSessionLifetime } from "./cookieOptions";
 
 /**
  * How long a page waits to learn who is signed in before rendering as if
@@ -35,6 +36,7 @@ export async function serverSupabase({ deadline }: { deadline?: AbortSignal } = 
   const store = await cookies();
   return createServerClient(url, key, {
     ...(deadline && { global: { fetch: fetchUntil(deadline) } }),
+    cookieOptions: serverSessionCookieOptions(),
     cookies: {
       getAll: () => store.getAll(),
       setAll: (list) => {
@@ -43,7 +45,8 @@ export async function serverSupabase({ deadline }: { deadline?: AbortSignal } = 
         // and sign someone out because Supabase was slow.
         if (deadline?.aborted) return;
         try {
-          for (const { name, value, options } of list) store.set(name, value, options);
+          for (const { name, value, options } of list)
+            store.set(name, value, withSessionLifetime(options));
         } catch {
           // Called from a Server Component, where cookies are read-only.
           // Ignoring is correct only because proxy.ts renews an expiring
