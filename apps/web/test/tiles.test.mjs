@@ -448,9 +448,19 @@ describe("transfer", () => {
     // Vercel does not compress application/vnd.mapbox-vector-tile, so tiles went
     // out raw: 77 KB for this one, about 14 KB gzipped. No header means no
     // preference, and gzip is acceptable then too.
-    const refused = await raw(`${Z6.z}/${Z6.x}/${Z6.y}`, { "accept-encoding": "identity" });
+    const tile = `${Z6.z}/${Z6.x}/${Z6.y}`;
     for (const headers of [{}, { "accept-encoding": "gzip" }, { "accept-encoding": "gzip, deflate, br, zstd" }]) {
-      const zipped = await raw(`${Z6.z}/${Z6.x}/${Z6.y}`, headers);
+      // The two fetched back to back, and again if they differ: other test
+      // files file and remove public records while this runs, and a record
+      // landing between the two requests changes the tile, not its encoding.
+      let refused;
+      let zipped;
+      for (let attempt = 0; attempt < 4; attempt++) {
+        refused = await raw(tile, { "accept-encoding": "identity" });
+        zipped = await raw(tile, headers);
+        if (zipped.headers["content-encoding"] !== "gzip") break;
+        if (Buffer.compare(gunzipSync(zipped.body), refused.body) === 0) break;
+      }
       assert.equal(zipped.headers["content-encoding"], "gzip", JSON.stringify(headers));
       assert.ok(zipped.body.length < refused.body.length / 3, "should compress well");
       assert.deepEqual(
