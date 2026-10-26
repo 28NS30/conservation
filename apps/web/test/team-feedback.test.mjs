@@ -53,9 +53,9 @@ describe("the photo step", () => {
     }
   });
 
-  test("the photo's place fills the location, and says where it came from", () => {
-    assert.match(form, /if \(!location\) \{\s+setLocation\(withGps\.gps\);/);
-    assert.match(form, /t\(locationFromPhoto \? "locationFromPhoto" : "tapToAdjust"\)/);
+  // That the photo's place fills the location, and the form says so, is run
+  // in a browser by e2e/photo.spec.mjs; the line it reads must exist in both.
+  test("the line saying the place came from the photo is in both languages", () => {
     for (const l of ["en", "zh-TW"]) assert.equal(typeof catalogue(l).report.locationFromPhoto, "string", l);
   });
 
@@ -82,12 +82,8 @@ describe("open data, no credit", () => {
 });
 
 describe("the identification, as soon as a photo is added", () => {
-  test("the form asks about the first photo, once, and never offline", () => {
-    const form = read("components", "report", "ReportForm.tsx");
-    assert.match(form, /if \(prepared\[0\] && !photoAsked\.current\)/);
-    assert.match(form, /navigator\.onLine === false\) return;/);
-    assert.match(form, /withBase\("\/api\/identify"\)/);
-  });
+  // The form asks about the first photo, once, and never offline: run in a
+  // browser by e2e/photo.spec.mjs.
 
   // What is offered (nothing under 1%, nothing off the page, nothing from the
   // low band), the challenge, the budgets and the site's cap are run against
