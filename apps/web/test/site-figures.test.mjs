@@ -126,8 +126,10 @@ describe("everything that changes the reports drops them", () => {
     // The count the run keeps as it goes, read in `finally`: a run can throw
     // after a job it finished has committed, and that job's report is public.
     assert.match(route, /const progress = \{ processed: 0 \};\s*try \{\s*await classifyQueued\(\{ reportId: id, progress \}\);\s*\} catch \(e\) \{[\s\S]*?\} finally \{\s*if \(progress\.processed > 0\) reportsChanged\(\);\s*\}/);
+    // The cron's run, recorded in job_runs, inside the same `try`. Awaited:
+    // returned unawaited, `finally` would read the count before any job ran.
     const cron = code("app/api/jobs/classify/route.ts");
-    assert.match(cron, /const progress = \{ processed: 0 \};\s*try \{\s*const outcome = await classifyQueued\(\{ progress \}\);\s*return Response\.json\(outcome\);\s*\} finally \{\s*if \(progress\.processed > 0\) reportsChanged\(\);\s*\}/);
+    assert.match(cron, /const progress = \{\s*processed: 0\s*\};\s*try\s*\{\s*return await withJobRun\(\s*"classify",\s*async\s*\(\)\s*=>\s*\{\s*const outcome = await classifyQueued\(\{\s*progress\s*\}\);\s*return Response\.json\(outcome\);\s*\},?\s*\);\s*\}\s*finally\s*\{\s*if \(progress\.processed > 0\) reportsChanged\(\);\s*\}/);
   });
 
   test("…and only a model run that finished a job, because one that did not changed nothing public", () => {

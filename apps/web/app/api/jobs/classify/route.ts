@@ -78,10 +78,12 @@ async function run(req: Request) {
   try {
     // Deliberately small. This is read by a cron service, not a human, and a
     // large body is what made a timeout look like a broken endpoint. It is
-    // also what the run's row in job_runs records (lib/jobRuns.ts): four counts.
-    return await withJobRun("classify", async () =>
-      Response.json(await classifyQueued({ progress })),
-    );
+    // also what the run's row in job_runs records (lib/jobRuns.ts): four
+    // counts. Awaited, so `finally` reads the count once the run is over.
+    return await withJobRun("classify", async () => {
+      const outcome = await classifyQueued({ progress });
+      return Response.json(outcome);
+    });
   } finally {
     if (progress.processed > 0) reportsChanged();
   }

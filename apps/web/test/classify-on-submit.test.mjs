@@ -36,6 +36,12 @@ test("the worker claims only that report's job when asked, and skips locked rows
 test("the cron route is a thin, authorised wrapper around the same worker", () => {
   const cron = code("app/api/jobs/classify/route.ts");
   assert.match(cron, /if \(!authorised\(req\)\)/);
-  assert.match(cron, /const outcome = await classifyQueued\(\{ progress \}\);[\s\S]*?return Response\.json\(outcome\);/);
+  // The same worker, keeping the count the drop reads, inside the wrapper
+  // that records the run (lib/jobRuns.ts); test/site-figures.test.mjs pins
+  // the drop around it.
+  assert.match(
+    cron,
+    /withJobRun\(\s*"classify",\s*async\s*\(\)\s*=>\s*\{\s*const outcome = await classifyQueued\(\{\s*progress\s*\}\);\s*return Response\.json\(outcome\);\s*\},?\s*\)/,
+  );
   assert.match(cron, /export const dynamic = "force-dynamic"/);
 });
