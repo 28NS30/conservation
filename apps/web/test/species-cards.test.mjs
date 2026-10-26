@@ -279,6 +279,27 @@ describe("the pages", () => {
     }
   });
 
+  test("/invasive lists 埃及聖䴉 once, on the line with its records", async (t) => {
+    if (!(await requireServer(t))) return;
+    const { status, body } = await html("/invasive");
+    assert.equal(status, 200);
+    const lines = [...body.matchAll(new RegExp(`href="/species/(${IBIS.species}|${IBIS.subspecies})-`, "g"))];
+    assert.deepEqual(lines.map((m) => Number(m[1])), [IBIS.species]);
+    const n = await cardRecords(IBIS.species);
+    assert.ok(n > 0, "the fixture's ibis records are missing");
+    const line = body.match(new RegExp(`href="/species/${IBIS.species}-[^"]*"[\\s\\S]*?</a>`))?.[0] ?? "";
+    assert.match(line, new RegExp(`${n} 筆紀錄`));
+  });
+
+  test("/invasive prints no TaiCOL note and starts with its groups closed", async (t) => {
+    if (!(await requireServer(t))) return;
+    const { body } = await html("/invasive");
+    assert.ok(!body.includes("Bird Record Committee"), "a TaiCOL note is still on the list");
+    const groups = [...body.matchAll(/<details[^>]*>/g)].map((m) => m[0]);
+    assert.ok(groups.length > 0, "the groups are not disclosures");
+    assert.ok(groups.every((g) => !/\bopen\b/.test(g)), "a group starts open");
+  });
+
   test("the species page counts its subspecies and keeps TaiCOL's note under its sources", async (t) => {
     if (!(await requireServer(t))) return;
     const { status, body } = await html(`/species/${IBIS.species}-threskiornis-aethiopicus`);

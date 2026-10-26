@@ -839,7 +839,6 @@
       "noMatch": "No invasive animal matches “{q}”.",
       "total": "{count, plural, one {# animal} other {# animals}}, grouped below.",
       "groupCount": "{count, plural, one {# species} other {# species}}",
-      "taicolNote": "TaiCOL's note: {note}",
       "protected": "Protected",
       "records": "{count, plural, =0 {No records} one {# record} other {# records}}"
     },

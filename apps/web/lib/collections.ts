@@ -154,8 +154,6 @@ export type InvasiveSpecies = {
   class: string | null;
   protectedStatus: string | null;
   reportCount: number;
-  /** TaiCOL's own note on the species' alien status, where the data has it. */
-  note: string | null;
 };
 
 /**
@@ -168,15 +166,19 @@ export type InvasiveSpecies = {
  * counted here is a record in the collection, and a species appears once:
  * TaiCOL's retired duplicates, such as 多線南蜥 beside 多線真稜蜥, stay out.
  *
- * Record counts come from species_report_stats, which is built on the public
+ * And one line per card, as in the directory (species_folds, 0040): 家八哥
+ * Acridotheres tristis and its subspecies tristis were two lines with one
+ * name, and 埃及聖䴉's species line said it had no record while its
+ * subspecies held all six. A subspecies on another row's card is left out
+ * and counted on that card. Rows fold only under the same invasive flag, so
+ * every card is itself an invasive row.
+ *
+ * Record counts come from species_card_stats, which is built on the public
  * view, so a count can never reveal a withheld record.
  *
- * TaiCOL's note on WHY a species is on its list (its alien_status_note, which
- * for the cat cites Ho et al. and the Global Invasive Species Database) is not
- * in our copy of the checklist: the import does not keep it. It is read as
- * `to_jsonb(t) ->> 'alien_status_note'`, which is null while the column does
- * not exist and the note itself once an import adds it, so the page shows it
- * the day the data has it, with no change here and no failed query before.
+ * TaiCOL's note on a species' alien status is not listed here. It is the
+ * checklist's raw text, printed on 117 of 209 rows, and the page was 364 KB;
+ * the species page keeps it, under its sources.
  */
 export async function invasiveSpeciesList(): Promise<InvasiveSpecies[]> {
   return asPublic(
@@ -188,14 +190,14 @@ export async function invasiveSpeciesList(): Promise<InvasiveSpecies[]> {
              t.alt_names_en as "altNamesEn",
              t.taicol_id as "taicolId",
              t.rank, t.class, t.protected_status as "protectedStatus",
-             coalesce(s.report_count, 0)::int as "reportCount",
-             nullif(trim(to_jsonb(t) ->> 'alien_status_note'), '') as note
+             coalesce(s.report_count, 0)::int as "reportCount"
         from taxa t
-        left join species_report_stats s on s.taxon_id = t.id
+        left join species_card_stats s on s.taxon_id = t.id
        where ${tx.unsafe(OFFERED)}
          and t.rank in ('Species','Subspecies')
          and t.kingdom = 'Animalia'
          and t.is_invasive
+         and not exists (select 1 from species_folds f where f.taxon_id = t.id)
        order by coalesce(s.report_count, 0) desc,
                 t.common_name_zh nulls last, t.scientific_name, t.id`,
   );
