@@ -86,9 +86,10 @@ const PERMISSIONS_POLICY = [
  *     analytics in app/[locale]/layout.tsx uses.
  *
  * REPORT-ONLY: where scripts, styles, images, connections, workers and frames
- * may come from, listed from what the pages load. Measured by running the
- * browser specs (pages, map, offline, receipt, account) with this half
- * enforced, and the Turnstile widget on Cloudflare's test key, 26 October 2026.
+ * may come from, listed from what the pages load. Measured on 26 October 2026
+ * with this half enforced: the browser specs (pages, map, offline, receipt,
+ * account) and a sign-in through the code form passed with nothing refused,
+ * and the Turnstile widget, on Cloudflare's test key, rendered and solved.
  *
  *   - script-src: the site's own files, MapLibre's modules in public/maplibre
  *     among them; Turnstile's script; and 'unsafe-inline', because Next writes
