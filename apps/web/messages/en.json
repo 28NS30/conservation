@@ -242,6 +242,22 @@
   "detail": {
     "species": "Species",
     "notYetIdentified": "Not yet identified",
+    "higherRank": "{name} (identified to {rank} only)",
+    "higherRankPlain": "{name} (identified above the species only)",
+    "rank": {
+      "Kingdom": "kingdom",
+      "Phylum": "phylum",
+      "Class": "class",
+      "Subclass": "subclass",
+      "Order": "order",
+      "Suborder": "suborder",
+      "Infraorder": "infraorder",
+      "Superfamily": "superfamily",
+      "Family": "family",
+      "Subfamily": "subfamily",
+      "Tribe": "tribe",
+      "Genus": "genus"
+    },
     "notes": "Notes",
     "location": "Location",
     "aiIdentified": "Identified by AI",

@@ -28,6 +28,7 @@ import { alternates } from "@/lib/alternates";
 import { speciesLabel } from "@/lib/speciesNames";
 import SpeciesName from "@/components/species/SpeciesName";
 import { serverTiming } from "@/lib/serverTiming";
+import { higherRankJoin, higherRankLabel, type HigherRank } from "@/lib/higherRank";
 
 export const dynamic = "force-dynamic";
 
@@ -170,7 +171,7 @@ function Receipt({
   );
 }
 
-type Row = {
+type Row = HigherRank & {
   id: string;
   taxon_id: number | null;
   reporter_id: string | null;
@@ -226,9 +227,11 @@ function recordQuery(
              st_y(rp.location_public::geometry) as lat,
              t.scientific_name, t.common_name_zh, t.common_name_en, t.taicol_id,
              t.protected_status,
-             rp.is_invasive
+             rp.is_invasive,
+             hr.higher_zh as "higherZh", hr.higher_rank as "higherRank", hr.higher_name as "higherName"
         from ${from === "public" ? tx`reports_public` : tx`reports_published`} rp
         left join taxa t on t.id = rp.taxon_id
+        ${higherRankJoin(tx)}
        where rp.id = ${id}::uuid
          ${from === "tests" ? tx`and rp.is_test` : tx``}`;
 }
@@ -545,7 +548,7 @@ export default async function ReportPage({
             </>
           ) : (
             <p className="mt-0.5 text-sm text-ink-500">
-              {row.verbatim_name ?? t("detail.notYetIdentified")}
+              {higherRankLabel(t, locale, row) ?? row.verbatim_name ?? t("detail.notYetIdentified")}
             </p>
           )}
         </div>

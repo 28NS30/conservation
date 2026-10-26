@@ -9,6 +9,7 @@ import {
   type Collection,
   type LocationPrecision,
 } from "@conservation/shared";
+import { higherRankJoin, type HigherRank } from "@/lib/higherRank";
 
 /**
  * What the three collection pages, and /stats, say about each collection.
@@ -102,7 +103,7 @@ export const collectionTotals = siteFigure(
   },
 );
 
-export type CollectionRecord = {
+export type CollectionRecord = HigherRank & {
   id: string;
   observedAt: string;
   category: Category;
@@ -140,9 +141,11 @@ export const newestRecords = siteFigure("newestRecords", (
              t.common_name_zh as "commonNameZh",
              t.common_name_en as "commonNameEn",
              t.taicol_id as "taicolId",
-             rp.taxon_source as "taxonSource"
+             rp.taxon_source as "taxonSource",
+             hr.higher_zh as "higherZh", hr.higher_rank as "higherRank", hr.higher_name as "higherName"
         from reports_public rp
         left join taxa t on t.id = rp.taxon_id
+        ${higherRankJoin(tx)}
        where ${where(tx, c)}
        order by rp.observed_at desc, rp.id
        limit ${limit}`,

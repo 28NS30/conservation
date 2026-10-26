@@ -22,6 +22,7 @@ import { awaitingVerification } from "@/lib/report/verification";
 import { alternates } from "@/lib/alternates";
 import SpeciesName from "@/components/species/SpeciesName";
 import { formatTaipeiDate } from "@/lib/dates";
+import { higherRankLabel } from "@/lib/higherRank";
 
 /**
  * One page per collection: /roadkill, /invasive and /wildlife.
@@ -346,7 +347,7 @@ export default async function CollectionHub({
                             layout="primary"
                           />
                         ) : (
-                          td("notYetIdentified")
+                          higherRankLabel(td, locale, r, "") ?? td("notYetIdentified")
                         )}
                       </span>
                       {/* On the invasive page every record is invasive, so the
