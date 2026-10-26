@@ -417,6 +417,8 @@ describe("…and dropped when a record on it moves", () => {
   const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
   const MANIFEST = join(WEB, ".next", "server", "server-reference-manifest.json");
   const made = { reports: [], accounts: [] };
+  /** A writer's second drop, AGAIN_AFTER_MS (lib/siteFigures.ts) after it answers, and a margin. */
+  const SECOND_DROP_MS = 6_500;
   let moderator = null;
   let skip = null;
 
@@ -479,6 +481,17 @@ describe("…and dropped when a record on it moves", () => {
    * suite walking it would meet a species that comes and goes; and the
    * record is an import's, because a public record a person filed opens the
    * season goal (test/season-gate.test.mjs).
+   *
+   * Held, then published through the moderator's action, rather than
+   * inserted published. The page reads the species through a figure cached
+   * for five minutes (getCachedSpecies), which a visit to its page in either
+   * language fills, and an insert calls no writer to drop it. In CI's
+   * fixture this pick has two species to land on, and
+   * test/accepted-names.test.mjs and test/species-labels.test.mjs visit
+   * both, so a figure made seconds before rightly went on saying nobody had
+   * recorded it. The publish drops the figures, and its second drop, five
+   * seconds on (lib/siteFigures.ts), is waited out, so every drop after
+   * this is the test's own.
    */
   async function aSparseSpecies() {
     // From a few hundred rows after a random id, by the primary key: a scan
@@ -505,9 +518,11 @@ describe("…and dropped when a record on it moves", () => {
                            taxon_source, status, source)
       values ('roadkill', st_setsrid(st_makepoint(${lng}, ${lat}), 4326)::geography,
               st_setsrid(st_makepoint(${lng}, ${lat}), 4326)::geography,
-              now() - interval '1 day', ${taxon.id}, 'imported', 'published', 'gbif')
+              now() - interval '1 day', ${taxon.id}, 'imported', 'pending', 'gbif')
       returning id::text`;
     made.reports.push(record.id);
+    await act("publishReport", "/en/admin", [record.id]);
+    await new Promise((resolve) => setTimeout(resolve, SECOND_DROP_MS));
     return { path: `/en/species/${slug(taxon)}`, taxonId: taxon.id, record: record.id, point: await shownPoint(record.id) };
   }
 
@@ -624,6 +639,8 @@ describe("…and dropped when a record on it moves", () => {
     t.after(tidy);
     const s = await aSparseSpecies();
     const before = await cached(s.path);
+    // Made after the record, or holding no point would prove nothing.
+    assert.match(before.html, /\b1 record\b/, "the page does not count the record");
     assert.deepEqual(await listed(s.taxonId), [{ id: s.record, point: s.point }]);
 
     // As a migration or a floor would: in the database, with no writer of the
