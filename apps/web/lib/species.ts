@@ -534,7 +534,16 @@ export async function monthlyCounts(taxonId: number): Promise<number[]> {
   return out;
 }
 
-/** Individual records, for species too sparse to justify a heatmap. */
+/**
+ * Individual records, for species too sparse to justify a heatmap.
+ *
+ * From `reports_on_map`, not `reports_public`: a species page is static until
+ * the next deploy, and a record held at 10 km until the model has looked at
+ * its photo (migration 0033) may then be blurred harder, so its point would
+ * stay on the page looser than its decided blur. The view leaves held records
+ * out until they are released, as it does from the map's tiles. The record's
+ * own page, read on every request, still shows it.
+ */
 export async function recentRecords(taxonId: number, limit = 12) {
   return asPublic(
     (tx) => tx<
@@ -551,7 +560,7 @@ export async function recentRecords(taxonId: number, limit = 12) {
              st_y(location_public::geometry) as lat,
              st_x(location_public::geometry) as lng,
              category, is_obscured as "isObscured"
-        from reports_public
+        from reports_on_map
        where taxon_id = ${taxonId}
        -- id breaks ties, so the same records are shown on every load.
        order by observed_at desc, id

@@ -1,5 +1,4 @@
 import type postgres from "postgres";
-import { UNIDENTIFIED_PRECISION } from "@conservation/shared";
 
 /**
  * What the classifier does to the blur of a record a person named.
@@ -35,25 +34,45 @@ import { UNIDENTIFIED_PRECISION } from "@conservation/shared";
  * 50 km. Map tiles are cached by the CDN for up to about 25 hours, where the
  * app cannot purge them, so a held record is left out of every tile layer
  * until it is released (`reports_on_map`, migration 0033), and the cell never
- * reaches a cache that could outlive the model's answer. Its own page, the
- * lists and the statistics do show it, in the hold's 10 km cell: for minutes
- * when the run straight after the report is filed works (POST /api/reports,
- * in after()), until the next daily cron when that run fails, and for good
- * when the model never answers. Nothing drops a cached page when the hold
- * is released (there is no revalidateTag('reports') yet), so a page keeps
- * what it showed for its own revalidation window: minutes for the list and
- * the collection and statistics pages, and until the next deploy for a
- * species page, which is static and lists the points of a species with five
- * records or fewer.
+ * reaches a cache that could outlive the model's answer. Nor does it reach
+ * any other kept list of points: a species page, static until the next
+ * deploy, lists a sparse species' records from the same view, as do the
+ * lab's ledger and the /stats hotspots (lib/species.ts, lib/stats.ts), and
+ * so does the Darwin Core export (scripts/dwc-occurrences.ts), whose copy on
+ * GBIF outlives everything. Its own page and the /reports list, both read on
+ * every request, do show it, in the hold's 10 km cell, and the counts on
+ * every page include it: for minutes when the run straight after the report
+ * is filed works (POST /api/reports, in after()), until the next daily cron
+ * when that run fails, and for good when the model never answers.
+ *
+ * RELEASED WHERE IT WOULD BE IF IT HAD NEVER BEEN HELD. A record's blur only
+ * tightens between renames (tighten_reports, 0014), so one whose 10 km rating
+ * is withdrawn keeps its 10 km. Re-derived from the rules at the release, a
+ * held record lost that: a 10 km rule it was filed under, or was given
+ * during the hold, and that was withdrawn before the release, left it exact
+ * beside a twin that was never held at 10 km. So the blur trigger keeps,
+ * beside the hold, the blur the record would have without it,
+ * `held_rule_precision` (migration 0033), tightened by every rule given
+ * during the hold as an unheld record is, started again by a rename as an
+ * unheld record is re-derived by one, and the release puts the record there.
+ * It is null on a record that is not held, so a record's decided blur, held
+ * or not, is `coalesce(held_rule_precision, location_precision)`: that is
+ * what anything deciding from a record's blur reads (settleClassificationHold
+ * below, confirmSpecies' re-pick), never location_precision, which on a held
+ * record is the hold's 10 km and kept as an override would hold a named
+ * invasive species off its exact spot for good.
  *
  * AND NOT HELD SILENTLY. A record the model never answers for would stay at
  * 10 km for good, overriding the owner's decision that a named invasive
  * species is published at its exact spot, with nothing to say so. So both of
  * the worker's give-up paths flag it (flagHeldUnclassified,
- * flagHeldAbandoned), the moderation queue lists it among the published
- * records with a flag, and a moderator can put its job back in the queue
- * (requeueClassification). Neither the flag, nor clearing it, nor the
- * requeue releases the hold: only a finished classification does.
+ * flagHeldAbandoned), a moderator who publishes one the abuse screen held
+ * publishes it with that flag (flagWhenPublished), the moderation queue lists
+ * it among the published records with a flag, and a moderator can put its
+ * job back in the queue (requeueClassification). Neither the flag, nor
+ * clearing it, nor the requeue releases the hold: only a finished
+ * classification does. And a finished one always does, even when a person
+ * renamed the record while the model ran and the model's write is not made.
  *
  * It is a column of its own, not a value of `precision_override`, so that it
  * cannot be mistaken for anything an override means. An override on a named
@@ -143,17 +162,20 @@ export async function recordBesidePerson(tx: postgres.TransactionSql, a: PersonN
  * was not compared with theirs. The hold is released either way: the
  * classifier has run.
  *
- * Never looser than the record is now, apart from the hold itself. Writing
- * `precision_override` or the hold re-runs the blur trigger, which derives the
+ * Released, the record goes to its decided blur: the blur it would have had
+ * if it had never been held, which the trigger keeps beside the hold
+ * (`held_rule_precision`, 0033) and puts it at when the hold is cleared. The
+ * release itself writes no override, so the record is left as a twin that
+ * was never held would be, and a later rename re-derives it as it would the
+ * twin.
+ *
+ * The model's blur is written as on that twin. Writing `precision_override`
+ * re-runs the blur trigger, which on a record that is not held derives the
  * blur afresh from today's rules, and a record can be blurred harder than
  * those say (tighten_reports, 0014, never loosens one whose rating was
- * withdrawn). So when the fresh blur would be looser than the one the record
- * has, that blur is kept as part of the override. What is not kept is the
- * hold's own level: a held record at exactly 10 km is there because of the
- * hold (or a rule that still says 10 km, which the fresh blur keeps), and
- * keeping that would make the hold permanent. A rule of exactly 10 km
- * withdrawn in the minutes a record is held is the one case that ends at the
- * species' current rule, where a rename would also put it.
+ * withdrawn). So when the fresh blur would be looser than the record's
+ * decided blur, that blur is kept as part of the override; on a held record
+ * the trigger would keep it anyway, and the override is the twin's.
  *
  * Writes nothing when there is no hold to release and no blur to add, so a
  * record classified before the hold existed is left as it is.
@@ -174,16 +196,14 @@ export const settleClassificationHold = (
                  and precision_rank(binomial_precision(${modelTaxonId}::bigint))
                      > precision_rank('exact')
                 then binomial_precision(${modelTaxonId}::bigint) end as model_p,
-           case when r.held_for_classification
-                 and precision_rank(r.location_precision)
-                     <= precision_rank(${UNIDENTIFIED_PRECISION}::text)
-                then 'exact'
-                else r.location_precision end as kept
+           -- The decided blur: without the hold, as the trigger keeps it (0033).
+           coalesce(r.held_rule_precision, r.location_precision) as kept
       from reports r
      where r.id = ${reportId}::uuid
   )
   update reports r
      set precision_override = case
+           when cur.model_p is null then cur.override
            when precision_rank(report_precision(r.taxon_id,
                                                 stricter_precision(cur.override, cur.model_p)))
                 >= precision_rank(cur.kept)
@@ -205,7 +225,8 @@ export const settleClassificationHold = (
  * flag, and only on a published record that is held, so the record stays
  * public, at the hold's 10 km and off the map, and is listed in the
  * moderation queue instead of waiting there unseen. A flag already on it is
- * kept.
+ * kept. A held report that is still pending is flagged when a moderator
+ * publishes it (flagWhenPublished).
  */
 export const flagHeldUnclassified = (tx: postgres.TransactionSql, reportId: string) => tx`
   update reports
@@ -213,6 +234,35 @@ export const flagHeldUnclassified = (tx: postgres.TransactionSql, reportId: stri
    where id = ${reportId}::uuid
      and status = 'published'
      and held_for_classification`;
+
+/**
+ * The flag a pending report is published with: a fragment of publishReport's
+ * statement (app/[locale]/(site)/admin/actions.ts), which updates `reports`
+ * without an alias.
+ *
+ * A named report with a photo can be pending as well as held: the abuse
+ * screen held it for a moderator (a link in its notes, say), and its flag says
+ * why. Publishing it answers that flag, so the flag goes, as it always has.
+ * But when the model will not answer for it by itself, because its job gave
+ * up, was marked done without releasing it, or does not exist, a record
+ * published with no flag would sit at 10 km and off the map for good, in no
+ * list, with no way to have the model try again: a named invasive species
+ * among them. So it is published with the flag the give-up writes on a
+ * published held record, and the flagged list offers Classify again. A job
+ * still queued or running is left to release it, or to flag it if it gives
+ * up.
+ *
+ * Neither give-up path stamps such a report with the unidentified blur while
+ * it is pending (classifyQueued): the hold already blurs it, and a stamp
+ * there would be read as a decision once it was named, holding a named
+ * invasive species at 10 km after the release.
+ */
+export const flagWhenPublished = (tx: postgres.TransactionSql) => tx`
+  case when held_for_classification
+        and not exists (select 1 from classification_jobs j
+                         where j.report_id = reports.id
+                           and j.status in ('queued', 'running'))
+       then ${UNAVAILABLE_FLAG}::text end`;
 
 /**
  * The same, for the sweep that retires a job killed during its last attempt

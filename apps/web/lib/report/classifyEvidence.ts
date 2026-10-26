@@ -4,7 +4,7 @@ import {
   photoIdentificationOverride,
   suggestionOverride,
 } from "@/lib/report/precision";
-import { recordBesidePerson } from "@/lib/report/classificationHold";
+import { recordBesidePerson, settleClassificationHold } from "@/lib/report/classificationHold";
 import {
   BLUR_OF_SHOWN_SQL,
   RESOLVE_CANDIDATES_SQL,
@@ -93,7 +93,7 @@ export async function recordEvidence(
       // As the legacy branch: the stamp rule (keepDeliberateOverride) plus the
       // binomial's strictest blur, because a photograph cannot tell which of
       // the rows sharing a name it shows.
-      await tx`
+      const written = await tx`
         update reports
            set taxon_id = ${best.taxonId},
                taxon_source = 'ai',
@@ -109,6 +109,9 @@ export async function recordEvidence(
            -- classifyWorker.ts).
            and taxon_id is not distinct from ${job.taxon_id}::bigint
            and taxon_source is not distinct from ${job.taxon_source}::text`;
+      // Named by a person while the model ran: the model has looked all the
+      // same, so a hold is released (see classifyWorker.ts).
+      if (written.count === 0) await settleClassificationHold(tx, job.report_id, null, null);
     } else if (decision.action === "record") {
       // The species stays the person's; the blur follows the model's when it
       // is sure of another, and the hold a named report was filed under is
@@ -127,7 +130,7 @@ export async function recordEvidence(
       // Unidentified, and blurred at least as hard as the strictest species it
       // is shown with. On an invasive report this is every answer: the model
       // suggests, a person confirms.
-      await tx`
+      const written = await tx`
         update reports
            set precision_override = ${suggestionOverride(job.report_id, band !== "low")},
                status = case when status = 'pending' and flagged_reason is null then 'published' else status end,
@@ -139,6 +142,7 @@ export async function recordEvidence(
            -- classifyWorker.ts).
            and taxon_id is not distinct from ${job.taxon_id}::bigint
            and taxon_source is not distinct from ${job.taxon_source}::text`;
+      if (written.count === 0) await settleClassificationHold(tx, job.report_id, null, null);
     }
 
     // In the same transaction as the writes, as the legacy branch does: a job

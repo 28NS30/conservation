@@ -74,42 +74,77 @@
 -- web_anon can learn from it that it could not before is which records are
 -- held.
 --
--- What is left is on the pages, by decision: while a record is held, its own
--- page, the lists and the statistics show it in the hold's 10 km cell. The
--- hold lasts minutes when the classifier runs straight after the report is
--- filed (POST /api/reports, in after()), until the next daily cron when that
--- run fails, and for good when the model never answers, in which case the
+-- What is left is on the pages, by decision. While a record is held, its own
+-- page and the /reports list, both read on every request, show it in the
+-- hold's 10 km cell, and the counts on every page include it. No other page lists its point: the species page's list of a
+-- sparse species' records, the lab's ledger of this week's records and the
+-- hotspots on /stats read reports_on_map too (apps/web/lib/species.ts,
+-- apps/web/lib/stats.ts), because those pages are kept, a species page until
+-- the next deploy, and a cell kept there could outlive the model's answer as
+-- one kept in a tile could. The Darwin Core export reads it as well
+-- (scripts/dwc-occurrences.ts): a copy on GBIF outlives everything. The hold
+-- lasts minutes when the classifier runs straight after the report is filed
+-- (POST /api/reports, in after()), until the next daily cron when that run
+-- fails, and for good when the model never answers, in which case the
 -- classifier flags the record for a moderator, who can queue it again
--- (apps/web/lib/report/classificationHold.ts). A page then keeps what it
--- showed for as long as it is cached, since nothing yet drops a cached page
--- when the hold is released: the record page not at all, as it is read on
--- every request; the list, collection and statistics pages for their minutes
--- of revalidation; a species page, which is static and lists the points of a
--- species with five records or fewer, until the next deploy.
+-- (apps/web/lib/report/classificationHold.ts).
 --
--- 4. A TIGHTENING WHILE A RECORD IS HELD OUTLIVES THE HOLD.
+-- 4. A HELD RECORD IS RELEASED WHERE IT WOULD BE IF IT HAD NEVER BEEN HELD.
 --
--- tighten_binomial_siblings() (0028) writes the binomial's strictest blur as
--- an override where that is stricter than the record's blur now. While a
--- record is held, its blur now is the hold's 10 km, so a floor or a rating of
--- exactly 10 km given to a row sharing its binomial during the hold wrote
--- nothing, and the release then put the record at its own taxon's rule for
--- good, while a twin that was never held kept 10 km. It is replaced below to
--- compare with the blur the record will be released to, never the hold's.
--- tighten_reports() (0014) needs nothing: it stamps no override, and the
--- release re-derives the blur from the rules as they are then, a 10 km rule
--- added during the hold included. No other function decides from
--- location_precision whether to stamp one (0014, 0021, 0023, 0026, 0028, 0029
--- and 0032 checked; 0022's one-time remap stamped GBIF imports, which are
--- never held).
+-- A record's blur only tightens between renames. tighten_reports() (0014)
+-- re-derives a record only when the rules are now stricter than it, so one
+-- whose 10 km rating is withdrawn keeps its 10 km, and only a rename, a
+-- decision, re-derives it from the rules as they are then. The hold hid
+-- that. A held record sat at the hold's 10 km, so a rule of exactly 10 km
+-- given during the hold, to its own taxon (a 輕度 rating, protection class
+-- III, the rank rule above) or to a row sharing its binomial, was no stricter
+-- than it and re-derived nothing, and one it was filed under looked the same
+-- as the hold. The release then re-derived it from the rules of the moment,
+-- so a 10 km rule withdrawn before the release, whether the record was filed
+-- under it or it was given during the hold, left the record exact, while a
+-- twin that was never held kept 10 km.
 --
--- No existing record is held (the column starts false), so this part moves
--- no blur either. The check at the end refuses the migration if any record
--- would loosen.
+-- So a held record carries, beside the hold, the blur it would have without
+-- it: `held_rule_precision`. The trigger keeps it. While a record is held,
+-- every write that fires the trigger takes the stricter of the value it had
+-- and the record's rule now, as an unheld record's blur only tightens; a
+-- rename starts it again from the new name, as a rename re-derives an unheld
+-- record; and the release puts the record at the stricter of it and the rule
+-- now instead of re-deriving. So the release stamps no override to keep the
+-- record there, and a later rename re-derives it as it would the twin; the
+-- model's blur, when it is sure of another species, is written as it would
+-- be on the twin (settleClassificationHold). tighten_reports() and
+-- tighten_binomial_siblings() (0028) compare a held record with it rather
+-- than with the hold, so a tightening during the hold reaches the record, and
+-- writes what it writes, as it would for the twin. The one difference is on
+-- the safe side: a write that re-derives an unheld record without renaming it
+-- (a moderator confirming the name it already has) can loosen a blur its
+-- rules no longer ask for, and while the record is held it does not.
 --
--- Apply this before the app that writes the column is deployed: until it is,
--- POST /api/reports cannot insert a named report with a photo, and the map's
--- tiles, which read reports_on_map, fail.
+-- It is null on a record that is not held, so a record's decided blur, held
+-- or not, is `coalesce(held_rule_precision, location_precision)`, and that is
+-- what anything deciding from a record's blur must read. Read
+-- location_precision instead and the hold's 10 km becomes a decision: kept
+-- as an override, it would keep a named invasive species from its exact spot
+-- for good. Four places decide from a record's blur: the two functions
+-- below, and in the app the classifier's release (settleClassificationHold)
+-- and a reporter's second pick of a species (confirmSpecies,
+-- apps/web/app/[locale]/(site)/reports/[id]/actions.ts), which keeps at
+-- least the blur the record has. Each reads the decided blur. The others
+-- that stamp location_precision as an override stamp GBIF imports only, which
+-- are never held (only POST /api/reports sets the hold, on a reporter's own
+-- report): 0022 and 0037, scripts/remap-gbif-taxa.ts and the
+-- scripts/taxon-remap.sql it writes. 0029's one-time loosening ran before the
+-- hold existed. (0014 to 0037 checked.)
+--
+-- No existing record is held (the column starts false, and the blur beside
+-- it null), so these parts move no blur either. The check at the end refuses
+-- the migration if any record would loosen.
+--
+-- Apply this before the app that writes the columns is deployed, so before
+-- the branch merges: until it is, POST /api/reports cannot insert a named
+-- report with a photo, the map's tiles, which read reports_on_map, fail, and
+-- /api/health answers 503 for the missing ledger row (lib/migrationLedger.ts).
 --
 -- Safe to re-run.
 
@@ -190,9 +225,12 @@ begin
 end
 $$;
 
--- The hold. Only when the column is missing: ALTER TABLE takes ACCESS
--- EXCLUSIVE on `reports` even when it changes nothing, and every page reads
--- it, so re-running this file would stop the site for as long as it waited.
+-- The hold, and the blur a held record would have without it (4 above).
+-- Only when a column is missing: ALTER TABLE takes ACCESS EXCLUSIVE on
+-- `reports` even when it changes nothing, and every page reads it, so
+-- re-running this file would stop the site for as long as it waited. Two
+-- checks, not one, because a database that ran an earlier draft of this file
+-- has the first column and not the second.
 do $$
 begin
   if not exists (select 1 from information_schema.columns
@@ -203,19 +241,48 @@ begin
     comment on column public.reports.held_for_classification is
       'A named report with a photo, published and blurred at least 10 km until the classifier has run on it. Set by POST /api/reports, released only by the classifier (apps/web/lib/report/classificationHold.ts). Not a precision_override: nothing that reads or clears overrides touches it.';
   end if;
+  if not exists (select 1 from information_schema.columns
+                  where table_schema = 'public' and table_name = 'reports'
+                    and column_name = 'held_rule_precision') then
+    alter table public.reports
+      add column held_rule_precision text
+        check (held_rule_precision in ('exact', 'coarse_10km', 'coarse_50km', 'suppressed'));
+    comment on column public.reports.held_rule_precision is
+      'While held_for_classification is set: the blur the record would have if it had never been held, kept by the blur trigger (0033). Null otherwise, so coalesce(held_rule_precision, location_precision) is a record''s decided blur, held or not. Written by the trigger only.';
+  end if;
 end $$;
 
--- 0014's trigger function, with the hold as one more term. report_precision()
--- still decides everything else, so tighten_reports()' question ("are the
--- rules now stricter than this record?") is the one the trigger answers; the
--- hold can only make the trigger's answer stricter than that, never looser.
+-- 0014's trigger function, with the hold as one more term and the blur the
+-- record would have without it kept beside the hold (4 above).
+-- report_precision() still decides everything else, so tighten_reports()'
+-- question ("are the rules now stricter than this record?") is the one the
+-- trigger answers; the hold can only make the trigger's answer stricter than
+-- that, never looser.
+--
+-- `free` is that blur without the hold. On a record that was not held before
+-- this statement, or that this statement renames, it is the rule, as the
+-- trigger has always derived it. On a record that was held and keeps its
+-- name, it is never looser than it was: that is how an unheld record's blur
+-- behaves between renames, and the release, which keeps the name, puts the
+-- record there rather than at the rule of the moment. A held record without
+-- the value, which only a database that held records under an earlier draft
+-- of this file can have, counts its whole blur, the hold's included: it is
+-- kept where it is.
 create or replace function public.set_report_public_location() returns trigger
 language plpgsql set search_path = public as $$
 declare
-  p text;
+  free text;
+  p    text;
 begin
-  p := stricter_precision(report_precision(new.taxon_id, new.precision_override),
-                          case when new.held_for_classification then 'coarse_10km' end);
+  free := report_precision(new.taxon_id, new.precision_override);
+  if tg_op = 'UPDATE'
+     and old.held_for_classification
+     and new.taxon_id is not distinct from old.taxon_id then
+    free := stricter_precision(free, coalesce(old.held_rule_precision, old.location_precision));
+  end if;
+
+  new.held_rule_precision := case when new.held_for_classification then free end;
+  p := stricter_precision(free, case when new.held_for_classification then 'coarse_10km' end);
 
   new.location_precision := p;
   new.location_public := case
@@ -228,7 +295,8 @@ end $$;
 -- And it fires when the hold is released, so the record is re-blurred to its
 -- decided precision in the same statement. Replaced in place (0014 explains
 -- why not drop-then-create), and only when it does not fire on the hold yet:
--- the replacement takes SHARE ROW EXCLUSIVE on `reports`.
+-- the replacement takes SHARE ROW EXCLUSIVE on `reports`. Not on
+-- held_rule_precision, which the trigger writes and nothing else does.
 do $$
 begin
   if not exists (select 1 from pg_trigger t
@@ -243,15 +311,34 @@ begin
   end if;
 end $$;
 
--- 0028's tighten_binomial_siblings(), deciding from the blur a held record
--- will be released to (4 above). For a record held at the hold's own 10 km
--- that is its rule today, report_precision(), which is what the release
--- re-derives; for one held harder, by a rating since withdrawn, it is the
--- blur it has, which the release keeps (settleClassificationHold). Either
--- way the write is only ever stricter than the record: the trigger then takes
--- the stricter of the new override's rule and the hold, so a held record
--- never comes out of it looser than it went in. A record that is not held is
--- compared with its blur now, as before.
+-- 0014's tighten_reports(), comparing a held record with the blur it would
+-- have without the hold rather than with the hold (4 above). Without this, a
+-- rule of exactly 10 km given to a held record's taxon during the hold was no
+-- stricter than the hold, re-derived nothing, and was gone at the release if
+-- it had been withdrawn by then. For a record that is not held the decided
+-- blur is location_precision, so it is compared as before. The guard is still
+-- the point (0014): a record is only ever re-derived up.
+create or replace function public.tighten_reports(p_taxon_ids bigint[]) returns bigint
+language plpgsql set search_path = public as $$
+declare
+  n bigint;
+begin
+  update reports r
+     set location = r.location
+   where (p_taxon_ids is null or r.taxon_id = any (p_taxon_ids))
+     and precision_rank(report_precision(r.taxon_id, r.precision_override))
+         > precision_rank(coalesce(r.held_rule_precision, r.location_precision));
+  get diagnostics n = row_count;
+  return n;
+end $$;
+
+-- 0028's tighten_binomial_siblings(), the same way: a held record is
+-- compared with the blur it would have without the hold, so a floor or a
+-- rating of exactly 10 km given to a row sharing its binomial during the
+-- hold is written as the override an unheld twin is given, and outlives the
+-- release. The write is only ever stricter than the record: the trigger then
+-- takes the stricter of the new override's rule and the hold, so a held
+-- record never comes out of it looser than it went in.
 create or replace function public.tighten_binomial_siblings(p_taxon_ids bigint[])
 returns bigint
 language plpgsql
@@ -279,12 +366,7 @@ begin
    where r.taxon_id = any (siblings)
      and r.taxon_source in ('ai', 'user', 'expert')
      and precision_rank(binomial_precision(r.taxon_id))
-         > precision_rank(case
-             when r.held_for_classification
-              and precision_rank(r.location_precision) <= precision_rank('coarse_10km')
-             then report_precision(r.taxon_id, r.precision_override)
-             else r.location_precision
-           end);
+         > precision_rank(coalesce(r.held_rule_precision, r.location_precision));
   get diagnostics n = row_count;
   return n;
 end

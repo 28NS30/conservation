@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { sql } from "@/lib/db";
 import { currentRole } from "@/lib/auth";
 import { OFFERED } from "@/lib/species";
-import { requeueClassification } from "@/lib/report/classificationHold";
+import { flagWhenPublished, requeueClassification } from "@/lib/report/classificationHold";
 import {
   keepDeliberateOverride,
   photoIdentificationOverride,
@@ -35,8 +35,13 @@ export async function publishReport(reportId: string) {
   // moderator has already decided still shows its buttons: without this, the
   // last click won, and a report one moderator rejected went back on the map
   // when another published it from a stale screen.
+  //
+  // The flag the queue held it for goes, except on a report held for
+  // classification that the model will not answer for by itself: that one is
+  // published flagged, so the flagged list shows it and offers Classify again
+  // (flagWhenPublished, lib/report/classificationHold.ts).
   await sql.begin(async (tx) => {
-    const done = await tx`update reports set status = 'published', flagged_reason = null
+    const done = await tx`update reports set status = 'published', flagged_reason = ${flagWhenPublished(tx)}
                            where id = ${reportId}::uuid and status = 'pending'
                            returning id`;
     if (done.length === 0) throw new Error("already decided");

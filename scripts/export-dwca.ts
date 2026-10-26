@@ -19,8 +19,9 @@
  * assertion in the export itself, which refuses to write an archive containing a
  * record it did not originate.
  *
- * Coordinates come from `reports_public`, i.e. already obscured for sensitive
- * taxa, and the obscuring is declared honestly to consumers through
+ * Coordinates come from `reports_on_map`, i.e. `reports_public` without the
+ * records still held until the model has looked (dwc-occurrences.ts): already
+ * obscured for sensitive taxa, each at its decided blur, and the obscuring is declared honestly to consumers through
  * `coordinateUncertaintyInMeters`, `dataGeneralizations` and `informationWithheld`
  * rather than silently shipping a fuzzed point as if it were exact. Suppressed
  * records are omitted altogether.
@@ -200,7 +201,7 @@ async function main(): Promise<void> {
   const outDir = outIdx >= 0 ? args[outIdx + 1] : join(ROOT, "data", "export", "dwca");
   const includeUnidentified = args.includes("--include-unidentified");
 
-  // reports_public already excludes unpublished records and applies obscuring;
+  // reports_on_map already excludes unpublished and held records and applies obscuring;
   // the `source = 'user'` filter inside selectOccurrences is the whole point of
   // this export.
   const rows = await selectOccurrences(sql, { includeUnidentified });

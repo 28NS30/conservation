@@ -5,7 +5,8 @@ import { everyYear } from "@/lib/yearSeries";
 /**
  * Aggregates behind /stats.
  *
- * Every query reads `reports_public`, never `reports` — see asPublic(). That is
+ * Every query reads `reports_public`, or `reports_on_map` where it places
+ * records (the ledger, the hotspots), never `reports` — see asPublic(). That is
  * not a style preference: counting from the base table would expose the true
  * record volume and true coordinates of 敏感 taxa, which is precisely what the
  * obscuring design exists to prevent. A hotspot list is a particularly effective
@@ -190,6 +191,12 @@ export type LedgerRow = {
  * to 犬 (Canis familiaris), where TaiRON always had them; once it has run against
  * a database they are unremarkable exact records there, and the ledger may show
  * them.
+ *
+ * From `reports_on_map`, which leaves out a record held at 10 km until the
+ * model has looked at its photo (migration 0033), so that no kept page lists
+ * a point the model may yet blur harder. A held record is obscured, so the
+ * filter below drops it too; the view says it where a later reader of this
+ * query will look.
  */
 export async function anniversaryLedger(limit = 12): Promise<LedgerRow[]> {
   return asPublic(
@@ -205,7 +212,7 @@ export async function anniversaryLedger(limit = 12): Promise<LedgerRow[]> {
                  partition by (r.observed_at at time zone 'Asia/Taipei')::date
                  order by (t.common_name_zh is null), (t.is_in_taiwan is not true), r.id
                ) as rn
-          from reports_public r
+          from reports_on_map r
           join taxa t on t.id = r.taxon_id
          where not r.is_obscured
            -- The same seven calendar dates as this week, in any year. Day
@@ -256,6 +263,9 @@ const HOTSPOT_CELL_M = 5000;
  *
  * Grouping is on integer cell indices rather than a snapped geometry so the
  * aggregation never depends on PostGIS geometry equality.
+ *
+ * From `reports_on_map`, as the anniversary ledger is, and for the same
+ * reason: no kept page places a record held until the model has looked.
  */
 export async function hotspots(limit = 8): Promise<Hotspot[]> {
   return asPublic(
@@ -265,7 +275,7 @@ export async function hotspots(limit = 8): Promise<Hotspot[]> {
                floor(st_y(geom_3857) / ${HOTSPOT_CELL_M})::int as gy,
                taxon_id,
                count(*)::int as n
-          from reports_public
+          from reports_on_map
          where not is_obscured
          group by 1, 2, 3
       ),

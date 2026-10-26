@@ -9,6 +9,7 @@ import {
   flagHeldAbandoned,
   flagHeldUnclassified,
   recordBesidePerson,
+  settleClassificationHold,
 } from "@/lib/report/classificationHold";
 import {
   AUTO_ASSIGN_BANDS,
@@ -88,7 +89,8 @@ export async function classifyQueued({ reportId = null }: { reportId?: string | 
   //
   // A published record held for classification is flagged first, by the same
   // test, since the statement after it touches pending reports only and
-  // leaves no trace of which jobs it retired (flagHeldAbandoned).
+  // leaves no trace of which jobs it retired (flagHeldAbandoned). A pending
+  // one that is named and held is not stamped, as in the give-up branch below.
   await sql.begin(async (tx) => {
     await flagHeldAbandoned(tx, MAX_ATTEMPTS, STALE_AFTER);
     await tx`
@@ -107,6 +109,7 @@ export async function classifyQueued({ reportId = null }: { reportId?: string | 
              flagged_reason = coalesce(r.flagged_reason, 'classification unavailable')
         from stuck
        where r.id = stuck.report_id
+         and not (r.held_for_classification and r.taxon_id is not null)
          and r.status = 'pending'`;
   });
 
@@ -244,7 +247,7 @@ export async function classifyQueued({ reportId = null }: { reportId?: string | 
           // `photoIdentificationOverride` is that rule plus one more: the blur is
           // at least the strictest of every row sharing the named taxon's
           // binomial, because a photograph cannot say which of them it is.
-          await tx`
+          const written = await tx`
             update reports
                set taxon_id = ${best.taxon_id},
                    taxon_source = 'ai',
@@ -264,6 +267,10 @@ export async function classifyQueued({ reportId = null }: { reportId?: string | 
                -- made in between is theirs, not the model's to overwrite.
                and taxon_id is not distinct from ${job.taxon_id}::bigint
                and taxon_source is not distinct from ${job.taxon_source}::text`;
+          // Named by a person while the model ran: the write above is not the
+          // model's to make, but the model has looked, so a hold is released,
+          // as the record branch releases one (settleClassificationHold).
+          if (written.count === 0) await settleClassificationHold(tx, job.report_id, null, null);
         } else if (action === "record") {
           // Keep their identification; record what the model thought, and say
           // so if the two disagree. The species stays theirs. The blur does
@@ -311,7 +318,7 @@ export async function classifyQueued({ reportId = null }: { reportId?: string | 
           // Where the list is shown, the record is blurred at least as hard as the
           // strictest species on it; see suggestionOverride. The rows it reads are
           // the ones inserted above, in this transaction.
-          await tx`
+          const written = await tx`
             update reports
                set precision_override = ${suggestionOverride(
                  job.report_id,
@@ -333,6 +340,8 @@ export async function classifyQueued({ reportId = null }: { reportId?: string | 
                -- made in between is theirs, not the model's to overwrite.
                and taxon_id is not distinct from ${job.taxon_id}::bigint
                and taxon_source is not distinct from ${job.taxon_source}::text`;
+          // As in the assign branch.
+          if (written.count === 0) await settleClassificationHold(tx, job.report_id, null, null);
         }
 
         await tx`update classification_jobs set status = 'done', last_error = null, updated_at = now()
@@ -377,12 +386,22 @@ export async function classifyQueued({ reportId = null }: { reportId?: string | 
           // not be: it was filed held at 10 km until the model had looked
           // (held_for_classification), and only a run that finishes releases
           // that. Giving up leaves it held, which is the safe way to fail.
+          //
+          // Nor is one still pending, when it is named and held: the abuse
+          // screen can hold a named report with a photo for a moderator, and
+          // the hold already blurs it. Stamped here, the unidentified blur
+          // would outlive the hold as a decision (keepDeliberateOverride), and
+          // a named invasive species would stay at 10 km once released. Its
+          // flag is the screen's; a moderator who publishes it publishes it
+          // flagged for the model (flagWhenPublished). An unnamed one is still
+          // stamped and flagged, held or not.
           await tx`
             update reports
                set precision_override = stricter_precision(precision_override,
                                                            ${UNIDENTIFIED_PRECISION}::text),
                    flagged_reason = coalesce(flagged_reason, 'classification unavailable')
              where id = ${job.report_id}::uuid
+               and not (held_for_classification and taxon_id is not null)
                and status = 'pending'`;
           // But it is flagged, by a statement of its own that writes the flag
           // and nothing else: held for good, it would otherwise sit at 10 km

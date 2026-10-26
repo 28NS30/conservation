@@ -192,7 +192,7 @@ describe("every path that names a species applies one override rule", () => {
       // One of the two shared fragments, or a choice between them.
       const shared = String.raw`(?:keepDeliberateOverride\(\)|photoIdentificationOverride\([^)]*\))`;
       // Or through a variable built from them: confirmSpecies wraps the rule
-      // in stricter_precision(..., location_precision) for a reporter's re-pick.
+      // in stricter_precision(..., <the decided blur>) for a reporter's re-pick.
       const direct = new RegExp(
         String.raw`precision_override = \$\{\s*(?:[^?}]*\?\s*${shared}\s*:\s*)?${shared}\s*\}`,
       );
@@ -231,7 +231,13 @@ describe("a species named from the model's suggestions", () => {
   test("both confirm paths name a species through the photograph rule", () => {
     assert.match(src, /precision_override = \$\{override\}/);
     assert.match(src, /: photoIdentificationOverride\(taxonId\);/);
-    assert.match(src, /stricter_precision\(\$\{photoIdentificationOverride\(taxonId\)\}, location_precision\)/);
+    // At least the record's decided blur on a reporter's re-pick: on a record
+    // held until the model has looked, location_precision is the hold's 10 km
+    // (classification-hold.test.mjs runs this against a twin never held).
+    assert.match(
+      src,
+      /stricter_precision\(\$\{photoIdentificationOverride\(taxonId\)\},\s*coalesce\(held_rule_precision, location_precision\)\)/,
+    );
     assert.match(
       ADMIN,
       /taxonId === null\s*\?\s*keepDeliberateOverride\(\)\s*:\s*photoIdentificationOverride\(taxonId\)/,

@@ -20,13 +20,13 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { createClient } from "@supabase/supabase-js";
 import { UNIDENTIFIED_PRECISION } from "@conservation/shared";
-import { BASE_URL, sql, inRollback, insertReport } from "./helpers.mjs";
+import { BASE_URL, sql, inRollback, insertReport, requireServer } from "./helpers.mjs";
 import {
   UNAVAILABLE_FLAG,
   flagHeldAbandoned,
   flagHeldUnclassified,
+  flagWhenPublished,
   recordBesidePerson,
   requeueClassification,
   settleClassificationHold,
@@ -39,6 +39,7 @@ const EVIDENCE = read("lib", "report", "classifyEvidence.ts");
 const ROUTE = read("app", "api", "reports", "route.ts");
 const TILES = read("app", "api", "tiles", "[z]", "[x]", "[y]", "route.ts");
 const ADMIN = read("app", "[locale]", "(site)", "admin", "actions.ts");
+const CONFIRM = read("app", "[locale]", "(site)", "reports", "[id]", "actions.ts");
 const MIGRATION = readFileSync(
   join(WEB, "..", "..", "supabase", "migrations", "0033_blur_disagreements_and_higher_ranks.sql"),
   "utf8",
@@ -54,15 +55,8 @@ const RANK = { exact: 0, coarse_10km: 1, coarse_50km: 2, suppressed: 3 };
 const stricter = (a, b) => (RANK[a] >= RANK[b] ? a : b);
 
 const nonces = [];
-const uploaded = [];
 after(async () => {
   if (nonces.length) await sql`delete from reports where client_nonce = any(${nonces})`;
-  if (uploaded.length && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    await createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
-      .storage.from("report-photos")
-      .remove(uploaded)
-      .catch(() => {});
-  }
   await sql.end();
 });
 
@@ -108,18 +102,24 @@ async function sibling(tx, species) {
 }
 const state = async (tx, id) =>
   (await tx`select taxon_id, precision_override, location_precision,
-                   held_for_classification as held, status, flagged_reason
+                   held_for_classification as held, held_rule_precision as decided,
+                   status, flagged_reason
               from reports where id = ${id}`)[0];
-/** The classifier's record branch, the model's answer being `model`. */
-const classify = (tx, r, model = null) =>
-  recordBesidePerson(tx, {
+/**
+ * The classifier's record branch, the model's answer being `model`, for the
+ * job as the worker claims it: with the record's name and its source then.
+ */
+const classify = async (tx, r, model = null) => {
+  const [claim] = await tx`select taxon_id, taxon_source from reports where id = ${r.id}`;
+  return recordBesidePerson(tx, {
     reportId: r.id,
-    claimedTaxonId: r.taxonId,
-    claimedSource: "user",
+    claimedTaxonId: claim.taxon_id,
+    claimedSource: claim.taxon_source,
     score: 0.97,
     band: "high",
     disagreeingTaxonId: model,
   });
+};
 
 describe("the route holds a named report with a photo, and nothing else", () => {
   const route = code(ROUTE);
@@ -136,8 +136,9 @@ describe("the route holds a named report with a photo, and nothing else", () => 
     assert.equal(UNIDENTIFIED_PRECISION, "coarse_10km");
     assert.match(
       MIGRATION,
-      /p := stricter_precision\(report_precision\(new\.taxon_id, new\.precision_override\),\s*case when new\.held_for_classification then 'coarse_10km' end\);/,
+      /p := stricter_precision\(free, case when new\.held_for_classification then 'coarse_10km' end\);/,
     );
+    assert.match(MIGRATION, /free := report_precision\(new\.taxon_id, new\.precision_override\);/);
     const [trigger] = await sql`
       select pg_get_triggerdef(t.oid) as def from pg_trigger t
         join pg_class c on c.oid = t.tgrelid
@@ -229,6 +230,35 @@ describe("released when the classifier has run", () => {
       const update = suggest.slice(suggest.indexOf("} else {"));
       assert.match(update, /held_for_classification = false,/, "the suggest branch keeps the hold");
     }
+  });
+});
+
+describe("released even when a person renamed it while the model ran", () => {
+  // The assign and suggest branches write only if nobody named the record
+  // between the claim and the write. When somebody did, nothing was written,
+  // the job was marked done, and a hold the record was filed under stayed for
+  // good, flagged by nothing and listed nowhere. The model has looked; the
+  // hold is released, as the record branch releases it.
+  test("both workers release the hold when their guarded write finds no row", () => {
+    for (const [name, src] of [["classifyWorker.ts", code(WORKER)], ["classifyEvidence.ts", code(EVIDENCE)]]) {
+      const n = (src.match(/if \(written\.count === 0\) await settleClassificationHold\(tx, job\.report_id, null, null\);/g) ?? []).length;
+      assert.equal(n, 2, `${name}: the assign and suggest branches`);
+    }
+  });
+
+  test("released without the model's blur, to the blur the new name decides", async () => {
+    await inRollback(async (tx) => {
+      const owl = await row(tx, { sensitivity: "重度" });
+      const cat = await row(tx);
+      const r = await held(tx, cat.id);
+      // Un-named by a moderator before the claim, named again during the run.
+      await tx`update reports set taxon_id = null, taxon_source = 'expert' where id = ${r.id}`;
+      await tx`update reports set taxon_id = ${owl.id}, taxon_source = 'expert' where id = ${r.id}`;
+      await settleClassificationHold(tx, r.id, null, null);
+      const now = await state(tx, r.id);
+      assert.equal(now.held, false);
+      assert.equal(now.location_precision, "coarse_50km");
+    });
   });
 });
 
@@ -330,6 +360,117 @@ describe("held when the classifier fails", () => {
                values (${r.id}::uuid, 'running', 5, now())`;
       await flagHeldAbandoned(tx, 5, "5 minutes");
       assert.equal((await state(tx, r.id)).flagged_reason, null);
+    });
+  });
+
+  describe("a named report the abuse screen held as well", () => {
+    // Filed named, with a photo and a link in its notes: pending for a
+    // moderator, and held for the model. The give-up stamped it with the
+    // unidentified 10 km, which a later release read as a decision; and the
+    // moderator's publish cleared its flag, so the record was published, held
+    // for good, off the map, in no list and with no way to classify it again.
+    async function screened(tx, taxonId, jobStatus = "running") {
+      const r = await held(tx, taxonId);
+      await tx`update reports set status = 'pending', flagged_reason = 'links or handles in notes'
+                where id = ${r.id}`;
+      if (jobStatus)
+        await tx`insert into classification_jobs (report_id, status, attempts, updated_at)
+                 values (${r.id}::uuid, ${jobStatus}, 5, now() - interval '1 hour')`;
+      return r;
+    }
+    /** publishReport's statement, as admin/actions.ts writes it. */
+    const publish = (tx, r) =>
+      tx`update reports set status = 'published', flagged_reason = ${flagWhenPublished(tx)}
+          where id = ${r.id}::uuid and status = 'pending'
+          returning id`;
+
+    test("publishReport writes its flag through the fragment", () => {
+      assert.match(
+        code(ADMIN),
+        /update reports set status = 'published', flagged_reason = \$\{flagWhenPublished\(tx\)\}\s*where id = \$\{reportId\}::uuid and status = 'pending'/,
+      );
+    });
+
+    test("given up, then published: flagged for the model, and released exact once it answers", async () => {
+      await inRollback(async (tx) => {
+        const myna = await row(tx, { invasive: true });
+        const r = await screened(tx, myna.id);
+        // The job's own give-up, as the worker writes it.
+        await tx`update classification_jobs set status = 'failed' where report_id = ${r.id}::uuid`;
+        await tx.unsafe(giveUp, [r.id]);
+        await flagHeldUnclassified(tx, r.id);
+        let now = await state(tx, r.id);
+        assert.equal(now.precision_override, null, "the give-up stamped a named, held report");
+        assert.equal(now.location_precision, "coarse_10km", "the hold blurs it");
+        assert.equal(now.flagged_reason, "links or handles in notes");
+
+        assert.equal((await publish(tx, r)).length, 1);
+        now = await state(tx, r.id);
+        assert.equal(now.status, "published");
+        assert.equal(now.held, true);
+        assert.equal(now.flagged_reason, UNAVAILABLE_FLAG, "published held for good, and in no list");
+        assert.deepEqual(await requeueClassification(tx, r.id), { flaggedReason: UNAVAILABLE_FLAG });
+
+        await classify(tx, r, null);
+        now = await state(tx, r.id);
+        assert.equal(now.held, false);
+        assert.equal(now.location_precision, "exact", "a named invasive species kept from its exact spot");
+      });
+    });
+
+    test("and the same after the sweep retires a job abandoned on its last attempt", async () => {
+      await inRollback(async (tx) => {
+        const myna = await row(tx, { invasive: true });
+        const r = await screened(tx, myna.id);
+        await flagHeldAbandoned(tx, 5, "5 minutes");
+        await tx.unsafe(sweep);
+        assert.equal((await state(tx, r.id)).precision_override, null, "the sweep stamped it");
+        await publish(tx, r);
+        assert.equal((await state(tx, r.id)).flagged_reason, UNAVAILABLE_FLAG);
+      });
+    });
+
+    test("with no job, or one marked done, it is flagged too; with one still to run, not", async () => {
+      await inRollback(async (tx) => {
+        const cat = await row(tx);
+        for (const [job, flag] of [[null, UNAVAILABLE_FLAG], ["done", UNAVAILABLE_FLAG],
+                                   ["queued", null], ["running", null]]) {
+          const r = await screened(tx, cat.id, job);
+          await publish(tx, r);
+          assert.equal((await state(tx, r.id)).flagged_reason, flag, `job ${job}`);
+        }
+        // Not held: published as it always was, its flag answered.
+        const free = await held(tx, cat.id, null, false);
+        await tx`update reports set status = 'pending', flagged_reason = 'links or handles in notes'
+                  where id = ${free.id}`;
+        await publish(tx, free);
+        assert.equal((await state(tx, free.id)).flagged_reason, null);
+      });
+    });
+
+    test("an unnamed report is still stamped and flagged by both give-up paths", async () => {
+      await inRollback(async (tx) => {
+        for (const path of ["giveUp", "sweep"]) {
+          const r = await insertReport(tx, { taxonId: null, status: "pending" });
+          // And one a moderator un-named while it was held: the name is what
+          // the hold stood in for.
+          const cat = await row(tx);
+          const unnamed = await held(tx, cat.id);
+          await tx`update reports set status = 'pending', taxon_id = null where id = ${unnamed.id}`;
+          for (const x of [r, unnamed]) {
+            await tx`update reports set precision_override = null where id = ${x.id}`;
+            await tx`insert into classification_jobs (report_id, status, attempts, updated_at)
+                     values (${x.id}::uuid, 'running', 5, now() - interval '1 hour')`;
+          }
+          if (path === "giveUp") for (const x of [r, unnamed]) await tx.unsafe(giveUp, [x.id]);
+          else await tx.unsafe(sweep);
+          for (const x of [r, unnamed]) {
+            const now = await state(tx, x.id);
+            assert.equal(now.precision_override, "coarse_10km", `${path}: the unidentified stamp`);
+            assert.equal(now.flagged_reason, UNAVAILABLE_FLAG, path);
+          }
+        }
+      });
     });
   });
 
@@ -503,6 +644,185 @@ describe("a tightening while it is held outlives the hold", () => {
   });
 });
 
+describe("released where a twin that was never held would be", () => {
+  // A record's blur only tightens between renames: tighten_reports() never
+  // loosens, so a record whose 10 km rule is withdrawn keeps 10 km until a
+  // rename re-derives it. The hold masked that. A held record sat at 10 km,
+  // so a 10 km rule it was filed under, or was given during the hold, looked
+  // like the hold, and the release re-derived the record from the rules of
+  // the moment: withdrawn by then, the rule was lost and the record was exact,
+  // beside a twin that was never held at 10 km. The trigger now keeps the blur
+  // the record would have without the hold (held_rule_precision, 0033), and
+  // the release puts it there. Each case below does the same things to a
+  // held record and to its twin, has the classifier run on both, as it does
+  // on every named report with a photo, and asks that they end alike.
+  async function withTwin(tx, taxonId, during, model = null) {
+    const r = await held(tx, taxonId);
+    const twin = await held(tx, taxonId, null, false);
+    await during?.(tx, [r, twin]);
+    await classify(tx, r, model);
+    await classify(tx, twin, model);
+    const ends = async (id) => {
+      const x = await state(tx, id);
+      return { location_precision: x.location_precision, precision_override: x.precision_override };
+    };
+    const [h, t] = [await state(tx, r.id), await state(tx, twin.id)];
+    assert.equal(h.held, false);
+    assert.equal(h.decided, null, "the blur beside the hold outlived it");
+    assert.equal(t.decided, null, "a record never held carries a blur beside a hold");
+    const [a, b] = [await ends(r.id), await ends(twin.id)];
+    assert.deepEqual(a, b, "the held record and its twin ended apart");
+    return a;
+  }
+  const withdraw = (tx, t) =>
+    tx`update taxa set sensitivity = null, protected_status = null, rank = 'Species' where id = ${t.id}`;
+  /** A moderator naming the species, as setReportTaxon writes it. */
+  const rename = (tx, ids, to) =>
+    tx`update reports
+          set taxon_id = ${to.id}, taxon_source = 'expert',
+              precision_override = stricter_precision(
+                case when taxon_id is null
+                     then case when precision_rank(precision_override) > precision_rank('coarse_10km')
+                               then precision_override end
+                     else precision_override end,
+                binomial_precision_floor(${to.id}))
+        where id = any(${ids.map((r) => r.id)}::uuid[])`;
+
+  for (const [what, opts] of [
+    ["a 輕度 rating", { sensitivity: "輕度" }],
+    ["a class III protection", { protectedStatus: "III" }],
+  ]) {
+    test(`${what} it was filed under, withdrawn during the hold, still blurs it`, async () => {
+      // E3: the record went from 10 km to exact at the release.
+      await inRollback(async (tx) => {
+        const bird = await row(tx, opts);
+        assert.equal(bird.rule, "coarse_10km", "fixture: a 10 km rule");
+        const end = await withTwin(tx, bird.id, (tx_) => withdraw(tx_, bird));
+        assert.deepEqual(end, { location_precision: "coarse_10km", precision_override: null });
+      });
+    });
+  }
+
+  test("so does the rank rule, a name above the species withdrawn during the hold", async () => {
+    await inRollback(async (tx) => {
+      const genus = await row(tx);
+      await tx`update taxa set rank = 'Genus' where id = ${genus.id}`;
+      const end = await withTwin(tx, genus.id, (tx_) => withdraw(tx_, genus));
+      assert.equal(end.location_precision, "coarse_10km");
+    });
+  });
+
+  test("a 10 km rating given during the hold and withdrawn again still blurs it", async () => {
+    // E7: unrated at filing, so the rating was no stricter than the hold and
+    // re-derived nothing; withdrawn before the release, it was lost.
+    await inRollback(async (tx) => {
+      const cat = await row(tx);
+      const end = await withTwin(tx, cat.id, async (tx_, [r]) => {
+        await tx_`update taxa set sensitivity = '輕度' where id = ${cat.id}`;
+        assert.equal((await state(tx_, r.id)).decided, "coarse_10km", "the rating did not reach the held record");
+        await withdraw(tx_, cat);
+      });
+      assert.deepEqual(end, { location_precision: "coarse_10km", precision_override: null });
+    });
+  });
+
+  test("and so does one given to a row sharing its binomial", async () => {
+    await inRollback(async (tx) => {
+      const cat = await row(tx);
+      const sib = await sibling(tx, cat);
+      const end = await withTwin(tx, cat.id, async (tx_) => {
+        await tx_`update taxa set sensitivity = '輕度' where id = ${sib.id}`;
+        await tx_`update taxa set sensitivity = null where id = ${sib.id}`;
+      });
+      assert.deepEqual(end, { location_precision: "coarse_10km", precision_override: "coarse_10km" });
+    });
+  });
+
+  test("a rename during the hold re-derives it, as it re-derives the twin", async () => {
+    // The 10 km kept from a withdrawn rating is not a decision; a moderator's
+    // naming is one, and it re-derives a record from the new name's rules.
+    await inRollback(async (tx) => {
+      const bird = await row(tx, { sensitivity: "輕度" });
+      const dog = await row(tx);
+      const rated = await row(tx, { sensitivity: "輕度" });
+      const toDog = await withTwin(tx, bird.id, async (tx_, both) => {
+        await withdraw(tx_, bird);
+        await rename(tx_, both, dog);
+      });
+      assert.deepEqual(toDog, { location_precision: "exact", precision_override: null });
+      const toRated = await withTwin(tx, bird.id, (tx_, both) => rename(tx_, both, rated));
+      assert.equal(toRated.location_precision, "coarse_10km");
+      // And a rule the new name is given during the hold is kept like any other.
+      const later = await row(tx);
+      const ratedLater = await withTwin(tx, bird.id, async (tx_, both) => {
+        await rename(tx_, both, later);
+        await tx_`update taxa set sensitivity = '輕度' where id = ${later.id}`;
+        await withdraw(tx_, later);
+      });
+      assert.equal(ratedLater.location_precision, "coarse_10km");
+    });
+  });
+
+  test("a reporter's second pick during the hold keeps the blur the twin keeps, not the hold's", async () => {
+    // confirmSpecies keeps at least the blur a re-picked record has. Read as
+    // location_precision, that was the hold's 10 km, written as an override:
+    // the record stayed at 10 km for good, a named invasive species with it.
+    await inRollback(async (tx) => {
+      const cat = await row(tx, { invasive: true });
+      const other = await row(tx, { invasive: true });
+      const end = await withTwin(tx, cat.id, (tx_, both) =>
+        tx_`update reports
+               set taxon_id = ${other.id}, taxon_source = 'user',
+                   precision_override = stricter_precision(
+                     stricter_precision(precision_override, binomial_precision_floor(${other.id})),
+                     coalesce(held_rule_precision, location_precision))
+             where id = any(${both.map((r) => r.id)}::uuid[])`,
+      );
+      assert.equal(end.location_precision, "exact", "the hold became a decision");
+    });
+    assert.match(
+      code(CONFIRM),
+      /\? sql`stricter_precision\(\$\{photoIdentificationOverride\(taxonId\)\},\s*coalesce\(held_rule_precision, location_precision\)\)`/,
+      "confirmSpecies no longer keeps the decided blur on a re-pick",
+    );
+  });
+
+  test("the model's blur is written as on the twin, over a withdrawn rating's blur too", async () => {
+    await inRollback(async (tx) => {
+      const owl = await row(tx, { sensitivity: "重度" });
+      const bird = await row(tx, { sensitivity: "輕度" });
+      const leopardCat = await row(tx, { protectedStatus: "I", sensitivity: "重度" });
+      // Filed at 50 km, the rating withdrawn: the model's 10 km is looser, and
+      // the 50 km is kept beside it.
+      const kept = await withTwin(tx, owl.id, (tx_) => withdraw(tx_, owl), bird.id);
+      assert.deepEqual(kept, { location_precision: "coarse_50km", precision_override: "coarse_50km" });
+      // Rated 10 km during the hold and withdrawn: the model's 50 km is stricter.
+      const cat = await row(tx);
+      const harder = await withTwin(tx, cat.id, async (tx_) => {
+        await tx_`update taxa set sensitivity = '輕度' where id = ${cat.id}`;
+        await withdraw(tx_, cat);
+      }, leopardCat.id);
+      assert.deepEqual(harder, { location_precision: "coarse_50km", precision_override: "coarse_50km" });
+    });
+  });
+
+  test("while it is held, the blur beside the hold is its rule's, and the public never sees it", async () => {
+    await inRollback(async (tx) => {
+      const owl = await row(tx, { sensitivity: "重度" });
+      const cat = await row(tx);
+      assert.equal((await held(tx, owl.id)).decided, "coarse_50km");
+      assert.equal((await held(tx, cat.id)).decided, "exact");
+      assert.equal((await held(tx, cat.id, null, false)).decided, null);
+    });
+    for (const view of ["reports_public", "reports_on_map"]) {
+      const cols = (await sql`select column_name from information_schema.columns
+                               where table_schema = 'public' and table_name = ${view}`)
+        .map((c) => c.column_name);
+      assert.ok(!cols.includes("held_rule_precision"), `${view} shows the blur beside the hold`);
+    }
+  });
+});
+
 describe("off the map while held", () => {
   // The map's tiles are cached for up to a day where nothing can purge them,
   // and the hold's 10 km can be looser than the model then decides, so the
@@ -541,6 +861,56 @@ describe("off the map while held", () => {
     assert.equal(grant.web_anon, true, "the tiles' role cannot read the map's view");
     assert.equal(grant.base, false);
     assert.notEqual(grant.closed, false, "the REST API's role can read the map's view");
+  });
+
+  test("and so does every other kept list of points, and the export to GBIF", () => {
+    // A species page is static until the next deploy, and the lab's ledger
+    // and the /stats hotspots are rebuilt every few minutes: a held record's
+    // 10 km point kept there could outlive the model's answer as one kept in
+    // a tile could. A copy on GBIF outlives everything. The record's own page
+    // and the /reports list, read on every request, may show it.
+    const body = (src, fn) => {
+      const from = src.indexOf(`export async function ${fn}(`);
+      assert.ok(from >= 0, `no ${fn}`);
+      const end = src.indexOf("\nexport ", from + 1);
+      return code(end === -1 ? src.slice(from) : src.slice(from, end));
+    };
+    const EXPORT = readFileSync(join(WEB, "..", "..", "scripts", "dwc-occurrences.ts"), "utf8");
+    for (const [file, src, fn] of [
+      ["lib/species.ts", read("lib", "species.ts"), "recentRecords"],
+      ["lib/stats.ts", read("lib", "stats.ts"), "anniversaryLedger"],
+      ["lib/stats.ts", read("lib", "stats.ts"), "hotspots"],
+    ]) {
+      const b = body(src, fn);
+      assert.match(b, /from reports_on_map\b/, `${file} ${fn}`);
+      assert.doesNotMatch(b, /reports_public/, `${file} ${fn}`);
+    }
+    const select = code(EXPORT.slice(EXPORT.indexOf("export function selectOccurrences(")));
+    assert.match(select.slice(0, select.indexOf("export function", 10)), /from reports_on_map r\b/);
+
+    // And every reader of a record's public point is one of those, or one read
+    // on every request, or a count. A new one has to be put in one list or
+    // the other.
+    const readers = [];
+    const walk = (dir) => {
+      for (const e of readdirSync(join(WEB, dir), { withFileTypes: true })) {
+        const p = join(dir, e.name);
+        if (e.isDirectory()) walk(p);
+        else if (/\.(ts|tsx)$/.test(e.name) && /location_public|geom_3857/.test(code(read(p)))) readers.push(p);
+      }
+    };
+    walk("lib");
+    walk("app");
+    walk("components");
+    assert.deepEqual(readers.sort(), [
+      join("app", "[locale]", "(site)", "reports", "(list)", "page.tsx"), // per request
+      join("app", "[locale]", "(site)", "reports", "[id]", "page.tsx"), // per request
+      join("app", "api", "reports", "route.ts"), // writes the point at insert
+      join("app", "api", "tiles", "[z]", "[x]", "[y]", "route.ts"), // reports_on_map
+      join("lib", "coverage.ts"), // counts squares of exact records; a held one is never exact
+      join("lib", "species.ts"), // recentRecords, above
+      join("lib", "stats.ts"), // the ledger and the hotspots, above
+    ].sort());
   });
 
   test("every layer of the tile route reads it, and nothing else", () => {
@@ -632,31 +1002,13 @@ describe("never looser than the species' rule, at any step", () => {
 });
 
 describe("over HTTP, as a reporter files it", () => {
-  // The route, the trigger and a real photo in local Storage. Skipped where
-  // there is no server or no Storage, as in CI.
-  const up = () => fetch(`${BASE_URL}/api/health`).then((r) => r.ok, () => false);
-  const storageUp = () =>
-    fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/version`).then((r) => r.ok, () => false);
-
-  async function photo() {
-    const res = await fetch(`${BASE_URL}/api/uploads/sign`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ count: 1, contentType: "image/webp" }),
-    });
-    assert.equal(res.status, 200, await res.clone().text());
-    const [{ path, token }] = (await res.json()).uploads;
-    const client = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-    const { error } = await client.storage
-      .from("report-photos")
-      .uploadToSignedUrl(path, token, new Blob([new Uint8Array(64).fill(7)], { type: "image/webp" }));
-    assert.equal(error, null, String(error?.message));
-    uploaded.push(path);
-    return path;
-  }
-
+  // The route and the trigger together. A named report with a photo is held,
+  // and that half needs a photo the route can find in Storage, which CI does
+  // not run: it is pinned above in the route's own source and at the insert,
+  // and was last run over HTTP against local Storage on 26 October 2026. A
+  // report without a photo needs only the server, which CI starts.
   async function submit(body) {
-    await sql`delete from rate_limits where key like 'submit-%' or key like 'sign-%'`;
+    await sql`delete from rate_limits where key like 'submit-%'`;
     const clientNonce = randomUUID();
     nonces.push(clientNonce);
     // Filed as roadkill, and deleted as soon as it has been read: a published
@@ -674,10 +1026,9 @@ describe("over HTTP, as a reporter files it", () => {
     try {
       const [stored] = await sql`
         select r.id, r.status, r.held_for_classification as held, r.location_precision,
-               r.precision_override,
-               (select count(*)::int from classification_jobs j where j.report_id = r.id) as jobs,
-               p.notes as public_notes, p.location_precision as public_precision
-          from reports r left join reports_public p on p.id = r.id
+               r.held_rule_precision as decided,
+               (select count(*)::int from classification_jobs j where j.report_id = r.id) as jobs
+          from reports r
          where r.client_nonce = ${clientNonce}`;
       return { res, body: await res.json(), stored };
     } finally {
@@ -692,25 +1043,12 @@ describe("over HTTP, as a reporter files it", () => {
            and taxon_precision(id) = 'exact'
          order by id limit 1`.then((r) => r[0].id);
 
-  test("named, with a photo: published, held at 10 km, its notes withheld", async (t) => {
-    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
-    if (!(await storageUp())) return t.skip("no local Storage");
-    const { res, body, stored } = await submit({ taxonId: await species(), photoPaths: [await photo()] });
-    assert.equal(res.status, 201, JSON.stringify(body));
-    assert.equal(stored.status, "published");
-    assert.equal(stored.held, true);
-    assert.equal(stored.location_precision, "coarse_10km");
-    assert.equal(stored.precision_override, null, "the hold was written as an override");
-    assert.equal(stored.jobs, 1, "a held report has no job to release it");
-    assert.equal(stored.public_precision, "coarse_10km");
-    assert.equal(stored.public_notes, null);
-  });
-
   test("named, without a photo: nothing to wait for, so not held", async (t) => {
-    if (!(await up())) return t.skip(`no server at ${BASE_URL}`);
+    if (!(await requireServer(t))) return;
     const { res, body, stored } = await submit({ taxonId: await species(), photoPaths: [] });
     assert.ok(res.status === 201, JSON.stringify(body));
     assert.equal(stored.held, false);
+    assert.equal(stored.decided, null);
     assert.equal(stored.location_precision, "exact");
     assert.equal(stored.jobs, 0);
   });

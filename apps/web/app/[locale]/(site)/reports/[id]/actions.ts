@@ -134,9 +134,18 @@ export async function confirmSpecies(reportId: string, taxonId: number) {
   // loosens the blur: the record keeps at least the precision it has now. The
   // first naming of an unidentified record is what the unidentified stamp was
   // waiting for, and follows the shared rule alone.
+  //
+  // "The precision it has now" is its decided blur, not location_precision. On
+  // a record held until the model has looked, location_precision is the hold's
+  // 10 km, and kept here it became an override, a decision that outlives the
+  // hold: a named invasive species re-picked while held stayed at 10 km for
+  // good. held_rule_precision is the blur the record would have without the
+  // hold, null when it is not held (migration 0033), so this keeps what a twin
+  // that was never held would keep.
   const override =
     !moderator && report.has_taxon
-      ? sql`stricter_precision(${photoIdentificationOverride(taxonId)}, location_precision)`
+      ? sql`stricter_precision(${photoIdentificationOverride(taxonId)},
+                               coalesce(held_rule_precision, location_precision))`
       : photoIdentificationOverride(taxonId);
   await sql.begin(async (tx) => {
     await tx`
