@@ -3,6 +3,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { asPublic, sql } from "@/lib/db";
 import { pageFilter } from "@conservation/shared";
 import { recordedSpeciesCount } from "@/lib/stats";
+import { speciesMembers } from "@/lib/species";
 import HeatmapView from "@/components/map/HeatmapView";
 import SiteHeader from "@/components/site/SiteHeader";
 import SiteFooter from "@/components/site/SiteFooter";
@@ -46,10 +47,11 @@ type NamedTaxon = {
 /**
  * The taxon a link arrived filtered to, named, for the filter panel.
  *
- * Read as the public role and joined to species_report_stats, like everything
+ * Read as the public role and counted from reports_public, like everything
  * the map shows: a taxon rated 座標不開放 has no rows in reports_public, and
  * naming one above an empty map would be the only thing on the page confirming
- * it had been recorded here.
+ * it had been recorded here. Counted over the rows the tiles draw for it
+ * (speciesMembers): a species with the same-named subspecies on its card.
  */
 async function namedTaxon(id: number): Promise<NamedTaxon | null> {
   const rows = await asPublic(
@@ -60,8 +62,11 @@ async function namedTaxon(id: number): Promise<NamedTaxon | null> {
              t.taicol_id as "taicolId",
              s.report_count as "reportCount"
         from taxa t
-        join species_report_stats s on s.taxon_id = t.id
-       where t.id = ${id}`,
+        cross join lateral (
+          select count(*)::int as report_count
+            from reports_public rp
+           where ${speciesMembers(tx, "rp.taxon_id", id)}) s
+       where t.id = ${id} and s.report_count > 0`,
   );
   return rows[0] ?? null;
 }

@@ -467,7 +467,14 @@
       "redlist": "Taiwan's Red List rates it {name}.",
       "iucn": "Worldwide, the IUCN Red List rates it {name}.",
       "cites": "International trade in it is controlled under CITES {list}."
-    }
+    },
+    "subspeciesOf": "A subspecies of <link>{name}</link>.",
+    "countedOnCard": "It shares its species' Chinese name, so the species directory lists it with the species, and its records are counted on the species' page too.",
+    "includesFolded": "The records here include those of the subspecies of the same name:",
+    "listSeparator": ", ",
+    "sources": "Sources",
+    "sourcesTaicol": "Names, classification and conservation status come from the <taicol>Taiwan Catalogue of Life (TaiCOL)</taicol>.",
+    "taicolNote": "TaiCOL's note: {note}"
   },
   "offline": {
     "queuedTitle": "Saved on this phone. Not sent yet.",
@@ -639,7 +646,7 @@
     "cellsCovered": "{km} km squares with a record",
     "cellsHint": "Counted from public records that carry an exact location.",
     "speciesCovered": "species and subspecies with a record here, of Taiwan's animal species and subspecies",
-    "speciesHint": "Counted the way the species directory counts them, with each subspecies as an entry of its own. The second number is how many animal species and subspecies the Taiwan species checklist (TaiCOL) lists, counted the same way.",
+    "speciesHint": "Counted the way the species directory counts them: a subspecies that shares its species' Chinese name counts with the species, and a subspecies with a name of its own counts as an entry of its own. The second number is how many animal species and subspecies the Taiwan species checklist (TaiCOL) lists, counted the same way.",
     "obscuredNote": "{n, plural, one {# public record is} other {# public records are}} left out of the squares above, because the location shown is blurred: the species is protected by law or rated sensitive, or the record has not been identified yet. Crediting a blurred location to a {km} km square would credit the wrong square. Blurred records still count in every other statistic on this site.",
     "whyTitle": "Why squares, and not records",
     "whyBody": "A target counted in records rewards volume, and the cheapest volume is the same roadside verge photographed again tomorrow. This one counts only the first record in a {km} km square, so a second is worth nothing and there is no reason to sit on a site you already know. It is also what the data is short of: most records here come from a handful of surveyed roads, which describes those roads rather than the island.",

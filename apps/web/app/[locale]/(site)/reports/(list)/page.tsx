@@ -17,7 +17,7 @@ import {
 import InvasiveBadge from "@/components/collections/InvasiveBadge";
 import UnverifiedBadge from "@/components/report/UnverifiedBadge";
 import { awaitingVerification } from "@/lib/report/verification";
-import { publicSpeciesName, speciesSlug } from "@/lib/species";
+import { publicSpeciesName, speciesMembers, speciesSlug } from "@/lib/species";
 import { signedPhotoUrls } from "@/lib/supabase/service";
 import { sql } from "@/lib/db";
 import Pager from "@/components/site/Pager";
@@ -137,7 +137,8 @@ export default async function ReportsListPage({
         left join taxa t on t.id = rp.taxon_id
        where (${categories}::text[] is null or rp.category = any(${categories}))
          and (not ${invasiveOnly}::boolean or rp.is_invasive)
-         and (${taxonId}::bigint is null or rp.taxon_id = ${taxonId})
+         -- The species as its page and its map count it (speciesMembers).
+         and ${speciesMembers(tx, "rp.taxon_id", taxonId)}
          and (${from}::date is null or rp.observed_at >= (${from}::date::timestamp at time zone 'Asia/Taipei'))
          and (${to}::date   is null or rp.observed_at <  ((${to}::date + 1)::timestamp at time zone 'Asia/Taipei'))
        -- rp.id makes the order total. The import ends on 2017-12-31 and many

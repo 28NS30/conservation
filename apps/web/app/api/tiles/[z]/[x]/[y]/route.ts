@@ -1,6 +1,7 @@
 import { gzip } from "node:zlib";
 import { promisify } from "node:util";
 import { asPublic } from "@/lib/db";
+import { speciesMembers } from "@/lib/species";
 import {
   COLLECTIONS,
   filterToQuery,
@@ -143,6 +144,10 @@ export async function GET(
   // the OR stops at its first true operand, so the column is never computed
   // for the other two collections or for an unfiltered map.
   const { categories, invasiveOnly } = selectionFor(f);
+  // A species, as its page counts it: the taxon and the same-named
+  // subspecies shown on its card (speciesMembers, migration 0040), so the
+  // species page's map draws the records the page counts. Still only rows of
+  // reports_public, each at the point its own blur gives it.
   const taxonId = f.taxonId ?? null;
   const from = f.from ?? null;
   const to = f.to ?? null;
@@ -202,7 +207,7 @@ export async function GET(
          where r.geom_3857 && st_expand(st_tileenvelope(${z}, ${x}, ${y}), ${cell}::float8)
            and (${categories}::text[] is null or r.category = any(${categories}))
            and (not ${invasiveOnly}::boolean or r.is_invasive)
-           and (${taxonId}::bigint is null or r.taxon_id = ${taxonId})
+           and ${speciesMembers(tx, "r.taxon_id", taxonId)}
            and (${from}::date is null or r.observed_at >= (${from}::date::timestamp at time zone 'Asia/Taipei'))
            and (${to}::date   is null or r.observed_at <  ((${to}::date + 1)::timestamp at time zone 'Asia/Taipei'))
          group by 1, 2
@@ -281,7 +286,7 @@ export async function GET(
            where r.geom_3857 && env.e
              and (${categories}::text[] is null or r.category = any(${categories}))
              and (not ${invasiveOnly}::boolean or r.is_invasive)
-             and (${taxonId}::bigint is null or r.taxon_id = ${taxonId})
+             and ${speciesMembers(tx, "r.taxon_id", taxonId)}
              and (${from}::date is null or r.observed_at >= (${from}::date::timestamp at time zone 'Asia/Taipei'))
              and (${to}::date   is null or r.observed_at <  ((${to}::date + 1)::timestamp at time zone 'Asia/Taipei'))
            limit ${POINT_LIMIT}
