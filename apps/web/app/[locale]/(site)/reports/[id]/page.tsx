@@ -26,11 +26,10 @@ import { awaitingVerification } from "@/lib/report/verification";
 import { alternates } from "@/lib/alternates";
 import { speciesLabel } from "@/lib/speciesNames";
 import SpeciesName from "@/components/species/SpeciesName";
+import { blurKm, publicRecordSummary, UUID } from "@/lib/recordMeta";
+import { formatTaipeiDate } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
-
-/** A real UUID's shape: 36 dashes passed the old pattern and 500'd on ::uuid. */
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * The date a record was seen, as the source actually recorded it.
@@ -76,6 +75,12 @@ function seenOn(observedAt: string, source: string, locale: string) {
  * page keeps the neutral title rather than asking who is looking. See
  * lib/receipt.ts for why confirming a pending id to its holder is safe.
  *
+ * A published record has a description of its own too: what, when, which
+ * kind of record, and that it is blurred when it is. Every record page used
+ * to fall back to the site's description, so a shared record previewed as
+ * the site. It never names a place or a coordinate, and nothing in it is
+ * more than the page shows anybody (lib/recordMeta.ts).
+ *
  * WHICH RECORD PAGES ARE INDEXED. The 46,305 records imported from GBIF are
  * `noindex, follow`. Each page is one row of TaiRON's dataset — a name, a
  * date and a point — and 46,000 near-identical pages of somebody else's
@@ -96,27 +101,7 @@ export async function generateMetadata({
   const { locale, id } = await params;
   if (!UUID.test(id)) return {};
 
-  const [pub] = await asPublic(
-    (tx) => tx<
-      {
-        observedAt: string;
-        source: string;
-        category: Category;
-        scientificName: string | null;
-        commonNameZh: string | null;
-        commonNameEn: string | null;
-        taicolId: string | null;
-      }[]
-    >`
-      select rp.observed_at as "observedAt", rp.source, rp.category,
-             t.scientific_name as "scientificName",
-             t.common_name_zh as "commonNameZh",
-             t.common_name_en as "commonNameEn",
-             t.taicol_id as "taicolId"
-        from reports_public rp
-        left join taxa t on t.id = rp.taxon_id
-       where rp.id = ${id}::uuid`,
-  );
+  const pub = await publicRecordSummary(id);
 
   const t = await getTranslations({ locale });
   if (!pub) {
@@ -136,11 +121,24 @@ export async function generateMetadata({
 
   // Both names, the page's language first (lib/speciesNames.ts); the
   // category when nobody has named the animal.
-  const name = pub.scientificName
+  const named = pub.scientificName
     ? speciesLabel({ ...pub, scientificName: pub.scientificName }, locale)
-    : t(`categories.${pub.category}`);
+    : null;
+  const collection = t(`categories.${pub.category}`);
+  // The day alone, on Taiwan's calendar, whatever the source: a description
+  // is a sentence, and "17:42" is not what a search result needs.
+  const date = formatTaipeiDate(pub.observedAt, locale, { dateStyle: "long" });
+  const sentence = named
+    ? t("recordMeta.description", { name: named, collection, date })
+    : t("recordMeta.descriptionUnnamed", { collection, date });
+  const km = blurKm(pub.locationPrecision);
+  const blurred = km ? t("recordMeta.blurred", { km }) : null;
   return {
-    title: `${name} · ${seenOn(pub.observedAt, pub.source, locale)}`,
+    title: `${named ?? collection} · ${seenOn(pub.observedAt, pub.source, locale)}`,
+    // Chinese sentences run on without a space; English ones take one.
+    description: blurred
+      ? `${sentence}${locale.startsWith("zh") ? "" : " "}${blurred}`
+      : sentence,
     alternates: alternates(locale, `/reports/${id}`),
     ...(pub.source === "gbif" ? { robots: { index: false, follow: true } } : null),
   };

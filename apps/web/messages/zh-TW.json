@@ -1231,5 +1231,14 @@
     "publish": "「發布」會讓通報出現在地圖上，位置依物種的規定模糊化。保育類和敏感物種不論這裡怎麼決定，位置都會保持模糊。",
     "reject": "「退回」會讓通報永遠不公開。請寫下原因：通報者只會看到「未採用」，原因會留在審核紀錄裡。地圖會在大約五分鐘內反映審核結果。",
     "tests": "想測試每一個步驟又不讓任何東西公開，請用下方的測試連結。"
+  },
+  "recordMeta": {
+    "description": "{name}，{date}在臺灣的{collection}紀錄。",
+    "descriptionUnnamed": "{date}在臺灣的一筆{collection}紀錄，還沒有辨識出是什麼動物。",
+    "blurred": "位置已模糊至約 {km} 公里。",
+    "cardUnnamed": "尚未辨識的動物",
+    "cardSite": "福爾摩沙守望計畫",
+    "cardBlurred": "位置已模糊至約 {km} 公里",
+    "cardFooter": "臺灣路殺與野生動物紀錄"
   }
 }
