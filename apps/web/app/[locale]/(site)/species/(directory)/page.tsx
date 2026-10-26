@@ -211,8 +211,21 @@ export default async function SpeciesDirectory({
             {species.map((s) => {
               return (
                 <li key={s.id}>
+                  {/* No prefetch, as on the record list. A species page is
+                      cached now, and Next prefetches a cached page whole:
+                      for the eighteen names in a desktop's first screen,
+                      95 KB of payload, and once for all of them the page's
+                      stylesheet (11 KB) and scripts (37 KB, nearly all of it
+                      the chunk zod is in, which SpeciesMap brings with
+                      @conservation/shared); and, on a cold cache, a render
+                      on the server for each name. All of it for pages
+                      nobody opened, on every visit to the directory. While
+                      the species pages rendered per request none of it was
+                      fetched, so this is how the directory always behaved
+                      (October 2026; e2e/perf.spec.mjs caught it). */}
                   <Link
                     href={`/species/${speciesSlug(s)}`}
+                    prefetch={false}
                     className="flex h-full items-start justify-between gap-3 rounded-lg border border-ink-900/10 bg-paper-100 px-4 py-3 transition hover:border-ink-900/20 hover:bg-paper-100"
                   >
                     <span className="min-w-0">
