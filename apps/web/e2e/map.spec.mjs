@@ -37,7 +37,13 @@ const consoleErrors = [];
 const tileRequests = [];
 page.on("console", (m) => {
   const t = m.text();
-  if (
+  // The report-only Content-Security-Policy (next.config.ts) writes a breach
+  // as information, not as an error; it fails the map all the same. A breach
+  // inside MapLibre's worker never reaches this console: what shows one is a
+  // map that draws nothing, which fails below.
+  if (/violates the following Content Security Policy directive/.test(t))
+    consoleErrors.push("csp: " + t.slice(0, 260));
+  else if (
     m.type() === "error" ||
     t.startsWith("[layers]") ||
     t.startsWith("[createMap]")
@@ -144,7 +150,7 @@ await browser.close();
  */
 const PLATFORM_ONLY = /_vercel|favicon/;
 const real = consoleErrors.filter(
-  (e) => /^(error|pageerror):/.test(e) && !PLATFORM_ONLY.test(e),
+  (e) => /^(error|pageerror|csp):/.test(e) && !PLATFORM_ONLY.test(e),
 );
 const served = tileRequests.filter((t) => t.startsWith("200 "));
 // The mode the map is actually drawing in. A layer that is present but hidden

@@ -20,8 +20,9 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH || undefined;
  * Response headers, applied to every path.
  *
  * The site sent none of these. HSTS is already served — it is Vercel's platform
- * default, not this repo's doing — so these four are what was actually missing.
- * A Content-Security-Policy is deliberately NOT here; see the note at the end.
+ * default, not this repo's doing — so these were what was actually missing. The
+ * Content-Security-Policy, which came later and in two halves, is explained
+ * where it is built, below this list.
  *
  * `Permissions-Policy` is the one with teeth, and the one easiest to get wrong
  * in a way that breaks the product rather than the attack:
@@ -61,6 +62,120 @@ const PERMISSIONS_POLICY = [
   "xr-spatial-tracking=()",
 ].join(", ");
 
+/**
+ * The Content-Security-Policy, in two halves: one the browser enforces, and one
+ * it only reports on.
+ *
+ * ENFORCED: directives whose other side nothing on the site needs, so they can
+ * hold from the first day without anything measured first.
+ *
+ *   - `frame-ancestors 'none'`: no page may be framed. X-Frame-Options' rule,
+ *     in the form current browsers read first.
+ *   - `base-uri 'self'`: an injected <base> cannot point the page's relative
+ *     script and form addresses at another host.
+ *   - `object-src 'none'`: no plugins. The site embeds nothing.
+ *   - `form-action 'self'`: every form here posts to the site itself (Server
+ *     Actions, the search forms, sign-out), so an injected form cannot post
+ *     what someone types to anyone else. Google sign-in is a navigation
+ *     supabase-js starts from a button, not a form, and is not governed by it.
+ *   - `upgrade-insecure-requests`: a stray http:// address loads over https.
+ *     Only on Vercel, where every response is https. Anywhere else the page
+ *     itself is plain http, there is nothing to protect, and a browser that
+ *     does not count localhost as secure would upgrade the local server's own
+ *     requests to an https port nothing answers on. The same test the
+ *     analytics in app/[locale]/layout.tsx uses.
+ *
+ * REPORT-ONLY: where scripts, styles, images, connections, workers and frames
+ * may come from, listed from what the pages load. Measured by running the
+ * browser specs (pages, map, offline, receipt, account) with this half
+ * enforced, and the Turnstile widget on Cloudflare's test key, 26 October 2026.
+ *
+ *   - script-src: the site's own files, MapLibre's modules in public/maplibre
+ *     among them; Turnstile's script; and 'unsafe-inline', because Next writes
+ *     each page's React payload into the HTML as inline `self.__next_f.push`
+ *     scripts. The Next docs offer a nonce instead
+ *     (node_modules/next/dist/docs/01-app/02-guides/content-security-policy.md),
+ *     and a nonce needs every page rendered per request, where nearly all of
+ *     this site's pages are prerendered and served from the CDN. A hash cannot
+ *     work either: the payload is different on every page. So this stops a
+ *     script loaded from another host, and not one written inline. 'unsafe-eval'
+ *     only under `next dev`, where React uses eval for its error overlay.
+ *   - style-src 'unsafe-inline': React writes `style` attributes into the HTML.
+ *   - img-src data: and blob:, for MapLibre's control icons (data: SVGs in its
+ *     stylesheet) and a photo previewed before it is sent; and Supabase, whose
+ *     signed Storage URLs the record pages show photos from.
+ *   - connect-src: OpenFreeMap for the basemap's style, tiles, glyphs and
+ *     sprite, all on one host; MapTiler only when a key is set (lib/map.ts);
+ *     Supabase for sign-in and photo uploads. A worker's own requests are held
+ *     to this too, which matters for /sw.js: it caches OpenFreeMap's tiles.
+ *   - worker-src 'self' blob:: MapLibre's worker is its module in
+ *     public/maplibre, and blob: is what it builds when the worker's address is
+ *     on another origin; the service worker is /sw.js.
+ *   - frame-src: Turnstile's challenge, an iframe from challenges.cloudflare.com.
+ *
+ * Report-only, and with no report-uri, so a violation blocks nothing and goes
+ * nowhere but the browser's console. That was the reason given in September for
+ * not sending one: a console nobody reads. It is read now. Chromium writes each
+ * report-only violation to the page's console (as information, not an error),
+ * and e2e/pages.spec.mjs and e2e/map.spec.mjs fail on one, so CI's browser is
+ * the collector, for every page in both languages and for the map. What it
+ * cannot see is a worker's own violation, which stays in the worker's console;
+ * for those the measurement above is the evidence: enforced, a tile blocked in
+ * MapLibre's worker leaves a map with nothing drawn, and map.spec fails that.
+ * Moving this half to the enforced header is a later change, made once CI has
+ * stayed clean and the Turnstile widget has been watched under it in
+ * production: CI has no site key, so the widget never renders there.
+ *
+ * Read when the config is loaded, which on Vercel is the build, where
+ * NEXT_PUBLIC_SUPABASE_URL is set; a preview, which has no Supabase, names none.
+ */
+const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
+const OPENFREEMAP_ORIGIN = "https://tiles.openfreemap.org";
+const MAPTILER_ORIGIN = "https://api.maptiler.com";
+
+function originOf(url: string | undefined): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
+}
+
+function contentSecurityPolicy(env: NodeJS.ProcessEnv = process.env) {
+  const dev = env.NODE_ENV === "development";
+  const supabase = originOf(env.NEXT_PUBLIC_SUPABASE_URL);
+  const sources = (...list: (string | null | false | undefined)[]) =>
+    list.filter(Boolean).join(" ");
+
+  const enforced = [
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "form-action 'self'",
+    env.VERCEL && "upgrade-insecure-requests",
+  ];
+  const reportOnly = [
+    "default-src 'self'",
+    `script-src ${sources("'self'", "'unsafe-inline'", dev && "'unsafe-eval'", TURNSTILE_ORIGIN)}`,
+    "style-src 'self' 'unsafe-inline'",
+    `img-src ${sources("'self'", "data:", "blob:", supabase)}`,
+    "font-src 'self'",
+    `connect-src ${sources(
+      "'self'",
+      OPENFREEMAP_ORIGIN,
+      env.NEXT_PUBLIC_MAPTILER_KEY && MAPTILER_ORIGIN,
+      supabase,
+    )}`,
+    "worker-src 'self' blob:",
+    `frame-src ${TURNSTILE_ORIGIN}`,
+  ];
+  return {
+    enforced: enforced.filter(Boolean).join("; "),
+    reportOnly: reportOnly.join("; "),
+  };
+}
+
 const config: NextConfig = {
   ...(basePath ? { basePath } : {}),
   experimental: {
@@ -86,6 +201,7 @@ const config: NextConfig = {
    * cross-origin, so the path a reader was on never leaves with the request.
    */
   async headers() {
+    const csp = contentSecurityPolicy();
     return [
       {
         source: "/:path*{/}?",
@@ -94,10 +210,15 @@ const config: NextConfig = {
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: PERMISSIONS_POLICY },
+          { key: "Content-Security-Policy", value: csp.enforced },
+          { key: "Content-Security-Policy-Report-Only", value: csp.reportOnly },
         ],
       },
     ];
   },
+  // No `X-Powered-By: Next.js`. It tells a scanner which framework's
+  // advisories to try first, and nobody else reads it.
+  poweredByHeader: false,
 };
 
 export default withNextIntl(config);

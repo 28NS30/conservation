@@ -3,7 +3,7 @@
  *
  *   node e2e/pages.spec.mjs
  *
- * Catches three classes of failure that the unit and API tests structurally
+ * Catches four classes of failure that the unit and API tests structurally
  * cannot:
  *
  *  1. **Unresolved translations.** next-intl renders a missing message as its own
@@ -16,6 +16,10 @@
  *     expressions at addLayer time, logs to the console, and carries on rendering
  *     the map without that layer. An invalid circle-radius once blanked the dots
  *     across five zoom levels with every test passing.
+ *  4. **Anything the Content-Security-Policy does not name.** Its script, image,
+ *     connection, worker and frame rules are only reported on (next.config.ts),
+ *     so a breach changes nothing on the page and is written to the console as
+ *     information. Read here, it fails the page.
  */
 import { chromium } from "playwright";
 
@@ -86,6 +90,9 @@ const LEAKED_KEY = new RegExp(
   `\\b(?:${NAMESPACES.join("|")})\\.[a-zA-Z][a-zA-Z0-9]*\\b`,
   "g",
 );
+
+/** How Chromium words a Content-Security-Policy breach, enforced or report-only. */
+const CSP_VIOLATION = /violates the following Content Security Policy directive/;
 
 /** Data layers that must exist on any page showing a map. */
 const REQUIRED_LAYERS = ["reports-cells", "reports-dots", "reports-points"];
@@ -421,8 +428,13 @@ for (const pg of PAGES) {
   const PLATFORM_ONLY = /\/_vercel\//;
 
   page.on("console", (m) => {
-    if (m.type() !== "error") return;
     const t = m.text();
+    // A breach of the report-only Content-Security-Policy (next.config.ts)
+    // blocks nothing and is written to the console as information, not as an
+    // error. This is where it is read: a page that loads something the policy
+    // does not name fails here, before the policy is ever enforced.
+    if (CSP_VIOLATION.test(t)) return errs.push("csp: " + t.slice(0, 240));
+    if (m.type() !== "error") return;
     if (t.includes("favicon")) return; // not a product concern
     // Console messages carry no URL, so a bare "Failed to load resource" is
     // matched against what actually 404'd on this page.
