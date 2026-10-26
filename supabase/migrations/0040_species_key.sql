@@ -44,9 +44,11 @@
 -- animals. taxon_precision() reads the floors table, which web_anon may not,
 -- so the comparison is one SECURITY DEFINER function that answers yes or no
 -- about two taxa, executable by web_anon alone, as 0025 does for the model's
--- suggestions. It says nothing the two species' pages do not. On production
--- 2 same-named subspecies are blurred differently from their species, and
--- neither has a record.
+-- suggestions. It says nothing the two species' pages do not. It is asked
+-- only where a subspecies has a rating, protection or floor of its own; the
+-- rest take their species' rule by construction (species_folds, below). On
+-- production 2 same-named subspecies are blurred differently from their
+-- species, and neither has a record.
 --
 -- DISPLAY ONLY. No record moves and no record's taxon, blur or override
 -- changes: the fill writes one new column, and the re-blur trigger on taxa
@@ -194,18 +196,19 @@ end $$;
 comment on function resolve_taxa_lineage is
   'Walks parent_taicol_id to fill kingdom..genus and species_taicol_id, then builds bioclip_prompt for Taiwan species. Run after import-taicol.';
 
--- Whether two taxa are blurred by the same rule. The one place a card asks
--- about blur, so it is asked of taxon_precision() itself and never
--- re-derived: a rule added there later is a rule cards keep apart.
+-- Whether two taxa are blurred by the same rule, asked of taxon_precision()
+-- itself, for the subspecies species_folds cannot settle from their own row
+-- (below).
 create or replace function public.same_taxon_precision(a bigint, b bigint)
 returns boolean
 language sql
 stable
 security definer
 set search_path = public, pg_temp
--- Dear on purpose: two walks of the taxon chain, about 0.1 ms. The planner
--- then checks every cheaper condition on a pair first, and prefers working
--- out the few folds a query asks about to working out all 1,500.
+-- Dear on purpose: two walks of the taxon chain, about 0.1 ms locally and
+-- 0.4 ms on production. The planner then checks every cheaper condition on a
+-- pair first, and prefers working out the few folds a query asks about to
+-- working out all 1,500.
 cost 10000
 as $$
   select taxon_precision(a) is not distinct from taxon_precision(b)
@@ -231,6 +234,16 @@ end $$;
 -- accepted and in Taiwan. The species has the subspecies' Chinese name, its
 -- invasive flag, its kingdom and its blur.
 --
+-- Most subspecies carry nothing of their own that a blur is made from, and
+-- for those the rule is their species' by construction, so the view asks
+-- taxon_precision() only of the rest: 104 of 1,510 same-named subspecies on
+-- production. It has to: a call there costs about 0.4 ms, and asking it of
+-- every pair took 2.1 s, which the directory's "all" count and list would
+-- each have paid. If taxon_precision() ever reads another column, that
+-- column belongs in the shortcut below; test/species-cards.test.mjs checks
+-- every fold against taxon_precision() itself. The floors are read here as
+-- the view's owner, so web_anon still has no grant on them.
+--
 -- The species is looked up by its unique taicol_id in a LIMIT 1 subquery
 -- rather than joined, and that is for the planner. Joined, it guessed that
 -- one subspecies in all of taxa matches its species on name and flag, read
@@ -250,7 +263,17 @@ create or replace view species_folds as
          and s.common_name_zh = m.common_name_zh
          and s.is_invasive = m.is_invasive
          and s.kingdom is not distinct from m.kingdom
-         and same_taxon_precision(s.id, m.id)
+         -- The blur. A subspecies directly under its species, with no rating,
+         -- no protection and no floor of its own, takes exactly its species'
+         -- rule: taxon_precision() reads those three of each row it climbs
+         -- through, from the subspecies to the species, and nothing else.
+         -- Any other subspecies is asked of taxon_precision() itself.
+         and ((m.parent_taicol_id = s.taicol_id
+               and m.sensitivity is null
+               and coalesce(m.protected_status, '') = ''
+               and not exists (select 1 from taxon_precision_floors fl
+                                where fl.taicol_id = m.taicol_id))
+              or same_taxon_precision(s.id, m.id))
        limit 1
     ) s
    where m.rank = 'Subspecies'

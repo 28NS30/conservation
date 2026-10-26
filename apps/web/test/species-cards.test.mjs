@@ -102,7 +102,11 @@ describe("the species key", () => {
 describe("a card never joins rows blurred differently", () => {
   test("every fold, across the whole database, joins rows taxon_precision() blurs alike", async () => {
     // Asked on the server's own connection of taxon_precision() itself, not of
-    // the view's own check: this is the rule, the view is what keeps it.
+    // the view's own check: this is the rule, the view is what keeps it. Most
+    // folds are settled by the view without asking taxon_precision() (a
+    // subspecies with nothing of its own takes its species' rule), so this is
+    // also what fails if taxon_precision() ever reads something the view's
+    // shortcut does not.
     const bad = await sql`
       select f.taxon_id, f.species_id,
              taxon_precision(f.taxon_id) as sub, taxon_precision(f.species_id) as sp
@@ -177,6 +181,21 @@ describe("a card never joins rows blurred differently", () => {
          where id in ${tx([SWALLOW.species, ...SWALLOW.subspecies])}`;
       assert.deepEqual(rules.map((r) => r.rule), ["coarse_10km"]);
       assert.equal(await cardCount(tx, tx`t.common_name_zh = '家燕'`), 1);
+    });
+  });
+
+  test("a subspecies protected as its species is stays on its card", async () => {
+    // Its own protection sends the view to taxon_precision() for the answer,
+    // and the answer is the species' rule: 10 km for both.
+    await inRollback(async (tx) => {
+      await tx`update taxa set protected_status = 'II'
+                where id in ${tx([SWALLOW.species, SWALLOW.subspecies[0]])}`;
+      const [{ a, b }] = await tx`
+        select taxon_precision(${SWALLOW.species}) as a, taxon_precision(${SWALLOW.subspecies[0]}) as b`;
+      assert.equal(a, "coarse_10km");
+      assert.equal(b, a);
+      const folds = await tx`select species_id from species_folds where taxon_id = ${SWALLOW.subspecies[0]}`;
+      assert.deepEqual(folds.map((f) => f.species_id), [SWALLOW.species]);
     });
   });
 
