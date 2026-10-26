@@ -38,10 +38,13 @@ const tileRequests = [];
 page.on("console", (m) => {
   const t = m.text();
   // The report-only Content-Security-Policy (next.config.ts) writes a breach
-  // as information, not as an error; it fails the map all the same. A breach
-  // inside MapLibre's worker never reaches this console: what shows one is a
-  // map that draws nothing, which fails below.
-  if (/violates the following Content Security Policy directive/.test(t))
+  // as information, not as an error, and Chromium may word it "report-only";
+  // it fails the map all the same. A breach inside MapLibre's worker or the
+  // service worker never reaches this console, and while the policy only
+  // reports, it blocks nothing there either: CI cannot see one. Once the
+  // policy is enforced, such a breach shows as a map that draws nothing,
+  // which fails below.
+  if (/violates the following (?:report-only )?Content Security Policy directive/.test(t))
     consoleErrors.push("csp: " + t.slice(0, 260));
   else if (
     m.type() === "error" ||

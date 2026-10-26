@@ -92,7 +92,7 @@ const LEAKED_KEY = new RegExp(
 );
 
 /** How Chromium words a Content-Security-Policy breach, enforced or report-only. */
-const CSP_VIOLATION = /violates the following Content Security Policy directive/;
+const CSP_VIOLATION = /violates the following (?:report-only )?Content Security Policy directive/;
 
 /** Data layers that must exist on any page showing a map. */
 const REQUIRED_LAYERS = ["reports-cells", "reports-dots", "reports-points"];
