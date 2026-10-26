@@ -102,12 +102,14 @@ async function openForm(context) {
 const addPhoto = (page) => page.locator('input[type="file"]').first().setInputFiles(PHOTO);
 const previews = (page) => page.locator("img[src^='blob:']");
 
+/** Press send and wait for the report's answer; a report that never posts answers status 0. */
 async function send(page) {
-  const answer = page.waitForResponse((r) => r.url().endsWith("/api/reports") && r.request().method() === "POST", {
-    timeout: 30_000,
-  });
+  const answer = page
+    .waitForResponse((r) => r.url().endsWith("/api/reports") && r.request().method() === "POST", { timeout: 30_000 })
+    .catch(() => null);
   await page.getByRole("button", { name: ZH.submit }).click();
   const res = await answer;
+  if (!res) return { status: 0, body: { error: "the report was never posted: did the upload fail, and the form save it on the phone?" } };
   return { status: res.status(), body: await res.json().catch(() => ({})) };
 }
 

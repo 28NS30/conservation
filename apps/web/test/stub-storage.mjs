@@ -66,6 +66,17 @@ export function storageHandler() {
   /** Handles a request under /storage/v1; false when it is not one. */
   return async function handle(req, res) {
     if (!new URL(req.url, "http://stub").pathname.startsWith("/storage/v1/")) return false;
+    // The browser uploads from the site's own origin, as it does to Supabase,
+    // which answers any origin; without these the upload never leaves it.
+    res.setHeader("access-control-allow-origin", "*");
+    if (req.method === "OPTIONS") {
+      res.statusCode = 204;
+      res.setHeader("access-control-allow-methods", "GET, POST, PUT, DELETE, OPTIONS");
+      res.setHeader("access-control-allow-headers", req.headers["access-control-request-headers"] ?? "*");
+      res.setHeader("access-control-max-age", "600");
+      res.end();
+      return true;
+    }
     await answer(req, res);
     return true;
   };
