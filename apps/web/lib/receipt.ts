@@ -82,3 +82,21 @@ export async function receiptState(
     return "rejected";
   return null;
 }
+
+/**
+ * Which of these ids are held reports: receiptState's answer to a stranger,
+ * for a list of ids at once (app/api/receipts, for /me's list of what a phone
+ * has sent). One query instead of one per id, which let one request run fifty
+ * reads of the base table. The same rule, and no viewer, so no rejection is
+ * ever disclosed through it: only `pending` answers, and everything else is
+ * absent, as an id never issued is.
+ */
+export async function heldAmong(ids: string[]): Promise<Set<string>> {
+  if (ids.length === 0) return new Set();
+  const rows = await sql<{ id: string; status: string }[]>`
+    select id::text, status
+      from reports
+     where id = any(${ids}::uuid[])
+       and source = 'user'`;
+  return new Set(rows.filter((r) => r.status === "pending").map((r) => r.id));
+}

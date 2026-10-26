@@ -1,0 +1,126 @@
+name: Production watch
+
+# Asks production whether it is up, every hour, and opens an issue when it is
+# not; and checks every production deploy as it lands.
+#
+# Nothing did either before. Vercel's Hobby plan keeps function logs for about
+# an hour, so a night's outage was found whenever someone next opened the
+# site, with the evidence gone. What is checked, and when an issue is opened,
+# commented on or closed, is in scripts/production-watch.mjs; the policy is
+# tested in apps/web/test/production-watch.test.mjs.
+#
+#   Run it by hand:  gh workflow run production-watch.yml
+
+on:
+  schedule:
+    # Twenty-three minutes past, not on the hour, when GitHub's scheduler is
+    # busiest and most likely to start a run late or not at all.
+    - cron: "23 * * * *"
+  workflow_dispatch:
+  # Vercel reports each deployment to GitHub; a successful production one is
+  # checked end to end by scripts/verify-deploy.mjs (the job at the bottom).
+  deployment_status:
+
+permissions: {}
+
+jobs:
+  watch:
+    if: github.event_name != 'deployment_status'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # One at a time, so a manual run during a scheduled one cannot open the
+    # same issue twice, or read a state the other is about to replace.
+    concurrency:
+      group: production-watch
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      # Open, comment on and close the production-down and jobs-stale issues.
+      issues: write
+      # Read this workflow's earlier runs and their jobs ("two failures in a
+      # row"), and the keepalive below.
+      actions: write
+      # Read the state each earlier run left, as an annotation on its job.
+      checks: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Check production
+        # No npm install: the script uses nothing but Node's own fetch. What
+        # it found is left as a notice annotation for the next run to read,
+        # and the run fails only when the issue is opened or commented on, or
+        # a failed check could not be reported (see the script's header), so
+        # a single blip sends no email.
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          WATCH_WORKFLOW: production-watch.yml
+        run: node scripts/production-watch.mjs
+
+      - name: Keep the schedule alive
+        # GitHub turns off a public repository's scheduled workflows after 60
+        # days without activity in the repository, silently, and this one is
+        # only worth anything while it runs. Enabling the workflow through the
+        # API restarts that count, which is what the widely used
+        # keepalive-workflow action relies on (not yet seen to work here: the
+        # repository has never been idle that long). It changes nothing else
+        # and is harmless when the workflow is already on. Never fails the
+        # run: the run's result is the watch's to decide.
+        if: always() && github.event_name == 'schedule'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/production-watch.yml/enable"
+
+  verify-deploy:
+    # Production only, and only once Vercel says it is ready. Every preview
+    # deployment fires this event too; they are skipped here.
+    if: >-
+      github.event_name == 'deployment_status' &&
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment.environment == 'Production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      # verify-deploy decodes a map tile with @mapbox/vector-tile and pbf,
+      # which are the web app's dev dependencies.
+      - run: npm ci
+
+      - name: Verify the deployment
+        # The URL and the commit are the deployment's own, passed through the
+        # environment and never written into the script, so nothing in an
+        # event can become a command. Vercel's own URL for a deployment is
+        # behind the team's login; `target` then answers with the production
+        # address it was put behind, and `wait-for` waits (up to three
+        # minutes) until that address's /api/health names this deployment's
+        # commit, so the check below is of this build and not the one before
+        # it. One retry a minute later all the same.
+        #
+        # No cron secret is sent: this is a public repository's log, and
+        # health names missing rules only to the secret.
+        env:
+          DEPLOYMENT_URL: ${{ github.event.deployment_status.environment_url || github.event.deployment_status.target_url }}
+          DEPLOYMENT_SHA: ${{ github.event.deployment.sha }}
+        run: |
+          TARGET="$(node scripts/production-watch.mjs target "$DEPLOYMENT_URL")"
+          echo "Verifying $TARGET"
+          node scripts/production-watch.mjs wait-for "$TARGET" "$DEPLOYMENT_SHA"
+          node scripts/verify-deploy.mjs "$TARGET" || {
+            echo "Failed once; trying again in 60 seconds."
+            sleep 60
+            node scripts/verify-deploy.mjs "$TARGET"
+          }

@@ -123,22 +123,105 @@ request time: the species count is **506**, not the 458 in
 `api/health/route.ts:19-20` and `apps/biowatch/README.md`; and the record count
 appears as 46,402 in some comments.
 
-## The jobs have never run
+## The scheduled jobs (22 October 2026)
 
-Both crons were declared in the repo-root `vercel.json`, which Vercel does not
-read, **and** both routes exported only `POST` while Vercel Cron issues `GET`.
-Either fault alone was enough. So the submit → identify → publish loop has
-executed **zero times** in production, which is indistinguishable from "nobody
-has submitted anything" — see `docs/launch-checklist.md`.
+**Declared where Vercel reads them, and callable the way it calls them.**
+Until #67 they were neither: the crons sat in the repo-root `vercel.json`,
+which Vercel ignores, and the routes answered only `POST` while Vercel Cron
+sends `GET`. Since #67 they are in `apps/web/vercel.json`, which now declares
+three, daily, in UTC:
+`/api/jobs/classify` at 03:00, `/api/jobs/cleanup-orphans` at 04:00 and
+`/api/jobs/forum-retention` at 04:30 (a 404 while the forum is off).
+`apps/web/test/cron-reachable.test.mjs` holds both halves. Verified in the
+repository, not in Vercel's dashboard.
 
-The Modal classifier they point at **is** deployed and serving, so this was the
-only missing link.
+**Whether they have ever run in production is not known.** Nothing recorded a
+run, and the Hobby plan keeps function logs for about an hour. In particular,
+**not verified**: that `CRON_SECRET` is set in Vercel's production
+environment. Without it each job route answers 401 in production, and Vercel
+Cron sends the secret only when it is set, so every run would be refused
+without a trace.
 
-Both faults are fixed in [#67](https://github.com/28NS30/conservation/pull/67).
-This section is therefore the shortest-lived thing in this file: once that merges
-and deploys, the first `0 3 * * *` run is the first time the loop has ever
-executed, and **that run is worth watching** — nothing downstream of it has been
-exercised against production data.
+**Classification does not wait for the cron.** Since #101 a report is
+classified right after it is sent; the two public reports of 30 September were
+classified within 31 seconds that way. The 03:00 run is the sweeper for
+retries and for anything that path missed. The model service was still v2 of
+5 August on 30 September (see that day's entry); not re-checked since.
+
+**From migration 0036 on, a run leaves a record.** Each job writes a
+`job_runs` row as it starts and completes it as it ends, and `/api/health`
+reports, per job, the hours since its last good run (`jobs`), with the
+classification queue's length and oldest wait (`queue`), whether Storage
+answers (`storage`) and the database's size (`dbSizeMb`). **0036 was
+applied to production on 25 October 2026**, with its ledger row, before the
+code that writes the tables merged. A self-aborting dry run first showed both
+tables with row-level security on, no policy, and no grant to `anon`,
+`authenticated`, `web_anon` or PUBLIC. Both tables were empty afterwards.
+
+**A run refused for want of `CRON_SECRET` still records nothing**, by design:
+the secret is checked before the first write, or anyone could add rows. What
+shows it is that no good run ever appears, and the hourly watch turns that
+into an issue (below).
+
+## Monitoring (22 October 2026)
+
+What exists in the repository. None of it had run from GitHub at the time of
+writing; the watch's checks were run once by hand from here
+(`node scripts/production-watch.mjs --dry-run`) and passed for the custom
+domain. Revised on 25 October after review; the revisions have not run from
+GitHub either.
+
+- **Every hour,** `.github/workflows/production-watch.yml` asks both addresses
+  for `/api/health` (200, `ok` and `schemaCurrent` true, more than 46,000
+  reports), the roadkill report page with its Turnstile site key, and one map
+  tile. Two failed checks in a row open an issue labelled `production-down`,
+  assigned to the repository's owner; the first green run closes it. The
+  rules are in `scripts/production-watch.mjs`. The repository is public, so
+  the issue carries only what any visitor could see.
+
+  "In a row" is read from a notice annotation each run leaves on its own job
+  (`production-watch state`), not from whether the run failed, so a run that
+  failed for GitHub's reasons is not taken for a failed check. The run itself
+  fails only when the issue is opened or commented on, or when a failed check
+  could not be reported, so one blip sends no email. **Not verified:** that
+  GitHub's check-run annotations API returns these notices to the workflow's
+  token as expected; until a scheduled run has read one, the first runs see
+  no previous state, which reads as "the previous check passed".
+- **The scheduled jobs.** A job whose last good run is more than 48 hours old,
+  or that the watch has seen with no good run at all for 48 hours, opens a
+  separate issue labelled `jobs-stale`, closed once every job has run well
+  again. This is what would notice `CRON_SECRET` missing in production. It
+  starts only once 0036 is applied and health reports `jobs`.
+- **After every production deploy,** the same workflow waits up to three
+  minutes for the production address's `/api/health` to name the
+  deployment's commit (health's `commit`, from `VERCEL_GIT_COMMIT_SHA`), then
+  runs `scripts/verify-deploy.mjs` against it. Vercel's own URL for the
+  deployment is behind the team's login, so the production address is what
+  can be checked. **Not verified:** that Vercel exposes
+  `VERCEL_GIT_COMMIT_SHA` to this project's functions at run time. If it does
+  not, health's `commit` is null and the check runs after the three minutes
+  with a warning, not knowing which build it checked.
+- **Health asks production's ledger for every migration file** in the build
+  (`lib/migrationLedger.ts`), by name, not just the highest number: numbers
+  arrive out of order across branches, and each migration is applied to
+  production with its ledger row before its branch merges. Verified on 25
+  October with a read-only `select name from _migrations`: 31 rows, 0001–0019
+  and 0021–0032, each recorded with its `.sql`; there is no 0020 file or row.
+- **Server errors are counted** in `app_errors` (0036) by
+  `apps/web/instrumentation.ts`: route pattern, digest, hour and count,
+  nothing about the request. Kept 30 days; job runs 90. A route handler's or
+  a server action's error is written before its response goes. A page's
+  render error is not awaited by Next.js, so its write is handed to the
+  platform's `waitUntil` to finish after the response. **Not verified in
+  production:** that Vercel keeps those writes; until it has been seen, a
+  page's errors may be counted less often than they happen. Locally
+  (`next start`) a deliberate route error is counted, which
+  `apps/web/test/monitoring.test.mjs` checks against a test build.
+- `/api/health` is cached by the CDN for 30 seconds when it is a public 200,
+  and never when it is not, or when the request carries an Authorization
+  header. The schema checks and the Storage probe are also kept for 30
+  seconds by each server instance, so a request that misses the CDN (a query
+  string, an Authorization header) costs a few queries rather than thirty.
 
 ## The design lab is reachable
 
@@ -413,6 +496,22 @@ are the only non-GBIF reports in production, and both are anonymous.
   ignores npm majors. All the Actions updates come in one monthly pull request.
   It opens no routine pip pull requests: the classifier's thresholds were
   measured with its pinned versions, and a bump also needs a paid GPU deploy.
+
+**Retired TaiCOL rows now carry their successor's id (0034)**, applied 25
+October with a ledger row.
+- `taxa.new_taicol_id` was added.
+- The fill from the 29 September snapshot set it on 2,352 retired rows. A dry
+  run of the fill moved no record, though `taxa_reblur_reports` fires on taxa
+  updates.
+- 15 plants got coarse_10km floors, so there are now 103 floors. None of the
+  plants has a record, and the dry run changed 0 records.
+- `npx tsx scripts/retired-twins.ts --sql`, run through the Management API
+  afterwards, lists nothing. No name in use is blurred less than a retired
+  row it replaced, now matched by id as well as by name.
+
+**TaiRON's 13 hoopoe records moved to the species 戴勝 (0037, #159)**, applied
+25 October with a ledger row. All 13 are still exact, and the public total did
+not change.
 
 **Counts on 25 October:**
 - 46,305 public records, 0 of them from users;

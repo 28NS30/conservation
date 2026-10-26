@@ -115,6 +115,8 @@ export type CollectionRecord = {
   commonNameZh: string | null;
   commonNameEn: string | null;
   taicolId: string | null;
+  /** Who named the species, for the "not yet verified" mark (lib/report/verification.ts). */
+  taxonSource: string | null;
 };
 
 /**
@@ -137,7 +139,8 @@ export const newestRecords = siteFigure("newestRecords", (
              t.scientific_name as "scientificName",
              t.common_name_zh as "commonNameZh",
              t.common_name_en as "commonNameEn",
-             t.taicol_id as "taicolId"
+             t.taicol_id as "taicolId",
+             rp.taxon_source as "taxonSource"
         from reports_public rp
         left join taxa t on t.id = rp.taxon_id
        where ${where(tx, c)}

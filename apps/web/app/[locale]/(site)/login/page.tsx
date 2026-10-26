@@ -60,6 +60,22 @@ export default async function LoginPage({
     <main className="mx-auto w-full max-w-md px-4 pb-24 pt-12 sm:pt-16">
       <PageHeader title={t("heading")} lede={t("explain")} />
 
+      {/*
+        Said before the form, until email sign-in is open to everyone: a
+        reporter who came here to find their reports would otherwise try an
+        address, be refused, and leave thinking they were lost. They are on
+        the phone (lib/offline/sent.ts), and /me lists them.
+      */}
+      <div role="note" className="mb-8 border-l-4 border-forest-900/40 pl-3 text-sm leading-relaxed text-ink-800">
+        <p>{t("teamOnly")}</p>
+        <Link
+          href="/me"
+          className="inline-flex min-h-11 items-center font-medium text-ember-700 underline underline-offset-2"
+        >
+          {t("teamOnlyLink")}
+        </Link>
+      </div>
+
       <SignInForm next={next} google={google} callbackError={Boolean(query.error)} />
 
       <section className="mt-12 border-t border-ink-900/10 pt-8 text-sm leading-relaxed text-ink-700">

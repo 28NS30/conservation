@@ -21,6 +21,7 @@ import SpeciesName from "@/components/species/SpeciesName";
 import SpeciesRecords from "@/components/species/SpeciesRecords";
 import { speciesLabel } from "@/lib/speciesNames";
 import { alternates } from "@/lib/alternates";
+import { speciesDescription } from "@/lib/speciesMeta";
 
 /** A heatmap built from a handful of points is noise; below this we plot them. */
 const HEATMAP_MIN_RECORDS = 6;
@@ -108,9 +109,12 @@ export async function generateMetadata({
   // Both names in the title, the page's language first: a search result for
   // "Leopard Cat" should say 石虎 too, and the other way round.
   const name = speciesLabel(s, locale);
+  // No count for a withheld species, and no "0 筆" for one nobody has
+  // reported: lib/speciesMeta.ts.
+  const description = speciesDescription(s, name);
   return {
     title: name,
-    description: t("metaDescription", { name, count: s.reportCount }),
+    description: t(description.key, description.values),
     alternates: alternates(locale, `/species/${speciesSlug(s)}`),
     /*
      * A page with nothing but a name and a rank is thin, and a crawler that

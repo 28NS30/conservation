@@ -94,6 +94,43 @@ export function readOverrides(path: string = OVERRIDES_CSV): Floor[] {
   return parseOverrides(readFileSync(path, "utf8"));
 }
 
+/** A retired twin left without a floor: the name in use, the retired row, and why. */
+export type NoFloor = { taicol_id: string; retired_taicol_id: string; reason: string };
+
+/**
+ * Retired twins the owner has decided need no floor, each as the exact pair.
+ * RETIRED_TWINS_SQL does not mark these `looser`, so the preflight and the
+ * test suite fail only on pairs nobody has decided, and a new retired row on
+ * the same name is still caught.
+ *
+ * Only the owner adds a line. Leaving a retired rating unheld is a loosening:
+ * a record filed under the name in use, or moved onto it from the retired
+ * one, is published at that name's level, as the snake's 29 were. A pair not
+ * decided yet does not belong here either; it stays red until it is. Empty:
+ * every pair found so far is floored.
+ */
+export const NO_FLOOR: readonly NoFloor[] = [];
+
+/** The pairs as a SQL row-value test; `false` when there are none. */
+function noFloorSql(pairs: readonly NoFloor[]): string {
+  if (pairs.length === 0) return "false";
+  const ids = pairs.map((p) => {
+    for (const id of [p.taicol_id, p.retired_taicol_id])
+      if (!/^[\w-]+$/.test(id)) throw new Error(`"${id}" is not a taxon id`);
+    if (!p.reason.trim()) throw new Error(`${p.taicol_id}: a pair without a floor needs a reason`);
+    return `('${p.taicol_id}', '${p.retired_taicol_id}')`;
+  });
+  return `(p.taicol_id, p.retired_taicol_id) in (values ${ids.join(", ")})`;
+}
+
+/**
+ * TaiCOL's own record of which row replaced each retired one (new_taxon_id,
+ * kept since migration 0034), as `(taicol_id, new_taicol_id)`.
+ */
+export const SUCCESSORS_IN_TAXA = `
+  select taicol_id, new_taicol_id from taxa
+   where taxon_status = 'deleted' and new_taicol_id is not null`;
+
 /**
  * Every name in use that has a retired twin, with the rule each one gives.
  *
@@ -106,32 +143,100 @@ export function readOverrides(path: string = OVERRIDES_CSV): Floor[] {
  * metre. Each such pair needs a floor on the accepted row; `looser` marks the
  * ones still without one.
  *
- * A twin is a deleted row with the same scientific name, or the same Chinese
- * name, which is what catches a genus TaiCOL has moved (紅鶴頂蘭 was retired as
- * Phaius tankervilleae and is now Calanthe tankervilleae). Matching on the
- * Chinese name can also pair two different taxa that share one; the answer is
- * then a floor that over-blurs, which is the side to be wrong on. Kingdoms must
- * agree where both are known, as in binomial_precision (migration 0014).
+ * A twin is the row TaiCOL says replaced the deleted one, or a row with the
+ * same scientific name or the same Chinese name as it.
+ *
+ * TaiCOL's pointer is the only thing that catches a rename. 鉛色水蛇 Enhydris
+ * plumbea, rated 座標不開放, became 韋氏水蛇 Hypsiscopus wettsteini, which is
+ * only protected class III, and neither name matches the other: matched by
+ * name only, the check passed while the snake's 29 records went from hidden
+ * to 10 km. The pointer also finds a rated species TaiCOL folded into a
+ * broader one (短葶雙葉蘭 Neottia breviscapa into 大花雙葉蘭 Neottia wardii),
+ * where a floor blurs every record of the broader species, so it is the
+ * owner's to decide. It is followed through rows that were themselves retired
+ * later, so a name moved twice still reaches the row in use, and taken
+ * wherever TaiCOL says the successor lives: it names the same plant or
+ * animal, and the classifier can name any accepted row
+ * (RESOLVE_CANDIDATES_SQL). `by_successor` marks the pairs it found.
+ *
+ * Names catch what TaiCOL left without a pointer, and a genus it moved
+ * (紅鶴頂蘭 was retired as Phaius tankervilleae and is now Calanthe
+ * tankervilleae). Matching on the Chinese name can also pair two different
+ * taxa that share one; the answer is then a floor that over-blurs, which is
+ * the side to be wrong on. Kingdoms must agree where both are known, as in
+ * binomial_precision (migration 0014).
  *
  * Deleted rows only. An accepted row outside Taiwan that shares a Chinese name
  * is, by TaiCOL's own account, a different animal (巢鼠 is also Australia's
  * stick-nest rat); the one case where the law disagrees, 臺灣蛇蜥, has a floor
  * of its own.
  *
+ * Species and below on both sides. TaiCOL points some retired genera at a
+ * species (厚距花屬 Pachycentria at 臺灣厚距花 Medinilla taiwaniana). None
+ * carries a rating of its own in the 29 September 2026 snapshot; the 10 km
+ * taxon_precision() can give one is the rule for a record named only above the
+ * species, which may be a protected animal in the group (0033). That says
+ * nothing about the one species the genus was moved to.
+ *
+ * `noFloor` is the pairs the owner has decided to leave without a floor
+ * (NO_FLOOR); they are listed, and not `looser`.
+ *
+ * `successors` is where the pointers come from: the column, or, for a database
+ * that does not have it filled yet, a snapshot's (scripts/retired-twins.ts
+ * --from).
+ *
  * Run by test/stricter-wins.test.mjs and by scripts/preflight.ts, so a TaiCOL
  * refresh that adds a pair is caught before a report is filed under it.
  */
-export const RETIRED_TWINS_SQL = `
-  select n.taicol_id, n.scientific_name,
-         d.taicol_id as retired_taicol_id, d.scientific_name as retired_scientific_name,
-         taxon_precision(n.id) as precision,
-         taxon_precision(d.id) as retired_precision,
-         precision_rank(taxon_precision(d.id)) > precision_rank(taxon_precision(n.id)) as looser
-    from taxa d
-    join taxa n on (lower(n.scientific_name) = lower(d.scientific_name)
-                    or n.common_name_zh = d.common_name_zh)
-               and (d.kingdom is null or n.kingdom is null or d.kingdom = n.kingdom)
-   where d.taxon_status = 'deleted'
-     and n.taxon_status = 'accepted'
-     and n.is_in_taiwan
-     and (n.rank = 'Species' or is_infraspecific(n.rank))`;
+export function retiredTwinsSql(
+  successors: string = SUCCESSORS_IN_TAXA,
+  noFloor: readonly NoFloor[] = NO_FLOOR,
+): string {
+  return `
+  with recursive pointer (taicol_id, new_taicol_id) as (${successors}),
+  successor (retired_taicol_id, taicol_id, hops) as (
+    select taicol_id, new_taicol_id, 1 from pointer
+    union all
+    -- A depth limit against a cycle in the source data, as in taxon_precision().
+    select s.retired_taicol_id, p.new_taicol_id, s.hops + 1
+      from successor s
+      join pointer p on p.taicol_id = s.taicol_id
+     where s.hops < 6
+  )
+  select p.taicol_id, p.scientific_name, p.retired_taicol_id, p.retired_scientific_name,
+         p.by_successor,
+         taxon_precision(p.id) as precision,
+         taxon_precision(p.retired_id) as retired_precision,
+         precision_rank(taxon_precision(p.retired_id)) > precision_rank(taxon_precision(p.id))
+           and not ${noFloorSql(noFloor)} as looser
+    from (
+      select n.id, n.taicol_id, n.scientific_name,
+             d.id as retired_id, d.taicol_id as retired_taicol_id,
+             d.scientific_name as retired_scientific_name, true as by_successor
+        from successor s
+        join taxa d on d.taicol_id = s.retired_taicol_id
+        join taxa n on n.taicol_id = s.taicol_id
+       where d.taxon_status = 'deleted'
+         and (d.rank = 'Species' or is_infraspecific(d.rank))
+         and n.taxon_status = 'accepted'
+         and (n.rank = 'Species' or is_infraspecific(n.rank))
+      union all
+      select n.id, n.taicol_id, n.scientific_name,
+             d.id, d.taicol_id, d.scientific_name, false
+        from taxa d
+        join taxa n on (lower(n.scientific_name) = lower(d.scientific_name)
+                        or n.common_name_zh = d.common_name_zh)
+                   and (d.kingdom is null or n.kingdom is null or d.kingdom = n.kingdom)
+       where d.taxon_status = 'deleted'
+         and (d.rank = 'Species' or is_infraspecific(d.rank))
+         and n.taxon_status = 'accepted'
+         and n.is_in_taiwan
+         and (n.rank = 'Species' or is_infraspecific(n.rank))
+         -- Once a pair: one TaiCOL also links by id is listed above.
+         and not exists (select 1 from successor s
+                          where s.retired_taicol_id = d.taicol_id
+                            and s.taicol_id = n.taicol_id)
+    ) p`;
+}
+
+export const RETIRED_TWINS_SQL = retiredTwinsSql();

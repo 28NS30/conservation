@@ -21,7 +21,7 @@ const head = async (path) => {
   return { canonical, langs, description };
 };
 
-const PAGES = ["", "/about", "/attribution", "/privacy", "/species", "/reports", "/stats", "/map", "/report", "/report/roadkill", "/roadkill", "/invasive", "/wildlife"];
+const PAGES = ["", "/about", "/attribution", "/privacy", "/terms", "/species", "/reports", "/stats", "/map", "/report", "/report/roadkill", "/roadkill", "/invasive", "/wildlife"];
 
 describe("canonical and language links", () => {
   for (const path of PAGES)
@@ -50,7 +50,7 @@ describe("descriptions", () => {
   test("pages that had the site's own description now describe themselves", async (t) => {
     if (!(await requireServer(t))) return;
     const site = (await head("/")).description;
-    for (const path of ["/about", "/privacy", "/attribution", "/species", "/reports", "/map", "/report", "/en/map", "/en/report"]) {
+    for (const path of ["/about", "/privacy", "/terms", "/attribution", "/species", "/reports", "/map", "/report", "/en/map", "/en/report", "/en/terms"]) {
       const { description } = await head(path);
       assert.ok(description, `${path} has a description`);
       assert.notEqual(description, site, `${path} repeats the site-wide description`);

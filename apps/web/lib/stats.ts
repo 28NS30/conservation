@@ -1,6 +1,7 @@
 import { asPublic } from "@/lib/db";
 import { countSpecies } from "@/lib/species";
 import { freshPoints, siteFigure } from "@/lib/siteFigures";
+import { everyYear } from "@/lib/yearSeries";
 
 /**
  * Aggregates behind /stats.
@@ -100,14 +101,17 @@ export const monthlyTotals = siteFigure("monthlyTotals", async (): Promise<numbe
   return out;
 });
 
+/** Every year from the first record's to the last's, zero-filled (lib/yearSeries.ts). */
 export const yearlyTotals = siteFigure(
   "yearlyTotals",
-  (): Promise<{ year: number; n: number }[]> =>
-    asPublic(
+  async (): Promise<{ year: number; n: number }[]> => {
+    const rows = await asPublic(
       (tx) => tx<{ year: number; n: number }[]>`
       select extract(year from observed_at at time zone 'Asia/Taipei')::int as year, count(*)::int as n
         from reports_public group by 1 order by 1`,
-    ),
+    );
+    return everyYear(rows);
+  },
 );
 
 export type TopSpecies = {

@@ -56,7 +56,9 @@ export default function SpeciesSearch({
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder={t("searchPlaceholder")}
-        className="w-full rounded-lg border border-ink-900/12 bg-paper-100/70 px-3 py-2 text-sm text-ink-800 placeholder:text-ink-500"
+        // 16px below the sm breakpoint, where iOS Safari zooms into any field
+        // set smaller on focus; 14px on wider screens, as before.
+        className="w-full rounded-lg border border-ink-900/12 bg-paper-100/70 px-3 py-2 text-base text-ink-800 placeholder:text-ink-500 sm:text-sm"
       />
     </label>
   );

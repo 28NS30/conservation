@@ -5,6 +5,7 @@ import { getMessages, getTranslations, setRequestLocale } from "next-intl/server
 import { clientMessages } from "@/i18n/clientMessages";
 import { routing } from "@/i18n/routing";
 import ServiceWorker from "@/components/ServiceWorker";
+import QueueReminderLoader from "@/components/offline/QueueReminderLoader";
 import { Analytics } from "@vercel/analytics/next";
 import { Barlow_Condensed } from "next/font/google";
 import "../globals.css";
@@ -29,6 +30,12 @@ const display = Barlow_Condensed({
   preload: false,
 });
 
+/**
+ * Open Graph's form of each locale, language_TERRITORY. The English catalogue
+ * is written in British spelling ("colour", "licence").
+ */
+const OG_LOCALE: Record<string, string> = { "zh-TW": "zh_TW", en: "en_GB" };
+
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
 }
@@ -49,6 +56,19 @@ export async function generateMetadata({
     metadataBase: new URL(SITE_URL),
     title: { default: t("title"), template: `%s · ${t("title")}` },
     description: t("description"),
+    // What a shared link's preview names the site as, and in which language.
+    // Next fills og:title and og:description from each page's own title and
+    // description; these three were missing from every page, so a preview had
+    // no site name beside the page's. No page sets openGraph of its own, so
+    // this is every page's.
+    openGraph: {
+      siteName: t("title"),
+      type: "website",
+      locale: OG_LOCALE[locale] ?? OG_LOCALE[routing.defaultLocale],
+      alternateLocale: routing.locales
+        .filter((l) => l !== locale)
+        .map((l) => OG_LOCALE[l]),
+    },
   };
 }
 
@@ -72,6 +92,9 @@ export default async function LocaleLayout({
         <NextIntlClientProvider messages={clientMessages(await getMessages())}>
           <ServiceWorker />
           {children}
+          {/* A report still on this phone, said on every page; idle-loaded so
+              the map's first load does not carry it. */}
+          <QueueReminderLoader />
         </NextIntlClientProvider>
         {/* Page-view counts only. Cookieless and with no cross-site identifier,
             which is what keeps the promise /privacy already makes — no

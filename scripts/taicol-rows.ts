@@ -38,6 +38,14 @@ export type TaicolTaxon = {
   is_brackish: boolean | null;
   is_marine: boolean | null;
   updated_at: string | null;
+  /**
+   * On a deleted row, the row TaiCOL moved it to: a rename (鉛色水蛇 Enhydris
+   * plumbea became 韋氏水蛇 Hypsiscopus wettsteini) or a lump into a broader
+   * species. The two rows need share no name, so this pointer is the only way
+   * to find the row that inherits a rating the retired one carried. Kept
+   * since migration 0034.
+   */
+  new_taxon_id: string | null;
 };
 
 export type Page = { info: { total: number }; data: TaicolTaxon[] };
@@ -77,6 +85,7 @@ export function toRow(t: TaicolTaxon) {
     is_brackish: t.is_brackish,
     is_marine: t.is_marine,
     updated_at: t.updated_at ? new Date(t.updated_at) : null,
+    new_taicol_id: t.new_taxon_id ?? null,
   };
 }
 
@@ -85,5 +94,15 @@ export const COLUMNS = [
   "common_name_zh", "alt_names_zh", "rank", "kingdom", "is_in_taiwan", "is_endemic",
   "alien_type", "alien_status_note", "is_invasive", "protected_status", "cites", "iucn", "redlist",
   "sensitivity", "is_terrestrial", "is_freshwater", "is_brackish", "is_marine", "updated_at",
+  "new_taicol_id",
 ] as const;
 
+/**
+ * What an upsert overwrites on a row already there: every column but the key.
+ * Both writers build their ON CONFLICT from this, so a column added to COLUMNS
+ * cannot be written once by one of them and never updated again, which for
+ * new_taicol_id would leave a successor id stale on every later refresh.
+ */
+export const UPDATE_SET = COLUMNS.filter((c) => c !== "taicol_id")
+  .map((c) => `${c} = excluded.${c}`)
+  .join(",\n      ");

@@ -20,11 +20,19 @@ export default function SpeciesConfirm({
   suggestions,
   canEdit,
   currentTaxonId,
+  identifiedBy,
 }: {
   reportId: string;
   suggestions: Suggestion[];
   canEdit: boolean;
   currentTaxonId: number | null;
+  /**
+   * Who chose the record's species — the model, the reporter or a moderator —
+   * already in words, or null when nobody has. Said under the list to a reader
+   * who cannot change it, when the species is one of the list's, because the
+   * tick alone reads as a verdict.
+   */
+  identifiedBy: string | null;
 }) {
   const t = useTranslations("detail");
   const locale = useLocale();
@@ -37,6 +45,9 @@ export default function SpeciesConfirm({
   const [failed, setFailed] = useState(false);
 
   if (suggestions.length === 0) return null;
+  // The record's species may be none of these: one the reporter typed, or a
+  // moderator's fix from the whole list (ModeratorSpeciesFix).
+  const ticked = suggestions.some((s) => s.taxonId === currentTaxonId);
 
   return (
     <section aria-labelledby="suggestions-title" className="mt-6">
@@ -102,8 +113,13 @@ export default function SpeciesConfirm({
         </p>
       )}
 
-      {!canEdit && (
-        <p className="mt-2 text-sm leading-relaxed text-ink-700">{t("confirmedBy")}</p>
+      {/* Who chose the ticked species. It used to say "confirmed by the
+          reporter or a moderator" whoever had chosen it, the model included,
+          and with nothing ticked at all: on a record no moderator has seen,
+          a check that never happened. With nothing ticked there is nothing
+          here to explain; the species card says who named the record's. */}
+      {!canEdit && ticked && identifiedBy && (
+        <p className="mt-2 text-sm leading-relaxed text-ink-700">{identifiedBy}</p>
       )}
     </section>
   );

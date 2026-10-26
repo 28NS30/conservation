@@ -14,6 +14,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { selectionFor } from "@conservation/shared";
 import { sql, BASE_URL } from "./helpers.mjs";
+import { steadyPopulation } from "./population.mjs";
 
 after(() => sql.end());
 
@@ -21,6 +22,15 @@ before(async () => {
   const res = await fetch(BASE_URL).catch(() => null);
   if (!res) throw new Error(`server not reachable at ${BASE_URL}`);
 });
+
+// Every number here is checked against a count of the public view. Held
+// shared, the lock in test/population.mjs keeps out the records other files
+// commit under it until this file is done.
+let letGo;
+before(async () => {
+  letGo = await steadyPopulation();
+});
+after(() => letGo?.());
 
 const catalogue = (l) =>
   JSON.parse(

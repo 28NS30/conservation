@@ -14,6 +14,7 @@ import { speciesSlug } from "@/lib/species";
 import { collectionTotals } from "@/lib/collections";
 import PageHeader from "@/components/site/PageHeader";
 import Columns from "@/components/stats/Columns";
+import { yearAxis } from "@/lib/yearSeries";
 import { alternates } from "@/lib/alternates";
 import { speciesNames } from "@/lib/speciesNames";
 import { seasonOpen } from "@/lib/coverage";
@@ -250,8 +251,13 @@ export default async function StatsPage({
               label={t("byYear")}
               locale={locale}
               table={yearTable}
-              data={years.map((y) => ({ key: String(y.year), n: y.n }))}
+              data={years.map((y) => ({ key: yearAxis(y.year), label: String(y.year), n: y.n }))}
             />
+            {/* Why empty years follow 2017: the imported records end there,
+                and this site's own reports begin the year it opened. */}
+            <p className="mt-2 text-sm leading-relaxed text-ink-700">
+              {t("byYearSource")}
+            </p>
           </Section>
         )}
 

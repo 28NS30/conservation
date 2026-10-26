@@ -22,6 +22,8 @@ import SpeciesConfirm, {
   type Suggestion,
 } from "@/components/report/SpeciesConfirm";
 import InvasiveBadge from "@/components/collections/InvasiveBadge";
+import UnverifiedBadge from "@/components/report/UnverifiedBadge";
+import { awaitingVerification } from "@/lib/report/verification";
 import { alternates } from "@/lib/alternates";
 import { speciesLabel } from "@/lib/speciesNames";
 import SpeciesName from "@/components/species/SpeciesName";
@@ -398,6 +400,28 @@ export default async function ReportPage({
       (owner?.reporter_id === userId && row.taxon_source !== "expert"));
   timing.logIfSlow(`record ${id}`, SLOW_MS);
 
+  // Who named the species, in the words the Darwin Core export uses for the
+  // same three values (scripts/dwc-occurrences.ts): the model by itself, the
+  // reporter, or a moderator. Only the last is a second opinion. The list of
+  // the model's suggestions used to say "confirmed by the reporter or a
+  // moderator" under a tick whoever had chosen it, the model included, on
+  // records nobody had checked.
+  const identifiedBy = !row.taxon_id
+    ? null
+    : row.taxon_source === "expert"
+      ? t("detail.moderatorConfirmed")
+      : row.taxon_source === "user"
+        ? t("detail.reporterIdentified")
+        : row.taxon_source === "ai"
+          ? t("detail.aiIdentified")
+          : null;
+  // The receipt for an invasive-page report promises this mark until a
+  // moderator has confirmed the species (lib/report/verification.ts).
+  const unverified = awaitingVerification({
+    category: row.category,
+    taxonSource: row.taxon_source,
+  });
+
   return (
     <main className="mx-auto w-full max-w-xl px-6 pb-24 pt-12">
       <Link
@@ -448,6 +472,7 @@ export default async function ReportPage({
             title={t(row.taxon_id ? "collections.badge.invasiveWhy" : "collections.badge.reportedWhy")}
           />
         )}
+        {unverified && <UnverifiedBadge label={t("report.receipt.notVerified")} />}
       </header>
 
       <p className="mt-1 text-sm text-ink-600">
@@ -505,13 +530,14 @@ export default async function ReportPage({
                 >
                   {t("species.seeAllRecords")}
                 </Link>
-                {/* The model named this species by itself, not a person. It
-                    is not a suggestion — the species is the record's — and the
-                    team's rule is that such a record says who named it. */}
-                {row.taxon_source === "ai" && (
+                {/* The team's rule is that a record says who named its
+                    species. The model's naming is not a suggestion — the
+                    species is the record's — and carries its confidence. */}
+                {identifiedBy && (
                   <span>
-                    {t("detail.aiIdentified")}
-                    {row.ai_confidence != null &&
+                    {identifiedBy}
+                    {row.taxon_source === "ai" &&
+                      row.ai_confidence != null &&
                       ` · ${Math.round(row.ai_confidence * 100)}%`}
                   </span>
                 )}
@@ -579,6 +605,7 @@ export default async function ReportPage({
         suggestions={suggestions}
         canEdit={canEdit}
         currentTaxonId={row.taxon_id}
+        identifiedBy={identifiedBy}
       />
 
       {/* Any species, for a moderator: the list above is only the model's

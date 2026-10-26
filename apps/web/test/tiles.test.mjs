@@ -12,6 +12,7 @@ import { VectorTile } from "@mapbox/vector-tile";
 import { PbfReader } from "pbf";
 import { gunzipSync } from "node:zlib";
 import { sql, BASE_URL } from "./helpers.mjs";
+import { steadyPopulation } from "./population.mjs";
 import {
   aggregationCellMeters,
   selectionFor,
@@ -42,6 +43,17 @@ before(async () => {
       `dev server not reachable at ${BASE_URL} — run \`npm run dev\``,
     );
 });
+
+// Several tests below count the public records against a tile, and one holds
+// the wildlife collection empty. Held shared, the lock in test/population.mjs
+// keeps out the records other files commit under it, such as the invasive
+// ones unverified-label.test.mjs makes, until this file is done. The records
+// this file plants are its own.
+let letGo;
+before(async () => {
+  letGo = await steadyPopulation();
+});
+after(() => letGo?.());
 
 describe("aggregation loses no records", () => {
   test("cell weights sum exactly to the underlying report count", async () => {

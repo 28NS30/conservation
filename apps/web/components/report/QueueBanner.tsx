@@ -4,14 +4,23 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import {
   listQueued,
-  removeQueued,
+  retryQueued,
+  discardQueued,
+  keepQueued,
+  finishDiscards,
   purgeUploaded,
   isPending,
   requestPersistence,
   type QueuedReport,
 } from "@/lib/offline/queue";
+import { isBlocked } from "@/lib/offline/db";
 import { Link } from "@/i18n/navigation";
-import { flushQueue, startFlushTriggers, currentlySending } from "@/lib/offline/flush";
+import {
+  flushQueue,
+  startFlushTriggers,
+  currentlySending,
+  type FlushOptions,
+} from "@/lib/offline/flush";
 import Turnstile from "@/components/report/Turnstile";
 import { turnstileEnabled } from "@/lib/turnstile";
 import { receiptLinkFor } from "@/lib/report/outcome";
@@ -55,12 +64,20 @@ export default function QueueBanner() {
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
   const [ready, setReady] = useState(!turnstileEnabled);
+  /**
+   * The queue cannot be read: a tab of an older build holds the database
+   * (lib/offline/db.ts). Said, rather than showing nothing, which reads as
+   * "nothing is waiting" to someone who saved a report on this phone.
+   */
+  const [held, setHeld] = useState(false);
 
   const STALE_AFTER_MS = 3 * 24 * 3600 * 1000;
   /** How long a "sent" receipt survives. Long enough to come down off a hill. */
   const RECEIPT_TTL_MS = 24 * 3600 * 1000;
   /** How long a flush waits for the widget before holding a report back. */
   const TOKEN_WAIT_MS = 15_000;
+  /** How long a discarded report can be brought back before it is deleted. */
+  const UNDO_MS = 5_000;
 
   const tokenRef = useRef<string | null>(null);
   const waitersRef = useRef<((token: string | undefined) => void)[]>([]);
@@ -69,17 +86,27 @@ export default function QueueBanner() {
   const autoFlushedRef = useRef(new Set<string>());
 
   const refresh = useCallback(async () => {
-    // Receipts are kept for a day so a reporter who closes the app on a
-    // mountain road and opens it in town still sees that their report went.
-    await purgeUploaded(RECEIPT_TTL_MS);
-    const all = await listQueued();
-    const waiting = all.filter(isPending);
-    setItems(waiting);
-    setSent(all.filter((i) => i.status === "uploaded"));
-    // Computed here rather than during render: Date.now() is impure and would
-    // make the component's output depend on when it happened to re-render.
-    setStale(waiting.some((i) => Date.now() - i.createdAt > STALE_AFTER_MS));
-    setSendingId(currentlySending());
+    try {
+      // A discard whose few seconds are up is deleted here, whichever page or
+      // tab it was pressed on (discardAt in lib/offline/queue.ts).
+      await finishDiscards();
+      // Receipts are kept for a day so a reporter who closes the app on a
+      // mountain road and opens it in town still sees that their report went.
+      await purgeUploaded(RECEIPT_TTL_MS);
+      const all = await listQueued();
+      const waiting = all.filter(isPending);
+      setItems(waiting);
+      setSent(all.filter((i) => i.status === "uploaded"));
+      // Computed here rather than during render: Date.now() is impure and would
+      // make the component's output depend on when it happened to re-render.
+      setStale(waiting.some((i) => Date.now() - i.createdAt > STALE_AFTER_MS));
+      setSendingId(currentlySending());
+      setHeld(false);
+    } catch (e) {
+      // Looked at again when the database comes free: db.ts says so.
+      if (isBlocked(e)) setHeld(true);
+      else console.error("[queue] could not read the queue:", e);
+    }
   }, [STALE_AFTER_MS, RECEIPT_TTL_MS]);
 
   /** Hand out one token, then start minting the next. */
@@ -123,12 +150,66 @@ export default function QueueBanner() {
     tokenRef.current = token;
   }, []);
 
-  const runFlush = useCallback(async () => {
-    setBusy(true);
-    await flushQueue(getToken);
-    await refresh();
-    setBusy(false);
-  }, [getToken, refresh]);
+  const runFlush = useCallback(
+    async (options?: FlushOptions) => {
+      setBusy(true);
+      try {
+        await flushQueue(getToken, options);
+      } catch {
+        // The queue could not be read; refresh() says why.
+      } finally {
+        await refresh();
+        setBusy(false);
+      }
+    },
+    [getToken, refresh],
+  );
+
+  /*
+   * 刪除, with a few seconds to take it back. A tap on 刪除 next to 再試一次, on
+   * a phone, on a moving bus, is easily the wrong one, and it threw away the
+   * only copy of a report at once.
+   *
+   * The decision is written on the report itself (discardAt in
+   * lib/offline/queue.ts), never kept only here. The undo was once a timer on
+   * this page: closed, reloaded or evicted in those seconds, the page never
+   * deleted the report, and the next flush sent it. Now no flush anywhere
+   * sends it, a page opened during the undo shows it with the time that is
+   * left, and when that is up the next look deletes it.
+   */
+  const discard = useCallback(
+    async (id: string) => {
+      await discardQueued(id, Date.now() + UNDO_MS);
+      await refresh();
+    },
+    [UNDO_MS, refresh],
+  );
+
+  const undoDiscard = useCallback(
+    async (id: string) => {
+      await keepQueued(id);
+      await refresh();
+    },
+    [refresh],
+  );
+
+  // Look again when the next discard becomes final, which deletes it.
+  const nextFinal = items.reduce<number | null>(
+    (soonest, i) =>
+      i.discardAt !== undefined && (soonest === null || i.discardAt < soonest)
+        ? i.discardAt
+        : soonest,
+    null,
+  );
+  useEffect(() => {
+    if (nextFinal === null) return;
+    const timer = window.setTimeout(
+      () => void refresh(),
+      Math.max(0, nextFinal - Date.now()) + 50,
+    );
+    return () => window.clearTimeout(timer);
+  }, [nextFinal, refresh]);
+  const discarding = items.filter((i) => i.discardAt !== undefined).length;
 
   // The queue's first flush fires on mount, before the widget can possibly have
   // solved, so it holds everything back. This is the retry that actually sends.
@@ -238,10 +319,26 @@ export default function QueueBanner() {
     </div>
   );
 
-  if (items.length === 0) return receipts || null;
+  const heldNotice = held && (
+    <p
+      role="status"
+      className="mb-6 rounded-lg border-2 border-forest-900/25 bg-paper-100 px-4 py-3 text-sm text-ink-800"
+    >
+      {t("queueHeldList")}
+    </p>
+  );
+
+  if (items.length === 0)
+    return heldNotice || receipts ? (
+      <>
+        {heldNotice}
+        {receipts}
+      </>
+    ) : null;
 
   return (
     <>
+      {heldNotice}
       {receipts}
       <section
         aria-labelledby="queue-waiting"
@@ -252,12 +349,14 @@ export default function QueueBanner() {
             id="queue-waiting"
             className="text-base font-semibold text-forest-900"
           >
-            {t("waiting", { count: items.length })}
+            {t("waiting", { count: items.length - discarding })}
           </h2>
+          {/* Pressed, it tries every report now, including one waiting out
+              the pause after a server error (lib/offline/flush.ts). */}
           <button
             type="button"
             disabled={busy || !online}
-            onClick={() => void runFlush()}
+            onClick={() => void runFlush({ force: true })}
             className="inline-flex min-h-11 shrink-0 items-center rounded-lg bg-forest-900 px-4 text-sm font-semibold text-paper-50 transition hover:bg-forest-800 disabled:cursor-not-allowed disabled:bg-paper-200 disabled:text-ink-700"
           >
             {busy ? t("sending") : t("sendNow")}
@@ -292,44 +391,86 @@ export default function QueueBanner() {
         )}
 
         <ul className="mt-2 space-y-1">
-          {items.map((i) => (
-            <li
-              key={i.id}
-              className="flex min-h-11 items-center justify-between gap-3 text-sm text-ink-800"
-            >
-              <span className="min-w-0">
-                {new Date(i.createdAt).toLocaleString(locale, {
-                  timeZone: "Asia/Taipei",
-                })}
-                {" · "}
-                {tCategory(i.payload.category)}
-                {/* `lastError` holds a code now, and a code gets translated.
-                    It used to hold whatever English sentence flush.ts had
-                    assembled — "upload signing failed (500)" — printed
-                    verbatim under a Chinese banner. */}
-                {i.lastError && (
-                  <span className="mt-0.5 block text-ember-700">
-                    {tReport(`errors.${errorKey(i.lastError)}`)}
+          {items.map((i) => {
+            // Which report this is, in words, for the buttons beside it: a
+            // screen reader moving through the list heard 刪除, 刪除, 刪除.
+            const which = `${new Date(i.createdAt).toLocaleString(locale, {
+              timeZone: "Asia/Taipei",
+            })} · ${tCategory(i.payload.category)}`;
+            if (i.discardAt !== undefined)
+              return (
+                <li
+                  key={i.id}
+                  className="flex min-h-11 items-center justify-between gap-3 text-sm text-ink-800"
+                >
+                  <span role="status" className="min-w-0">
+                    {t("discarded", { report: which })}
                   </span>
-                )}
-              </span>
-              {/* Not while it is being sent. The flush already holds the report
-                  and would file it anyway, and the reporter, told it was
-                  deleted, would have no receipt for a report now public. */}
-              <button
-                type="button"
-                disabled={sendingId === i.id}
-                onClick={async () => {
-                  if (currentlySending() === i.id) return;
-                  await removeQueued(i.id);
-                  await refresh();
-                }}
-                className="inline-flex min-h-11 shrink-0 items-center px-2 text-ink-700 underline underline-offset-2 hover:text-ink-950 disabled:cursor-not-allowed disabled:text-ink-600 disabled:no-underline"
+                  <button
+                    type="button"
+                    onClick={() => void undoDiscard(i.id)}
+                    aria-label={t("undoItem", { report: which })}
+                    className="inline-flex min-h-11 shrink-0 items-center px-2 font-medium text-forest-900 underline underline-offset-2 hover:text-ink-950"
+                  >
+                    {t("undo")}
+                  </button>
+                </li>
+              );
+            return (
+              <li
+                key={i.id}
+                className="flex min-h-11 items-center justify-between gap-3 text-sm text-ink-800"
               >
-                {t("discard")}
-              </button>
-            </li>
-          ))}
+                <span className="min-w-0">
+                  {which}
+                  {/* `lastError` holds a code now, and a code gets translated.
+                      It used to hold whatever English sentence flush.ts had
+                      assembled — "upload signing failed (500)" — printed
+                      verbatim under a Chinese banner. */}
+                  {i.lastError && (
+                    <span className="mt-0.5 block text-ember-700">
+                      {tReport(`errors.${errorKey(i.lastError)}`)}
+                    </span>
+                  )}
+                </span>
+                <span className="flex shrink-0 items-center gap-1">
+                  {/* One the queue stopped trying: refused, or fourteen days
+                      old. It used to be the end of the report. Allowed with no
+                      signal too: it only puts the report back in line. */}
+                  {i.status === "failed" && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={async () => {
+                        await retryQueued(i.id);
+                        await refresh();
+                        await runFlush();
+                      }}
+                      aria-label={t("retryItem", { report: which })}
+                      className="inline-flex min-h-11 items-center px-2 font-medium text-forest-900 underline underline-offset-2 hover:text-ink-950 disabled:cursor-not-allowed disabled:text-ink-600 disabled:no-underline"
+                    >
+                      {t("retry")}
+                    </button>
+                  )}
+                  {/* Not while it is being sent. The flush already holds the report
+                      and would file it anyway, and the reporter, told it was
+                      deleted, would have no receipt for a report now public. */}
+                  <button
+                    type="button"
+                    disabled={sendingId === i.id}
+                    onClick={() => {
+                      if (currentlySending() === i.id) return;
+                      void discard(i.id);
+                    }}
+                    aria-label={t("discardItem", { report: which })}
+                    className="inline-flex min-h-11 items-center px-2 text-ink-700 underline underline-offset-2 hover:text-ink-950 disabled:cursor-not-allowed disabled:text-ink-600 disabled:no-underline"
+                  >
+                    {t("discard")}
+                  </button>
+                </span>
+              </li>
+            );
+          })}
         </ul>
       </section>
     </>

@@ -169,22 +169,8 @@ export function categoriesIn(group: ReportGroup): readonly Category[] {
   return REPORT_GROUPS[group].categories;
 }
 
-/** The group a stored category belongs to. */
-export function groupOf(category: Category): ReportGroup {
-  const found = REPORT_GROUP_KEYS.find((g) =>
-    (REPORT_GROUPS[g].categories as readonly Category[]).includes(category),
-  );
-  // Unreachable while REPORT_GROUPS covers CATEGORY_KEYS, which the shared
-  // test asserts — but a category added without a group would otherwise
-  // silently vanish from the form.
-  return found ?? "roadkill";
-}
-
 export type Category = keyof typeof CATEGORIES;
 export const CATEGORY_KEYS = Object.keys(CATEGORIES) as Category[];
-export const CLASSIFIABLE_CATEGORIES = CATEGORY_KEYS.filter(
-  (c) => CATEGORIES[c].classifiable,
-);
 
 /* ------------------------------------------------------------------ *
  * Geography

@@ -11,12 +11,13 @@
  * taicol-rows.ts, shared with the importer, so the local check and the
  * production write cannot differ.
  *
- * Apply migration 0023 first: it adds the column the snapshot now carries, and
- * the floors that hold every rating the refresh would weaken.
+ * Apply migrations 0023 and 0034 first: they add the columns the snapshot now
+ * carries (0023 also the floors that hold every rating the 29 September 2026
+ * refresh would weaken).
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { COLUMNS, toRow, type TaicolTaxon } from "./taicol-rows.ts";
+import { COLUMNS, UPDATE_SET, toRow, type TaicolTaxon } from "./taicol-rows.ts";
 
 /**
  * Rows per file. 2,000 keeps every file near 1 MB: at 5,000 the first refresh
@@ -36,7 +37,7 @@ const TYPES: Record<(typeof COLUMNS)[number], string> = {
   is_invasive: "boolean", protected_status: "text", cites: "text", iucn: "text",
   redlist: "text", sensitivity: "text", is_terrestrial: "boolean",
   is_freshwater: "boolean", is_brackish: "boolean", is_marine: "boolean",
-  updated_at: "timestamptz",
+  updated_at: "timestamptz", new_taicol_id: "text",
 };
 
 function upsertSql(rows: ReturnType<typeof toRow>[]): string {
@@ -44,15 +45,12 @@ function upsertSql(rows: ReturnType<typeof toRow>[]): string {
   if (json.includes("$taicol$")) throw new Error("snapshot contains the dollar-quote tag");
   const cols = COLUMNS.join(", ");
   const record = COLUMNS.map((c) => `${c} ${TYPES[c]}`).join(", ");
-  const set = COLUMNS.filter((c) => c !== "taicol_id")
-    .map((c) => `${c} = excluded.${c}`)
-    .join(",\n      ");
   return `set local lock_timeout = '5s';
 insert into taxa (${cols})
 select ${cols}
   from jsonb_to_recordset($taicol$${json}$taicol$::jsonb) as x(${record})
 on conflict (taicol_id) do update set
-      ${set};
+      ${UPDATE_SET};
 `;
 }
 

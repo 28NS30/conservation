@@ -292,6 +292,19 @@ self.addEventListener("message", (event) => {
   if (event.data?.type === "warm-report-pages") {
     event.waitUntil(warmReportPages(event.data.paths));
   }
+  // How many windows of the site are open, for lib/offline/db.ts. A page asks
+  // before it upgrades the offline database, because a tab of the build
+  // before version 2 never lets go of it, and an upgrade it holds up holds
+  // every open of the database up with it. Only the worker can see every
+  // window, including the ones it does not control.
+  if (event.data?.type === "count-windows" && event.ports?.[0]) {
+    const port = event.ports[0];
+    event.waitUntil(
+      self.clients
+        .matchAll({ type: "window", includeUncontrolled: true })
+        .then((all) => port.postMessage({ windows: all.length })),
+    );
+  }
 });
 
 async function staleWhileRevalidate(request, cacheName, max) {

@@ -1,4 +1,5 @@
 import { classifyQueued } from "@/lib/report/classifyWorker";
+import { withJobRun } from "@/lib/jobRuns";
 import { reportsChanged } from "@/lib/siteFigures";
 
 /**
@@ -76,9 +77,11 @@ async function run(req: Request) {
   const progress = { processed: 0 };
   try {
     // Deliberately small. This is read by a cron service, not a human, and a
-    // large body is what made a timeout look like a broken endpoint.
-    const outcome = await classifyQueued({ progress });
-    return Response.json(outcome);
+    // large body is what made a timeout look like a broken endpoint. It is
+    // also what the run's row in job_runs records (lib/jobRuns.ts): four counts.
+    return await withJobRun("classify", async () =>
+      Response.json(await classifyQueued({ progress })),
+    );
   } finally {
     if (progress.processed > 0) reportsChanged();
   }

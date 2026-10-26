@@ -5,7 +5,10 @@
  * out of this machine's reach, so scripts/taicol-sql.ts writes the same
  * snapshot as SQL for the Management API. Both go through taicol-rows.ts. These
  * tests hold the mapping to what the importer needs, and run the generated SQL
- * against this database inside a transaction that is always rolled back.
+ * against this database inside a transaction that is always rolled back. So do
+ * the two scripts that came with TaiCOL's successor ids (migration 0034): the
+ * fill for rows imported before the column existed, and the check that reads
+ * a snapshot's ids where the column is still empty.
  */
 import { test, describe, after } from "node:test";
 import assert from "node:assert/strict";
@@ -14,7 +17,7 @@ import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { sql, inRollback } from "./helpers.mjs";
-import { COLUMNS, toRow } from "../../../scripts/taicol-rows.ts";
+import { COLUMNS, UPDATE_SET, toRow } from "../../../scripts/taicol-rows.ts";
 
 after(() => sql.end());
 
@@ -44,7 +47,30 @@ const MAGPIE = {
   is_brackish: false,
   is_marine: false,
   updated_at: "2026-09-01T00:00:00Z",
+  new_taxon_id: null,
 };
+
+/** A name TaiCOL retired and moved to MAGPIE, sharing none of its names. */
+const RETIRED = {
+  ...MAGPIE,
+  taxon_id: "t-test-refresh-2",
+  taxon_status: "deleted",
+  simple_name: "Testudo veterii",
+  common_name_c: "舊名測試",
+  alternative_name_c: null,
+  new_taxon_id: MAGPIE.taxon_id,
+};
+
+const snapshot = (rows) => {
+  const dir = mkdtempSync(join(tmpdir(), "taicol-sql-"));
+  const src = join(dir, "snapshot.jsonl");
+  writeFileSync(src, rows.map((r) => JSON.stringify(r)).join("\n") + "\n");
+  return { dir, src };
+};
+
+const tsx = (script, ...args) =>
+  execFileSync("npx", ["tsx", join(ROOT, "scripts", script), ...args], { cwd: ROOT, stdio: "pipe" })
+    .toString();
 
 describe("the mapping", () => {
   test("keeps TaiCOL's regional alien note, which alien_type cannot say", () => {
@@ -52,6 +78,29 @@ describe("the mapping", () => {
     assert.equal(r.alien_status_note, "臺灣: 引進種; 金門: 原生");
     assert.equal(r.alien_type, "native");
     assert.ok(COLUMNS.includes("alien_status_note"));
+  });
+
+  test("keeps TaiCOL's pointer from a retired row to the row that replaced it", () => {
+    // A rename shares no name with what it renamed, so this is the only link
+    // RETIRED_TWINS_SQL can follow from a rating left on the retired row.
+    assert.equal(toRow(RETIRED).new_taicol_id, MAGPIE.taxon_id);
+    assert.equal(toRow(MAGPIE).new_taicol_id, null);
+    const { new_taxon_id, ...older } = MAGPIE;
+    assert.equal(toRow(older).new_taicol_id, null, "a snapshot without the field");
+    assert.ok(COLUMNS.includes("new_taicol_id"));
+  });
+
+  test("the importer and the SQL writer overwrite the same columns, all but the key", () => {
+    // A column left off an ON CONFLICT list is written once and never again: a
+    // successor id would stay whatever the first import said. Both writers
+    // take the list from taicol-rows.ts.
+    const set = UPDATE_SET.split(",").map((c) => c.trim().split(" = ")[0]);
+    assert.deepEqual(set, COLUMNS.filter((c) => c !== "taicol_id"));
+    for (const f of ["import-taicol.ts", "taicol-sql.ts"]) {
+      const src = readFileSync(join(ROOT, "scripts", f), "utf8");
+      assert.match(src, /on conflict \(taicol_id\) do update set\s*\$\{(?:sql\.unsafe\()?UPDATE_SET\)?\}/, f);
+      assert.doesNotMatch(src, /= excluded\./, `${f} lists columns of its own`);
+    }
   });
 
   test("derives the invasive flag and splits alternate names as before", () => {
@@ -63,17 +112,14 @@ describe("the mapping", () => {
 
 describe("the SQL written for production", () => {
   test("upserts a snapshot, new rows and changed ones, and resolves nothing else", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "taicol-sql-"));
-    const src = join(dir, "snapshot.jsonl");
     const [existing] = await sql`select taicol_id, scientific_name from taxa where taxon_status = 'accepted' limit 1`;
-    writeFileSync(
-      src,
-      [MAGPIE, { ...MAGPIE, taxon_id: existing.taicol_id, simple_name: existing.scientific_name, common_name_c: "改名測試" }]
-        .map((r) => JSON.stringify(r))
-        .join("\n") + "\n",
-    );
+    const { dir, src } = snapshot([
+      MAGPIE,
+      RETIRED,
+      { ...MAGPIE, taxon_id: existing.taicol_id, simple_name: existing.scientific_name, common_name_c: "改名測試" },
+    ]);
     const out = join(dir, "sql");
-    execFileSync("npx", ["tsx", join(ROOT, "scripts", "taicol-sql.ts"), src, out], { cwd: ROOT, stdio: "pipe" });
+    tsx("taicol-sql.ts", src, out);
     const files = readdirSync(out).sort();
     assert.deepEqual(files, ["upsert-001.sql", "zz-lineage.sql"]);
 
@@ -81,8 +127,88 @@ describe("the SQL written for production", () => {
       await tx.unsafe(readFileSync(join(out, "upsert-001.sql"), "utf8"));
       const [added] = await tx`select common_name_zh, alien_status_note, is_in_taiwan from taxa where taicol_id = ${MAGPIE.taxon_id}`;
       assert.deepEqual(added, { common_name_zh: "測試鵲", alien_status_note: "臺灣: 引進種; 金門: 原生", is_in_taiwan: true });
+      const [retired] = await tx`select new_taicol_id from taxa where taicol_id = ${RETIRED.taxon_id}`;
+      assert.equal(retired.new_taicol_id, MAGPIE.taxon_id);
       const [changed] = await tx`select common_name_zh from taxa where taicol_id = ${existing.taicol_id}`;
       assert.equal(changed.common_name_zh, "改名測試");
+    });
+  });
+});
+
+describe("the successor ids, for rows imported before 0034", () => {
+  // Inserted by hand, without the pointer, as every row imported before the
+  // column existed was.
+  const insertBoth = async (tx) => {
+    for (const t of [MAGPIE, RETIRED]) {
+      await tx`insert into taxa (taicol_id, scientific_name, common_name_zh, rank, kingdom,
+                                 is_in_taiwan, taxon_status, sensitivity)
+               values (${t.taxon_id}, ${t.simple_name}, ${t.common_name_c}, 'Species',
+                       'Animalia', true, ${t.taxon_status},
+                       ${t === RETIRED ? "座標不開放" : null})`;
+    }
+  };
+
+  test("are filled from the snapshot, in that column alone, once", async () => {
+    const { dir, src } = snapshot([MAGPIE, RETIRED]);
+    const out = join(dir, "successors.sql");
+    tsx("taicol-successors-sql.ts", src, out);
+    const fill = readFileSync(out, "utf8");
+
+    await inRollback(async (tx) => {
+      // A trigger that throws on UPDATE OF every other column of taxa: the
+      // reblur trigger listens to some of them, and the fill must name none.
+      // Created before anything else here, so this transaction never waits
+      // for a stronger lock on taxa than the first one it takes.
+      const cols = await tx`
+        select column_name from information_schema.columns
+         where table_schema = 'public' and table_name = 'taxa'
+           and column_name <> 'new_taicol_id'`;
+      await tx.unsafe(`
+        create function successor_ids_sentinel() returns trigger language plpgsql as $$
+        begin
+          raise exception 'the successor fill named a column other than new_taicol_id';
+        end $$`);
+      await tx.unsafe(`
+        create trigger successor_ids_sentinel before update of ${cols.map((c) => `"${c.column_name}"`).join(", ")}
+          on taxa for each row execute function successor_ids_sentinel()`);
+      await insertBoth(tx);
+
+      await tx.unsafe(fill);
+      const [row] = await tx`select new_taicol_id, ctid::text from taxa where taicol_id = ${RETIRED.taxon_id}`;
+      assert.equal(row.new_taicol_id, MAGPIE.taxon_id);
+      const [magpie] = await tx`select new_taicol_id from taxa where taicol_id = ${MAGPIE.taxon_id}`;
+      assert.equal(magpie.new_taicol_id, null);
+
+      // A second run writes no row: an update would move the row's ctid.
+      await tx.unsafe(fill);
+      const [again] = await tx`select ctid::text from taxa where taicol_id = ${RETIRED.taxon_id}`;
+      assert.equal(again.ctid, row.ctid);
+    });
+  });
+
+  test("and the check counts and names published records only", () => {
+    // It runs against production and its output is pasted into pull requests,
+    // beside retired names that may be rated 座標不開放. `reports` holds the
+    // suppressed records; reports_public does not.
+    const src = readFileSync(join(ROOT, "scripts", "retired-twins.ts"), "utf8");
+    assert.doesNotMatch(src, /\b(?:from|join)\s+reports\b(?!_public)/i, "retired-twins.ts reads reports");
+    assert.match(src, /\bfrom reports_public\b/);
+  });
+
+  test("and the check reads them from a snapshot where the column is empty", async () => {
+    // How production was checked before 0034 reached it: the snapshot's ids,
+    // the database's ratings and floors.
+    const { src } = snapshot([MAGPIE, RETIRED]);
+    const check = tsx("retired-twins.ts", "--from", src, "--sql").trim().replace(/;$/, "");
+    await inRollback(async (tx) => {
+      await insertBoth(tx);
+      const rows = await tx.unsafe(`select * from (${check}) c where taicol_id = $1`, [MAGPIE.taxon_id]);
+      assert.equal(rows.length, 1, "the renamed pair was not listed");
+      assert.equal(rows[0].retired_taicol_id, RETIRED.taxon_id);
+      assert.equal(rows[0].by_successor, true);
+      assert.equal(rows[0].retired_precision, "suppressed");
+      assert.equal(rows[0].precision, "exact");
+      assert.equal(rows[0].records, 0);
     });
   });
 });

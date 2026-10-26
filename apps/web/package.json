@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit",
     "sync:maplibre": "mkdir -p public/maplibre && cp ../../node_modules/maplibre-gl/dist/maplibre-gl.mjs ../../node_modules/maplibre-gl/dist/maplibre-gl-shared.mjs ../../node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs public/maplibre/",
     "predev": "npm run sync:maplibre",
-    "prebuild": "npm run sync:maplibre",
+    "prebuild": "npm run sync:maplibre && node scripts/latest-migration.mjs",
     "test:selftest": "node e2e/selftest.spec.mjs",
     "test:reflow": "node e2e/reflow.spec.mjs",
     "test:a11y": "node e2e/a11y.spec.mjs",

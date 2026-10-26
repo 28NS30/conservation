@@ -4,18 +4,18 @@
   "recordedOn": "2026-10-25",
   "tolerance": 0.1,
   "js": {
-    "/map": 1074,
-    "/en/map": 1074,
-    "/": 177,
-    "/species": 171,
-    "/report/roadkill": 1499
+    "/map": 515,
+    "/en/map": 528,
+    "/": 186,
+    "/species": 195,
+    "/report/roadkill": 631
   },
   "requests": {
-    "/map": 66,
-    "/en/map": 66,
+    "/map": 64,
+    "/en/map": 64,
     "/": 40,
-    "/species": 72,
-    "/report/roadkill": 56
+    "/species": 77,
+    "/report/roadkill": 55
   },
   "firstTileMs": {
     "ceilingMs": 4000,

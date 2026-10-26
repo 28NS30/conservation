@@ -172,10 +172,14 @@ try {
     ? { headers: { authorization: `Bearer ${process.env.CRON_SECRET}` } }
     : {});
   const body = await res.json();
+  // A 503 that still says ok:true is a database that answered but is behind
+  // the code; the schema line below says so, and this one would only repeat
+  // it as "unreachable".
+  const answered = body.ok === true && (res.status === 200 || body.schemaCurrent === false);
   check(
     "database reachable (/api/health)",
-    res.status === 200 && body.ok === true,
-    res.status === 200
+    answered,
+    answered
       ? `${Number(body.reports).toLocaleString()} reports, ${body.dbLatencyMs}ms`
       : `${res.status}`,
   );
