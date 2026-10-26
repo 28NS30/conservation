@@ -699,7 +699,7 @@
     "speciesBody": "這裡記錄到的每一種動物都有自己的頁面：名稱、保育等級，以及曾經在哪裡被看見。",
     "monthTitle": "每年{month}，路上最常遇見的牠們",
     "monthHint": "歷年的路殺紀錄裡，這個月最常出現的動物。",
-    "monthCount": "{n} 筆紀錄",
+    "monthCount": "{n, plural, other {# 筆紀錄}}",
     "monthSeason": "看看這一季的目標"
   },
   "me": {
