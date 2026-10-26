@@ -100,3 +100,37 @@ export async function insertReport(tx, { taxonId = null, lng = 120.9, lat = 23.8
               st_y(location::geometry) as true_lat`;
   return row;
 }
+
+/**
+ * Every sitemap the index at /sitemap.xml lists, each with the URLs in it.
+ *
+ * The sitemap is an index of files, one per language and kind of page
+ * (lib/sitemaps.ts), so a test that wants "every URL in the sitemap" walks
+ * it. Each file is asked of this server at its path: the locs are absolute,
+ * on the site's own address, which under test is not always the port the
+ * server is on.
+ */
+export async function sitemapFiles() {
+  const index = await (await fetch(`${BASE_URL}/sitemap.xml`)).text();
+  const files = [...index.matchAll(/<sitemap>\s*<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+  return Promise.all(
+    files.map(async (loc) => {
+      const path = new URL(loc).pathname;
+      const res = await fetch(`${BASE_URL}${path}`);
+      const xml = await res.text();
+      return {
+        loc,
+        path,
+        status: res.status,
+        type: res.headers.get("content-type"),
+        xml,
+        urls: [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]),
+      };
+    }),
+  );
+}
+
+/** Every URL in every sitemap, in index order. */
+export async function sitemapUrls() {
+  return (await sitemapFiles()).flatMap((f) => f.urls);
+}

@@ -24,7 +24,7 @@ import { request as httpRequest } from "node:http";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import vm from "node:vm";
-import { BASE_URL } from "./helpers.mjs";
+import { BASE_URL, sitemapUrls } from "./helpers.mjs";
 
 const WEB = join(import.meta.dirname, "..");
 const OLD_HOST = "preservation-web-one.vercel.app";
@@ -161,8 +161,7 @@ describe("a share card", () => {
   }
 
   async function aSpeciesPage() {
-    const xml = await (await fetch(`${BASE_URL}/sitemap.xml`)).text();
-    const loc = [...xml.matchAll(/<loc>([^<]+\/species\/[^<]+)<\/loc>/g)][0]?.[1];
+    const loc = (await sitemapUrls()).find((u) => /\/species\/[^/]+$/.test(new URL(u).pathname));
     return loc ? new URL(loc).pathname : null;
   }
 

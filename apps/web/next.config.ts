@@ -98,6 +98,19 @@ const config: NextConfig = {
       },
     ];
   },
+  /**
+   * The sitemap index at the address robots.txt and every crawler already
+   * knows. It is app/sitemap-index.xml/route.ts, which cannot sit at
+   * /sitemap.xml itself while app/sitemap.ts exists; see that file.
+   * `beforeFiles`, so it is decided before the metadata routes are.
+   */
+  async rewrites() {
+    return {
+      beforeFiles: [{ source: "/sitemap.xml", destination: "/sitemap-index.xml" }],
+      afterFiles: [],
+      fallback: [],
+    };
+  },
 };
 
 export default withNextIntl(config);

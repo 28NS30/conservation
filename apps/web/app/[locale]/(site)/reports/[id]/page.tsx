@@ -75,6 +75,18 @@ function seenOn(observedAt: string, source: string, locale: string) {
  * nothing else: a rejection is disclosed only to its own reporter, and that
  * page keeps the neutral title rather than asking who is looking. See
  * lib/receipt.ts for why confirming a pending id to its holder is safe.
+ *
+ * WHICH RECORD PAGES ARE INDEXED. The 46,305 records imported from GBIF are
+ * `noindex, follow`. Each page is one row of TaiRON's dataset — a name, a
+ * date and a point — and 46,000 near-identical pages of somebody else's
+ * already-published data are exactly the thin pages that teach a search
+ * engine to think less of a whole site; the species pages and the list
+ * already carry them. `follow`, so the links out of them still count. A
+ * public report filed here is indexed: it is this project's own record,
+ * there are few of them, and the sitemap lists them (lib/sitemaps.ts). The
+ * paged lists that link to all of them stay indexable, each page its own
+ * canonical (lib/alternates.ts, pagedPath). test/crawl-and-ranks.test.mjs
+ * holds all three.
  */
 export async function generateMetadata({
   params,
@@ -130,6 +142,7 @@ export async function generateMetadata({
   return {
     title: `${name} · ${seenOn(pub.observedAt, pub.source, locale)}`,
     alternates: alternates(locale, `/reports/${id}`),
+    ...(pub.source === "gbif" ? { robots: { index: false, follow: true } } : null),
   };
 }
 

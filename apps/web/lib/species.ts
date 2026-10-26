@@ -7,6 +7,7 @@ import {
   type SpeciesScope,
 } from "@conservation/shared";
 import { asPublic } from "@/lib/db";
+import { INDEXWORTHY } from "@/lib/indexworthy";
 import { selectionFor, type Collection } from "@conservation/shared";
 
 export type SpeciesFilter =
@@ -137,49 +138,22 @@ export function parseSpeciesId(param: string): number | null {
 }
 
 /**
- * Whether a species page carries something a searcher could actually want.
+ * Whether a species page should be indexed: INDEXWORTHY (lib/indexworthy.ts),
+ * the same SQL the sitemap selects its species with, asked of one taxon.
  *
- * The old rule was `reportCount === 0 -> noindex`, which left 458 of 66,201
- * pages indexable. That was the right instinct aimed at the wrong test: it
- * assumed the only thing worth indexing is our own data, when the page also
- * renders a name, an authority, a lineage, a habitat and up to four
- * conservation assessments from the TaiCOL checklist — none of which needs a
- * user to have reported anything.
- *
- * Counting facts does not work either: 48,273 species clear "four or more",
- * and four generic fields repeated 48,273 times is exactly the mass of
- * near-identical thin pages the original comment was afraid of.
- *
- * So the test is whether the page says something DISTINGUISHING — a
- * conservation status, records of our own, endemism or invasiveness, or the
- * Chinese names people actually search by. That admits 24,243 pages, and every
- * one of them answers a question somebody might have typed.
+ * A read of its own rather than a column on getSpecies, so that the rule has
+ * one definition and the species read stays as it was. It costs one small
+ * indexed query on a page that is rendered once and then cached.
  */
-export function isIndexworthy(s: {
-  rank?: string | null;
-  reportCount: number;
-  protectedStatus: string | null;
-  iucn?: string | null;
-  redlist?: string | null;
-  cites?: string | null;
-  isEndemic: boolean;
-  isInvasive: boolean;
-  commonNameZh: string | null;
-  altNamesZh: string[] | null;
-}): boolean {
-  // A family or a genus page has a name and a lineage and nothing else of its
-  // own; the species under it are the pages worth finding.
-  if (s.rank && s.rank !== "Species" && s.rank !== "Subspecies") return false;
-  return Boolean(
-    s.reportCount > 0 ||
-    s.protectedStatus ||
-    s.iucn ||
-    s.redlist ||
-    s.cites ||
-    s.isEndemic ||
-    s.isInvasive ||
-    (s.commonNameZh && s.altNamesZh && s.altNamesZh.length > 0),
+export async function isIndexworthy(id: number): Promise<boolean> {
+  const rows = await asPublic(
+    (tx) => tx<{ ok: boolean }[]>`
+      select ${tx.unsafe(INDEXWORTHY)} as ok
+        from taxa t
+        left join species_report_stats s on s.taxon_id = t.id
+       where t.id = ${id}`,
   );
+  return rows[0]?.ok ?? false;
 }
 
 /**

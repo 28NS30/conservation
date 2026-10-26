@@ -13,7 +13,7 @@ import Pager from "@/components/site/Pager";
 import StatusBadges from "@/components/species/StatusBadges";
 import SpeciesName from "@/components/species/SpeciesName";
 import SpeciesSearch from "@/components/species/SpeciesSearch";
-import { alternates } from "@/lib/alternates";
+import { alternates, pagedPath } from "@/lib/alternates";
 
 export const revalidate = 300;
 
@@ -31,17 +31,20 @@ const PER_PAGE = 80;
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "species" });
-  // Canonical without the query: /species?filter=protected is a view of this
-  // page, not a page of its own.
+  // Canonical without the filter: /species?filter=protected is a view of
+  // this page, not a page of its own. A page of the unfiltered directory is
+  // its own canonical (pagedPath).
   return {
     title: t("directory"),
     description: t("directoryHint"),
-    alternates: alternates(locale, "/species"),
+    alternates: alternates(locale, pagedPath("/species", await searchParams)),
   };
 }
 

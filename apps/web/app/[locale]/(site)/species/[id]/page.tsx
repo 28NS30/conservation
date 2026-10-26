@@ -78,6 +78,7 @@ export async function generateMetadata({
   // No count for a withheld species, and no "0 筆" for one nobody has
   // reported: lib/speciesMeta.ts.
   const description = speciesDescription(s, name);
+  const indexworthy = await isIndexworthy(s.id);
   return {
     title: name,
     description: t(description.key, description.values),
@@ -87,15 +88,16 @@ export async function generateMetadata({
      * finds a hundred thousand near-identical ones forms a view of the whole
      * domain from them. But "has anyone reported it" was the wrong test: this
      * page renders a lineage, a habitat and up to four conservation assessments
-     * without any user data at all. See isIndexworthy() — it asks whether the
-     * page says something distinguishing, which 24,243 species do and the rest
-     * do not.
+     * without any user data at all. See INDEXWORTHY (lib/indexworthy.ts) —
+     * it asks whether the page says something distinguishing, which 29,468
+     * species do and the rest do not. The sitemap lists exactly those, by the
+     * same SQL, so it never offers a crawler a page that then says noindex.
      *
      * The rest stay reachable and useful either way: the directory links them,
      * search within the site finds them, and `follow` stays on so the taxonomy
      * links out of them still carry.
      */
-    ...(isIndexworthy(s) ? null : { robots: { index: false, follow: true } }),
+    ...(indexworthy ? null : { robots: { index: false, follow: true } }),
   };
 }
 
