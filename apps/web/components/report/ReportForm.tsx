@@ -161,13 +161,47 @@ function toLocalInput(d: Date) {
  */
 export default function ReportForm(props: ReportFormProps) {
   const [attempt, setAttempt] = useState(0);
+  useHeaderHeight();
+  // `report-form` outlives each attempt and each phase, which is what
+  // globals.css keys the short-screen layout on: the header must not become
+  // sticky again the moment the receipt replaces the form.
   return (
-    <ReportFormFields
-      key={attempt}
-      {...props}
-      onReportAnother={() => setAttempt((n) => n + 1)}
-    />
+    <div id="report-form">
+      <ReportFormFields
+        key={attempt}
+        {...props}
+        onReportAnother={() => setAttempt((n) => n + 1)}
+      />
+    </div>
   );
+}
+
+/**
+ * The sticky site header, measured into --header-height, so whatever this form
+ * scrolls to stops below it (globals.css, scroll-padding-top).
+ *
+ * The form moves focus itself — to the receipt after sending, to a problem
+ * the server found — and a heading scrolled to the top of the page under a
+ * sticky header is focused and hidden at once. The header's height depends on
+ * the width and the language: on a phone its row of links wraps in English,
+ * from about 108px to about 148px. The stylesheet's figures are the common
+ * case; this is the real one, as the send bar is measured below.
+ */
+function useHeaderHeight() {
+  useEffect(() => {
+    const header = document.querySelector<HTMLElement>("[data-site-header]");
+    if (!header || typeof ResizeObserver === "undefined") return;
+    const root = document.documentElement;
+    const measure = () =>
+      root.style.setProperty("--header-height", `${Math.ceil(header.getBoundingClientRect().height)}px`);
+    const observer = new ResizeObserver(measure);
+    observer.observe(header);
+    measure();
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("--header-height");
+    };
+  }, []);
 }
 
 function ReportFormFields({
