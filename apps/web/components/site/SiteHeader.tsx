@@ -4,8 +4,7 @@ import Wordmark from "@/components/brand/Wordmark";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import NavLink from "@/components/site/NavLink";
 import ReportMenu from "@/components/site/ReportMenu";
-import SignInLink from "@/components/auth/SignInLink";
-import { currentUserId } from "@/lib/supabase/server";
+import AccountLink from "@/components/auth/AccountLink";
 
 /**
  * One header for the whole site, in the team's design.
@@ -43,11 +42,6 @@ export default async function SiteHeader({
   stats?: { reports: string; species: string; range: string | null };
 }) {
   const t = await getTranslations();
-  // Only shown when there is something behind it. An always-visible "my reports"
-  // that leads to a sign-in wall reads as a gate on a site whose whole promise
-  // is that reporting needs no account. Signed out, the same slot is "Sign in":
-  // one account link either way, never both.
-  const signedIn = (await currentUserId()) !== null;
   const app = variant === "app";
 
   const nav = [
@@ -55,8 +49,14 @@ export default async function SiteHeader({
     { href: "/species", label: t("nav.species") },
     { href: "/stats", label: t("nav.stats") },
     { href: "/about", label: t("nav.about") },
-    ...(signedIn ? ([{ href: "/me", label: t("nav.mine") }] as const) : []),
   ] as const;
+  // After the four, one account link: "My reports" only when there is
+  // something behind it, since an always-visible "my reports" that leads to a
+  // sign-in wall reads as a gate on a site whose whole promise is that
+  // reporting needs no account; "Sign in" otherwise, never both. Which one is
+  // decided in the browser, so this header, and every page under it, is the
+  // same for everybody and can be served from the CDN (see AccountLink).
+  const account = { mineLabel: t("nav.mine"), signInLabel: t("nav.signIn") };
 
   // The three report types, each to its own page, so nothing is chosen for the
   // reporter. Labels and hints are the form's and the home page's own
@@ -103,9 +103,7 @@ export default async function SiteHeader({
             {nav.map((l) => (
               <NavLink key={l.href} href={l.href} label={l.label} overlay size={app ? "normal" : "large"} />
             ))}
-            {!signedIn && (
-              <SignInLink label={t("nav.signIn")} overlay size={app ? "normal" : "large"} />
-            )}
+            <AccountLink {...account} overlay size={app ? "normal" : "large"} />
           </nav>
 
           <ReportMenu label={t("nav.fileReport")} shortLabel={t("nav.report")} choices={choices} plain={app} />
@@ -141,9 +139,7 @@ export default async function SiteHeader({
               size={app ? "compact" : "normal"}
             />
           ))}
-          {!signedIn && (
-            <SignInLink label={t("nav.signIn")} overlay size={app ? "compact" : "normal"} />
-          )}
+          <AccountLink {...account} overlay size={app ? "compact" : "normal"} />
         </nav>
         {/* Compact on purpose: in English the links and "中文 / English" do
             not fit side by side at 375px at the larger size, and the switch

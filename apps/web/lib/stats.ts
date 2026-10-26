@@ -1,5 +1,6 @@
 import { asPublic } from "@/lib/db";
 import { countSpecies } from "@/lib/species";
+import { freshPoints, siteFigure } from "@/lib/siteFigures";
 import { everyYear } from "@/lib/yearSeries";
 
 /**
@@ -11,6 +12,12 @@ import { everyYear } from "@/lib/yearSeries";
  * record volume and true coordinates of 敏感 taxa, which is precisely what the
  * obscuring design exists to prevent. A hotspot list is a particularly effective
  * way to leak a location, so it gets the extra restriction below.
+ *
+ * The site-wide figures are cached for everybody (lib/siteFigures.ts): the
+ * same for every reader, full passes over the view, and changed only by a
+ * new or re-identified record. Not the two that place records, the
+ * anniversary ledger and the hotspots: a point may be no older than the page
+ * it is on, so they are read afresh each time a page is built from them.
  */
 
 /**
@@ -30,9 +37,10 @@ import { everyYear } from "@/lib/yearSeries";
  * lib/species.ts, and this is how everything else asks it. Subspecies count as
  * their own rows there, as they do in the directory's list.
  */
-export async function recordedSpeciesCount(): Promise<number> {
-  return countSpecies({ filter: "recorded" });
-}
+export const recordedSpeciesCount = siteFigure(
+  "recordedSpeciesCount",
+  (): Promise<number> => countSpecies({ filter: "recorded" }),
+);
 
 /**
  * The denominator /season sets beside recordedSpeciesCount(): every animal
@@ -50,9 +58,10 @@ export async function recordedSpeciesCount(): Promise<number> {
  * plants, fungi and bacteria included — made the site look 0.8% done at
  * recording things it never set out to record.
  */
-export async function checklistAnimalTaxaCount(): Promise<number> {
-  return countSpecies({ filter: "all", kingdom: "Animalia" });
-}
+export const checklistAnimalTaxaCount = siteFigure(
+  "checklistAnimalTaxaCount",
+  (): Promise<number> => countSpecies({ filter: "all", kingdom: "Animalia" }),
+);
 
 export type Overview = {
   reports: number;
@@ -62,7 +71,13 @@ export type Overview = {
   lastYear: number | null;
 };
 
-export async function overview(): Promise<Overview> {
+/**
+ * The size and span of the public record. One pass, and the one source for
+ * every page that states these: /stats, the map's header and footer, the
+ * home page's blurred-record count and the list's lede, which each asked
+ * the same question of the same view with a query of their own.
+ */
+export const overview = siteFigure("overview", async (): Promise<Overview> => {
   const [row] = await asPublic(
     (tx) => tx<Overview[]>`
       select count(*)::int                                         as reports,
@@ -73,10 +88,10 @@ export async function overview(): Promise<Overview> {
         from reports_public`,
   );
   return row;
-}
+});
 
 /** Twelve buckets, Jan–Dec, zero-filled. Roadkill is strongly seasonal. */
-export async function monthlyTotals(): Promise<number[]> {
+export const monthlyTotals = siteFigure("monthlyTotals", async (): Promise<number[]> => {
   const rows = await asPublic(
     (tx) => tx<{ m: number; n: number }[]>`
       select extract(month from observed_at at time zone 'Asia/Taipei')::int as m, count(*)::int as n
@@ -85,17 +100,20 @@ export async function monthlyTotals(): Promise<number[]> {
   const out = Array<number>(12).fill(0);
   for (const r of rows) out[r.m - 1] = r.n;
   return out;
-}
+});
 
 /** Every year from the first record's to the last's, zero-filled (lib/yearSeries.ts). */
-export async function yearlyTotals(): Promise<{ year: number; n: number }[]> {
-  const rows = await asPublic(
-    (tx) => tx<{ year: number; n: number }[]>`
+export const yearlyTotals = siteFigure(
+  "yearlyTotals",
+  async (): Promise<{ year: number; n: number }[]> => {
+    const rows = await asPublic(
+      (tx) => tx<{ year: number; n: number }[]>`
       select extract(year from observed_at at time zone 'Asia/Taipei')::int as year, count(*)::int as n
         from reports_public group by 1 order by 1`,
-  );
-  return everyYear(rows);
-}
+    );
+    return everyYear(rows);
+  },
+);
 
 export type TopSpecies = {
   id: number;
@@ -109,8 +127,8 @@ export type TopSpecies = {
   isEndemic: boolean;
 };
 
-export async function topSpecies(limit = 15): Promise<TopSpecies[]> {
-  return asPublic(
+export const topSpecies = siteFigure("topSpecies", (limit: number = 15): Promise<TopSpecies[]> =>
+  asPublic(
     (tx) => tx<TopSpecies[]>`
       select t.id, t.scientific_name as "scientificName",
              t.common_name_zh as "commonNameZh", s.report_count as "reportCount",
@@ -121,8 +139,8 @@ export async function topSpecies(limit = 15): Promise<TopSpecies[]> {
         join taxa t on t.id = s.taxon_id
        order by s.report_count desc, t.scientific_name
        limit ${limit}`,
-  );
-}
+  ),
+);
 
 export type EntrySpecies = {
   id: number;
@@ -140,8 +158,8 @@ export type EntrySpecies = {
  * straight to where a sensitive animal is found would be a strange thing to
  * build, blurred or not. Chinese name required, because the button is the name.
  */
-export async function mapEntrySpecies(limit = 3): Promise<EntrySpecies[]> {
-  return asPublic(
+export const mapEntrySpecies = siteFigure("mapEntrySpecies", (limit: number = 3): Promise<EntrySpecies[]> =>
+  asPublic(
     (tx) => tx<EntrySpecies[]>`
       select t.id, t.scientific_name as "scientificName",
              t.common_name_zh as "commonNameZh",
@@ -153,8 +171,8 @@ export async function mapEntrySpecies(limit = 3): Promise<EntrySpecies[]> {
          and t.common_name_zh is not null
        order by s.report_count desc, t.scientific_name
        limit ${limit}`,
-  );
-}
+  ),
+);
 
 export type LedgerRow = {
   id: string;
@@ -192,13 +210,27 @@ export type LedgerRow = {
  * a database they are unremarkable exact records there, and the ledger may show
  * them.
  *
+ * Its rows are records with their points, on a cached page, so it is read
+ * afresh each time the page is built, never from the figures' cache
+ * (freshPoints, lib/siteFigures.ts): an exact record blurred in the database
+ * leaves the ledger with the page that showed it, ten minutes at most, where
+ * a cached copy could keep it for fifteen. The page drops it at once when a
+ * writer says the reports changed, through the tagged figures it also reads.
+ * The window is drawn around Taipei's date, which is passed in rather than
+ * read from now(): the same for everybody all day.
+ *
  * From `reports_on_map`, which leaves out a record held at 10 km until the
  * model has looked at its photo (migration 0033), so that no kept page lists
  * a point the model may yet blur harder. A held record is obscured, so the
  * filter below drops it too; the view says it where a later reader of this
  * query will look.
  */
-export async function anniversaryLedger(limit = 12): Promise<LedgerRow[]> {
+export function anniversaryLedger(limit = 12): Promise<LedgerRow[]> {
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Taipei" });
+  return freshPoints("anniversaryLedger", () => ledgerAround(today, limit));
+}
+
+function ledgerAround(day: string, limit: number): Promise<LedgerRow[]> {
   return asPublic(
     (tx) => tx<LedgerRow[]>`
       with near as (
@@ -225,8 +257,8 @@ export async function anniversaryLedger(limit = 12): Promise<LedgerRow[]> {
            and to_char(r.observed_at at time zone 'Asia/Taipei', 'MM-DD') in (
                  select to_char(d, 'MM-DD')
                    from generate_series(
-                          (now() at time zone 'Asia/Taipei')::date - 3,
-                          (now() at time zone 'Asia/Taipei')::date + 3,
+                          ${day}::date - 3,
+                          ${day}::date + 3,
                           interval '1 day') d
                )
       )
@@ -264,11 +296,17 @@ const HOTSPOT_CELL_M = 5000;
  * Grouping is on integer cell indices rather than a snapped geometry so the
  * aggregation never depends on PostGIS geometry equality.
  *
+ * Each hotspot places the records in it to 5 km, and an exact record blurred
+ * in the database must leave its cell with the page that counted it. So it
+ * is read afresh each time /stats is built, not from the figures' cache
+ * (freshPoints, lib/siteFigures.ts): a full pass over the view, at most once
+ * in five minutes, since the page is cached and rebuilt no more often.
+ *
  * From `reports_on_map`, as the anniversary ledger is, and for the same
  * reason: no kept page places a record held until the model has looked.
  */
-export async function hotspots(limit = 8): Promise<Hotspot[]> {
-  return asPublic(
+export function hotspots(limit: number = 8): Promise<Hotspot[]> {
+  return freshPoints("hotspots", () => asPublic(
     (tx) => tx<Hotspot[]>`
       with cells as (
         select floor(st_x(geom_3857) / ${HOTSPOT_CELL_M})::int as gx,
@@ -307,5 +345,5 @@ export async function hotspots(limit = 8): Promise<Hotspot[]> {
         left join dominant d on d.gx = t.gx and d.gy = t.gy
         left join taxa tx_ on tx_.id = d.taxon_id
        order by t.n desc`,
-  );
+  ));
 }

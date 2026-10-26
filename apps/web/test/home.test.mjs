@@ -109,7 +109,8 @@ describe("the anniversary ledger", () => {
     // first bug in the first and last week of the year.
     const { readFileSync } = await import("node:fs");
     const stats = readFileSync(new URL("../lib/stats.ts", import.meta.url), "utf8");
-    const ledger = stats.slice(stats.indexOf("export async function anniversaryLedger"));
+    const ledger = stats.slice(stats.indexOf("export function anniversaryLedger"));
+    assert.ok(ledger.length > 100, "anniversaryLedger is gone or renamed");
     assert.match(ledger, /to_char\(r\.observed_at at time zone 'Asia\/Taipei', 'MM-DD'\) in \(/);
     assert.doesNotMatch(ledger, /extract\(doy/, "day-of-year arithmetic must not return");
 

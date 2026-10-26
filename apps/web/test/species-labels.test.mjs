@@ -92,7 +92,11 @@ async function runAgainstThisDatabase(file, fromTaicolIds) {
   const body = file.replace(/^set local lock_timeout.*$/m, "");
   const marker = Symbol("rollback");
   try {
-    await sql.begin(async (tx) => {
+    // One snapshot for the whole comparison. The suites share this database
+    // and some commit as they run: public-pages-cache blurs a record of its
+    // own where it stands, so the server can see it, and read afresh by the
+    // next statement that record "changed without being moved".
+    await sql.begin("isolation level repeatable read", async (tx) => {
       await tx.unsafe(`create temp table _snap on commit drop as
         select id, taxon_id, location_precision, st_astext(location_public::geometry) as pub from reports`);
       await tx.unsafe(body);

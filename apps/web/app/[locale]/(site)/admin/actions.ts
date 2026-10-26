@@ -5,6 +5,7 @@ import { sql } from "@/lib/db";
 import { currentRole } from "@/lib/auth";
 import { OFFERED } from "@/lib/species";
 import { flagWhenPublished, requeueClassification } from "@/lib/report/classificationHold";
+import { reportsChanged } from "@/lib/siteFigures";
 import {
   keepDeliberateOverride,
   photoIdentificationOverride,
@@ -49,6 +50,8 @@ export async function publishReport(reportId: string) {
              values (${reportId}::uuid, ${actor}::uuid, 'publish')`;
   });
   revalidatePath("/admin");
+  // It is on the map now, so in every count (lib/siteFigures.ts).
+  reportsChanged();
 }
 
 /**
@@ -86,6 +89,7 @@ export async function rejectReport(reportId: string, reason: string) {
              values (${reportId}::uuid, ${actor}::uuid, 'reject', ${why})`;
   });
   revalidatePath("/admin");
+  reportsChanged();
 }
 
 /**
@@ -150,6 +154,9 @@ export async function setReportTaxon(reportId: string, taxonId: number | null) {
              values (${reportId}::uuid, ${actor}::uuid, 'retaxon', ${String(taxonId)})`;
   });
   revalidatePath("/admin");
+  // Another species moves the record between species, collections and
+  // blurs, all of which the cached figures count.
+  reportsChanged();
 }
 
 /**

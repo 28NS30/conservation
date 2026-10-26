@@ -1,33 +1,33 @@
 {
-  "note": "The load path of the pages people wait for. recordedAgainst says where the numbers came from: \"ci\" is a production build made the way CI makes one (NEXT_PUBLIC_E2E=1, the fixture database, no MapTiler key, npm run build and npm run start), recorded with UPDATE_PERF=1 PERF_LABEL=ci node e2e/perf.spec.mjs. The JavaScript byte counts are a property of that build, and CI fails at `tolerance` over them. Requests, LCP and the first tile are recorded beside them for comparison and never fail: a runner's clock is noisy. A `null` prints and does not fail. Do not record PERF_LABEL=production over these: Vercel compresses differently from next start, and CI would then be held to another server's byte counts. Run against production without UPDATE_PERF to read its numbers. Structural assertions in perf.spec.mjs do not live here and always fail hard.",
+  "note": "The load path of the pages people wait for. recordedAgainst says where the numbers came from: \"ci\" is a production build made the way CI makes one (NEXT_PUBLIC_E2E=1, the fixture database, no MapTiler key, npm run build and npm run start), recorded with UPDATE_PERF=1 PERF_LABEL=ci node e2e/perf.spec.mjs. The JavaScript byte counts are a property of that build, and CI fails at `tolerance` over them. They are the bytes the network carried, read with the service worker blocked (load() in perf.spec.mjs): read with it running, as they were until 26 October, they left out the MapLibre worker script (147 KB), which the service worker fetched for the page, and counted every chunk it fetched at its decompressed size, so a page's number depended on whether the service worker took over before a chunk was asked for. Requests, LCP and the first tile are recorded beside them for comparison and never fail: a runner's clock is noisy. A `null` prints and does not fail. Do not record PERF_LABEL=production over these: Vercel compresses differently from next start, and CI would then be held to another server's byte counts. Run against production without UPDATE_PERF to read its numbers. Structural assertions in perf.spec.mjs do not live here and always fail hard.",
   "recordedAgainst": "ci",
-  "recordedOn": "2026-10-25",
+  "recordedOn": "2026-10-26",
   "tolerance": 0.1,
   "js": {
-    "/map": 515,
-    "/en/map": 528,
-    "/": 186,
-    "/species": 195,
-    "/report/roadkill": 631
+    "/map": 661,
+    "/en/map": 661,
+    "/": 185,
+    "/species": 185,
+    "/report/roadkill": 764
   },
   "requests": {
-    "/map": 64,
-    "/en/map": 64,
-    "/": 40,
-    "/species": 77,
-    "/report/roadkill": 55
+    "/map": 67,
+    "/en/map": 67,
+    "/": 44,
+    "/species": 44,
+    "/report/roadkill": 58
   },
   "firstTileMs": {
     "ceilingMs": 4000,
-    "measuredMs": 381,
+    "measuredMs": 258,
     "why": "A CI runner's clock is noisy and its database is a thin slice, so the ceiling is a broken-load-path detector, not a performance target. measuredMs is the median of three loads where recordedAgainst says; the number worth reading is production's."
   },
   "lcpMs": {
-    "/map": 392,
-    "/en/map": 372,
-    "/": 192,
-    "/species": 384,
-    "/report/roadkill": 68
+    "/map": 472,
+    "/en/map": 64,
+    "/": 84,
+    "/species": 368,
+    "/report/roadkill": 100
   },
   "cls": {
     "max": 0.05,

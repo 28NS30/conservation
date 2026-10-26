@@ -21,16 +21,23 @@ if (!url)
  */
 const g = globalThis as unknown as { __sql?: postgres.Sql };
 
+/**
+ * Whether this process is one of `next build`'s workers. Next sets NEXT_PHASE
+ * before it starts them, and they inherit it.
+ */
+const building = process.env.NEXT_PHASE === "phase-production-build";
+
 export const sql =
   g.__sql ??
   postgres(url, {
-    // Per process, not per build. `next build` prerenders ~834 species pages
-    // across 9 workers, so this is really up to 72 concurrent connections — it
-    // exhausted a local Postgres (max_connections 100) once the dev server's own
-    // 32 were also open. Supabase's transaction pooler absorbs that comfortably,
-    // but if a production build ever fails with SQLSTATE 53300 rather than an
-    // auth error, this number is why.
-    max: 8,
+    // Per process, not per build. `next build` runs one worker per core, each
+    // with a pool of its own, so 8 here was up to 72 connections from a build
+    // on a 10-core machine. That exhausted a local Postgres (max_connections
+    // 100) whenever a server or a test run was also connected, and a page
+    // that timed out connecting was a page that built broken (exit 0, then a
+    // 500). Two per worker keeps a build to about 20; the pages queue on them,
+    // which costs a build seconds rather than connections. A server keeps 8.
+    max: building ? 2 : 8,
     idle_timeout: 20,
     connect_timeout: 10,
     prepare: false,
@@ -59,19 +66,25 @@ if (process.env.NODE_ENV !== "production") g.__sql = sql;
  * `reports` base table, so a public code path that accidentally selects a true
  * coordinate fails loudly instead of leaking one.
  *
- * `set local` is scoped to the transaction, so the role reverts on commit and the
- * pooled connection is never left in a restricted state.
+ * Both settings are local to the transaction (`set_config`'s third argument is
+ * `is_local`, the same as `set local`), so the role reverts on commit and the
+ * pooled connection is never left in a restricted state. They are made in one
+ * statement rather than two `set local`s: every public read paid a round trip
+ * to the database for each, and a page makes several such reads.
+ * `set_config('role', …)` is what `set role` does underneath, membership check
+ * included; PostgREST switches roles the same way.
  */
 export async function asPublic<T>(
   fn: (tx: postgres.TransactionSql) => Promise<T>,
 ): Promise<T> {
   return sql.begin(async (tx) => {
-    await tx`set local role web_anon`;
-    // No public read may hold a pooled connection for long. Neither role had a
-    // timeout, and a long search term made one directory request cost 2-4 s
-    // of database time (security audit, 29 September 2026). The slowest real
-    // public read, the country-wide map tile, takes tens of milliseconds.
-    await tx`set local statement_timeout = '8s'`;
+    // The role, and a time limit. No public read may hold a pooled connection
+    // for long. Neither role had a timeout, and a long search term made one
+    // directory request cost 2-4 s of database time (security audit, 29
+    // September 2026). The slowest real public read, the country-wide map
+    // tile, takes tens of milliseconds.
+    await tx`select set_config('role', 'web_anon', true),
+                    set_config('statement_timeout', '8s', true)`;
     return fn(tx);
   }) as Promise<T>;
 }

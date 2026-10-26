@@ -870,7 +870,7 @@ describe("off the map while held", () => {
     // a tile could. A copy on GBIF outlives everything. The record's own page
     // and the /reports list, read on every request, may show it.
     const body = (src, fn) => {
-      const from = src.indexOf(`export async function ${fn}(`);
+      const from = src.search(new RegExp(`export (?:async )?function ${fn}\\(`));
       assert.ok(from >= 0, `no ${fn}`);
       const end = src.indexOf("\nexport ", from + 1);
       return code(end === -1 ? src.slice(from) : src.slice(from, end));
