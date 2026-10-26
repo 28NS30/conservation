@@ -12,11 +12,15 @@ import {
 import { SITE_URL as BASE } from "@/lib/siteUrl";
 
 /**
- * Daily. A species becomes worth indexing when its first record arrives, and
- * a report filed here when it is published; built once per deploy, as this
- * was, neither reached a crawler until somebody happened to ship something.
+ * Every five minutes at most, and only when a crawler asks. A species becomes
+ * worth indexing when its first record arrives, and a report filed here when
+ * it is published; built once per deploy, as this was, neither reached a
+ * crawler until somebody happened to ship something. Not daily: nothing
+ * cached here lasts past the site's bound (next.config.ts expireTime), so a
+ * withdrawn record leaves the sitemap as it leaves the pages. The counts the
+ * files are cut by are a cached figure (lib/sitemaps.ts).
  */
-export const revalidate = 86400;
+export const revalidate = 300;
 
 /**
  * One sitemap per language and kind of page, listed by the index at

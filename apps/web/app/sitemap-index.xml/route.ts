@@ -15,10 +15,10 @@ import { SITE_URL as BASE } from "@/lib/siteUrl";
  * same list of ids the sitemaps are generated from, so the two cannot name
  * different files.
  *
- * Revalidated daily, like the sitemaps: a new file appears when a kind of
- * page outgrows the last one (lib/sitemaps.ts).
+ * Revalidated as the sitemaps are, every five minutes at most: a new file
+ * appears when a kind of page outgrows the last one (lib/sitemaps.ts).
  */
-export const revalidate = 86400;
+export const revalidate = 300;
 
 /** Ids are `[a-zA-Z0-9-]`, but a loc is XML and is written as XML. */
 const xml = (s: string) =>
