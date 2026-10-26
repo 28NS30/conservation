@@ -34,9 +34,11 @@ export async function POST(req: Request) {
   const ip = clientIp(req);
 
   let count = 1;
-  // What the client is about to upload. The web form always sends WebP, so the
-  // default keeps every existing caller working; an iOS client cannot send
-  // WebP at all, because expo-image-manipulator only writes it on Android.
+  // What the client is about to upload. The web form says WebP, or JPEG where
+  // its browser cannot write WebP (lib/report/photoEncoding.ts: every browser
+  // on an iPhone), and the default keeps a caller that says nothing working;
+  // an iOS app cannot send WebP either, expo-image-manipulator writing it only
+  // on Android.
   let contentType: string = "image/webp";
   try {
     const body = (await req.json()) as { count?: unknown; contentType?: unknown };
