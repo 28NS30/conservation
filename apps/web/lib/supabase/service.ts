@@ -57,6 +57,23 @@ export async function statUploadedPhoto(
   return { bytes: meta.size, contentType: meta.mimetype ?? "application/octet-stream" };
 }
 
+/**
+ * A stored photo's bytes, for the report route to read before it attaches
+ * the photo (lib/report/photoMetadata.ts). Unlike downloadPhoto below, a
+ * Storage that could not answer throws StorageUnavailable, so a queued report
+ * is answered 503 and tried again, never refused for Storage's bad minute.
+ * Null when the object is not there.
+ */
+export async function readUploadedPhoto(path: string): Promise<Uint8Array | null> {
+  const { data, error } = await serviceSupabase().storage.from(PHOTO_BUCKET).download(path);
+  if (error) {
+    const status = (error as { status?: number; statusCode?: string | number }).status;
+    if (status === 400 || status === 404) return null;
+    throw new StorageUnavailable(error.message);
+  }
+  return data ? new Uint8Array(await data.arrayBuffer()) : null;
+}
+
 /** Signed read URL for a stored photo. The bucket is private. */
 export async function signedPhotoUrl(path: string, expiresIn = 3600): Promise<string | null> {
   const { data } = await serviceSupabase()

@@ -186,6 +186,20 @@ describe("the only two ways a report is given up on", () => {
     assert.equal(item.lastError, "validation_failed");
   });
 
+  test("a photo refused for what it carries besides its pixels, once and for good", async () => {
+    // Not photo_missing, which uploads the photos again once: the same bytes
+    // would be refused again, so the report waits on screen for its reporter.
+    const { id } = await queue();
+    answer = json(400, { error: "photo_has_metadata", path: "2026/10/x.jpg" });
+    await flushQueue();
+    mock.timers.tick(LONGEST_WAIT_MS);
+    await flushQueue();
+    const item = await getQueued(id);
+    assert.equal(posts, 1, "a refusal that cannot change was sent again");
+    assert.equal(item.status, "failed");
+    assert.equal(item.lastError, "photo_has_metadata");
+  });
+
   test("fourteen days of the server failing on it, and 再試一次 starts the fourteen days again", async () => {
     const { id } = await queue();
     answer = json(503, {});
