@@ -4,7 +4,11 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import PageHeader from "@/components/site/PageHeader";
 import { TEAM_GROUPS, peopleIn, teamPublished } from "@/lib/team";
 
-export const revalidate = 3600;
+/**
+ * Five minutes, as the footer's cached read makes it anyway: no page may
+ * declare longer than `expireTime` allows (next.config.ts).
+ */
+export const revalidate = 300;
 
 export async function generateMetadata({
   params,

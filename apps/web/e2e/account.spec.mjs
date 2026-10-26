@@ -11,7 +11,9 @@
  *   the report stays, with no reporter and no contact address;
  *   the profile is gone, and the password no longer signs in;
  *   /me no longer knows them, and no record of their own confirmations
- *   names them (security audit, 29 September 2026).
+ *   names them (security audit, 29 September 2026);
+ *   and the header, which reads the session in the browser, says "My reports"
+ *   while they are signed in and "Sign in" once they are gone.
  *
  * Accounts come from the local Supabase or CI's stand-in (test/stub-gotrue.mjs),
  * as in e2e/forum.spec.mjs. Exits non-zero on any failure.
@@ -86,6 +88,20 @@ try {
   await context.addCookies(cookies);
   const page = await context.newPage();
 
+  // The header's account link is decided in the browser, from the session
+  // cookie, so that a public page is one page for everybody and can be served
+  // from the CDN (components/auth/AccountLink.tsx). Signed in, it says so.
+  const account = async () => {
+    const nav = page.getByRole("banner").locator("nav").first();
+    return {
+      mine: await nav.getByRole("link", { name: "My reports" }).isVisible(),
+      signIn: await nav.getByRole("link", { name: "Sign in" }).isVisible(),
+    };
+  };
+  await page.goto(`${BASE}/en/about`, { waitUntil: "networkidle" });
+  const before = await account();
+  check("signed in, the header offers My reports and not Sign in", before.mine && !before.signIn, JSON.stringify(before));
+
   // Idle, not merely loaded: a click before the form has hydrated is a plain
   // form post, and the spec would be testing the browser's reload instead.
   await page.goto(`${BASE}/en/me`, { waitUntil: "networkidle" });
@@ -118,6 +134,9 @@ try {
 
   await page.goto(`${BASE}/en/me`);
   check("/me no longer knows them", !(await page.content()).includes(email));
+  await page.goto(`${BASE}/en/about`, { waitUntil: "networkidle" });
+  const after = await account();
+  check("and the header is back to Sign in", after.signIn && !after.mine, JSON.stringify(after));
 } catch (e) {
   check("the spec ran", false, e.message);
 } finally {

@@ -18,6 +18,17 @@ export const routing = defineRouting({
   // (team feedback, 30 September 2026: "make the default language Chinese
   // since we're in Taiwan").
   localeDetection: false,
+  // Nothing reads the NEXT_LOCALE cookie with detection off: the address alone
+  // says which language a page is in. Writing it anyway put a Set-Cookie on
+  // every page's response, and a response that sets a cookie is one no CDN
+  // will share between visitors.
+  localeCookie: false,
+  // No `Link: <…>; rel="alternate"` response header. It was built from the
+  // host the request came in on, so the old preservation-web-one.vercel.app
+  // address advertised itself as the page's other-language version. Every
+  // page already names both versions, at the canonical address, in its own
+  // <head> (lib/alternates.ts).
+  alternateLinks: false,
 });
 
 export type Locale = (typeof routing.locales)[number];
