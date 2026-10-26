@@ -26,6 +26,7 @@ import {
   type MapFilter,
 } from "@conservation/shared";
 import { createMap, type MapHandle } from "@/lib/map";
+import { useMapStrings } from "@/lib/mapStrings";
 import { withBase } from "@/lib/basePath";
 import MapFilters, { type SpeciesHit } from "./MapFilters";
 import MapModeToggle from "./MapModeToggle";
@@ -407,6 +408,7 @@ export default function HeatmapView({
   initialSpecies?: SpeciesHit | null;
 }) {
   const t = useTranslations();
+  const strings = useMapStrings();
   // The popup is built imperatively inside a MapLibre event handler, which closes
   // over the first render. A ref keeps it reading current translations after a
   // locale switch instead of freezing the initial language.
@@ -488,6 +490,7 @@ export default function HeatmapView({
         bounded: false,
         static: presentationRef.current,
         onReady: addReportLayers,
+        strings,
       });
 
       // The component unmounted while MapLibre was loading.
@@ -865,7 +868,7 @@ export default function HeatmapView({
       handleRef.current = null;
       mapRef.current = null;
     };
-  }, [maptilerKey]);
+  }, [maptilerKey, strings]);
 
   /* ---- keep the address bar in step with the map ---- */
   useEffect(() => {

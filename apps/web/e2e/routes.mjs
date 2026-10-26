@@ -25,6 +25,7 @@
  *             settle, and the perf spec's first-tile probe
  *   dynamic   how to find a real id for a parameterised route at run time
  *   full      false to skip the full-page screenshot (see map)
+ *   short     true to sweep it at SHORT_VIEWPORTS as well (reflow.spec.mjs)
  *   skipShots / skipAxe / skipContrast / skipReflow — each with a `why`
  *   states    extra screens reachable only by driving the page; each is
  *             { id, why, drive(page) }. Page workstreams add their own.
@@ -56,6 +57,29 @@ export const SHOT_WIDTHS = [390, 768, 1440];
  * sells, but what a 390px phone becomes when its owner turns on larger text.
  */
 export const REFLOW_WIDTHS = [320, 390];
+
+/**
+ * Short screens, swept on the rows marked `short`.
+ *
+ * 667×375 is a phone on its side (an iPhone SE, whose 375px is less once
+ * Safari's bars are drawn). 320×256 is WCAG 1.4.10's other reflow case:
+ * content that scrolls vertically has to work at 256px of height as well as
+ * 320px of width. Both are checked for sideways scroll, like the widths
+ * above, and for how much of the screen stays pinned while the page scrolls
+ * (MAX_PINNED_SHARE): a header pinned at the top and a send bar at the bottom
+ * left a strip of form between them.
+ */
+export const SHORT_VIEWPORTS = [
+  { width: 667, height: 375 },
+  { width: 320, height: 256 },
+];
+
+/**
+ * The most of a short screen that may stay put while the page scrolls under
+ * it. The report pages pin nothing at these heights (globals.css, "SHORT
+ * SCREENS"), so this is the room left for something small that has to stay.
+ */
+export const MAX_PINNED_SHARE = 0.2;
 
 /** axe runs at the two widths that are genuinely two documents. */
 export const AXE_WIDTHS = [390, 1440];
@@ -145,6 +169,7 @@ export const ROUTES = [
     settle: MAP_SETTLE,
     map: true,
     full: true,
+    short: true,
     why: "The location picker is a live map inside an ordinary scrolling page; this one also asks dead or hurt.",
   },
   {
@@ -153,6 +178,7 @@ export const ROUTES = [
     settle: MAP_SETTLE,
     map: true,
     full: true,
+    short: true,
     why: "The invasive list, with its way out to the wildlife page.",
   },
   {
@@ -161,6 +187,7 @@ export const ROUTES = [
     settle: MAP_SETTLE,
     map: true,
     full: true,
+    short: true,
     why: "Any animal; the note that an invasive one also counts as invasive appears only once one is chosen.",
   },
   { name: "reports", path: "/reports", settle: 3000 },

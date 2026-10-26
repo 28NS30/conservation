@@ -70,7 +70,12 @@ export default async function SiteHeader({
   }));
 
   return (
+    // data-site-header and data-site-phone-nav are for globals.css: the
+    // report form measures this header to keep what it focuses clear of it,
+    // and on a short screen the report pages unpin it and drop the phone's
+    // row of links (the footer repeats them, language switch included).
     <header
+      data-site-header={app ? "app" : "page"}
       className={`z-30 bg-forest-900 text-paper-50 ${app ? "relative shrink-0" : "sticky top-0"}`}
     >
       <div
@@ -119,6 +124,7 @@ export default async function SiteHeader({
           trap. On the map it stays compact (see above). The bottom tab bar in
           the plan replaces it. */}
       <div
+        data-site-phone-nav
         className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-1 bg-forest-950 px-4 sm:px-6 md:hidden ${
           app ? "py-1.5" : "py-2"
         }`}

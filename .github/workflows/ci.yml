@@ -256,6 +256,15 @@ jobs:
         # pages add to it. It ran nowhere before this step.
         run: npm run test:receipt --workspace @conservation/web
 
+      - name: Filing a report by keyboard, with no location, and by touch
+        # Tab and Enter only, with the browser refusing a position: the
+        # refusal says how to allow it, the pin goes down at the map's centre,
+        # the report is sent (stubbed, as above) and focus lands on the
+        # receipt. Then by touch, that the crosshair over the map changes
+        # nothing a tap or a drag does. axe and the contrast audit run in each
+        # state the route sweeps below cannot reach on load.
+        run: npm run test:keyboard --workspace @conservation/web
+
       - name: Every page renders in both locales
         # Catches what HTTP-level checks cannot: next-intl renders a missing
         # message as its own key path rather than throwing, so the page still
