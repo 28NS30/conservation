@@ -53,6 +53,8 @@ const PAGES = [
   { path: "/attribution", name: "attribution" },
   { path: "/privacy", name: "privacy" },
   { path: "/terms", name: "terms" },
+  { path: "/poster", name: "poster" },
+  { path: "/en/poster", name: "poster (en)" },
 ];
 
 /** Namespaces from messages/*.json. A leaked key looks like `namespace.someKey`. */
@@ -79,6 +81,7 @@ const NAMESPACES = [
   "about",
   "privacy",
   "terms",
+  "poster",
   "list",
   "collections",
 ];

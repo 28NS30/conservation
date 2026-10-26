@@ -12,6 +12,7 @@
     "backToSpecies": "← Back to species",
     "species": "Species",
     "about": "About",
+    "poster": "Poster",
     "attribution": "Attribution",
     "privacy": "Privacy",
     "stats": "Statistics",
@@ -1231,5 +1232,20 @@
     "publish": "Publish puts it on the map, at the location its species allows. Protected and sensitive species stay blurred whatever is decided here.",
     "reject": "Reject keeps it off the map for good. Write why: the reporter only sees that it was not used, and the reason stays in the moderation log. The map catches up with a decision within about five minutes.",
     "tests": "To try every step without anything being shown, use the test links further down."
+  },
+  "poster": {
+    "title": "Poster and classroom use",
+    "description": "A printable A4 poster: scan the QR code with a phone camera to report, in about a minute, with no account. With a guide for using it in class.",
+    "screenTitle": "A poster to put up",
+    "screenBody": "Print this page on A4, portrait, and it is a poster; the second page is a guide for using it in class. Put it up in a classroom, a club room or on a notice board. A phone camera that scans the QR code opens the report page.",
+    "print": "Print the poster",
+    "scan": "Scan with your phone's camera to report",
+    "qrAlt": "QR code linking to {url}",
+    "classTitle": "Using it in class",
+    "class1": "Open the map together and see what has already been recorded near your school.",
+    "class2": "Go through the three kinds of report: roadkill or injured, invasive species, and wildlife sightings.",
+    "class3": "Reporting needs no account. Reports are kept on the phone that sent them, and My reports shows whether each one is public yet.",
+    "class4": "Stay safe: never step into traffic for a photo, and never report while riding or driving.",
+    "class5": "Before a photo is uploaded, the browser removes its location and camera details. Protected and sensitive species are only ever shown as a blurred area."
   }
 }

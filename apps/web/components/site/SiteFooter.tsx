@@ -50,6 +50,7 @@ export default async function SiteFooter({
     ...(teamPublished()
       ? ([{ href: "/team", label: t("nav.team") }] as const)
       : []),
+    { href: "/poster", label: t("nav.poster") },
     { href: "/attribution", label: t("nav.attribution") },
     { href: "/privacy", label: t("nav.privacy") },
     { href: "/terms", label: t("nav.terms") },
