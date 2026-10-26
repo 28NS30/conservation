@@ -243,6 +243,22 @@
   "detail": {
     "species": "物種",
     "notYetIdentified": "尚未辨識",
+    "higherRank": "{name}（只辨識到{rank}）",
+    "higherRankPlain": "{name}（只辨識到物種以上的分類）",
+    "rank": {
+      "Kingdom": "界",
+      "Phylum": "門",
+      "Class": "綱",
+      "Subclass": "亞綱",
+      "Order": "目",
+      "Suborder": "亞目",
+      "Infraorder": "下目",
+      "Superfamily": "總科",
+      "Family": "科",
+      "Subfamily": "亞科",
+      "Tribe": "族",
+      "Genus": "屬"
+    },
     "notes": "備註",
     "location": "位置",
     "aiIdentified": "由 AI 辨識",
