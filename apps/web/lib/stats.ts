@@ -45,9 +45,9 @@ export async function recordedSpeciesCount(): Promise<number> {
  * subspecies rows alike, so "500 of 42,061" divided 328 species plus 172
  * subspecies by species only. Both sides now count the directory's cards:
  * a species with the subspecies that share its Chinese name is one, and a
- * subspecies named for itself is one more, on top as below. So the ratio is
- * still like over like, and the numerator is still the one number every other
- * page states. Collapsing every subspecies into its species would have given
+ * subspecies named for itself is one more, in the numerator as in the
+ * denominator. So the ratio is still like over like, and the numerator is
+ * still the one number every other page states. Collapsing every subspecies into its species would have given
  * /season a species count of its own beside /stats's, the disagreement
  * recordedSpeciesCount() exists to end; folding only the same-named ones
  * changes the directory too, so both move together.
