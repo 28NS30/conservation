@@ -235,20 +235,45 @@ describe("nothing cached outlasts the bound", () => {
 });
 
 describe("served from the cache", () => {
+  const speciesPath = (s) =>
+    `/en/species/${s.id}-${s.scientific_name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+
   async function aSpecies(offset) {
     const [s] = await sql`
       select t.id, t.scientific_name from taxa t join species_report_stats s on s.taxon_id = t.id
        order by s.report_count desc, t.id limit 1 offset ${offset}`;
-    return `/en/species/${s.id}-${s.scientific_name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+    assert.ok(s, `no species has records at offset ${offset}`);
+    return speciesPath(s);
+  }
+
+  /**
+   * A species page rendered on its first visit rather than built with the
+   * site: one far down the list, past the fifty generateStaticParams builds
+   * (species/[id]/page.tsx); or, where fewer species than that have records
+   * (CI's fixture has 34), an accepted species of Taiwan's that nobody has
+   * recorded, which is never built.
+   */
+  async function anOnDemandSpecies() {
+    const [{ n }] = await sql`
+      select count(*)::int as n from taxa t join species_report_stats s on s.taxon_id = t.id`;
+    if (n > 50) return aSpecies(Math.min(200, n - 1));
+    const [s] = await sql`
+      select t.id, t.scientific_name from taxa t
+        left join species_report_stats s on s.taxon_id = t.id
+       where s.taxon_id is null
+         and t.rank = 'Species' and t.taxon_status = 'accepted' and t.is_in_taiwan
+       order by t.id limit 1`;
+    assert.ok(s, "no species here is rendered on demand");
+    return speciesPath(s);
   }
 
   test("the public pages are shared, and set no cookie", async (t) => {
     if (!(await requireServer(t))) return;
-    // One species built with the site, and one far down the list, which is
-    // rendered on its first visit and cached from then on.
+    // One species built with the site, and one that is rendered on its first
+    // visit and cached from then on.
     const paths = [
       "/", "/en", "/about", "/en/privacy", "/attribution", "/en/stats", "/season", "/roadkill", "/wildlife",
-      await aSpecies(0), await aSpecies(200),
+      await aSpecies(0), await anOnDemandSpecies(),
     ];
     for (const path of paths) {
       const res = await fetch(`${BASE_URL}${path}`, { redirect: "manual" });
@@ -272,12 +297,18 @@ describe("served from the cache", () => {
     // A cached page that redirects sends Location twice on the render that
     // fills its cache, and fetch follows "a, a" to a 404. So a bare id is
     // redirected per request, by species/by-id. Each run asks for ids nobody
-    // has asked for yet on this server, which is the case that broke.
+    // has asked for yet on this server, which is the case that broke: two
+    // species from a random point in the whole of taxa, by the primary key,
+    // so that a database of any size has them (CI's fixture has 64 taxa) and
+    // a full checklist's ~68,000 give ids no earlier run asked for.
     if (!(await requireServer(t))) return;
-    const rows = await sql`
-      select t.id from taxa t join species_report_stats s on s.taxon_id = t.id
-       order by s.report_count desc, t.id
-       offset ${100 + Math.floor(Math.random() * 200)} limit 2`;
+    const [{ top }] = await sql`select max(id) as top from taxa`;
+    const pick = (from) => sql`
+      select id from taxa where id >= ${from} and rank in ('Species', 'Subspecies') order by id limit 2`;
+    let rows = await pick(Math.floor(Math.random() * Number(top)));
+    // Too near the end to find two: from the start instead.
+    if (rows.length < 2) rows = await pick(0);
+    assert.equal(rows.length, 2, "fewer than two species in taxa");
     for (const [prefix, r] of [["", rows[0]], ["/en", rows[1]]]) {
       const res = await fetch(`${BASE_URL}${prefix}/species/${r.id}`, { redirect: "manual" });
       assert.equal(res.status, 307, `${prefix}/species/${r.id}`);
