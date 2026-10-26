@@ -7,6 +7,8 @@ import {
   type SpeciesScope,
 } from "@conservation/shared";
 import { asPublic } from "@/lib/db";
+import { siteFigure } from "@/lib/siteFigures";
+import { speciesSlug } from "@/lib/speciesSlug";
 import { selectionFor, type Collection } from "@conservation/shared";
 
 export type SpeciesFilter =
@@ -119,22 +121,7 @@ export function inPageScope(scope: SpeciesScope): string {
   })`;
 }
 
-/** URL slug: `32116-prionailurus-bengalensis`. Ids stay stable; humans get a hint. */
-export function speciesSlug(s: { id: number; scientificName: string }): string {
-  const name = s.scientificName
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-  return name ? `${s.id}-${name}` : String(s.id);
-}
-
-/** Accepts `32116` or `32116-anything`; anything else is not a species id. */
-export function parseSpeciesId(param: string): number | null {
-  const m = /^(\d+)(?:-|$)/.exec(param);
-  if (!m) return null;
-  const id = Number(m[1]);
-  return Number.isSafeInteger(id) && id > 0 ? id : null;
-}
+export { speciesSlug, parseSpeciesId } from "@/lib/speciesSlug";
 
 /**
  * Whether a species page carries something a searcher could actually want.
@@ -182,15 +169,7 @@ export function isIndexworthy(s: {
   );
 }
 
-/**
- * One species, as its page and its share card show it.
- *
- * Memoised for the length of one request (React's cache): a species page asks
- * for it in its metadata, in its share card's alt text and in its body, and
- * those were separate identical reads of the same row. Outside a request it is
- * simply called.
- */
-export const getSpecies = cache(async (id: number): Promise<SpeciesDetail | null> => {
+async function readSpecies(id: number): Promise<SpeciesDetail | null> {
   const rows = await asPublic(
     (tx) => tx<SpeciesDetail[]>`
       select ${tx.unsafe(SUMMARY_COLS)},
@@ -205,7 +184,55 @@ export const getSpecies = cache(async (id: number): Promise<SpeciesDetail | null
        where t.id = ${id}`,
   );
   return rows[0] ?? null;
+}
+
+/**
+ * One taxon, as a record's species card shows it, read afresh.
+ *
+ * Read once per request however many times it is asked for (React's
+ * `cache`): a page and its `generateMetadata` both need it, and each asked
+ * the database separately.
+ */
+export const getSpecies = cache(readSpecies);
+
+/**
+ * The scientific name a taxon's address is made of (speciesSlug), or null for
+ * an id that names no taxon. Read afresh, one row by its primary key, and
+ * once per request (React's `cache`), by the species page before anything
+ * cached: an address that is not a taxon's own then costs that one read and
+ * a 404, and no entry in the cache every reader shares.
+ */
+export const speciesAddressName = cache(async (id: number): Promise<string | null> => {
+  const rows = await asPublic(
+    (tx) => tx<{ name: string }[]>`select scientific_name as name from taxa where id = ${id}`,
+  );
+  return rows[0]?.name ?? null;
 });
+
+/**
+ * Whether `param`, the species page's address, is the taxon's own: the slug
+ * speciesSlug() makes from its id and its current name, exactly. Anything
+ * else is not found, an id with someone else's name after it included.
+ */
+export async function isSpeciesAddress(param: string, id: number): Promise<boolean> {
+  const name = await speciesAddressName(id);
+  return name !== null && param === speciesSlug({ id, scientificName: name });
+}
+
+/**
+ * The same taxon for its species page, which is cached for everybody: from
+ * the cache every reader shares, tagged with the reports
+ * (lib/siteFigures.ts).
+ *
+ * Through that cache rather than afresh because the tag is what drops the
+ * cached page. The page lists a sparse species' records, each with its point;
+ * a record re-identified as a blurred species, or thrown out, must leave the
+ * old page when the writer says the reports changed, and a page is dropped
+ * with the tags of what it read. This is the read every species page makes,
+ * whatever it has on it. `cache` on top, so the page and its metadata still
+ * ask once.
+ */
+export const getCachedSpecies = cache(siteFigure("species", readSpecies));
 
 /**
  * A species a "report this species" link may carry, and the report pages that
@@ -521,8 +548,12 @@ export async function publicSpeciesName(id: number): Promise<{
   return rows[0] ?? null;
 }
 
-/** Monthly distribution — roadkill is strongly seasonal, so this is the most scientifically useful chart on the page. */
-export async function monthlyCounts(taxonId: number): Promise<number[]> {
+/**
+ * Monthly distribution — roadkill is strongly seasonal, so this is the most
+ * scientifically useful chart on the page. Cached for everybody, under the
+ * reports' tag, like the figures (lib/siteFigures.ts).
+ */
+export const monthlyCounts = siteFigure("monthlyCounts", async (taxonId: number): Promise<number[]> => {
   const rows = await asPublic(
     (tx) => tx<{ month: number; n: number }[]>`
       select extract(month from observed_at at time zone 'Asia/Taipei')::int as month, count(*)::int as n
@@ -532,21 +563,35 @@ export async function monthlyCounts(taxonId: number): Promise<number[]> {
   const out = Array(12).fill(0);
   for (const r of rows) out[r.month - 1] = r.n;
   return out;
-}
+});
 
-/** Individual records, for species too sparse to justify a heatmap. */
-export async function recentRecords(taxonId: number, limit = 12) {
+export type SpeciesRecord = {
+  id: string;
+  observedAt: string;
+  lat: number;
+  lng: number;
+  category: string;
+  isObscured: boolean;
+};
+
+/**
+ * A species with this many public records or fewer has them listed, each
+ * with its point, rather than charted.
+ */
+export const LIST_MAX_RECORDS = 5;
+
+/**
+ * Individual records, for species too sparse to justify a heatmap.
+ *
+ * Each with its point, so read afresh, never from the figures' cache: a point
+ * may be no older than the page it is on (lib/siteFigures.ts), and a cached
+ * copy could be five minutes old before the page was even made. The species
+ * page asks for them per request, through GET /api/species/[id]/records, so
+ * that no cached page holds one at all.
+ */
+export function recentRecords(taxonId: number, limit: number = 12): Promise<SpeciesRecord[]> {
   return asPublic(
-    (tx) => tx<
-      {
-        id: string;
-        observedAt: string;
-        lat: number;
-        lng: number;
-        category: string;
-        isObscured: boolean;
-      }[]
-    >`
+    (tx) => tx<SpeciesRecord[]>`
       select id, observed_at as "observedAt",
              st_y(location_public::geometry) as lat,
              st_x(location_public::geometry) as lng,

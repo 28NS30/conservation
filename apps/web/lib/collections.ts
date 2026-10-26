@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import { asPublic } from "@/lib/db";
 import { OFFERED, countSpecies } from "@/lib/species";
+import { siteFigure } from "@/lib/siteFigures";
 import {
   RECORD_CONDITIONS,
   selectionFor,
@@ -19,6 +20,10 @@ import {
  * through `selectionFor()`, the reading the map's tiles and the record list
  * use, so a count on a hub page is the count a reader gets by following its
  * map link.
+ *
+ * Each is the same for every reader and changes only with the reports, so
+ * each is cached for everybody (lib/siteFigures.ts), and a collection page,
+ * which is built from them, is rebuilt when a report is published.
  */
 
 /** The filter clause every query below shares, on `reports_public rp`. */
@@ -51,9 +56,9 @@ export type CollectionSummary = {
   newest: Date | string | null;
 };
 
-export async function collectionSummary(
+export const collectionSummary = siteFigure("collectionSummary", async (
   c: Collection,
-): Promise<CollectionSummary> {
+): Promise<CollectionSummary> => {
   const alive = [...RECORD_CONDITIONS.alive.categories];
   const dead = [...RECORD_CONDITIONS.dead.categories];
   const [[row], species] = await Promise.all([
@@ -74,26 +79,28 @@ export async function collectionSummary(
     countSpecies({ filter: "recorded", collection: c }),
   ]);
   return { ...row, species };
-}
+});
 
 /**
  * How many public records each collection holds, and how many there are in
  * all, for /stats. One pass over the view; the collections overlap, so the
- * three do not add up to the total and are not meant to.
+ * three do not add up to the total and are not meant to. A site-wide figure,
+ * cached for everybody (lib/siteFigures.ts).
  */
-export async function collectionTotals(): Promise<
-  { all: number } & Record<Collection, number>
-> {
-  const [row] = await asPublic(
-    (tx) => tx<({ all: number } & Record<Collection, number>)[]>`
+export const collectionTotals = siteFigure(
+  "collectionTotals",
+  async (): Promise<{ all: number } & Record<Collection, number>> => {
+    const [row] = await asPublic(
+      (tx) => tx<({ all: number } & Record<Collection, number>)[]>`
       select count(*)::int                                            as "all",
              count(*) filter (where ${where(tx, "roadkill")})::int    as roadkill,
              count(*) filter (where ${where(tx, "invasive")})::int    as invasive,
              count(*) filter (where ${where(tx, "wildlife")})::int    as wildlife
         from reports_public rp`,
-  );
-  return row;
-}
+    );
+    return row;
+  },
+);
 
 export type CollectionRecord = {
   id: string;
@@ -118,11 +125,11 @@ export type CollectionRecord = {
  * "newest" means 2017: calling these recent would be the claim /reports once
  * made above a first row dated 2017-12-31.
  */
-export async function newestRecords(
+export const newestRecords = siteFigure("newestRecords", (
   c: Collection,
-  limit = 8,
-): Promise<CollectionRecord[]> {
-  return asPublic(
+  limit: number = 8,
+): Promise<CollectionRecord[]> =>
+  asPublic(
     (tx) => tx<CollectionRecord[]>`
       select rp.id::text, rp.observed_at as "observedAt", rp.category,
              rp.source, rp.is_obscured as "isObscured",
@@ -139,8 +146,8 @@ export async function newestRecords(
        where ${where(tx, c)}
        order by rp.observed_at desc, rp.id
        limit ${limit}`,
-  );
-}
+  ),
+);
 
 export type InvasiveSpecies = {
   id: number;
@@ -178,8 +185,8 @@ export type InvasiveSpecies = {
  * not exist and the note itself once an import adds it, so the page shows it
  * the day the data has it, with no change here and no failed query before.
  */
-export async function invasiveSpeciesList(): Promise<InvasiveSpecies[]> {
-  return asPublic(
+export const invasiveSpeciesList = siteFigure("invasiveSpeciesList", (): Promise<InvasiveSpecies[]> =>
+  asPublic(
     (tx) => tx<InvasiveSpecies[]>`
       select t.id, t.scientific_name as "scientificName",
              t.common_name_zh as "commonNameZh",
@@ -198,5 +205,5 @@ export async function invasiveSpeciesList(): Promise<InvasiveSpecies[]> {
          and t.is_invasive
        order by coalesce(s.report_count, 0) desc,
                 t.common_name_zh nulls last, t.scientific_name, t.id`,
-  );
-}
+  ),
+);

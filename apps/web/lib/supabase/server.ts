@@ -14,7 +14,7 @@ import { LATE, fetchUntil, settledBy, passwordSession, refusesPasswordSessions }
  * request with no answer is left hanging, or, with a session due for renewal,
  * up to 30 seconds of supabase-js retrying the refresh that the proxy had
  * already given up on at its own 5-second deadline. Shorter than the proxy's,
- * so the proxy and the header's question together cost a page eight seconds
+ * so the proxy and the page's question together cost a page eight seconds
  * at most.
  */
 const PAGE_AUTH_DEADLINE_MS = 3000;
@@ -67,10 +67,12 @@ function authConfigured(): boolean {
 /**
  * The signed-in user's id, or null for an anonymous visitor.
  *
- * `SiteHeader` calls this on every page to decide whether to show "my reports",
- * so it runs during the prerender of every static page. When Supabase is not
- * configured, `serverSupabase()` throws — and one throw inside a prerender ends
- * the whole build, not just that page:
+ * `SiteHeader` used to call this on every page to decide whether to show "my
+ * reports", so it ran during the prerender of every static page. It decides in
+ * the browser now (components/auth/AccountLink.tsx), but /login, /me and the
+ * forum still ask here. When Supabase is not configured, `serverSupabase()`
+ * throws — and one throw inside a prerender ends the whole build, not just
+ * that page:
  *
  *     Error occurred prerendering page "/zh-TW"
  *     Error: NEXT_PUBLIC_SUPABASE_URL / _ANON_KEY are not set
@@ -83,7 +85,7 @@ function authConfigured(): boolean {
  *
  * Outside production, "not configured" is answered with `null` — and that is the
  * correct answer rather than a fudge. With no Supabase project to ask, there is
- * no session, so nobody is signed in, and a signed-out header is exactly what
+ * no session, so nobody is signed in, and a signed-out page is exactly what
  * should render.
  *
  * **Production still throws**, by falling through to `serverSupabase()`. A
@@ -106,9 +108,9 @@ export async function currentUserId(): Promise<string | null> {
 
 /**
  * Who Supabase says is signed in, or null — including when it has not said so
- * by the deadline. Null is the safe reading everywhere this is used: the
- * header shows "Sign in", /me and /admin show their signed-out branches, and
- * the moderation actions refuse.
+ * by the deadline. Null is the safe reading everywhere this is used: /me and
+ * /admin show their signed-out branches, /login shows its form, and the
+ * moderation actions refuse.
  */
 async function userBy(
   supabase: Awaited<ReturnType<typeof serverSupabase>>,

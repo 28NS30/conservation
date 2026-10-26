@@ -1,5 +1,6 @@
 import { classifyQueued } from "@/lib/report/classifyWorker";
 import { withJobRun } from "@/lib/jobRuns";
+import { reportsChanged } from "@/lib/siteFigures";
 
 /**
  * Classification worker, driven by Vercel Cron (see apps/web/vercel.json).
@@ -66,8 +67,24 @@ export const dynamic = "force-dynamic";
 async function run(req: Request) {
   if (!authorised(req))
     return Response.json({ error: "unauthorized" }, { status: 401 });
-  // Deliberately small. This is read by a cron service, not a human, and a large
-  // body is what made a timeout look like a broken endpoint. It is also what
-  // the run's row in job_runs records (lib/jobRuns.ts): four counts.
-  return withJobRun("classify", async () => Response.json(await classifyQueued()));
+  // A job that finished may have published its report or named its animal,
+  // and the counts every page states are cached for everybody
+  // (lib/siteFigures.ts). A run that finished none changed nothing public:
+  // what a failed job writes is on a held report, which no page shows. Not
+  // dropped then, because dropping empties every cached page at once. In
+  // `finally`, from the count the run keeps as it goes, because a run can
+  // throw after jobs it finished have committed.
+  const progress = { processed: 0 };
+  try {
+    // Deliberately small. This is read by a cron service, not a human, and a
+    // large body is what made a timeout look like a broken endpoint. It is
+    // also what the run's row in job_runs records (lib/jobRuns.ts): four
+    // counts. Awaited, so `finally` reads the count once the run is over.
+    return await withJobRun("classify", async () => {
+      const outcome = await classifyQueued({ progress });
+      return Response.json(outcome);
+    });
+  } finally {
+    if (progress.processed > 0) reportsChanged();
+  }
 }
