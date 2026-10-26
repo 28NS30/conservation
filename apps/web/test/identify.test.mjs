@@ -38,6 +38,10 @@ registerHooks({
       return nextResolve(spec, context);
     } catch (e) {
       if (/^(\.|file:)/.test(spec) && !/\.[cm]?[jt]sx?$/.test(spec)) return nextResolve(`${spec}.ts`, context);
+      // Next's subpaths ("next/cache", reached through lib/species.ts and
+      // lib/siteFigures.ts) are files without an exports map, which the
+      // bundler finds and Node's resolver does not.
+      if (/^next\/[a-z-]+$/.test(spec)) return nextResolve(`${spec}.js`, context);
       throw e;
     }
   },
