@@ -316,8 +316,9 @@ describe("the pages", () => {
     if (!(await requireServer(t))) return;
     const { body } = await html("/invasive");
     assert.ok(!body.includes("Bird Record Committee"), "a TaiCOL note is still on the list");
+    // Every disclosure on the page, the header's report menu among them.
     const groups = [...body.matchAll(/<details[^>]*>/g)].map((m) => m[0]);
-    assert.ok(groups.length > 0, "the groups are not disclosures");
+    assert.ok(groups.length > 1, "the groups are not disclosures");
     assert.ok(groups.every((g) => !/\bopen\b/.test(g)), "a group starts open");
   });
 
@@ -329,8 +330,13 @@ describe("the pages", () => {
     assert.match(body, new RegExp(`${n} 筆紀錄`));
     // Linked to the subspecies it counts.
     assert.match(body, new RegExp(`href="/species/${IBIS.subspecies}-`));
-    const details = body.match(/<details[\s\S]*?<\/details>/)?.[0] ?? "";
-    assert.match(details, /資料來源/);
+    // The disclosure with the sources in it: the header's report menu is a
+    // <details> too.
+    const details = [...body.matchAll(/<details[\s\S]*?<\/details>/g)]
+      .map((m) => m[0])
+      .find((d) => d.includes("資料來源"));
+    assert.ok(details, "no 資料來源 disclosure on the species page");
+    assert.doesNotMatch(details.match(/<details[^>]*>/)[0], /\bopen\b/, "the sources start open");
     assert.match(details, /Bird Record Committee, 2022/);
   });
 
