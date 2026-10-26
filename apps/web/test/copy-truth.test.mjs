@@ -305,6 +305,53 @@ describe("the copy does not contradict itself", () => {
     }
   });
 
+  test("why a record is blurred names the genus rule and the model, as the code does", () => {
+    // 0033 blurs a record named above the species, and the classifier blurs a
+    // named record as the model's species when the model is sure of another,
+    // and holds a named record with a photo at 10 km until the model has
+    // looked. Each list of reasons left all three out, and /about said
+    // "Invasive species are not blurred" without qualification.
+    const MIGRATIONS = join(WEB, "..", "..", "supabase", "migrations");
+    const files = readdirSync(MIGRATIONS)
+      .filter((f) => f.endsWith(".sql"))
+      .sort()
+      .map((f) => readFileSync(join(MIGRATIONS, f), "utf8"));
+    const lastDefining = (re) => files.filter((s) => re.test(s)).at(-1) ?? "";
+    const rankRule = /is_above_species\(cur\.rank\)/.test(
+      lastDefining(/function public\.taxon_precision\b|function taxon_precision\b/),
+    );
+    const held = /new\.held_for_classification/.test(
+      lastDefining(/function public\.set_report_public_location\b|function set_report_public_location\b/),
+    );
+    const hold = join(WEB, "lib", "report", "classificationHold.ts");
+    const modelRule = existsSync(hold) && /binomial_precision\(\$\{modelTaxonId\}::bigint\)/.test(read("lib/report/classificationHold.ts"));
+    for (const key of [
+      "statsPage.coverageBody",
+      "season.obscuredNote",
+      "about.privacyBody",
+      "list.obscuredLegend",
+      "detail.blurredNotice",
+    ]) {
+      const get = (l) => key.split(".").reduce((o, k) => o[k], catalogues[l]);
+      if (rankRule) {
+        assert.match(get("en"), /only to a genus or higher/, `en ${key}`);
+        assert.match(get("zh-TW"), /只鑑定到屬或更高/, `zh-TW ${key}`);
+      }
+      if (modelRule) {
+        assert.match(get("en"), /model is sure/, `en ${key}`);
+        assert.match(get("zh-TW"), /辨識模型很確定/, `zh-TW ${key}`);
+      }
+      if (held) {
+        assert.match(get("en"), /has not looked at|until the identification model has looked/, `en ${key}`);
+        assert.match(get("zh-TW"), /還沒看過照片|辨識模型看過照片之前/, `zh-TW ${key}`);
+      }
+    }
+    if (held || modelRule) {
+      assert.doesNotMatch(catalogues.en.about.privacyBody, /(^|\. )Invasive species are not blurred/);
+      assert.doesNotMatch(catalogues["zh-TW"].about.privacyBody, /(^|。)外來入侵種不會模糊化/);
+    }
+  });
+
   test("the link to the blurring explanation is labelled as that explanation", () => {
     // It said "About the project" and went to the top of /about. It now goes to
     // the section, and carries the section's own heading.

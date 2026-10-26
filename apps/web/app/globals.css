@@ -175,6 +175,70 @@ html:has(#report-send-bar) {
 }
 
 /*
+ * The site header is pinned to the top of every page but the map
+ * (SiteHeader.tsx), so the same is true at the top: a field Tab lands on, a
+ * heading the report form moves focus to, a skip link's target, all have to
+ * stop below it, or the page hides the thing it has just focused (WCAG
+ * 2.4.11). Its height depends on the width and the language — on a phone its
+ * row of links wraps in English — so these are the common heights (a 56px
+ * bar and one row of links; 72px from md up), and the report form measures
+ * the real one into --header-height (ReportForm.tsx).
+ */
+:root {
+  --header-height: 6.75rem;
+}
+
+@media (min-width: 48rem) {
+  :root {
+    --header-height: 4.5rem;
+  }
+}
+
+html:has([data-site-header="page"]) {
+  scroll-padding-top: calc(var(--header-height) + 0.75rem);
+}
+
+/*
+ * SHORT SCREENS, on the report pages.
+ *
+ * An iPhone SE shows about 548px of page in Safari, less inside LINE, and a
+ * phone on its side about 320px. With the header pinned at the top and the
+ * send bar at the bottom, some 40% of the SE's screen was chrome that never
+ * moved, and the map the reporter has to tap was a strip between them. So
+ * under 560px of height the report pages let the header scroll away and
+ * drop its phone row of links (the footer has the same links and the
+ * language switch); under 500px, which is a phone on its side, the send bar
+ * stops following as well and settles at the end of the form. Nothing is
+ * then pinned, and scroll-padding has nothing to keep clear.
+ *
+ * Keyed on #report-form, which outlives the send bar: the receipt replaces
+ * the form, and the header must not pin itself again under it.
+ */
+@media (max-height: 560px) {
+  html:has(#report-form) [data-site-header="page"] {
+    position: static;
+  }
+
+  html:has(#report-form) [data-site-phone-nav] {
+    display: none;
+  }
+
+  html:has(#report-form) {
+    scroll-padding-top: 0.75rem;
+  }
+}
+
+@media (max-height: 500px) {
+  #report-send-bar {
+    position: static;
+  }
+
+  html:has(#report-send-bar) {
+    scroll-padding-bottom: 0.75rem;
+  }
+}
+
+/*
  * Chinese and Latin do not share a comfortable optical size. Tuned for Latin,
  * Hanzi look cramped and their strokes clog; matched to Hanzi, Latin looks
  * oversized. Proportional alternate metrics even out the CJK punctuation, which
@@ -227,6 +291,17 @@ input[type="time"]:focus {
    single one: maplibre-gl.css is imported from the component and lands after
    this file, so at equal specificity its white background won. Both classes are
    on the element, so this outranks it without an !important. */
+/*
+ * The report form's map canvas takes keyboard focus (the crosshair is aimed by
+ * panning it with the arrow keys), and its container clips everything outside
+ * it, so the ring drawn 2px outside the canvas was drawn nowhere: a keyboard
+ * user on the location picker could not see that they were on it. Inside the
+ * edge instead.
+ */
+[data-location-picker] .maplibregl-canvas:focus-visible {
+  outline-offset: -3px;
+}
+
 .maplibregl-ctrl.maplibregl-ctrl-scale {
   background: color-mix(in srgb, var(--color-bark-900) 85%, transparent);
   border-color: var(--color-parchment-200);

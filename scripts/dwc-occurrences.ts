@@ -126,9 +126,14 @@ export type OccurrenceRow = {
 /**
  * The candidate rows: our own published records, never an imported one.
  *
- * Reads `reports_public`, so coordinates are already obscured for sensitive
- * taxa and suppressed records are absent. Joining `taxa` is for names and for
- * the reason a coordinate is coarse. `notes` is deliberately not selected.
+ * Reads `reports_on_map`, which is `reports_public` without the records held
+ * at 10 km until the model has looked at their photo (migration 0033), so
+ * coordinates are already obscured for sensitive taxa, suppressed records are
+ * absent, and every coordinate is at its decided blur. A held record's 10 km
+ * can be looser than the blur the model then gives it, and a copy on GBIF
+ * outlives any tightening here; it goes out in the first export after it is
+ * released. Joining `taxa` is for names and for the reason a coordinate is
+ * coarse. `notes` is deliberately not selected.
  */
 export function selectOccurrences(
   sql: postgres.Sql | postgres.TransactionSql,
@@ -143,7 +148,7 @@ export function selectOccurrences(
            t.scientific_name, t.id as taxon_id, t.kingdom, t.phylum, t.class,
            t."order", t.family, t.genus, t.rank, t.common_name_zh,
            t.sensitivity, t.protected_status, t.alien_type, r.is_invasive
-      from reports_public r
+      from reports_on_map r
       left join taxa t on t.id = r.taxon_id
      where r.source = 'user'
        and r.location_precision <> 'suppressed'

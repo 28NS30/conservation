@@ -24,7 +24,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { chromium } from "playwright";
 import { auditContrast, ratchet as contrastRatchet, signature } from "./contrast.spec.mjs";
-import { checkWidths } from "./reflow.spec.mjs";
+import { checkWidths, pinnedShare } from "./reflow.spec.mjs";
 import { runAxe, ratchet as a11yRatchet } from "./a11y.spec.mjs";
 import { galleryHtml } from "./shots.mjs";
 import { checkHints, linkHeader, linkTags } from "./perf.spec.mjs";
@@ -112,6 +112,25 @@ check(
 );
 const roomy = await checkWidths(page, [1000], null);
 check("reflow is quiet when the page fits", roomy.length === 0, JSON.stringify(roomy));
+
+// The short-screen sweep's other half: how much of the screen never moves.
+// A 300px bar pinned to the bottom, then none.
+const tall = await page.evaluate(() => {
+  const bar = document.createElement("div");
+  bar.id = "pinned-probe";
+  bar.style.cssText = "position:fixed;left:0;right:0;bottom:0;height:300px;background:#0f1c16";
+  document.body.append(bar);
+  return innerHeight;
+});
+const pinned = await pinnedShare(page);
+check(
+  "reflow measures what is pinned to the screen, and names it",
+  Math.abs(pinned.share - 300 / tall) < 0.01 && pinned.at.some((a) => a.includes("#pinned-probe")),
+  JSON.stringify(pinned),
+);
+await page.evaluate(() => document.getElementById("pinned-probe").remove());
+const unpinned = await pinnedShare(page);
+check("reflow counts nothing pinned when nothing is", unpinned.share === 0, JSON.stringify(unpinned));
 
 /* ---- axe --------------------------------------------------------------- */
 

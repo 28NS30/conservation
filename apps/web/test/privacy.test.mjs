@@ -214,9 +214,14 @@ describe("the public role cannot reach true coordinates", () => {
     // to avoid making — that the true coordinate was measured to within twelve
     // metres. So the column reads null wherever the point is not exact.
     await inRollback(async (tx) => {
-      const sensitive = await taxonWhere("sensitivity = '輕度'");
+      // By the rule each comes out at, not only by its rating: a floor, a
+      // protection or a rank above the species (0033) can each change it, and
+      // an unordered pick may land on any row the rating alone admits.
+      const sensitive = await taxonWhere(
+        "sensitivity = '輕度' and taxon_precision(id) = 'coarse_10km'",
+      );
       const open = await taxonWhere(
-        "sensitivity is null and protected_status is null",
+        "sensitivity is null and protected_status is null and rank = 'Species' and taxon_precision(id) = 'exact'",
       );
 
       for (const [taxonId, precision, expected] of [

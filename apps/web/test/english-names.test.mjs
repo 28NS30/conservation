@@ -608,6 +608,10 @@ describe("the import", () => {
     // The values, as a second line: every other column of every row is the
     // same afterwards, ratings included, and so is every report's blur.
     await inRollback(async (tx) => {
+      // One snapshot for the whole comparison. Other test files commit and
+      // remove reports while this runs, and under READ COMMITTED the second
+      // digest saw them: "a report moved", for a report this never touched.
+      await tx`set transaction isolation level repeatable read`;
       await blankEnglishNames(tx);
       const taxaBefore = await taxaDigest(tx);
       const reportsBefore = await reportsDigest(tx);

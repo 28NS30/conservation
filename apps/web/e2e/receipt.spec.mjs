@@ -185,6 +185,38 @@ try {
           errors[0] ?? "",
         );
 
+        // Where the reporter is left. The card replaces a long form with a
+        // short one, and a phone used to be left looking at the footer with
+        // focus on a button that no longer existed. At 390x844 the header is
+        // pinned, so "in view" means below it.
+        const seen = await page.evaluate(() => {
+          const h = document.querySelector("#report-form h2");
+          if (!h) return null;
+          const r = h.getBoundingClientRect();
+          const header = document.querySelector("[data-site-header]");
+          const pinned =
+            header && getComputedStyle(header).position === "sticky"
+              ? header.getBoundingClientRect().bottom
+              : 0;
+          return {
+            focused: document.activeElement === h,
+            top: Math.round(r.top),
+            bottom: Math.round(r.bottom),
+            pinned: Math.round(pinned),
+            height: innerHeight,
+          };
+        });
+        check(
+          `${locale} · ${c.name}: the card's heading has focus`,
+          seen?.focused === true,
+          JSON.stringify(seen),
+        );
+        check(
+          `${locale} · ${c.name}: and is on screen, below the header`,
+          !!seen && seen.top >= seen.pinned - 1 && seen.bottom <= seen.height,
+          JSON.stringify(seen),
+        );
+
         if (fresh) {
           check(
             `${locale} · ${c.name}: heading is ${c.title}`,

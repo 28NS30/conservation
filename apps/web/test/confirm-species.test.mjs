@@ -71,6 +71,53 @@ describe("confirm species", () => {
     );
   });
 
+  test("a moderator is held to a name a report can be filed under, or a candidate", () => {
+    // Any row of `taxa` was accepted from a moderator: a retired twin unrated
+    // beside the row the law protects, or a genus. As setReportTaxon and
+    // POST /api/reports, OFFERED; or one of the model's own candidates, which
+    // SpeciesConfirm shows moderators too and which is blurred at its
+    // binomial's strictest.
+    const branch = src.slice(src.indexOf("} else {", src.indexOf("if (!moderator) {")));
+    assert.match(branch, /select \$\{sql\.unsafe\(OFFERED\)\} as offered,/);
+    assert.match(branch, /exists \(select 1 from classifications c\s+where c\.report_id = \$\{reportId\}::uuid\s+and c\.taxon_id = t\.id\) as candidate/);
+    assert.match(branch, /if \(!taxon\.offered && !taxon\.candidate\) \{\s*throw/);
+    assert.ok(src.indexOf("taxon.offered") < src.indexOf("update reports"), "the check must run before the write");
+  });
+
+  test("so a moderator may name a retired candidate, and not a genus nobody suggested", async () => {
+    const OFFERED = /export const OFFERED = `([\s\S]*?)`;/.exec(
+      readFileSync(join(import.meta.dirname, "..", "lib", "species.ts"), "utf8"),
+    )[1];
+    // The action's own query, read out of the source.
+    const query = /sql<\{ offered: boolean; candidate: boolean \}\[\]>`([\s\S]*?)`;/.exec(src)?.[1];
+    assert.ok(query, "the moderator's check moved");
+    const run = (tx, reportId, taxonId) =>
+      tx.unsafe(
+        query
+          .replace("${sql.unsafe(OFFERED)}", OFFERED)
+          .replace("${reportId}", "$1")
+          .replace("${taxonId}", "$2"),
+        [reportId, taxonId],
+      );
+    await inRollback(async (tx) => {
+      const taxon = async (rank, status) =>
+        (await tx`
+          insert into taxa (taicol_id, scientific_name, rank, is_in_taiwan, taxon_status)
+          values (${`test-mc-${process.pid}-${Date.now()}-${rank}-${status}`},
+                  ${`Testudofixtura m${process.pid}x${Date.now()}${rank}${status}`}, ${rank}, true, ${status})
+          returning id`)[0].id;
+      const retired = await taxon("Species", "deleted");
+      const genus = await taxon("Genus", "accepted");
+      const r = await insertReport(tx);
+      await tx`insert into classifications (report_id, taxon_id, score, rank, model_version)
+               values (${r.id}::uuid, ${retired}, 0.9, 1, 'test')`;
+      const [a] = await run(tx, r.id, retired);
+      assert.deepEqual([a.offered, a.candidate], [false, true]);
+      const [b] = await run(tx, r.id, genus);
+      assert.deepEqual([b.offered, b.candidate], [false, false]);
+    });
+  });
+
   test("the path is rate limited", () => {
     assert.match(src, /withinRateLimit\(`retaxon:user:\$\{userId\}`/);
   });
@@ -145,7 +192,7 @@ describe("every path that names a species applies one override rule", () => {
       // One of the two shared fragments, or a choice between them.
       const shared = String.raw`(?:keepDeliberateOverride\(\)|photoIdentificationOverride\([^)]*\))`;
       // Or through a variable built from them: confirmSpecies wraps the rule
-      // in stricter_precision(..., location_precision) for a reporter's re-pick.
+      // in stricter_precision(..., <the decided blur>) for a reporter's re-pick.
       const direct = new RegExp(
         String.raw`precision_override = \$\{\s*(?:[^?}]*\?\s*${shared}\s*:\s*)?${shared}\s*\}`,
       );
@@ -184,7 +231,13 @@ describe("a species named from the model's suggestions", () => {
   test("both confirm paths name a species through the photograph rule", () => {
     assert.match(src, /precision_override = \$\{override\}/);
     assert.match(src, /: photoIdentificationOverride\(taxonId\);/);
-    assert.match(src, /stricter_precision\(\$\{photoIdentificationOverride\(taxonId\)\}, location_precision\)/);
+    // At least the record's decided blur on a reporter's re-pick: on a record
+    // held until the model has looked, location_precision is the hold's 10 km
+    // (classification-hold.test.mjs runs this against a twin never held).
+    assert.match(
+      src,
+      /stricter_precision\(\$\{photoIdentificationOverride\(taxonId\)\},\s*coalesce\(held_rule_precision, location_precision\)\)/,
+    );
     assert.match(
       ADMIN,
       /taxonId === null\s*\?\s*keepDeliberateOverride\(\)\s*:\s*photoIdentificationOverride\(taxonId\)/,
@@ -228,8 +281,10 @@ describe("what clearing precision_override is allowed to undo", () => {
         category: "sighting",
         override: "coarse_10km",
       });
+      // A species: a name above one is blurred whatever its rating (0033). And
+      // one whose rule is exact, since a floor can blur an unrated one.
       const taxonId = await taxonWhere(
-        "sensitivity is null and protected_status is null and is_in_taiwan",
+        "sensitivity is null and protected_status is null and is_in_taiwan and rank = 'Species' and taxon_precision(id) = 'exact'",
       );
       // The action's own statement, reduced to the columns under test.
       await tx`update reports
@@ -252,8 +307,10 @@ describe("what clearing precision_override is allowed to undo", () => {
     // justified a blur the corrected name would not. Clearing it would
     // publish a location somebody decided to withhold.
     await inRollback(async (tx) => {
+      // Species: a name above one is blurred whatever its rating (0033). And
+      // exact by rule, or a floor's 50 km would hide the 10 km under test.
       const before = await taxonWhere(
-        "sensitivity is null and protected_status is null and is_in_taiwan",
+        "sensitivity is null and protected_status is null and is_in_taiwan and rank = 'Species' and taxon_precision(id) = 'exact'",
       );
       const r = await insertReport(tx, {
         taxonId: before,
@@ -263,7 +320,7 @@ describe("what clearing precision_override is allowed to undo", () => {
       assert.equal(r.location_precision, "coarse_10km", "the fixture starts blurred");
 
       const after = await taxonWhere(
-        "sensitivity is null and protected_status is null and is_in_taiwan and id <> " +
+        "sensitivity is null and protected_status is null and is_in_taiwan and rank = 'Species' and taxon_precision(id) = 'exact' and id <> " +
           String(before),
       );
       await tx`update reports
@@ -277,6 +334,45 @@ describe("what clearing precision_override is allowed to undo", () => {
                                from reports where id = ${r.id}`;
       assert.equal(row.precision_override, "coarse_10km", "a decision, not a stamp");
       assert.equal(row.location_precision, "coarse_10km", "and it still applies");
+    });
+  });
+});
+
+describe("setReportTaxon takes only a name a report can be filed under", () => {
+  // A public endpoint like every action, and it took any row of `taxa`: a
+  // retired duplicate unrated beside the row the law protects, or a genus.
+  // POST /api/reports takes only OFFERED names; so does this now.
+  const set = ADMIN.slice(ADMIN.indexOf("export async function setReportTaxon("));
+  const OFFERED = (() => {
+    const species = readFileSync(join(import.meta.dirname, "..", "lib", "species.ts"), "utf8");
+    const m = /export const OFFERED = `([\s\S]*?)`;/.exec(species);
+    assert.ok(m, "OFFERED is not where this test reads it");
+    return m[1];
+  })();
+  let seq = 0;
+  const name = () => `Testudofixtura o${process.pid}x${Date.now()}x${seq++}`;
+
+  test("it asks OFFERED before it writes", () => {
+    assert.match(set, /select \$\{sql\.unsafe\(OFFERED\)\} as offered from taxa t where t\.id = \$\{taxonId\}/);
+    assert.match(set, /if \(!taxon\.offered\) throw/);
+    assert.ok(set.indexOf("taxon.offered") < set.indexOf("update reports"), "the check must run before the write");
+    // Removing a name is still allowed: there is nothing to check.
+    assert.match(set, /if \(taxonId !== null\) \{/);
+  });
+
+  test("OFFERED refuses a genus and a retired row, and takes a species", async () => {
+    await inRollback(async (tx) => {
+      const row = async (rank, status) =>
+        (await tx`
+          insert into taxa (taicol_id, scientific_name, rank, is_in_taiwan, taxon_status)
+          values (${`test-fo-${process.pid}-${seq++}`}, ${name()}, ${rank}, true, ${status})
+          returning id`)[0].id;
+      const offered = async (id) =>
+        (await tx.unsafe(`select ${OFFERED} as offered from taxa t where t.id = $1`, [id]))[0].offered;
+      assert.equal(await offered(await row("Species", "accepted")), true);
+      assert.equal(await offered(await row("Subspecies", "accepted")), true);
+      assert.equal(await offered(await row("Genus", "accepted")), false);
+      assert.equal(await offered(await row("Species", "deleted")), false);
     });
   });
 });

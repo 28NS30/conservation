@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import SpeciesName from "@/components/species/SpeciesName";
 import { withBase } from "@/lib/basePath";
@@ -16,6 +16,15 @@ export type SpeciesHit = {
   taicolId?: string | null;
   isInvasive: boolean | null;
   reportCount: number;
+};
+
+/** What the form can ask of the picker. */
+export type SpeciesPickerHandle = {
+  /**
+   * A species was named somewhere else on the form (a photo suggestion), so
+   * focus should land on 更改 once the picker shows it, as after a pick here.
+   */
+  pickedElsewhere: () => void;
 };
 
 /**
@@ -50,6 +59,7 @@ export default function SpeciesPicker({
   unsure,
   onUnsure,
   hasEntries = false,
+  ref,
 }: {
   page: ReportPage;
   value: SpeciesHit | null;
@@ -58,6 +68,7 @@ export default function SpeciesPicker({
   onUnsure: (v: boolean) => void;
   /** Whether the form holds anything that leaving this page would lose. */
   hasEntries?: boolean;
+  ref?: Ref<SpeciesPickerHandle>;
 }) {
   const t = useTranslations("report");
   const locale = useLocale();
@@ -77,6 +88,33 @@ export default function SpeciesPicker({
   const [searching, setSearching] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
   const invasivePage = page === "invasive";
+
+  /*
+   * Where focus goes when the picker changes shape. Picking a species swaps
+   * the search box and its list for the chosen name and 更改, and 更改 swaps
+   * them back, so the control that had focus is removed every time and focus
+   * fell to the top of the page: a keyboard user started again at the
+   * header, and a screen reader said nothing about what had happened. Now a
+   * pick lands on 更改, and 更改 lands in the search box.
+   *
+   * Only after one of those acts. The picker also changes shape when a draft
+   * is restored or a species page sends a name, and taking focus then would
+   * scroll the page to a field nobody touched.
+   */
+  const wantFocus = useRef<"change" | "search" | null>(null);
+  const changeRef = useRef<HTMLButtonElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  useImperativeHandle(ref, () => ({
+    pickedElsewhere: () => {
+      wantFocus.current = "change";
+    },
+  }));
+  useEffect(() => {
+    const want = wantFocus.current;
+    wantFocus.current = null;
+    if (want === "change") changeRef.current?.focus();
+    else if (want === "search") searchRef.current?.focus();
+  }, [value]);
 
   useEffect(() => {
     const q = query.trim();
@@ -140,8 +178,10 @@ export default function SpeciesPicker({
             />
           </span>
           <button
+            ref={changeRef}
             type="button"
             onClick={() => {
+              wantFocus.current = "search";
               onChange(null);
               setQuery("");
             }}
@@ -177,6 +217,7 @@ export default function SpeciesPicker({
 
       <div ref={boxRef} className="relative">
         <input
+          ref={searchRef}
           type="search"
           value={query}
           disabled={unsure}
@@ -214,6 +255,7 @@ export default function SpeciesPicker({
                 <button
                   type="button"
                   onClick={() => {
+                    wantFocus.current = "change";
                     onChange(h);
                     onUnsure(false);
                     setOpen(false);

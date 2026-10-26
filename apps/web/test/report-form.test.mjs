@@ -387,7 +387,7 @@ describe("the blocked submit button", () => {
   test("the reason is attached to the button, not merely near it", async () => {
     // A screen reader heard a disabled button and no reason at all: the
     // sentence saying what was missing was a sibling with nothing linking it.
-    assert.match(FORM, /aria-describedby=\{blocker \? "submit-blocker" : undefined\}/);
+    assert.match(FORM, /aria-describedby=\{describedBy\(\s*blocker !== null && "submit-blocker",/);
     assert.match(FORM, /id="submit-blocker"/);
 
     const page = await html("/report/wildlife");
@@ -445,7 +445,7 @@ describe("the location picker before anything is chosen", () => {
     // The overlay belongs to a wrapper of our own. MapLibre owns the children
     // of the container it was handed, and that element's `relative` is
     // answering a different question (see the comment on it).
-    assert.match(PICKER, /<div className="relative">\s*<div\s+ref=\{container\}/);
+    assert.match(PICKER, /<div className="relative" data-location-picker>\s*<div\s+ref=\{container\}/);
   });
 
   test("the helper under the map matches whether there is a pin", () => {

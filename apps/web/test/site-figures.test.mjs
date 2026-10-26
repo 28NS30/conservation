@@ -161,7 +161,7 @@ describe("everything that changes the reports drops them", () => {
  * ------------------------------------------------------------------ */
 
 /** A read of the public records, or of the table under them. */
-const READS_RECORDS = /\b(?:reports_public|reports_published|species_report_stats|species_card_stats)\b|\b(?:from|join)\s+reports\b/;
+const READS_RECORDS = /\b(?:reports_public|reports_published|reports_on_map|species_report_stats|species_card_stats)\b|\b(?:from|join)\s+reports\b/;
 /** A declaration that is a read through the tagged cache. */
 const TAGGED = /^(?:export\s+)?const\s+[\w$]+\s*=\s*(?:cache\(\s*)?siteFigure\(/;
 /** A declaration that caches what it reads, through the figures or not. */

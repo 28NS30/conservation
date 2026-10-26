@@ -6,7 +6,8 @@ import { everyYear } from "@/lib/yearSeries";
 /**
  * Aggregates behind /stats.
  *
- * Every query reads `reports_public`, never `reports` — see asPublic(). That is
+ * Every query reads `reports_public`, or `reports_on_map` where it places
+ * records (the ledger, the hotspots), never `reports` — see asPublic(). That is
  * not a style preference: counting from the base table would expose the true
  * record volume and true coordinates of 敏感 taxa, which is precisely what the
  * obscuring design exists to prevent. A hotspot list is a particularly effective
@@ -182,6 +183,44 @@ export const mapEntrySpecies = siteFigure("mapEntrySpecies", (limit: number = 3)
   ),
 );
 
+export type MonthSpecies = {
+  id: number;
+  scientificName: string;
+  commonNameZh: string | null;
+  commonNameEn: string | null;
+  taicolId: string | null;
+  n: number;
+};
+
+/**
+ * The species found dead on the roads most often in one calendar month,
+ * across every year of records, for the home page: the one part of it that
+ * changes from month to month. On today's data that is TaiRON's 2011–2017.
+ *
+ * Exact records only. A protected or sensitive species' records are all
+ * blurred, so it never appears here, and the front page does not point at
+ * where one is found any more than its map shortcuts do. A record nobody named
+ * has no species to count. The month is Taiwan's, passed in by the page.
+ */
+export const monthRoadkill = siteFigure("monthRoadkill", (month: number, limit: number = 5): Promise<MonthSpecies[]> =>
+  asPublic(
+    (tx) => tx<MonthSpecies[]>`
+      select t.id, t.scientific_name as "scientificName",
+             t.common_name_zh as "commonNameZh", t.common_name_en as "commonNameEn",
+             t.taicol_id as "taicolId", count(*)::int as n
+        from reports_public rp
+        join taxa t on t.id = rp.taxon_id
+       where rp.category = 'roadkill'
+         and rp.location_precision = 'exact'
+         and extract(month from rp.observed_at at time zone 'Asia/Taipei') = ${month}
+         and t.common_name_zh is not null
+       group by t.id
+       -- t.id settles ties, so the list is the same on every load.
+       order by n desc, t.id
+       limit ${limit}`,
+  ),
+);
+
 export type LedgerRow = {
   id: string;
   observedAt: string;
@@ -226,6 +265,12 @@ export type LedgerRow = {
  * writer says the reports changed, through the tagged figures it also reads.
  * The window is drawn around Taipei's date, which is passed in rather than
  * read from now(): the same for everybody all day.
+ *
+ * From `reports_on_map`, which leaves out a record held at 10 km until the
+ * model has looked at its photo (migration 0033), so that no kept page lists
+ * a point the model may yet blur harder. A held record is obscured, so the
+ * filter below drops it too; the view says it where a later reader of this
+ * query will look.
  */
 export function anniversaryLedger(limit = 12): Promise<LedgerRow[]> {
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Taipei" });
@@ -246,7 +291,7 @@ function ledgerAround(day: string, limit: number): Promise<LedgerRow[]> {
                  partition by (r.observed_at at time zone 'Asia/Taipei')::date
                  order by (t.common_name_zh is null), (t.is_in_taiwan is not true), r.id
                ) as rn
-          from reports_public r
+          from reports_on_map r
           join taxa t on t.id = r.taxon_id
          where not r.is_obscured
            -- The same seven calendar dates as this week, in any year. Day
@@ -303,6 +348,9 @@ const HOTSPOT_CELL_M = 5000;
  * is read afresh each time /stats is built, not from the figures' cache
  * (freshPoints, lib/siteFigures.ts): a full pass over the view, at most once
  * in five minutes, since the page is cached and rebuilt no more often.
+ *
+ * From `reports_on_map`, as the anniversary ledger is, and for the same
+ * reason: no kept page places a record held until the model has looked.
  */
 export function hotspots(limit: number = 8): Promise<Hotspot[]> {
   return freshPoints("hotspots", () => asPublic(
@@ -312,7 +360,7 @@ export function hotspots(limit: number = 8): Promise<Hotspot[]> {
                floor(st_y(geom_3857) / ${HOTSPOT_CELL_M})::int as gy,
                taxon_id,
                count(*)::int as n
-          from reports_public
+          from reports_on_map
          where not is_obscured
          group by 1, 2, 3
       ),

@@ -84,6 +84,53 @@ export const PADDED_TAIWAN_BOUNDS: [[number, number], [number, number]] = [
   [TAIWAN_BOUNDS[1][0] + 1.5, TAIWAN_BOUNDS[1][1] + 1.5],
 ];
 
+/** MapLibre's UI strings, keyed as MapLibre keys them ("NavigationControl.ZoomIn"). */
+export type MapStrings = Record<string, string>;
+
+/**
+ * A circle of `radiusKm` around a point, as a real polygon in geographic
+ * coordinates.
+ *
+ * Not a `circle-radius` paint property: that is measured in screen pixels, so it
+ * describes an area only by coincidence of zoom. The first version drew a fixed
+ * 46px disc next to a caption reading "generalised to about 10 km", which looked
+ * authoritative about a distance it was not measuring. On the one page whose job
+ * is being honest about location, the shape has to be the actual footprint.
+ *
+ * Shared by the record page's blurred footprint (ReportMap) and the report
+ * form's accuracy circle (LocationPicker), which make the same claim: the
+ * point is somewhere in here.
+ */
+export function circlePolygon(lng: number, lat: number, radiusKm: number, steps = 64) {
+  const latKm = 110.574;
+  const lngKm = 111.32 * Math.cos((lat * Math.PI) / 180);
+  const ring = Array.from({ length: steps + 1 }, (_, i) => {
+    const a = (i / steps) * 2 * Math.PI;
+    return [
+      lng + (radiusKm / lngKm) * Math.cos(a),
+      lat + (radiusKm / latKm) * Math.sin(a),
+    ];
+  });
+  return {
+    type: "Feature" as const,
+    properties: {},
+    geometry: { type: "Polygon" as const, coordinates: [ring] },
+  };
+}
+
+/** The south-west and north-east corners of a polygon from circlePolygon. */
+export function polygonBounds(
+  poly: ReturnType<typeof circlePolygon>,
+): [[number, number], [number, number]] {
+  const ring = poly.geometry.coordinates[0];
+  const xs = ring.map((c) => c[0]);
+  const ys = ring.map((c) => c[1]);
+  return [
+    [Math.min(...xs), Math.min(...ys)],
+    [Math.max(...xs), Math.max(...ys)],
+  ];
+}
+
 export type MapHandle = {
   map: MLMap;
   /** The runtime module, so callers can construct Popup/Marker/etc. */
@@ -130,6 +177,13 @@ export async function createMap(
      * addSource/addLayer are legal, but basemap tiles may still be arriving.
      */
     onReady?: (map: MLMap) => void;
+    /**
+     * What MapLibre's own controls say: the canvas's name, the zoom buttons,
+     * the attribution toggle, a marker's name. From useMapStrings, so they
+     * are in the page's language. A caller may override a string for its
+     * own map (the report form names its canvas for what it is for).
+     */
+    strings?: MapStrings;
   } = {},
 ): Promise<MapHandle> {
   // Every page sets <html lang>, so reading it here spares the four components
@@ -156,6 +210,11 @@ export async function createMap(
     minZoom: opts.minZoom ?? 5,
     maxZoom: opts.maxZoom ?? 18,
     attributionControl: { compact: true },
+    // Without it every control spoke English on a Chinese page: a screen
+    // reader announced the report form's map as "Map, region" and its zoom
+    // buttons as "Zoom in". MapLibre falls back to its English for any
+    // string not given.
+    ...(opts.strings ? { locale: opts.strings } : {}),
     ...(opts.static
       ? {
           interactive: false,

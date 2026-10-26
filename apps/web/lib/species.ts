@@ -738,6 +738,11 @@ export const LIST_MAX_RECORDS = 5;
  * copy could be five minutes old before the page was even made. The species
  * page asks for them per request, through GET /api/species/[id]/records, so
  * that no cached page holds one at all. Over speciesMembers, like the count.
+ *
+ * From `reports_on_map`, not `reports_public`: a record held at 10 km until
+ * the model has looked at its photo (migration 0033) may then be blurred
+ * harder, and the view leaves it out until it is released, as the map's
+ * tiles do. The record's own page still shows it.
  */
 export function recentRecords(taxonId: number, limit: number = 12): Promise<SpeciesRecord[]> {
   return asPublic(
@@ -746,7 +751,7 @@ export function recentRecords(taxonId: number, limit: number = 12): Promise<Spec
              st_y(location_public::geometry) as lat,
              st_x(location_public::geometry) as lng,
              category, is_obscured as "isObscured"
-        from reports_public
+        from reports_on_map
        where ${speciesMembers(tx, "taxon_id", taxonId)}
        -- id breaks ties, so the same records are shown on every load.
        order by observed_at desc, id

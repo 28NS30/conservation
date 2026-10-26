@@ -118,7 +118,12 @@ describe("naming never loosens a decision", () => {
   test("a reporter cannot replace a moderator's identification, nor loosen their own", () => {
     const src = read("app", "[locale]", "(site)", "reports", "[id]", "actions.ts");
     assert.match(src, /if \(!moderator && report\.taxon_source === "expert"\)/);
-    assert.match(src, /stricter_precision\(\$\{photoIdentificationOverride\(taxonId\)\}, location_precision\)/);
+    // At least the blur it has: its decided blur, which on a record held for
+    // the model is not the hold's 10 km (migration 0033).
+    assert.match(
+      src,
+      /stricter_precision\(\$\{photoIdentificationOverride\(taxonId\)\},\s*coalesce\(held_rule_precision, location_precision\)\)/,
+    );
     const page = read("app", "[locale]", "(site)", "reports", "[id]", "page.tsx");
     assert.match(page, /owner\?\.reporter_id === userId && row\.taxon_source !== "expert"/);
   });

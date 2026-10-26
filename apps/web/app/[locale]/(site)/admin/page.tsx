@@ -5,11 +5,18 @@ import { Link } from "@/i18n/navigation";
 import { sql } from "@/lib/db";
 import { currentRole } from "@/lib/auth";
 import { signedPhotoUrl } from "@/lib/supabase/service";
-import { CATEGORIES, REPORT_PAGE_KEYS, type Category } from "@conservation/shared";
+import {
+  CATEGORIES,
+  LOCATION_PRECISION,
+  REPORT_PAGE_KEYS,
+  type Category,
+} from "@conservation/shared";
 import ModerationRow from "@/components/admin/ModerationRow";
+import FlaggedRow from "@/components/admin/FlaggedRow";
 import { signInHref } from "@/components/auth/signInHref";
 import { speciesLabel } from "@/lib/speciesNames";
 import { flagReason } from "@/lib/report/flagReasons";
+import { UNAVAILABLE_FLAG } from "@/lib/report/classificationHold";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +50,28 @@ type Pending = {
 
 /** How many held reports the queue shows at once; the header counts them all. */
 const QUEUE_PAGE = 100;
+
+/** A published record that still carries a reason to look at it. */
+type Flagged = {
+  id: string;
+  category: Category;
+  observed_at: string;
+  flagged_reason: string;
+  location_precision: string;
+  is_test: boolean;
+  scientific_name: string | null;
+  common_name_zh: string | null;
+  common_name_en: string | null;
+  model_scientific_name: string | null;
+  model_common_name_zh: string | null;
+  model_common_name_en: string | null;
+  photo_paths: string[] | null;
+  /** Still held at 10 km and off the map, waiting for the model (0033). */
+  held: boolean;
+};
+
+/** How many flagged records are listed at once, oldest first, as the queue. */
+const FLAGGED_PAGE = 50;
 
 /** A test's status, in words that do not say "public" of a test. */
 const TEST_STATUSES = ["published", "pending", "rejected"];
@@ -154,6 +183,55 @@ export default async function AdminPage({
     })),
   );
 
+  // Published, and flagged, which until this list nothing showed to anyone.
+  // Two kinds are common: a record the classifier published unidentified
+  // because the model could only suggest a species (the moderator should name
+  // it), and a record whose reporter and model, sure of itself, name different
+  // species, kept on the map under the reporter's name and blurred at least as
+  // the model's species would be. The model's first answer is shown beside the
+  // record's species, since both kinds are about it. A third is rarer and
+  // matters more: a named record still held at 10 km and off the map because
+  // the model never answered for its photo. It stays so until a moderator has
+  // the model try again (classifyAgain), so the row says that, and offers it.
+  const [{ flagged }] = await sql<{ flagged: number }[]>`
+    select count(*)::int as flagged from reports
+     where status = 'published' and flagged_reason is not null`;
+  const flaggedRows = await sql<Flagged[]>`
+    select r.id, r.category, r.observed_at, r.flagged_reason, r.location_precision, r.is_test,
+           r.held_for_classification as held,
+           t.scientific_name, t.common_name_zh, t.common_name_en,
+           m.scientific_name as model_scientific_name,
+           m.common_name_zh as model_common_name_zh,
+           m.common_name_en as model_common_name_en,
+           array(select p.storage_path from report_photos p
+                  where p.report_id = r.id order by p.created_at) as photo_paths
+      from reports r
+      left join taxa t on t.id = r.taxon_id
+      left join lateral (
+        select mt.scientific_name, mt.common_name_zh, mt.common_name_en
+          from classifications c
+          join taxa mt on mt.id = c.taxon_id
+         where c.report_id = r.id
+         order by c.rank
+         limit 1) m on true
+     where r.status = 'published'
+       and r.flagged_reason is not null
+     order by r.created_at, r.id
+     limit ${FLAGGED_PAGE}`;
+  const tp = await getTranslations("precision");
+  const named = (n: string | null, zh: string | null, en: string | null) =>
+    n
+      ? `${speciesLabel({ scientificName: n, commonNameZh: zh, commonNameEn: en }, locale)} · ${n}`
+      : null;
+  const flaggedWithUrls = await Promise.all(
+    flaggedRows.map(async (r) => ({
+      ...r,
+      photoUrls: (
+        await Promise.all((r.photo_paths ?? []).map((p) => signedPhotoUrl(p, 900)))
+      ).filter((u): u is string => !!u),
+    })),
+  );
+
   // The last test reports, whatever became of them. A test the classifier
   // names is published straight away and leaves the queue above, and it is
   // on no public page, so this list is the way back to it.
@@ -182,6 +260,7 @@ export default async function AdminPage({
           <li>{tg("held")}</li>
           <li>{tg("publish")}</li>
           <li>{tg("reject")}</li>
+          <li>{tg("flagged")}</li>
           <li>{tg("tests")}</li>
         </ul>
       </details>
@@ -221,6 +300,55 @@ export default async function AdminPage({
           ))}
         </ul>
       )}
+
+      <section aria-labelledby="flagged-heading" className="mt-12 border-t border-ink-900/10 pt-6">
+        <h2 id="flagged-heading" className="text-base font-semibold text-forest-900">
+          {t("flagged.heading")}
+        </h2>
+        <p className="mt-1 text-sm leading-relaxed text-ink-700">{t("flagged.body")}</p>
+        <p className="mb-4 mt-3 text-sm text-ink-700">
+          {t("flagged.count", { count: flagged })}
+          {flagged > flaggedWithUrls.length && (
+            <> {t("oldestShown", { shown: flaggedWithUrls.length })}</>
+          )}
+        </p>
+        {flaggedWithUrls.length === 0 ? (
+          <p className="rounded-lg border border-ink-900/10 bg-paper-100 px-4 py-6 text-center text-sm text-ink-500">
+            {t("flagged.empty")}
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {flaggedWithUrls.map((r) => (
+              <FlaggedRow
+                key={r.id}
+                id={r.id}
+                categoryLabel={tc(r.category)}
+                categoryColor={CATEGORIES[r.category]?.color}
+                observedAt={r.observed_at}
+                flaggedReason={
+                  r.held && r.flagged_reason === UNAVAILABLE_FLAG
+                    ? t("flagged.heldUnavailable")
+                    : (flagText(r.flagged_reason) ?? r.flagged_reason)
+                }
+                held={r.held}
+                speciesLabel={named(r.scientific_name, r.common_name_zh, r.common_name_en)}
+                modelLabel={named(
+                  r.model_scientific_name,
+                  r.model_common_name_zh,
+                  r.model_common_name_en,
+                )}
+                blurLabel={
+                  r.location_precision in LOCATION_PRECISION
+                    ? tp(r.location_precision)
+                    : r.location_precision
+                }
+                photoUrls={r.photoUrls}
+                test={r.is_test}
+              />
+            ))}
+          </ul>
+        )}
+      </section>
 
       {/*
         Trying the whole path without it being public (migration 0018). The

@@ -174,7 +174,7 @@ describe("sending the same report twice", () => {
               values (${firstBody.id}, ${`test/${clientNonce}-b.webp`}, 1234, 'image/webp')`;
 
     const taxonId = await taxonWhere(
-      "sensitivity is null and protected_status is null and is_in_taiwan",
+      "sensitivity is null and protected_status is null and is_in_taiwan and rank = 'Species'",
     );
     // Only the taxon. The row deliberately stays `pending`: publishing it here
     // would put a live `sighting` at 120.9, 23.8 for the length of the run,
@@ -267,8 +267,9 @@ describe("a reporter names the species", () => {
   test("a sensitive species still blurs, named or not", async () => {
     // The whole privacy boundary in one assertion. Trusting the reporter means
     // publishing what they say; it does not mean publishing where they say it.
+    // At the 10 km its rating gives, not a floor's or a protection's 50 km.
     const taxonId = await taxonWhere(
-      `sensitivity = '輕度' and is_in_taiwan and ${ON_THE_WILDLIFE_PAGE}`,
+      `sensitivity = '輕度' and is_in_taiwan and ${ON_THE_WILDLIFE_PAGE} and taxon_precision(id) = 'coarse_10km'`,
     );
     const { clientNonce } = await submit({ taxonId });
 
