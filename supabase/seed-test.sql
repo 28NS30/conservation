@@ -846,4 +846,41 @@ insert into reports (id, category, location, location_public, observed_at, taxon
   ('4e150310-e94d-4e22-ab74-c40f54edb6d0'::uuid, 'roadkill', st_setsrid(st_makepoint(121.45,24.15),4326)::geography, st_setsrid(st_makepoint(121.45,24.15),4326)::geography, '2016-01-04T00:00:00.000Z', NULL, 'imported', 'published', 'gbif', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:31765', 'http://creativecommons.org/licenses/by/4.0/legalcode', 'Taiwan Biodiversity Research Institute (臺灣生物多樣性研究所)')
 on conflict (id) do nothing;
 
+-- Two species TaiCOL lists beside subspecies of the same Chinese name, added
+-- with migration 0040, which shows each as one card:
+--   家燕 Hirundo rustica t0097276   the species and three subspecies, all
+--     / t0085752, t0085753, t0085754  called 家燕. The directory showed three
+--                                  家燕 cards; now one, counting every record
+--   埃及聖䴉 Threskiornis aethiopicus  an invasive species whose records are
+--     t0099144 / t0086360           all on its subspecies: the species line
+--                                  on /invasive said 尚無紀錄 beside them.
+--                                  Its TaiCOL note, which the species page
+--                                  keeps under its sources, is here too
+-- Records are published GBIF records at points the site publishes exactly,
+-- inside the sample's dates.
+insert into taxa (id,taicol_id,parent_taicol_id,taxon_status,scientific_name,common_name_zh,rank,kingdom,phylum,class,"order",family,is_in_taiwan,is_endemic,alien_type,is_invasive,protected_status,sensitivity,alt_names_zh,iucn,redlist,cites,bioclip_prompt) values
+  (85752,'t0085752','t0097276','accepted','Hirundo rustica gutturalis','家燕','Subspecies','Animalia','Chordata','Aves','Passeriformes','Hirundinidae',true,false,'native',false,NULL,NULL,array['家燕(白腹亞種)','家燕(普通亞種)','家燕白腹亞種','家燕普通亞種']::text[],NULL,'NLC',NULL,'a photo of Animalia Chordata Aves Passeriformes Hirundinidae Hirundo rustica gutturalis.'),
+  (85753,'t0085753','t0097276','accepted','Hirundo rustica mandschurica','家燕','Subspecies','Animalia','Chordata','Aves','Passeriformes','Hirundinidae',true,false,'native',false,NULL,NULL,array['家燕(紅腹亞種)','家燕紅腹亞種']::text[],NULL,'NLC',NULL,'a photo of Animalia Chordata Aves Passeriformes Hirundinidae Hirundo rustica mandschurica.'),
+  (85754,'t0085754','t0097276','accepted','Hirundo rustica tytleri','家燕','Subspecies','Animalia','Chordata','Aves','Passeriformes','Hirundinidae',true,false,'native',false,NULL,NULL,array['家燕(蒙古亞種)','家燕蒙古亞種']::text[],NULL,'NLC',NULL,'a photo of Animalia Chordata Aves Passeriformes Hirundinidae Hirundo rustica tytleri.'),
+  (86360,'t0086360','t0099144','accepted','Threskiornis aethiopicus aethiopicus','埃及聖䴉','Subspecies','Animalia','Chordata','Aves','Pelecaniformes','Threskiornithidae',true,false,'invasive',true,NULL,NULL,NULL,NULL,NULL,NULL,'a photo of Animalia Chordata Aves Pelecaniformes Threskiornithidae Threskiornis aethiopicus aethiopicus.'),
+  (97276,'t0097276','t0020758','accepted','Hirundo rustica','家燕','Species','Animalia','Chordata','Aves','Passeriformes','Hirundinidae',true,false,'native',false,NULL,NULL,NULL,'LC','NLC',NULL,'a photo of Animalia Chordata Aves Passeriformes Hirundinidae Hirundo rustica.'),
+  (99144,'t0099144','t0017459','accepted','Threskiornis aethiopicus','埃及聖䴉','Species','Animalia','Chordata','Aves','Pelecaniformes','Threskiornithidae',true,false,'invasive',true,NULL,NULL,NULL,'LC',NULL,NULL,'a photo of Animalia Chordata Aves Pelecaniformes Threskiornithidae Threskiornis aethiopicus.')
+on conflict (id) do nothing;
+update taxa set alien_status_note = 'invasive: Bird Record Committee, 2022|invasive: Bird Record Committee, 2026 (臺灣: 引進種、不普, 馬祖: 引進種、稀, 金門: 無, 東沙: 無)|invasive: Ding et al., 2023 (臺灣: 引進種、不普, 馬祖: 引進種、稀, 金門: 無, 東沙: 無)'
+ where taicol_id = 't0099144';
+
+insert into reports (id, category, location, location_public, observed_at, taxon_id,
+                     taxon_source, status, source, source_id, license, rights_holder) values
+  ('ef4f10ee-1768-4546-a78c-4026a3dd2476'::uuid, 'roadkill', st_setsrid(st_makepoint(120.422791,23.594835),4326)::geography, st_setsrid(st_makepoint(120.422791,23.594835),4326)::geography, '2016-02-14T00:00:00.000Z', 85752, 'imported', 'published', 'gbif', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32143', 'http://creativecommons.org/licenses/by/4.0/legalcode', 'Taiwan Biodiversity Research Institute (臺灣生物多樣性研究所)'),
+  ('8ad2df79-228c-4d81-97c8-6802b755be60'::uuid, 'roadkill', st_setsrid(st_makepoint(120.306905,23.259179),4326)::geography, st_setsrid(st_makepoint(120.306905,23.259179),4326)::geography, '2016-02-21T00:00:00.000Z', 85752, 'imported', 'published', 'gbif', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:32270', 'http://creativecommons.org/licenses/by/4.0/legalcode', 'Taiwan Biodiversity Research Institute (臺灣生物多樣性研究所)'),
+  ('917202dc-6f62-45d3-81fa-9c25a11b3242'::uuid, 'roadkill', st_setsrid(st_makepoint(120.489166,24.208055),4326)::geography, st_setsrid(st_makepoint(120.489166,24.208055),4326)::geography, '2016-07-11T00:00:00.000Z', 86360, 'imported', 'published', 'gbif', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:38797', 'http://creativecommons.org/licenses/by/4.0/legalcode', 'Taiwan Biodiversity Research Institute (臺灣生物多樣性研究所)'),
+  ('52776d15-d9bc-4f76-9f1b-cec2b5334cd5'::uuid, 'roadkill', st_setsrid(st_makepoint(120.30428,23.25985),4326)::geography, st_setsrid(st_makepoint(120.30428,23.25985),4326)::geography, '2017-06-13T00:00:00.000Z', 86360, 'imported', 'published', 'gbif', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:63799', 'http://creativecommons.org/licenses/by/4.0/legalcode', 'Taiwan Biodiversity Research Institute (臺灣生物多樣性研究所)'),
+  ('0a83914d-7fa4-40e5-96c4-c04474f567f8'::uuid, 'roadkill', st_setsrid(st_makepoint(121.581116,22.00419),4326)::geography, st_setsrid(st_makepoint(121.581116,22.00419),4326)::geography, '2016-04-03T00:00:00.000Z', 97276, 'imported', 'published', 'gbif', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33364', 'http://creativecommons.org/licenses/by/4.0/legalcode', 'Taiwan Biodiversity Research Institute (臺灣生物多樣性研究所)'),
+  ('d0896e26-ef0c-4768-b0cc-67d894a23e0f'::uuid, 'roadkill', st_setsrid(st_makepoint(121.138866,24.718934),4326)::geography, st_setsrid(st_makepoint(121.138866,24.718934),4326)::geography, '2016-04-04T00:00:00.000Z', 97276, 'imported', 'published', 'gbif', 'db09684b-0fd1-431e-b5fa-4c1532fbdb14:33231', 'http://creativecommons.org/licenses/by/4.0/legalcode', 'Taiwan Biodiversity Research Institute (臺灣生物多樣性研究所)')
+on conflict (id) do nothing;
+
 select setval(pg_get_serial_sequence('taxa','id'), (select max(id) from taxa));
+
+-- Which species each row belongs to (migration 0040), from the parents
+-- above. The migrations ran on an empty taxa table, so this is the fill.
+select resolve_species_keys();
