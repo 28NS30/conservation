@@ -129,10 +129,12 @@ export const SIGNED_IN_ADDRESS_FACTOR = 5;
 
 /**
  * Identifying a photo in the report form (app/api/identify). Each one is a
- * call to the GPU the project pays for, and it needs no challenge, so it is
- * held tighter than signing: a reporter adds at most four photos to a report,
- * and the form asks about the first. The whole site's day is capped too, so a
- * flood from many addresses costs a known amount at most.
+ * call to the GPU the project pays for, so it is held tighter than signing: a
+ * reporter adds at most four photos to a report, and the form asks about the
+ * first. The whole site's day is capped too, so a flood from many addresses
+ * costs a known amount at most. Since the cap alone let thirty-eight
+ * addresses spend the day for everyone, a Turnstile token is redeemed before
+ * any of these is charged (photo-pipeline review, 26 October 2026).
  */
 export const IDENTIFY_LIMITS = {
   burst: { windowSeconds: 120, budget: 6 },
