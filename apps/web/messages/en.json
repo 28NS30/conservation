@@ -696,7 +696,11 @@
     "exploreHint": "What the records show so far, on a map and species by species.",
     "mapPrivacy": "Protected and sensitive species are shown only as a blurred area, never an exact spot.",
     "speciesTitle": "{count, number} species on record",
-    "speciesBody": "Every animal recorded here has its own page: its names, its protection status, and where it has been seen."
+    "speciesBody": "Every animal recorded here has its own page: its names, its protection status, and where it has been seen.",
+    "monthTitle": "Every {month}, on Taiwan's roads",
+    "monthHint": "The animals most often recorded as roadkill in this month, across every year of records.",
+    "monthCount": "{n, plural, one {# record} other {# records}}",
+    "monthSeason": "This season's goal"
   },
   "me": {
     "title": "My reports",
