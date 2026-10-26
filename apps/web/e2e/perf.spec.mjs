@@ -127,9 +127,25 @@ export function checkHints(html, dom = [], header = []) {
   return { errs, late };
 }
 
-/** One load of a page, reporting what it fetched and how fast it painted. */
+/**
+ * One load of a page, reporting what it fetched and how fast it painted.
+ *
+ * With the service worker blocked, so that the JavaScript counted is what the
+ * network carried. The page registers public/sw.js as it hydrates, and the
+ * service worker claims the page the moment it activates. Everything asked
+ * for after that is fetched by the service worker, and the page's own
+ * resource timing cannot see what that cost: a chunk shows a transferSize of
+ * 0 and its decompressed size as its encodedBodySize, which is what the sum
+ * below falls back to, and the MapLibre worker script (147 KB) showed 300
+ * bytes. So /map was counted without the second-largest thing it downloads,
+ * and a 9 KB chunk was counted as 23 KB or as 9 by which of the two happened
+ * first: on 26 October that alone moved / and /map by 13.5 KB between two
+ * runs of one build, and a prefetched 33 KB chunk was counted as 111. The
+ * bytes a first visit costs are the same either way; the service worker only
+ * passes a first visit's requests on to the network.
+ */
 async function load(browser, path, { width = 1440, locale = "zh-TW", settle } = {}) {
-  const ctx = await browser.newContext({ viewport: { width, height: 900 }, locale });
+  const ctx = await browser.newContext({ viewport: { width, height: 900 }, locale, serviceWorkers: "block" });
   const page = await ctx.newPage();
   const started = Date.now();
   const fonts = [];

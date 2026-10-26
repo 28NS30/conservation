@@ -3,6 +3,7 @@ import "server-only";
 import { asPublic } from "@/lib/db";
 import { INDEXWORTHY } from "@/lib/indexworthy";
 import { routing } from "@/i18n/routing";
+import { siteFigure } from "@/lib/siteFigures";
 
 /**
  * Which sitemaps the site has, and what is in the ones that come from the
@@ -72,21 +73,31 @@ async function patiently<T>(read: () => Promise<T>): Promise<T> {
   }
 }
 
+/**
+ * How many records and species pages the sitemaps list, from the figures'
+ * cache (lib/siteFigures.ts). Next asks sitemapIds() before it answers any
+ * /sitemap/<id>.xml, a made-up id included, and the two counts are about
+ * 120 ms of the database each time; cached, a stranger's guesses cost none.
+ */
+const sitemapCounts = siteFigure("sitemapCounts", () =>
+  patiently(() =>
+    asPublic(
+      (tx) => tx<{ records: number; species: number }[]>`
+        select (select count(*)::int ${tx.unsafe(PUBLIC_USER_RECORDS)}) as records,
+               (select count(*)::int
+                  from taxa t
+                  left join species_report_stats s on s.taxon_id = t.id
+                 where ${tx.unsafe(INDEXWORTHY)}) as species`,
+    ),
+  ),
+);
+
 /** Every sitemap id, in the order the index lists them. */
 export async function sitemapIds(): Promise<string[]> {
   let records = 0;
   let species = 0;
   try {
-    [{ records, species }] = await patiently(() =>
-      asPublic(
-        (tx) => tx<{ records: number; species: number }[]>`
-          select (select count(*)::int ${tx.unsafe(PUBLIC_USER_RECORDS)}) as records,
-                 (select count(*)::int
-                    from taxa t
-                    left join species_report_stats s on s.taxon_id = t.id
-                   where ${tx.unsafe(INDEXWORTHY)}) as species`,
-      ),
-    );
+    [{ records, species }] = await sitemapCounts();
   } catch (e) {
     // A sitemap without its database entries is a worse sitemap; a build that
     // dies because the database blinked is a worse deploy. So at build the

@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { asPublic, sql } from "@/lib/db";
 import { displayNameZh, speciesNotes } from "@/lib/speciesNotes";
 import {
-  getSpecies,
+  getCachedSpecies,
+  isSpeciesAddress,
   monthlyCounts,
-  recentRecords,
+  LIST_MAX_RECORDS,
   speciesSlug,
   parseSpeciesId,
   isIndexworthy,
@@ -17,6 +18,7 @@ import HabitatChips from "@/components/species/HabitatChips";
 import MonthlyChart from "@/components/species/MonthlyChart";
 import SpeciesMap from "@/components/species/SpeciesMap";
 import SpeciesName from "@/components/species/SpeciesName";
+import SpeciesRecords from "@/components/species/SpeciesRecords";
 import { speciesLabel } from "@/lib/speciesNames";
 import { alternates } from "@/lib/alternates";
 import { speciesDescription } from "@/lib/speciesMeta";
@@ -26,13 +28,44 @@ import { localeUrl, taxonLd } from "@/lib/structuredData";
 
 /** A heatmap built from a handful of points is noise; below this we plot them. */
 const HEATMAP_MIN_RECORDS = 6;
-/** Sparse species list their records outright. */
-const LIST_MAX_RECORDS = 5;
 
 /**
- * Only the ~354 species that actually have records are pre-rendered. The other
- * ~65,850 render on demand — generating 66k static pages would be absurd for
- * content that is mostly "no reports yet".
+ * Rendered once, then served from the cache for everybody, and rebuilt when it
+ * is asked for more than five minutes on. Until the header stopped reading
+ * cookies (components/auth/AccountLink) every species page rendered per
+ * request and this had nothing to act on.
+ *
+ * Five minutes is not what keeps a record off a page it has left. A sparse
+ * species lists its records with their points, and a record re-identified as
+ * a blurred species, or thrown out, must not stay listed under its old name
+ * until somebody happens to ask twice. The taxon and its monthly counts are
+ * read through the cache tagged with the reports (getCachedSpecies,
+ * monthlyCounts; lib/siteFigures.ts), so the page carries the tag, and every
+ * writer that changes a record drops it at once.
+ *
+ * The records themselves, each with its point, are not on the cached page at
+ * all: the browser asks for them per request (SpeciesRecords, from
+ * /api/species/[id]/records). A blur tightened in the database, where no
+ * writer runs, therefore reaches the list at once, however long a cache
+ * keeps the page around it. That matters because how long is not this app's
+ * to say for most species pages: on Vercel a page rendered on its first visit
+ * is stored under the platform's defaults for an on-demand route, not the
+ * `expireTime` the prerendered ones are given (see the route).
+ */
+export const revalidate = 300;
+
+/**
+ * The 50 most-recorded species are rendered at build; every other species
+ * page, recorded or not, renders on its first visit and is cached from then
+ * on, on the same five-minute rule.
+ *
+ * It was the 400 most-recorded: 800 of the build's 884 pages, each three or
+ * four database reads, with every build worker holding its own pool of
+ * connections. That is what exhausted a local Postgres, and it bought
+ * nothing, because the pages were rendered per request anyway (see
+ * `revalidate`). Built or not, a page costs one render and is then the
+ * cache's; building the rest only moves that render from the page's first
+ * visitor into every deploy.
  */
 export async function generateStaticParams() {
   try {
@@ -40,19 +73,20 @@ export async function generateStaticParams() {
       (tx) => tx<{ id: number; scientific_name: string }[]>`
         select t.id, t.scientific_name
           from taxa t join species_report_stats s on s.taxon_id = t.id
-         order by s.report_count desc limit 400`,
+         -- t.id settles ties, so the same fifty are chosen on every build.
+         order by s.report_count desc, t.id limit 50`,
     );
     return rows.map((r) => ({
       id: speciesSlug({ id: r.id, scientificName: r.scientific_name }),
     }));
   } catch (e) {
     // Prerendering is an optimisation, not a correctness requirement: every one
-    // of these pages already renders on demand, which is how the other ~65,850
+    // of these pages already renders on demand, which is how the other ~68,000
     // taxa work. Letting an unreachable database abort the whole build meant a
     // wrong password — or a Supabase maintenance window — blocked deploying
     // anything at all, including the fix for the password.
     //
-    // Loud on purpose. A deploy that silently stops prerendering 400 pages is a
+    // Loud on purpose. A deploy that silently stops prerendering 100 pages is a
     // performance regression nobody would notice otherwise, and the runtime
     // health of the database is checked separately by /api/health and
     // `npm run verify:deploy`.
@@ -71,8 +105,8 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale, id } = await params;
   const taxonId = parseSpeciesId(id);
-  if (!taxonId) return {};
-  const s = await getSpecies(taxonId);
+  if (!taxonId || !(await isSpeciesAddress(id, taxonId))) return {};
+  const s = await getCachedSpecies(taxonId);
   if (!s) return {};
   const t = await getTranslations({ locale, namespace: "species" });
   // Both names in the title, the page's language first: a search result for
@@ -115,13 +149,25 @@ export default async function SpeciesPage({
   const taxonId = parseSpeciesId(id);
   if (!taxonId) notFound();
 
-  const s = await getSpecies(taxonId);
-  if (!s) notFound();
+  // Only the taxon's own address, `32116-prionailurus-bengalensis`, is its
+  // page. A bare id never gets here: it is rewritten to species/by-id, which
+  // redirects to the slug per request (see there for why the redirect is not
+  // made in this cached page). Any other slug is not found. It used to be
+  // shown as the page it named, so every `<id>-<anything>` was a page of its
+  // own in the cache, and an id that names no taxon made a cached entry of
+  // its own; both now cost one read by the primary key, before anything
+  // cached, and a 404. While the page rendered per request a wrong slug was
+  // redirected to the right one; from this cached page a redirect is
+  // answered with its Location twice, and each slug would still be an entry.
+  // An old link from before a rename is the one casualty: nothing keeps old
+  // names, and `/species/<id>` still finds the page.
+  if (!(await isSpeciesAddress(id, taxonId))) notFound();
 
-  // Canonicalise `/species/32116` to `/species/32116-prionailurus-bengalensis`.
+  const s = await getCachedSpecies(taxonId);
+  if (!s) notFound();
+  // The address this page is at, which isSpeciesAddress has just held to the
+  // taxon's own slug: the one to share and to name in structured data.
   const canonical = speciesSlug(s);
-  if (id !== canonical)
-    redirect(`/${locale}/species/${canonical}`.replace("/zh-TW/", "/"));
 
   const t = await getTranslations("species");
   const nav = await getTranslations("nav");
@@ -148,10 +194,8 @@ export default async function SpeciesPage({
   const underReview = speciesNotes(s.taicolId).includes("nameUnderReview");
   const counts =
     s.reportCount >= HEATMAP_MIN_RECORDS ? await monthlyCounts(s.id) : null;
-  const records =
-    !withheld && s.reportCount > 0 && s.reportCount <= LIST_MAX_RECORDS
-      ? await recentRecords(s.id)
-      : [];
+  const listed =
+    !withheld && s.reportCount > 0 && s.reportCount <= LIST_MAX_RECORDS;
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 pb-24 pt-10">
@@ -250,31 +294,7 @@ export default async function SpeciesPage({
               </p>
             )}
 
-            {records.length > 0 && (
-              <ul className="mt-3 space-y-1.5 text-sm">
-                {records.map((r) => (
-                  <li
-                    key={r.id}
-                    className="flex items-center justify-between gap-3 rounded border border-ink-900/10 px-3"
-                  >
-                    <Link
-                      href={`/reports/${r.id}`}
-                      className="inline-flex min-h-11 items-center font-medium text-leaf-700 underline underline-offset-2 hover:text-forest-900"
-                    >
-                      {new Date(r.observedAt).toLocaleDateString(locale, {
-                        timeZone: "Asia/Taipei",
-                      })}
-                    </Link>
-                    <span className="tabular-nums text-ink-700">
-                      {r.lat.toFixed(3)}, {r.lng.toFixed(3)}
-                      {r.isObscured && (
-                        <span className="ml-1.5 text-amber-700">≈</span>
-                      )}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
+            {listed && <SpeciesRecords taxonId={s.id} expected={s.reportCount} />}
 
             {counts && (
               <div className="mt-6">

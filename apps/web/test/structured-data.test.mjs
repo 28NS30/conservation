@@ -93,7 +93,16 @@ describe("/attribution", () => {
       // Where and when: Taiwan, and the first and last day of the public records.
       assert.equal(d.spatialCoverage["@type"], "Place");
       assert.match(d.spatialCoverage.geo.box, /^21\.5 118 26\.5 122\.5$/);
-      assert.equal(d.temporalCoverage, `${span.first}/${span.last}`);
+      // The first day is the import's, which nothing moves. The last can be
+      // today while other test files commit and remove reports dated today,
+      // and /attribution is rebuilt every few minutes, so the page and this
+      // read may each have seen one or not: an ISO interval from that first
+      // day, ending no later than today, is the claim.
+      const [first, last] = String(d.temporalCoverage).split("/");
+      assert.equal(first, span.first);
+      assert.match(last, /^\d{4}-\d{2}-\d{2}$/);
+      const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Taipei" });
+      assert.ok(last >= first && last <= today, `ends ${last}`);
       assert.ok(!("distribution" in d), "a download that does not exist");
     }
   });

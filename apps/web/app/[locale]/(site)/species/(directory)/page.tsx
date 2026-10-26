@@ -80,22 +80,29 @@ export default async function SpeciesDirectory({
   const q = normaliseQuery(rawQ);
 
   /*
-   * Counted before it is listed, because the list is now a window onto the
-   * result set rather than the whole of it. The directory asked for 80 rows and
+   * Counted as well as listed, because the list is a window onto the result
+   * set rather than the whole of it. The directory asked for 80 rows and
    * showed whatever came back, so 442 recorded species were a list of 80 with
    * nothing on the page admitting the other 362 existed — no count, no pager,
    * no truncation notice. It simply stopped, in alphabetical order, at a place
    * that looked like an ending.
+   *
+   * The two are read together, the list at the page asked for. Only the
+   * count can say whether that page exists; when it does not (a stale
+   * bookmark, ?page=99), the last page is read once the count is in, so the
+   * rare request pays for a second read and the usual one never waits for
+   * the count before starting the list.
    */
-  const total = await countSpecies({ q, filter });
+  const asked = pageWindow(rawPage, Number.MAX_SAFE_INTEGER, PER_PAGE);
+  const [total, askedRows] = await Promise.all([
+    countSpecies({ q, filter }),
+    listSpecies({ q, filter, limit: asked.perPage, offset: asked.offset }),
+  ]);
   const win = pageWindow(rawPage, total, PER_PAGE);
-
-  const species = await listSpecies({
-    q,
-    filter,
-    limit: win.perPage,
-    offset: win.offset,
-  });
+  const species =
+    win.offset === asked.offset
+      ? askedRows
+      : await listSpecies({ q, filter, limit: win.perPage, offset: win.offset });
 
   /*
    * When a search inside a filter finds nothing, ask whether the filter is what
@@ -207,8 +214,21 @@ export default async function SpeciesDirectory({
             {species.map((s) => {
               return (
                 <li key={s.id}>
+                  {/* No prefetch, as on the record list. A species page is
+                      cached now, and Next prefetches a cached page whole:
+                      for the eighteen names in a desktop's first screen,
+                      95 KB of payload, and once for all of them the page's
+                      stylesheet (11 KB) and scripts (37 KB, nearly all of it
+                      the chunk zod is in, which SpeciesMap brings with
+                      @conservation/shared); and, on a cold cache, a render
+                      on the server for each name. All of it for pages
+                      nobody opened, on every visit to the directory. While
+                      the species pages rendered per request none of it was
+                      fetched, so this is how the directory always behaved
+                      (October 2026; e2e/perf.spec.mjs caught it). */}
                   <Link
                     href={`/species/${speciesSlug(s)}`}
+                    prefetch={false}
                     className="flex h-full items-start justify-between gap-3 rounded-lg border border-ink-900/10 bg-paper-100 px-4 py-3 transition hover:border-ink-900/20 hover:bg-paper-100"
                   >
                     <span className="min-w-0">

@@ -20,6 +20,7 @@ import { awaitingVerification } from "@/lib/report/verification";
 import { publicSpeciesName, speciesSlug } from "@/lib/species";
 import { signedPhotoUrls } from "@/lib/supabase/service";
 import { sql } from "@/lib/db";
+import { overview } from "@/lib/stats";
 import Pager from "@/components/site/Pager";
 import { alternates, pagedPath } from "@/lib/alternates";
 import SpeciesName from "@/components/species/SpeciesName";
@@ -127,7 +128,11 @@ export default async function ReportsListPage({
   const page = Math.min(2000, Math.max(1, Math.floor(Number(rawPage)) || 1));
   const offset = (page - 1) * PAGE_SIZE;
 
-  const rows = await asPublic(
+  // The page of rows, the size and span of the whole public record for the
+  // lede (overview(), cached for everybody), and the name of a species the
+  // list arrived filtered to: three reads that need nothing from each other,
+  // so they run together.
+  const readRows = asPublic(
     (tx) => tx<Row[]>`
       select rp.id, rp.category, rp.observed_at as "observedAt",
              st_y(rp.location_public::geometry) as lat,
@@ -155,25 +160,23 @@ export default async function ReportsListPage({
        order by rp.observed_at desc, rp.id
        limit ${PAGE_SIZE + 1} offset ${offset}`,
   );
+  const [rows, span, named] = await Promise.all([
+    readRows,
+    overview(),
+    taxonId ? publicSpeciesName(taxonId) : null,
+  ]);
 
   const hasNext = rows.length > PAGE_SIZE;
   const visible = rows.slice(0, PAGE_SIZE);
 
   // The whole public set, not the filtered page: the lede describes what this
   // list is, and the "Filtered by" line below describes what is in view.
-  const [span] = await asPublic(
-    (tx) => tx<{ n: number; from: number | null; to: number | null }[]>`
-      select count(*)::int as n,
-             extract(year from min(observed_at) at time zone 'Asia/Taipei')::int as "from",
-             extract(year from max(observed_at) at time zone 'Asia/Taipei')::int as "to"
-        from reports_public`,
-  );
   const lede =
-    span && span.n > 0 && span.from && span.to
+    span.reports > 0 && span.firstYear && span.lastYear
       ? `${t("subtitle")} ${t("span", {
-          count: span.n,
-          from: String(span.from),
-          to: String(span.to),
+          count: span.reports,
+          from: String(span.firstYear),
+          to: String(span.lastYear),
         })}`
       : t("subtitle");
 
@@ -286,8 +289,8 @@ export default async function ReportsListPage({
    * a taxon rated 座標不開放 has no public records, and naming it over an empty
    * list would be the only thing on the page confirming it had been recorded
    * here. When that lookup answers nothing, the line simply omits the name.
+   * (`named` is read above, beside the rows.)
    */
-  const named = taxonId ? await publicSpeciesName(taxonId) : null;
   const day = (d: string) => formatTaipeiDate(d, locale);
   const dates =
     from && to

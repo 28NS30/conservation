@@ -3,10 +3,9 @@ import { hasLocale } from "next-intl";
 import { routing } from "@/i18n/routing";
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { sql } from "@/lib/db";
 import { Link } from "@/i18n/navigation";
 import type { ReportPage } from "@conservation/shared";
-import { mapEntrySpecies, recordedSpeciesCount } from "@/lib/stats";
+import { mapEntrySpecies, overview, recordedSpeciesCount } from "@/lib/stats";
 import { PHOTOS, HERO, type PhotoKey } from "@/lib/home/photos";
 import SiteHeader from "@/components/site/SiteHeader";
 import SiteFooter from "@/components/site/SiteFooter";
@@ -33,7 +32,7 @@ export async function generateMetadata({
   };
 }
 
-type Stats = { species: number; obscured: string };
+type Stats = { species: number; obscured: number };
 
 /**
  * The species figure is recordedSpeciesCount(), the one definition every other
@@ -42,15 +41,13 @@ type Stats = { species: number; obscured: string };
  * records filed under names that do not apply in Taiwan, which the directory
  * hides. A number the reader cannot reproduce by opening the directory is one
  * they stop trusting.
+ *
+ * The blurred-record count is overview()'s, as on /stats and the map. Both
+ * are cached for everybody (lib/siteFigures.ts).
  */
 async function getStats(): Promise<Stats> {
-  const [[row], species] = await Promise.all([
-    sql<{ obscured: string }[]>`
-      select count(*) filter (where is_obscured)::text as obscured
-        from reports_public`,
-    recordedSpeciesCount(),
-  ]);
-  return { species, obscured: row.obscured };
+  const [{ obscured }, species] = await Promise.all([overview(), recordedSpeciesCount()]);
+  return { species, obscured };
 }
 
 /**

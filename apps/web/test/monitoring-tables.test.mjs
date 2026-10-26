@@ -185,6 +185,13 @@ describe("app_errors", () => {
 
   test("an hour that is full takes no new rows, but still counts the ones it has", async () => {
     await inRollback(async (tx) => {
+      // One snapshot for the whole test. The cap counts the hour's rows, and
+      // other test files commit rows for this same hour while it runs
+      // (monitoring.test.mjs's deliberate server error), which under READ
+      // COMMITTED each statement here would see and count. A lock would make
+      // that writer wait or give up instead, which its own test reads as
+      // nothing recorded.
+      await tx`set transaction isolation level repeatable read`;
       const cap = 3;
       await tx`delete from app_errors where hour = date_trunc('hour', now(), 'UTC')`;
       for (const r of ["/a", "/b", "/c", "/d"]) await tx.unsafe(APP_ERROR_UPSERT, [r, "", cap]);

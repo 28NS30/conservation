@@ -131,8 +131,10 @@ export default function ShareButton({
         onClick={share}
         // A disclosure only where it discloses something: with a share sheet
         // the button opens the phone's, not a panel of ours.
-        aria-expanded={native ? undefined : open}
-        aria-controls={!native && open ? panelId : undefined}
+        // A native sheet discloses nothing on the page, until it fails and
+        // the panel opens in its place.
+        aria-expanded={native && !open ? undefined : open}
+        aria-controls={open ? panelId : undefined}
         className={control}
       >
         <svg aria-hidden viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
