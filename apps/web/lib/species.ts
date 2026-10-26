@@ -260,62 +260,6 @@ export function speciesMembers(
 }
 
 /**
- * Where a taxon sits among the cards, for its page: the species a subspecies
- * belongs to, whether the subspecies is shown on that species' card, and for
- * a species, the subspecies shown on its own.
- *
- * Read through asPublic, and only names: nothing here counts a record.
- */
-export async function speciesRelations(id: number): Promise<{
-  /** The species above a subspecies, when it is a name the site offers. */
-  species: SpeciesRef | null;
-  /** Whether this subspecies is shown on that species' card (species_folds). */
-  onSpeciesCard: boolean;
-  /** The subspecies shown on this species' card. */
-  folded: SpeciesRef[];
-}> {
-  // `t` is the row named, as OFFERED expects of `taxa`.
-  const REF = `t.id, t.scientific_name as "scientificName",
-               t.common_name_zh as "commonNameZh", t.common_name_en as "commonNameEn"`;
-  return asPublic(async (tx) => {
-    const species = await tx<(SpeciesRef & { onSpeciesCard: boolean })[]>`
-      select ${tx.unsafe(REF)},
-             exists (select 1 from species_folds f
-                      where f.taxon_id = sub.id and f.species_id = t.id) as "onSpeciesCard"
-        from taxa sub
-        join taxa t on t.taicol_id = sub.species_taicol_id
-       where sub.id = ${id} and t.id <> sub.id
-         and ${tx.unsafe(OFFERED)}`;
-    const folded = await tx<SpeciesRef[]>`
-      select ${tx.unsafe(REF)}
-        from species_folds f
-        join taxa t on t.id = f.taxon_id
-       where f.species_id = ${id}
-       order by t.scientific_name, t.id`;
-    const [sp] = species;
-    return {
-      species: sp
-        ? {
-            id: sp.id,
-            scientificName: sp.scientificName,
-            commonNameZh: sp.commonNameZh,
-            commonNameEn: sp.commonNameEn,
-          }
-        : null,
-      onSpeciesCard: sp?.onSpeciesCard ?? false,
-      folded,
-    };
-  });
-}
-
-export type SpeciesRef = {
-  id: number;
-  scientificName: string;
-  commonNameZh: string | null;
-  commonNameEn: string | null;
-};
-
-/**
  * A species a "report this species" link may carry, and the report pages that
  * would accept it.
  *
@@ -625,11 +569,67 @@ export async function listSpecies(opts: {
 }
 
 /**
+ * Where a taxon sits among the cards, for its page: the species a subspecies
+ * belongs to, whether the subspecies is shown on that species' card, and for
+ * a species, the subspecies shown on its own.
+ *
+ * Read through asPublic, and only names: nothing here counts a record.
+ */
+export async function speciesRelations(id: number): Promise<{
+  /** The species above a subspecies, when it is a name the site offers. */
+  species: SpeciesRef | null;
+  /** Whether this subspecies is shown on that species' card (species_folds). */
+  onSpeciesCard: boolean;
+  /** The subspecies shown on this species' card. */
+  folded: SpeciesRef[];
+}> {
+  // `t` is the row named, as OFFERED expects of `taxa`.
+  const REF = `t.id, t.scientific_name as "scientificName",
+               t.common_name_zh as "commonNameZh", t.common_name_en as "commonNameEn"`;
+  return asPublic(async (tx) => {
+    const species = await tx<(SpeciesRef & { onSpeciesCard: boolean })[]>`
+      select ${tx.unsafe(REF)},
+             exists (select 1 from species_folds f
+                      where f.taxon_id = sub.id and f.species_id = t.id) as "onSpeciesCard"
+        from taxa sub
+        join taxa t on t.taicol_id = sub.species_taicol_id
+       where sub.id = ${id} and t.id <> sub.id
+         and ${tx.unsafe(OFFERED)}`;
+    const folded = await tx<SpeciesRef[]>`
+      select ${tx.unsafe(REF)}
+        from species_folds f
+        join taxa t on t.id = f.taxon_id
+       where f.species_id = ${id}
+       order by t.scientific_name, t.id`;
+    const [sp] = species;
+    return {
+      species: sp
+        ? {
+            id: sp.id,
+            scientificName: sp.scientificName,
+            commonNameZh: sp.commonNameZh,
+            commonNameEn: sp.commonNameEn,
+          }
+        : null,
+      onSpeciesCard: sp?.onSpeciesCard ?? false,
+      folded,
+    };
+  });
+}
+
+export type SpeciesRef = {
+  id: number;
+  scientificName: string;
+  commonNameZh: string | null;
+  commonNameEn: string | null;
+};
+
+/**
  * The name of a taxon a list or a map arrived filtered to.
  *
- * Joined to `species_report_stats`, not merely read from `taxa`, and that is the
- * privacy rule rather than a convenience: a taxon rated 座標不開放 has no rows in
- * `reports_public` and therefore none in the view, so naming it above an empty
+ * Checked against `reports_public`, not merely read from `taxa`, and that is
+ * the privacy rule rather than a convenience: a taxon rated 座標不開放 has no
+ * rows in `reports_public`, so naming it above an empty
  * list would be the only thing on the page confirming it had ever been recorded
  * in Taiwan. An unrecorded or withheld id answers null and the page says
  * nothing about it.
