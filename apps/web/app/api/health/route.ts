@@ -1,4 +1,5 @@
 import { asPublic, sql } from "@/lib/db";
+import { recordedSpeciesCount } from "@/lib/stats";
 import { schemaStatus } from "@/lib/schemaStatus";
 import { secondsSinceGoodRun } from "@/lib/jobRuns";
 import {
@@ -50,19 +51,27 @@ export async function GET(req: Request) {
     // timing a held answer too would make the number depend on whether this
     // request happened to be the one that ran them. Nor may the Storage call
     // below count towards it.
-    const counted = asPublic(
-      async (tx) =>
-        (
-          await tx<{ reports: number; taxa: number; species: number }[]>`
-            select (select count(*) from reports_public)::int as reports,
-                   (select count(*) from taxa)::int          as taxa,
-                   -- Species we hold records FOR, which is not the size of the
-                   -- checklist: 458 against 125,438. The parent site advertises this
-                   -- one, and had it hardcoded because the taxa count is the checklist.
-                   (select count(distinct taxon_id) from reports_public
-                     where taxon_id is not null)::int        as species`
-        )[0],
-    ).then((counts) => ({ counts, latencyMs: Date.now() - started }));
+    const counted = Promise.all([
+      asPublic(
+        async (tx) =>
+          (
+            await tx<{ reports: number; taxa: number }[]>`
+              select (select count(*) from reports_public)::int as reports,
+                     (select count(*) from taxa)::int          as taxa`
+          )[0],
+      ),
+      // Species we hold records FOR, which is not the size of the checklist:
+      // 485 against 136,680 on production, 26 October 2026. The parent site
+      // advertises this one, and had it hardcoded because the taxa count is
+      // the checklist. It is the number every page states,
+      // recordedSpeciesCount(): this used to count `distinct taxon_id` on its
+      // own and said 505 while the pages said 504, and counted each
+      // same-named subspecies as a species of its own.
+      recordedSpeciesCount(),
+    ]).then(([rows, species]) => ({
+      counts: { ...rows, species },
+      latencyMs: Date.now() - started,
+    }));
 
     const [{ counts, latencyMs }, schema, jobSeconds, queue, dbSizeMb, storageOk] = await Promise.all([
       counted,

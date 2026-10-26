@@ -486,7 +486,7 @@ describe("one species count", () => {
   const KNOWN = new Map([
     // Outside the change that unified the others, each with its one-line fix:
     // use recordedSpeciesCount() from lib/stats.ts. Remove the entry with it.
-    ["app/api/health/route.ts", "the count the parent site reads from /api/health"],
+    // /api/health, the count the parent site reads, was the last (0040).
   ]);
 
   test("no page counts species with a query of its own", () => {
@@ -509,6 +509,7 @@ describe("one species count", () => {
       "app/[locale]/(site)/stats/page.tsx",
       "app/[locale]/(site)/season/page.tsx",
       "app/[locale]/map/page.tsx",
+      "app/api/health/route.ts",
     ])
       assert.match(code(p), /recordedSpeciesCount\(\)/, p);
     assert.match(code("lib/stats.ts"), /countSpecies\(\{ filter: "recorded" \}\)/);

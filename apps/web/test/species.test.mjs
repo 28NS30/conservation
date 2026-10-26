@@ -96,11 +96,13 @@ describe("directory paging", () => {
      * matching taxon exactly once, whatever the number happens to be.
      */
     // The directory's own predicate (speciesWhere in lib/species.ts),
-    // including its accepted-names-only rule.
+    // including its accepted-names-only rule, counted by card: a subspecies
+    // with its species' Chinese name is on the species' card (0040).
     const [{ n }] = await sql`
-      select count(*)::int as n
+      select count(distinct coalesce(f.species_id, t.id))::int as n
         from taxa t
         left join species_report_stats s on s.taxon_id = t.id
+        left join species_folds f on f.taxon_id = t.id
        where t.is_in_taiwan
          and t.taxon_status = 'accepted'
          and t.rank in ('Species','Subspecies')
@@ -144,9 +146,11 @@ describe("directory paging", () => {
     // The default filter is "with records" and most species have none, so
     // searching for a real checklist species answered "no matching species" —
     // a directory built on the national checklist denying a checklist entry.
+    // No records on its card either: 埃及聖䴉's species row has none of its
+    // own, and the directory lists it for its subspecies' records.
     const [hidden] = await sql`
       select t.common_name_zh as name from taxa t
-        left join species_report_stats s on s.taxon_id = t.id
+        left join species_card_stats s on s.taxon_id = t.id
        where s.taxon_id is null and t.is_in_taiwan
          and t.rank = 'Species' and t.common_name_zh is not null
        limit 1`;
@@ -235,7 +239,7 @@ describe("detail page", () => {
        order by s.report_count desc limit 1`;
     [unrecorded] = await sql`
       select t.id, t.scientific_name from taxa t
-        left join species_report_stats s on s.taxon_id = t.id
+        left join species_card_stats s on s.taxon_id = t.id
        where s.taxon_id is null and t.is_in_taiwan and t.rank = 'Species' limit 1`;
     [suppressed] = await sql`
       select id, scientific_name from taxa where sensitivity = '座標不開放' limit 1`;
@@ -395,7 +399,7 @@ describe("thin species pages", () => {
     // species share the shape of.
     const [bare] = await sql`
       select t.id from taxa t
-        left join species_report_stats s on s.taxon_id = t.id
+        left join species_card_stats s on s.taxon_id = t.id
        where s.taxon_id is null
          and t.rank = 'Species' and t.is_in_taiwan
          and t.protected_status is null and t.iucn is null
@@ -421,7 +425,7 @@ describe("thin species pages", () => {
     // the old reportCount test, every one of these 12,008 pages was hidden.
     const [row] = await sql`
       select t.id from taxa t
-        left join species_report_stats s on s.taxon_id = t.id
+        left join species_card_stats s on s.taxon_id = t.id
        where s.taxon_id is null
          and t.rank = 'Species' and t.is_in_taiwan
          and t.protected_status is not null

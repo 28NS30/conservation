@@ -90,12 +90,15 @@ describe("the three collection pages", () => {
   }
 
   test("/invasive lists the invasive animals with their public record counts", async () => {
+    // By card, as the list counts (0040): a subspecies on its species' card
+    // is listed as the species.
     const [top] = await sql`
       select t.id, t.common_name_zh as zh, s.report_count as n
-        from taxa t join species_report_stats s on s.taxon_id = t.id
+        from taxa t join species_card_stats s on s.taxon_id = t.id
        where t.is_invasive and t.kingdom = 'Animalia'
          and t.taxon_status is not distinct from 'accepted' and t.is_in_taiwan
          and t.rank in ('Species','Subspecies') and t.common_name_zh is not null
+         and not exists (select 1 from species_folds f where f.taxon_id = t.id)
        order by s.report_count desc limit 1`;
     if (!top) return;
     const { html } = await page("/invasive");

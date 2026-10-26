@@ -437,7 +437,6 @@ export default async function CollectionHub({
               class: s.class,
               protectedStatus: s.protectedStatus,
               reportCount: s.reportCount,
-              note: s.note,
             }))}
           />
         </section>

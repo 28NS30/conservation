@@ -34,8 +34,12 @@ import { everyYear } from "@/lib/yearSeries";
  * cannot trust.
  *
  * So the definition lives in exactly one place, `speciesWhere()` in
- * lib/species.ts, and this is how everything else asks it. Subspecies count as
- * their own rows there, as they do in the directory's list.
+ * lib/species.ts, and this is how everything else asks it, /api/health
+ * included. It counts the directory's cards, as the directory lists them
+ * (migration 0040): a subspecies with its species' Chinese name is on the
+ * species' card and counts once with it, so the 504 rows production listed on
+ * 26 October 2026 are 485 cards. A subspecies with a name of its own, 石虎
+ * under 豹貓, is a card of its own.
  */
 export const recordedSpeciesCount = siteFigure(
   "recordedSpeciesCount",
@@ -48,11 +52,14 @@ export const recordedSpeciesCount = siteFigure(
  *
  * It was `rank = 'Species'` alone, under a numerator that counts species and
  * subspecies rows alike, so "500 of 42,061" divided 328 species plus 172
- * subspecies by species only. Counting subspecies on both sides keeps the
- * numerator the one number every other page states, and makes the ratio like
- * over like. Collapsing subspecies into their species instead would have given
- * /season a species count of its own (477 locally) beside /stats's 500, which
- * is the disagreement recordedSpeciesCount() exists to end.
+ * subspecies by species only. Both sides now count the directory's cards:
+ * a species with the subspecies that share its Chinese name is one, and a
+ * subspecies named for itself is one more, in the numerator as in the
+ * denominator. So the ratio is still like over like, and the numerator is
+ * still the one number every other page states. Collapsing every subspecies into its species would have given
+ * /season a species count of its own beside /stats's, the disagreement
+ * recordedSpeciesCount() exists to end; folding only the same-named ones
+ * changes the directory too, so both move together.
  *
  * Animals, because only animals are reported here. The whole checklist —
  * plants, fungi and bacteria included — made the site look 0.8% done at
@@ -135,7 +142,9 @@ export const topSpecies = siteFigure("topSpecies", (limit: number = 15): Promise
              t.common_name_en as "commonNameEn", t.taicol_id as "taicolId",
              t.protected_status as "protectedStatus",
              t.is_invasive as "isInvasive", t.is_endemic as "isEndemic"
-        from species_report_stats s
+        -- By card (0040), so 家燕 and its same-named subspecies are one
+        -- line with one count, as in the directory.
+        from species_card_stats s
         join taxa t on t.id = s.taxon_id
        order by s.report_count desc, t.scientific_name
        limit ${limit}`,
@@ -164,7 +173,7 @@ export const mapEntrySpecies = siteFigure("mapEntrySpecies", (limit: number = 3)
       select t.id, t.scientific_name as "scientificName",
              t.common_name_zh as "commonNameZh",
              t.common_name_en as "commonNameEn"
-        from species_report_stats s
+        from species_card_stats s
         join taxa t on t.id = s.taxon_id
        where t.sensitivity is null
          and t.protected_status is null
