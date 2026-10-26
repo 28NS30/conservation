@@ -100,7 +100,9 @@ const PERMISSIONS_POLICY = [
  *     this site's pages are prerendered and served from the CDN. A hash cannot
  *     work either: the payload is different on every page. So this stops a
  *     script loaded from another host, and not one written inline. 'unsafe-eval'
- *     only under `next dev`, where React uses eval for its error overlay.
+ *     only under `next dev`, where React uses eval for its error overlay. In
+ *     production nothing evaluates a string: zod tried once per schema until
+ *     packages/shared turned that off (`z.config({ jitless: true })`).
  *   - style-src 'unsafe-inline': React writes `style` attributes into the HTML.
  *   - img-src data: and blob:, for MapLibre's control icons (data: SVGs in its
  *     stylesheet) and a photo previewed before it is sent; and Supabase, whose
