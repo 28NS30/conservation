@@ -1,16 +1,17 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { asPublic, sql } from "@/lib/db";
+import { asPublic } from "@/lib/db";
 import { pageFilter } from "@conservation/shared";
-import { recordedSpeciesCount } from "@/lib/stats";
+import { overview, recordedSpeciesCount } from "@/lib/stats";
 import { speciesMembers } from "@/lib/species";
 import HeatmapView from "@/components/map/HeatmapView";
 import SiteHeader from "@/components/site/SiteHeader";
 import SiteFooter from "@/components/site/SiteFooter";
 import { alternates } from "@/lib/alternates";
 
-// Stats are cheap but not worth recomputing per request.
-export const revalidate = 300;
+// No `revalidate`: the page reads its query string (the view and the filter a
+// link carries), so it renders per request whatever one says. The figures in
+// its header are cached for everybody instead (lib/siteFigures.ts).
 
 /**
  * "地圖 · 福爾摩沙守望計畫" in the tab. The busiest page on the site was the
@@ -27,13 +28,6 @@ export async function generateMetadata({
   const tm = await getTranslations({ locale, namespace: "map" });
   return { title: t("map"), description: tm("metaDescription"), alternates: alternates(locale, "/map") };
 }
-
-type Stats = {
-  reports: string;
-  obscured: string;
-  earliest: string | null;
-  latest: string | null;
-};
 
 type NamedTaxon = {
   id: number;
@@ -69,16 +63,6 @@ async function namedTaxon(id: number): Promise<NamedTaxon | null> {
        where t.id = ${id} and s.report_count > 0`,
   );
   return rows[0] ?? null;
-}
-
-async function getStats(): Promise<Stats> {
-  const [row] = await sql<Stats[]>`
-    select count(*)::text                                            as reports,
-           count(*) filter (where is_obscured)::text                 as obscured,
-           to_char(min(observed_at) at time zone 'Asia/Taipei', 'YYYY')                         as earliest,
-           to_char(max(observed_at) at time zone 'Asia/Taipei', 'YYYY')                         as latest
-      from reports_public`;
-  return row;
 }
 
 /**
@@ -118,13 +102,18 @@ export default async function MapPage({
   // which the map then asks for tiles by and writes back to the address bar.
   const initialFilter = pageFilter(sp);
 
-  const t = await getTranslations();
   // The species count is the directory's, like every other page that states
-  // one; see recordedSpeciesCount().
-  const [s, species] = await Promise.all([getStats(), recordedSpeciesCount()]);
+  // one; see recordedSpeciesCount(). The counts and the years are /stats's
+  // (overview()). The taxon a link named is read beside them rather than
+  // after: nothing waits on anything else here.
   const taxonId = initialFilter.taxonId;
-  const initialSpecies = taxonId ? await namedTaxon(taxonId) : null;
-  const n = (v: string) => Number(v).toLocaleString(locale);
+  const [t, s, species, initialSpecies] = await Promise.all([
+    getTranslations(),
+    overview(),
+    recordedSpeciesCount(),
+    taxonId ? namedTaxon(taxonId) : null,
+  ]);
+  const n = (v: number) => v.toLocaleString(locale);
 
   return (
     // 100dvh rather than an h-full chain from <html>: it does not depend on every
@@ -139,7 +128,7 @@ export default async function MapPage({
         stats={{
           reports: n(s.reports),
           species: species.toLocaleString(locale),
-          range: s.earliest && s.latest ? `${s.earliest}–${s.latest}` : null,
+          range: s.firstYear && s.lastYear ? `${s.firstYear}–${s.lastYear}` : null,
         }}
       />
 
@@ -154,15 +143,11 @@ export default async function MapPage({
           initialView={view}
           initialFilter={initialFilter}
           initialSpecies={initialSpecies}
-          years={
-            s.earliest && s.latest
-              ? { first: Number(s.earliest), last: Number(s.latest) }
-              : null
-          }
+          years={s.firstYear && s.lastYear ? { first: s.firstYear, last: s.lastYear } : null}
         />
       </div>
 
-      <SiteFooter variant="app" obscured={Number(s.obscured)} />
+      <SiteFooter variant="app" obscured={s.obscured} />
       <span className="sr-only">{t("site.title")}</span>
     </main>
   );

@@ -14,7 +14,8 @@
     "make:fixture": "tsx make-test-fixture.ts",
     "export:dwca": "tsx export-dwca.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "preflight": "tsx preflight.ts"
+    "preflight": "tsx preflight.ts",
+    "data-quality": "tsx data-quality.ts"
   },
   "dependencies": {
     "@conservation/shared": "*",

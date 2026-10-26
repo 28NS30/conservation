@@ -123,8 +123,10 @@ export default function InvasiveSpeciesList({
             <ul className="divide-y divide-ink-900/10">
               {g.rows.map((s) => (
                 <li key={s.id}>
+                  {/* Not prefetched, like the species directory's (see there). */}
                   <Link
                     href={`/species/${s.slug}`}
+                    prefetch={false}
                     className="group/row flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 py-2.5 transition hover:bg-paper-100"
                   >
                     <span className="min-w-0 flex-1">

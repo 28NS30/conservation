@@ -218,8 +218,10 @@ export default async function MyReportsPage({
               <ul className="mt-4 grid gap-2 sm:grid-cols-2">
                 {species.map((s) => (
                   <li key={s.id}>
+                    {/* Not prefetched, like the species directory's (see there). */}
                     <Link
                       href={`/species/${speciesSlug(s)}`}
+                      prefetch={false}
                       className="flex items-baseline justify-between gap-3 rounded-lg border border-ink-900/10 bg-paper-100/60 px-4 py-2.5 transition hover:border-ink-900/25 hover:bg-paper-100"
                     >
                       <span className="min-w-0">

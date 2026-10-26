@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { asPublic } from "@/lib/db";
+import { siteFigure } from "@/lib/siteFigures";
 
 /**
  * Map coverage: how much of Taiwan has any record at all.
@@ -39,6 +40,14 @@ import { asPublic } from "@/lib/db";
  * records when the answer is no. The first public report opens it within the
  * cache window. A database error answers "closed": a missing footer link costs
  * nothing, and a footer that throws takes the page down with it.
+ *
+ * For five minutes, like the site's figures, and not the fifteen it had. Next
+ * caches a page for the shortest lifetime among the cached reads it makes,
+ * and the footer makes this one on every page, so on the pages with no other
+ * (/about, /team, /privacy, /terms) its lifetime was theirs. Fifteen minutes
+ * is longer than a page may be served at all (`expireTime`, next.config.ts),
+ * and a page that outlives that loses its stale-while-revalidate and is kept
+ * by the CDN for the whole fifteen.
  */
 export const seasonOpen = unstable_cache(
   async (): Promise<boolean> => {
@@ -54,7 +63,7 @@ export const seasonOpen = unstable_cache(
     }
   },
   ["season-open"],
-  { revalidate: 900 },
+  { revalidate: 300 },
 );
 
 /** Matches the hotspot grid on /stats, so the two describe the same squares. */
@@ -84,8 +93,12 @@ export type Coverage = {
  *
  * Deliberately derived rather than configured: a hardcoded end date is a date
  * that passes, and a goal page showing an expired deadline reads as abandoned.
+ *
+ * Two full passes over the public records, the same for every reader, so
+ * cached for everybody under the reports' tag (lib/siteFigures.ts); a record
+ * re-identified or blurred leaves its cell at once.
  */
-export async function coverage(): Promise<Coverage> {
+export const coverage = siteFigure("coverage", async (): Promise<Coverage> => {
   const [row] = await asPublic(
     (tx) => tx<Coverage[]>`
       with bounds as (
@@ -136,4 +149,4 @@ export async function coverage(): Promise<Coverage> {
           as "seasonEnd"`,
   );
   return row;
-}
+});
