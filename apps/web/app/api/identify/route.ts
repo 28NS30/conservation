@@ -1,4 +1,4 @@
-import { isReportPage } from "@conservation/shared";
+import { isReportPage, MAX_UPLOAD_BYTES } from "@conservation/shared";
 import {
   IDENTIFY_LIMITS,
   SIGNED_IN_ADDRESS_FACTOR,
@@ -41,8 +41,14 @@ import { ModelRefused } from "@/lib/report/model";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/** A downscaled photo is a few hundred KB; base64 of 1.5 MB is the ceiling. */
-const MAX_BASE64 = 2_000_000;
+/**
+ * The base64 of the largest photo the form may upload (MAX_UPLOAD_BYTES, 3 MB).
+ * It was 2,000,000 characters, about 1.46 MB, from when every photo was WebP;
+ * a 2048 px JPEG at 0.85, which iPhone browsers now send, is often larger, and
+ * those were refused as bad_image. About 4.2 MB, inside Vercel's 4.5 MB limit
+ * on a request body.
+ */
+const MAX_BASE64 = Math.ceil(MAX_UPLOAD_BYTES / 3) * 4;
 /** Inside the function's limit, with room for a cold model service. */
 const MODEL_TIMEOUT_MS = 55_000;
 

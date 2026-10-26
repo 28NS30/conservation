@@ -230,7 +230,14 @@ function jpegFinding(b: Uint8Array): string | null {
   for (const { marker, start, size } of segments) {
     const s = b.subarray(start, start + size);
     if (marker === 0xfe) return "a JPEG comment";
-    if (marker === 0xe0 || marker === 0xee) continue; // JFIF, Adobe
+    if (marker === 0xee) continue; // Adobe: the colour transform, nothing else
+    if (marker === 0xe0) {
+      // JFIF's header, and nothing more: its two thumbnail sizes (bytes 12
+      // and 13) are zero. A thumbnail, or a JFXX extension, is a second
+      // picture, which can be the photograph before it was cropped.
+      if (ascii(s, 0, 5) === "JFIF\0" && size >= 14 && s[12] === 0 && s[13] === 0) continue;
+      return ascii(s, 0, 5) === "JFXX\0" ? "a JFXX thumbnail" : "an APP0 block";
+    }
     if (marker === 0xe1) {
       if (ascii(s, 0, 6) === "Exif\0\0") {
         const found = exifFinding(s.subarray(6));
@@ -253,18 +260,34 @@ function jpegFinding(b: Uint8Array): string | null {
   return trailing(b, segments.end);
 }
 
+/**
+ * The PNG chunks a picture is made of: its header, pixels and palette, and
+ * how its colours are meant. Any other chunk refuses the photo, as an unknown
+ * JPEG marker does: tEXt, zTXt and iTXt (XMP) hold whatever text a writer
+ * chose, and a chunk nobody listed here, such as C2PA's caBX, can carry the
+ * same Exif inside it.
+ */
+const PNG_PICTURE = new Set([
+  "IHDR", "PLTE", "IDAT", "IEND", "tRNS",
+  "cHRM", "gAMA", "iCCP", "sBIT", "sRGB", "cICP", "mDCV", "cLLI",
+  "bKGD", "hIST", "pHYs",
+]);
+
 function pngFinding(b: Uint8Array): string | null {
   const chunks = pngChunks(b);
   for (const { id, start, size } of chunks) {
     if (id === "eXIf") {
       const found = exifFinding(b.subarray(start, start + size));
       if (found) return found;
+      continue;
     }
-    // XMP is an iTXt chunk; tEXt and zTXt hold whatever text a writer chose.
-    if (id === "tEXt" || id === "zTXt" || id === "iTXt") return `a PNG ${id} chunk`;
+    if (!PNG_PICTURE.has(id)) return `a PNG ${id} chunk`;
   }
   return trailing(b, chunks.end);
 }
+
+/** The WebP chunks a picture is made of; anything else refuses it, as in a PNG. */
+const WEBP_PICTURE = new Set(["VP8 ", "VP8L", "VP8X", "ALPH", "ICCP", "ANIM", "ANMF"]);
 
 function webpFinding(b: Uint8Array): string | null {
   const riffEnd = 8 + view(b).getUint32(4, true);
@@ -273,7 +296,9 @@ function webpFinding(b: Uint8Array): string | null {
     if (id === "EXIF") {
       const found = exifFinding(b.subarray(start, start + size));
       if (found) return found;
+      continue;
     }
+    if (!WEBP_PICTURE.has(id)) return `a WebP ${id.trim()} chunk`;
   }
   return trailing(b, riffEnd > b.length ? undefined : riffEnd);
 }
@@ -293,6 +318,10 @@ export function photoMetadata(b: Uint8Array): string | null {
     return webpFinding(b);
   } catch (e) {
     if (e instanceof Truncated || e instanceof RangeError) return "a file that ends before its own lengths say";
-    throw e;
+    // Anything else the walkers trip on, such as a RIFF header whose size is
+    // shorter than its own WEBP tag, is a file they cannot read either, and is
+    // refused the same way. Thrown, it was a 500, which the offline queue
+    // retries for two weeks.
+    return "a file its own structure does not describe";
   }
 }

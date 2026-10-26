@@ -89,6 +89,11 @@ describe("a JPEG", () => {
     const resource = Buffer.concat([Buffer.from("8BIM"), Buffer.from([0x04, 0x04, 0, 0]), Buffer.from([0, 0, 0, city.length]), city]);
     assert.match(photoMetadata(jpeg(segment(0xed, [...Buffer.from("Photoshop 3.0\0", "latin1"), ...resource]))), /IPTC/);
     assert.equal(photoMetadata(jpeg(segment(0xe5, [1, 2, 3]))), "an APP5 block");
+    // JFIF's header passes; its thumbnail, or a JFXX extension, does not.
+    const jfif = (tw, th) => [...Buffer.from("JFIF\0", "latin1"), 1, 2, 0, 0, 1, 0, 1, tw, th, ...Array(3 * tw * th).fill(128)];
+    assert.equal(photoMetadata(jpeg(segment(0xe0, jfif(0, 0)))), null);
+    assert.equal(photoMetadata(jpeg(segment(0xe0, jfif(2, 2)))), "an APP0 block");
+    assert.equal(photoMetadata(jpeg(segment(0xe0, [...Buffer.from("JFXX\0", "latin1"), 0x13, 1, 2, 3]))), "a JFXX thumbnail");
   });
 
   test("with data hidden after the end of the image is refused", () => {
@@ -129,6 +134,18 @@ describe("a WebP", () => {
     assert.equal(photoMetadata(withWebpChunk(home, "XMP ", Buffer.from("<x:xmpmeta/>"))), "XMP");
     assert.deepEqual(webpChunks(withWebpChunk(home, "XMP ", Buffer.from("x"))).at(-1).id, "XMP ");
   });
+
+  test("with any chunk that is not part of a picture is refused", () => {
+    // C2PA's chunk can carry an Exif position inside a manifest.
+    assert.equal(photoMetadata(withWebpChunk(home, "C2PA", Buffer.from("stds.exif GPS 24.1477,120.6736"))), "a WebP C2PA chunk");
+    assert.equal(photoMetadata(withWebpChunk(home, "ZZZZ", Buffer.from("anything"))), "a WebP ZZZZ chunk");
+  });
+
+  test("whose RIFF header is shorter than its own tag is refused, not a server error", () => {
+    const short = Buffer.from(home);
+    short.writeUInt32LE(2, 4);
+    assert.equal(photoMetadata(short), "a file its own structure does not describe");
+  });
 });
 
 describe("a PNG", () => {
@@ -143,6 +160,11 @@ describe("a PNG", () => {
     assert.equal(photoMetadata(withPngChunk(canvas, "eXIf", tiff({ gps: gpsEntries() }))), "an Exif GPS position");
     assert.equal(photoMetadata(withPngChunk(canvas, "iTXt", Buffer.from("XML:com.adobe.xmp\0\0\0\0\0<x/>"))), "a PNG iTXt chunk");
     assert.equal(photoMetadata(withPngChunk(canvas, "tEXt", Buffer.from("Comment\0Taichung"))), "a PNG tEXt chunk");
+  });
+
+  test("with any chunk that is not part of a picture is refused, C2PA's included", () => {
+    assert.equal(photoMetadata(withPngChunk(canvas, "caBX", Buffer.from("stds.exif GPS 24.1477,120.6736"))), "a PNG caBX chunk");
+    assert.equal(photoMetadata(withPngChunk(canvas, "pHYs", Buffer.from([0, 0, 11, 19, 0, 0, 11, 19, 1]))), null);
   });
 });
 
