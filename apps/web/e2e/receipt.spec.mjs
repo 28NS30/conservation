@@ -171,6 +171,11 @@ try {
       const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
       const errors = [];
       page.on("pageerror", (e) => errors.push(String(e)));
+      // As LINE's in-app browser has it, so the share button's own choices
+      // are what a reporter there sees (share.spec.mjs has the rest).
+      await page.addInitScript(() => {
+        delete Navigator.prototype.share;
+      });
       try {
         await fileReport(page, path, c.answer());
 
@@ -212,6 +217,27 @@ try {
             `${locale} · ${c.name}: "report another" is offered`,
             text.includes(receipt.another),
           );
+
+          // Sharing only a record the public can open: a held report's id is
+          // meant to stay with its reporter (lib/receipt.ts).
+          const share = page.getByRole("button", { name: CATALOGUE[locale].share.record, exact: true });
+          const shareable = c.link === "viewRecord";
+          check(
+            `${locale} · ${c.name}: ${shareable ? "offers" : "does not offer"} to share the record`,
+            (await share.count()) === (shareable ? 1 : 0),
+          );
+          if (shareable) {
+            await share.click();
+            const line = page.getByRole("link", { name: new RegExp(CATALOGUE[locale].share.line) });
+            await line.waitFor({ timeout: 5000 }).catch(() => {});
+            const origin = new URL(page.url()).origin;
+            const record = `${origin}${locale === "en" ? "/en" : ""}/reports/${c.answer().id}`;
+            check(
+              `${locale} · ${c.name}: with no share sheet, LINE is offered the record's address`,
+              (await line.getAttribute("href").catch(() => null)) ===
+                `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(record)}`,
+            );
+          }
         } else {
           skip(`${locale} · ${c.name}: the copy`, "stale catalogue");
         }

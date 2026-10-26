@@ -1232,6 +1232,17 @@
     "reject": "「退回」會讓通報永遠不公開。請寫下原因：通報者只會看到「未採用」，原因會留在審核紀錄裡。地圖會在大約五分鐘內反映審核結果。",
     "tests": "想測試每一個步驟又不讓任何東西公開，請用下方的測試連結。"
   },
+  "share": {
+    "record": "分享這筆紀錄",
+    "species": "分享這個物種",
+    "page": "分享這一頁",
+    "line": "傳到 LINE",
+    "newTab": "（在新分頁開啟）",
+    "copy": "複製連結",
+    "copied": "已複製連結。",
+    "copyFailed": "這裡沒辦法自動複製。請長按下面的連結來複製。",
+    "linkLabel": "這一頁的連結"
+  },
   "recordMeta": {
     "description": "{name}，{date}在臺灣的{collection}紀錄。",
     "descriptionUnnamed": "{date}在臺灣的一筆{collection}紀錄，還沒有辨識出是什麼動物。",

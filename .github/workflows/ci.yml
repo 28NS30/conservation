@@ -256,6 +256,14 @@ jobs:
         # pages add to it. It ran nowhere before this step.
         run: npm run test:receipt --workspace @conservation/web
 
+      - name: Sharing a record, a species and the season goal
+        # The share button with no navigator.share, as LINE's in-app browser
+        # has it, and with one: the LINE link and the copied link must carry
+        # the page's own address, copying must say it worked, every control
+        # is 44px tall, and axe runs with the choices open, in both languages
+        # at a phone's width.
+        run: npm run test:share --workspace @conservation/web
+
       - name: Every page renders in both locales
         # Catches what HTTP-level checks cannot: next-intl renders a missing
         # message as its own key path rather than throwing, so the page still

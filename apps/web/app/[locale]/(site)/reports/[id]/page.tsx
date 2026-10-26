@@ -26,6 +26,7 @@ import { awaitingVerification } from "@/lib/report/verification";
 import { alternates } from "@/lib/alternates";
 import { speciesLabel } from "@/lib/speciesNames";
 import SpeciesName from "@/components/species/SpeciesName";
+import ShareButton from "@/components/site/ShareButton";
 import { blurKm, publicRecordSummary, UUID } from "@/lib/recordMeta";
 import { formatTaipeiDate } from "@/lib/dates";
 
@@ -460,6 +461,15 @@ export default async function ReportPage({
       <p className="mt-1 text-sm text-ink-600">
         {seenOn(row.observed_at, row.source, locale)}
       </p>
+
+      {/* Only a public record is offered for sharing: a moderator's test
+          report is never public, and its link would open a 404 for anyone
+          they sent it to. */}
+      {publicRow && (
+        <div className="mt-3">
+          <ShareButton path={`/reports/${row.id}`} what="record" />
+        </div>
+      )}
 
       {/* Only a moderator ever reaches a test report's page (see above), and
           it says what it is before anything else could be mistaken for a

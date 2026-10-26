@@ -31,6 +31,7 @@ export const CLIENT_NAMESPACES = [
   "offline",
   "precision",
   "report",
+  "share",
   "species",
 ] as const;
 

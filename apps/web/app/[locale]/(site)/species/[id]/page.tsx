@@ -20,6 +20,7 @@ import SpeciesName from "@/components/species/SpeciesName";
 import { speciesLabel } from "@/lib/speciesNames";
 import { alternates } from "@/lib/alternates";
 import { speciesDescription } from "@/lib/speciesMeta";
+import ShareButton from "@/components/site/ShareButton";
 
 /** A heatmap built from a handful of points is noise; below this we plot them. */
 const HEATMAP_MIN_RECORDS = 6;
@@ -190,6 +191,9 @@ export default async function SpeciesPage({
             chips that were here asked a reader to know four schemes first;
             lists and cards keep them. See SpeciesStatus. */}
         <SpeciesStatus {...s} />
+        <div className="mt-4">
+          <ShareButton path={`/species/${canonical}`} what="species" />
+        </div>
       </header>
 
       {lineage.length > 0 && (

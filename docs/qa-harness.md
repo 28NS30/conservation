@@ -20,6 +20,7 @@ nobody ran with checks that fail.
 | The map actually paints | `npm run test:map` | every PR (it can now fail) |
 | Route table, namespaces, known-issue shape | `npm test` | every PR, and no test may skip |
 | The report form submitted, and the card it leaves | `npm run test:receipt -w @conservation/web` | every PR |
+| The share button, with and without `navigator.share`, both languages, 390 | `npm run test:share -w @conservation/web` | every PR |
 | axe on `/report`, its three pages and `/map`, 390 | `ONLY=… WIDTHS=390 npm run test:a11y -w @conservation/web` | every PR |
 | WCAG AA contrast on the same five, 390 | `ONLY=… WIDTHS=390 npm run test:contrast -w @conservation/web` | every PR |
 | Screenshot matrix + gallery | `npm run shots` | nightly + `gh workflow run gallery.yml` |

@@ -1232,6 +1232,17 @@
     "reject": "Reject keeps it off the map for good. Write why: the reporter only sees that it was not used, and the reason stays in the moderation log. The map catches up with a decision within about five minutes.",
     "tests": "To try every step without anything being shown, use the test links further down."
   },
+  "share": {
+    "record": "Share this record",
+    "species": "Share this species",
+    "page": "Share this page",
+    "line": "Send on LINE",
+    "newTab": "(opens in a new tab)",
+    "copy": "Copy link",
+    "copied": "Link copied.",
+    "copyFailed": "Copying didn't work here. Press and hold the link below to copy it.",
+    "linkLabel": "Link to this page"
+  },
   "recordMeta": {
     "description": "{name}: {collection}, recorded in Taiwan on {date}.",
     "descriptionUnnamed": "{collection}, recorded in Taiwan on {date}. The animal has not been identified yet.",

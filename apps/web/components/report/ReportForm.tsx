@@ -55,6 +55,7 @@ import { Link } from "@/i18n/navigation";
 import LocationPicker, { useGeolocate, type LatLng } from "./LocationPicker";
 import PhotoSuggestions, { type PhotoSuggestionsState } from "./PhotoSuggestions";
 import type { PhotoIdentification } from "@/lib/report/photoSuggestion";
+import ShareButton from "@/components/site/ShareButton";
 
 type Photo = PreparedPhoto & { previewUrl: string; id: string };
 type Phase = "editing" | "submitting" | "done" | "queued" | "error";
@@ -1166,6 +1167,17 @@ function ReportFormFields({
           )}
           {another()}
         </div>
+        {/*
+          Shared only once the record is public. A held report's link opens
+          the receipt, and lib/receipt.ts rests on its id being held by the
+          one person who filed it; a test is never public at all. When a held
+          report is published, its own page has the button.
+        */}
+        {outcome.link === "viewRecord" && !result.test && (
+          <div className="mt-3">
+            <ShareButton path={`/reports/${result.id}`} what="record" />
+          </div>
+        )}
       </div>
     );
   }
