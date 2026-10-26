@@ -340,6 +340,18 @@ describe("the privacy page names what sees a reporter", () => {
     assert.match(page, /"turnstileBody"/, "the section is written but not rendered");
   });
 
+  test("Turnstile before the model too, while the identify route checks it", () => {
+    // A photo added to the form is challenged before it is sent to Modal
+    // (app/api/identify), which is a second time Cloudflare sees the reporter.
+    if (!/verifyTurnstile\(/.test(code("app/api/identify/route.ts"))) return;
+    for (const l of locales)
+      assert.match(
+        catalogues[l].privacy.turnstileBody,
+        /when you add a photo|你加入照片後/,
+        `${l}: privacy.turnstileBody says Cloudflare is asked only when a report is sent`,
+      );
+  });
+
   test("the per-address count, while the rate limit keeps one", () => {
     // The sentence about the count itself. /IP/ alone was satisfied by the
     // Turnstile sentence beside it, so deleting this one still passed.
