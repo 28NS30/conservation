@@ -53,6 +53,7 @@ const input = (over = {}) => ({
   jobSeconds: { classify: 3 * 3600 + 7 * 60 },
   queue: { waiting: 2, oldestSeconds: 14 * 60 + 20 },
   storageOk: true,
+  photoBytes: 458_996,
   dbSizeMb: 412,
   latencyMs: 61,
   commit: "2f13f5e0a1b2",
@@ -71,7 +72,7 @@ describe("the health answer", () => {
       species: 506,
       jobs: { classify: { hoursSinceOk: 3.1 }, "cleanup-orphans": { hoursSinceOk: null } },
       queue: { waiting: 2, oldestMinutes: 14 },
-      storage: { ok: true },
+      storage: { ok: true, photoBytes: 458_996 },
       dbSizeMb: 412,
       dbLatencyMs: 61,
       commit: "2f13f5e0a1b2",
@@ -116,12 +117,14 @@ describe("the health answer", () => {
   });
 
   test("an unreadable part is null or false, not a failure of the whole", () => {
-    const { status, body } = healthResponse(input({ jobSeconds: null, queue: null, dbSizeMb: null, storageOk: false }));
+    const { status, body } = healthResponse(
+      input({ jobSeconds: null, queue: null, dbSizeMb: null, storageOk: false, photoBytes: null }),
+    );
     assert.equal(status, 200);
     assert.equal(body.jobs, null);
     assert.equal(body.queue, null);
     assert.equal(body.dbSizeMb, null);
-    assert.deepEqual(body.storage, { ok: false });
+    assert.deepEqual(body.storage, { ok: false, photoBytes: null });
   });
 
   test("an empty queue has no oldest", () => {
@@ -367,6 +370,11 @@ describe("the running server", () => {
     assert.deepEqual(Object.keys(body.jobs).sort(), activeJobs({ FORUM_ENABLED: process.env.FORUM_ENABLED }).sort());
     assert.equal(typeof body.queue.waiting, "number");
     assert.equal(typeof body.storage.ok, "boolean");
+    // The bucket's size, where the database can say: CI's has no storage
+    // schema, and answers null rather than failing the health check.
+    const [{ present }] = await sql`select to_regclass('storage.objects') is not null as present`;
+    if (present) assert.equal(typeof body.storage.photoBytes, "number");
+    else assert.equal(body.storage.photoBytes, null);
     assert.ok("commit" in body, "the deploy check reads which build answered");
     assert.equal(res.headers.get("cache-control"), "public, max-age=0, s-maxage=30");
 

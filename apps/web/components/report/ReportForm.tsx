@@ -19,6 +19,7 @@ import {
 import { preparePhoto, type PreparedPhoto } from "@/lib/image";
 import { storedSessionUserId } from "@/lib/supabase/storedSession";
 import { uploadPhoto } from "@/lib/report/upload";
+import { fitForUpload } from "@/lib/report/photoEncoding";
 import { checkFields, observedInstant, sendableAccuracy } from "@/lib/report/fieldChecks";
 import { notesConcerns } from "@/lib/report/notesCheck";
 import { enqueue } from "@/lib/offline/queue";
@@ -81,6 +82,13 @@ type DraftFields = {
   /** The model's suggestions, so a restored photo is not asked about twice. */
   photoIdea: PhotoSuggestionsState | null;
 };
+
+/**
+ * How long an identification waits for its challenge. Long enough for a
+ * reporter to tick a box if Cloudflare asks for one; after it the form says
+ * the model is unavailable, and that is all.
+ */
+const IDENTIFY_TOKEN_WAIT_MS = 30_000;
 
 /** Where 路殺社 takes reports. A link only: nothing is sent there for anyone. */
 const TAIRON_URL = "https://roadkill.tw";
@@ -300,6 +308,18 @@ function ReportFormFields({
   const [photoIdea, setPhotoIdea] = useState<PhotoSuggestionsState>({ status: "idle" });
   const [speciesFromPhoto, setSpeciesFromPhoto] = useState(false);
   const photoAsked = useRef(false);
+  /**
+   * The challenge in front of the model (app/api/identify), its own widget
+   * and not the send button's: a token is single-use, and the one for sending
+   * has to be there when the reporter presses send. Mounted for one
+   * identification and keyed by it, so each gets a challenge of its own, and
+   * taken away once it has answered. Invisible unless Cloudflare needs a tick.
+   */
+  const [identifyChallenge, setIdentifyChallenge] = useState<number | null>(null);
+  const identifyRound = useRef(0);
+  /** Which identification may still write its answer; see identifyPhoto. */
+  const identifySeq = useRef(0);
+  const identifyAnswer = useRef<((token: string | null) => void) | null>(null);
   /** The place on the map was read from the photo, and the form says so. */
   const [locationFromPhoto, setLocationFromPhoto] = useState(false);
   const [preparing, setPreparing] = useState(false);
@@ -612,36 +632,72 @@ function ReportFormFields({
   }, [phase, sendNumber]);
 
   /**
+   * A fresh token for one identification, or null if none came: no widget
+   * could load, Cloudflare refused, or the reporter left a box unticked for
+   * IDENTIFY_TOKEN_WAIT_MS. Without a site key there is no challenge, and
+   * nothing to wait for.
+   */
+  const identifyToken = useCallback(
+    () =>
+      new Promise<string | null>((resolve) => {
+        const timer = window.setTimeout(() => answer(null), IDENTIFY_TOKEN_WAIT_MS);
+        const round = ++identifyRound.current;
+        function answer(token: string | null) {
+          window.clearTimeout(timer);
+          if (identifyAnswer.current === answer) identifyAnswer.current = null;
+          // Only this round's widget: a newer photo's may be waiting.
+          if (identifyRound.current === round) setIdentifyChallenge(null);
+          resolve(token);
+        }
+        identifyAnswer.current = answer;
+        setIdentifyChallenge(round);
+      }),
+    [],
+  );
+
+  /**
    * Ask the model about a photo, once per report, with a signal. Offline it
    * is not asked at all: the queue sends the report later, and the model
    * looks at it then, as it always did.
+   *
+   * Anything that goes wrong here, the challenge included, leaves the form
+   * saying the model is unavailable, and nothing else: the report is filed
+   * exactly as it would be without a suggestion.
    */
   const identifyPhoto = useCallback(
     async (blob: Blob) => {
       if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+      // Superseded by a newer photo, or by every photo being taken off, an
+      // answer is about a photo the form no longer asks about.
+      const mine = ++identifySeq.current;
+      const current = () => identifySeq.current === mine;
       setPhotoIdea({ status: "working" });
       try {
-        const imageBase64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(String(reader.result).replace(/^data:[^,]*,/, ""));
-          reader.onerror = () => reject(reader.error);
-          reader.readAsDataURL(blob);
-        });
+        const [imageBase64, challenge] = await Promise.all([
+          new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result).replace(/^data:[^,]*,/, ""));
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(blob);
+          }),
+          turnstileEnabled ? identifyToken() : Promise.resolve(null),
+        ]);
+        if (turnstileEnabled && !challenge) throw new Error("identify: no challenge token");
         const res = await fetch(withBase("/api/identify"), {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ imageBase64, page }),
+          body: JSON.stringify({ imageBase64, page, turnstileToken: challenge ?? undefined }),
           signal: AbortSignal.timeout(60_000),
         });
         if (!res.ok) throw new Error(`identify ${res.status}`);
         const data = (await res.json()) as PhotoIdentification;
-        setPhotoIdea({ status: "done", suggestions: data.suggestions, outsidePage: data.outsidePage });
+        if (current()) setPhotoIdea({ status: "done", suggestions: data.suggestions, outsidePage: data.outsidePage });
       } catch (e) {
         console.error("[report] identify:", e);
-        setPhotoIdea({ status: "failed" });
+        if (current()) setPhotoIdea({ status: "failed" });
       }
     },
-    [page],
+    [page, identifyToken],
   );
 
   const addFiles = useCallback(
@@ -844,17 +900,21 @@ function ReportFormFields({
       let paths: string[] = [];
 
       if (photos.length) {
+        // A draft from the build before may hold a photo the bucket no
+        // longer takes; it is written again rather than refused.
+        const blobs = await Promise.all(photos.map((p) => fitForUpload(p.blob)));
+        if (!stillMine()) return;
         const signRes = await fetch(withBase("/api/uploads/sign"), {
           method: "POST",
           headers: { "content-type": "application/json" },
           signal: controller.signal,
-          // Say what is being uploaded rather than leaning on the default.
-          // `stripAndDownscale` always writes WebP through a canvas, so this
-          // is the truth here — and stating it is what lets the key match the
-          // bytes for a client whose canvas cannot.
+          // Say what is being uploaded rather than leaning on the default:
+          // `stripAndDownscale` writes WebP where the browser can and JPEG
+          // where it cannot, and stating it is what lets the key match the
+          // bytes.
           body: JSON.stringify({
-            count: photos.length,
-            contentType: photos[0].blob.type || "image/webp",
+            count: blobs.length,
+            contentType: blobs[0].type || "image/webp",
           }),
         });
         if (!signRes.ok) {
@@ -873,7 +933,7 @@ function ReportFormFields({
         // saves the report on the phone below, and PHOTO_UPLOAD_FAILED when
         // Storage refused it (lib/report/upload.ts).
         await Promise.all(
-          uploads.map((u, i) => uploadPhoto(u.path, u.token, photos[i].blob)),
+          uploads.map((u, i) => uploadPhoto(u.path, u.token, blobs[i])),
         );
         if (!stillMine()) return;
         paths = uploads.map((u) => u.path);
@@ -1328,6 +1388,7 @@ function ReportFormFields({
                       // of them, and the next photo is asked about afresh.
                       if (left.length === 0) {
                         photoAsked.current = false;
+                        identifySeq.current += 1;
                         setPhotoIdea({ status: "idle" });
                       }
                       return left;
@@ -1510,6 +1571,18 @@ function ReportFormFields({
               setSpeciesFromPhoto(true);
               setUnsure(false);
             }}
+          />
+        )}
+        {/* Beside the line saying the model is looking, so that a box
+            Cloudflare asks to be ticked is where the reporter is reading.
+            Draws nothing otherwise, and nothing without a site key. */}
+        {identifyChallenge !== null && online && (
+          <Turnstile
+            key={identifyChallenge}
+            onToken={(token) => identifyAnswer.current?.(token)}
+            locale={locale}
+            theme="light"
+            appearance="interaction-only"
           />
         )}
         <SpeciesPicker

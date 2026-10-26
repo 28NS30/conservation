@@ -496,8 +496,14 @@ export function pageFilter(
 
 export const MAX_PHOTOS = 4;
 export const MAX_NOTES = 1000;
-/** Post-downscale ceiling. Phone originals are 3–8 MB; we send ~250 KB. */
-export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+/**
+ * Post-downscale ceiling, and the photo bucket's own limit (migration 0038).
+ * Phone originals are 3–8 MB; the form sends a few hundred KB as WebP and
+ * about a megabyte as the JPEG Safari writes instead (lib/image.ts). It was
+ * 10 MB, room for nothing the form makes and for one address to fill the free
+ * plan's storage in a hundred uploads.
+ */
+export const MAX_UPLOAD_BYTES = 3 * 1024 * 1024;
 export const ACCEPTED_IMAGE_TYPES = [
   "image/webp",
   "image/jpeg",
@@ -541,6 +547,12 @@ export function isAcceptedImageType(v: unknown): v is AcceptedImageType {
 /** Longest edge after client-side downscale, before upload. */
 export const IMAGE_MAX_EDGE = 2048;
 export const IMAGE_WEBP_QUALITY = 0.82;
+/**
+ * For a browser that cannot write WebP from a canvas, which is every browser
+ * on an iPhone (apps/web/lib/report/photoEncoding.ts). About a megabyte for a
+ * 2048 px photograph, inside MAX_UPLOAD_BYTES.
+ */
+export const IMAGE_JPEG_QUALITY = 0.85;
 
 /* ------------------------------------------------------------------ *
  * Contributor terms

@@ -6,7 +6,8 @@
  * from Wikimedia Commons and re-encoded with nothing carried over — and it
  * mattered: the macaque photo arrived with coordinates embedded. This reads each
  * WebP's own chunk list and fails on EXIF or XMP, so a file dropped in later
- * straight from a camera or a download cannot slip through.
+ * straight from a camera or a download cannot slip through. The walker is
+ * lib/report/photoMetadata.ts, which POST /api/reports runs on every photo.
  *
  * NO UNCREDITED FILE. Every photograph is CC BY or CC BY-SA, which require
  * credit. Every file in public/home must be in lib/home/photos.ts (which is
@@ -16,6 +17,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { webpChunks, photoMetadata } from "../lib/report/photoMetadata.ts";
 
 const WEB = join(import.meta.dirname, "..");
 const DIR = join(WEB, "public", "home");
@@ -23,18 +25,7 @@ const files = readdirSync(DIR).filter((f) => !f.startsWith("."));
 const manifest = readFileSync(join(WEB, "lib", "home", "photos.ts"), "utf8");
 
 /** The four-character chunk ids of a RIFF/WebP file. */
-function webpChunks(buf) {
-  assert.equal(buf.toString("ascii", 0, 4), "RIFF", "not a RIFF file");
-  assert.equal(buf.toString("ascii", 8, 12), "WEBP", "not a WebP file");
-  const ids = [];
-  for (let at = 12; at + 8 <= buf.length; ) {
-    const id = buf.toString("ascii", at, at + 4);
-    const size = buf.readUInt32LE(at + 4);
-    ids.push(id);
-    at += 8 + size + (size % 2); // chunks are padded to an even length
-  }
-  return ids;
-}
+const chunkIds = (buf) => webpChunks(buf).map((c) => c.id);
 
 describe("home photographs", () => {
   test("there are photographs to check", () => {
@@ -44,9 +35,12 @@ describe("home photographs", () => {
   for (const f of files) {
     test(`${f} carries no EXIF or XMP`, () => {
       assert.match(f, /\.webp$/, `${f}: only WebP is expected here, and only WebP is parsed`);
-      const ids = webpChunks(readFileSync(join(DIR, f)));
+      const bytes = readFileSync(join(DIR, f));
+      const ids = chunkIds(bytes);
       assert.ok(!ids.includes("EXIF"), `${f} has an EXIF chunk — it may hold GPS coordinates`);
       assert.ok(!ids.includes("XMP "), `${f} has an XMP chunk — it may hold GPS coordinates`);
+      // And what POST /api/reports would say of it, from the same walker.
+      assert.equal(photoMetadata(bytes), null, f);
     });
 
     test(`${f} is credited in lib/home/photos.ts`, () => {

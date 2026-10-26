@@ -20,6 +20,7 @@ nobody ran with checks that fail.
 | The map actually paints | `npm run test:map` | every PR (it can now fail) |
 | Route table, namespaces, known-issue shape | `npm test` | every PR, and no test may skip |
 | The report form submitted, and the card it leaves | `npm run test:receipt -w @conservation/web` | every PR |
+| A phone photo through the form: no metadata uploaded, place and time from the photo, suggestions, filed for real | `npm run test:photo -w @conservation/web` | every PR |
 | axe on `/report`, its three pages and `/map`, 390 | `ONLY=… WIDTHS=390 npm run test:a11y -w @conservation/web` | every PR |
 | WCAG AA contrast on the same five, 390 | `ONLY=… WIDTHS=390 npm run test:contrast -w @conservation/web` | every PR |
 | Screenshot matrix + gallery | `npm run shots` | nightly + `gh workflow run gallery.yml` |
@@ -206,6 +207,31 @@ count off node's summary and fails when it is over `ALLOWED_SKIPS`, which is
 Supabase Auth stand-in answers, the fixture holds every row a test names, and a
 test that needs the server calls `requireServer(t)` (`test/helpers.mjs`), which
 skips on a laptop with nothing listening and throws under CI.
+
+### The stand-ins
+
+CI has no Supabase and no GPU, so three small servers stand in for them, each
+answering only what the app and the tests call, and each refusing to start for
+an address that is not this machine:
+
+- `test/stub-gotrue.mjs`, Supabase Auth, at `NEXT_PUBLIC_SUPABASE_URL`;
+- `test/stub-storage.mjs`, the photo bucket, served by the Auth stand-in at
+  `/storage/v1` as Supabase serves both from one address. It holds uploads to
+  the limits migrations 0004 and 0038 set on the real bucket, read from
+  `packages/shared`;
+- `test/stub-ml.mjs`, the classifier, at `ML_ENDPOINT_URL`, with fixed
+  candidates from the fixture for both of the model's contracts.
+
+On a laptop the first two are the local Supabase stack. The third has no real
+counterpart worth using: `.env` points `ML_ENDPOINT_URL` at production's GPU,
+and the photo spec and the identify tests refuse to send it a photo. Start the
+stand-in on a free port and give the server and the tests the same address:
+
+```
+ML_ENDPOINT_URL=http://127.0.0.1:54329/ ML_ENDPOINT_TOKEN=local-stub node apps/web/test/stub-ml.mjs &
+ML_ENDPOINT_URL=http://127.0.0.1:54329/ ML_ENDPOINT_TOKEN=local-stub npx next start -p 3511   # in apps/web
+ML_ENDPOINT_URL=http://127.0.0.1:54329/ TEST_BASE_URL=http://localhost:3511 node e2e/photo.spec.mjs
+```
 
 A test that has to skip in CI is listed here, with its reason, in the commit
 that raises `ALLOWED_SKIPS`:

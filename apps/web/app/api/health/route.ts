@@ -30,14 +30,16 @@ import { serviceSupabase, PHOTO_BUCKET } from "@/lib/supabase/service";
 export const dynamic = "force-dynamic";
 
 /**
- * The two costly parts, kept by this instance for 30 seconds, as long as the
- * CDN keeps the public answer: the schema checks are some thirty queries, and
- * Storage is a call to another service. A migration applied or a Storage
- * outage therefore shows here up to 30 seconds late.
+ * The costly parts, kept by this instance for 30 seconds, as long as the CDN
+ * keeps the public answer: the schema checks are some thirty queries, Storage
+ * is a call to another service, and the bucket's size is a sum over every
+ * photo. A migration applied, a Storage outage or a burst of uploads
+ * therefore shows here up to 30 seconds late.
  */
 const HELD_MS = 30_000;
 const heldSchemaStatus = memoFor(HELD_MS, () => schemaStatus());
 const heldStorageAnswers = memoFor(HELD_MS, () => storageAnswers());
+const heldPhotoBytes = memoFor(HELD_MS, () => photoBucketBytes());
 
 export async function GET(req: Request) {
   const started = Date.now();
@@ -64,7 +66,7 @@ export async function GET(req: Request) {
         )[0],
     ).then((counts) => ({ counts, latencyMs: Date.now() - started }));
 
-    const [{ counts, latencyMs }, schema, jobSeconds, queue, dbSizeMb, storageOk] = await Promise.all([
+    const [{ counts, latencyMs }, schema, jobSeconds, queue, dbSizeMb, storageOk, photoBytes] = await Promise.all([
       counted,
       // Runs on the app's own connection: `web_anon` has no privileges on
       // `reports`, and information_schema shows you only what you may touch — so
@@ -76,6 +78,7 @@ export async function GET(req: Request) {
       classificationQueue(),
       databaseSizeMb(),
       heldStorageAnswers(),
+      heldPhotoBytes(),
     ]);
 
     if (schema.missing.length) console.error("[health] schema missing:", schema.missing.join("; "));
@@ -103,6 +106,7 @@ export async function GET(req: Request) {
       jobSeconds,
       queue,
       storageOk,
+      photoBytes,
       dbSizeMb,
       latencyMs,
       commit: commitOf(process.env.VERCEL_GIT_COMMIT_SHA),
@@ -141,6 +145,30 @@ async function databaseSizeMb() {
     return row.mb;
   } catch (e) {
     console.error("[health] size:", (e as Error).message);
+    return null;
+  }
+}
+
+/**
+ * The photo bucket's size in bytes: what an address filling it with uploads
+ * that no report uses would show first (SIGN_LIMITS, lib/abuse.ts). Read from
+ * storage.objects on the app's own connection, which can see it on Supabase,
+ * because the Storage API has no total and listing every object to add them
+ * up would be the costliest call here. Null where there is no storage schema
+ * (CI's database) or it cannot be read.
+ */
+async function photoBucketBytes(): Promise<number | null> {
+  try {
+    const [{ present }] = await sql<{ present: boolean }[]>`
+      select to_regclass('storage.objects') is not null as present`;
+    if (!present) return null;
+    const [row] = await sql<{ bytes: number }[]>`
+      select coalesce(sum((metadata->>'size')::bigint), 0)::bigint as bytes
+        from storage.objects
+       where bucket_id = ${PHOTO_BUCKET}`;
+    return row.bytes;
+  } catch (e) {
+    console.error("[health] photo bytes:", (e as Error).message);
     return null;
   }
 }

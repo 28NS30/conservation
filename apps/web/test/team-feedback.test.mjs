@@ -53,9 +53,9 @@ describe("the photo step", () => {
     }
   });
 
-  test("the photo's place fills the location, and says where it came from", () => {
-    assert.match(form, /if \(!location\) \{\s+setLocation\(withGps\.gps\);/);
-    assert.match(form, /t\(locationFromPhoto \? "locationFromPhoto" : "tapToAdjust"\)/);
+  // That the photo's place fills the location, and the form says so, is run
+  // in a browser by e2e/photo.spec.mjs; the line it reads must exist in both.
+  test("the line saying the place came from the photo is in both languages", () => {
     for (const l of ["en", "zh-TW"]) assert.equal(typeof catalogue(l).report.locationFromPhoto, "string", l);
   });
 
@@ -82,23 +82,15 @@ describe("open data, no credit", () => {
 });
 
 describe("the identification, as soon as a photo is added", () => {
-  test("the form asks about the first photo, once, and never offline", () => {
-    const form = read("components", "report", "ReportForm.tsx");
-    assert.match(form, /if \(prepared\[0\] && !photoAsked\.current\)/);
-    assert.match(form, /navigator\.onLine === false\) return;/);
-    assert.match(form, /withBase\("\/api\/identify"\)/);
-  });
+  // The form asks about the first photo, once, and never offline: run in a
+  // browser by e2e/photo.spec.mjs.
 
-  test("a species the model puts under 1% is not offered", () => {
-    const src = read("lib", "report", "identify.ts");
-    assert.match(src, /const MIN_OFFERED_SCORE = 0\.01;/);
-    assert.match(src, /ranked = ranked\.filter\(\(r\) => r\.score >= MIN_OFFERED_SCORE\);\s+\/\/ A list that is wrong/);
-  });
+  // What is offered (nothing under 1%, nothing off the page, nothing from the
+  // low band), the challenge, the budgets and the site's cap are run against
+  // a stand-in model in test/identify.test.mjs.
 
-  test("the route is rate-limited by address and capped for the whole site", () => {
+  test("the route stores nothing", () => {
     const route = read("app", "api", "identify", "route.ts");
-    assert.match(route, /key: "identify-site"/);
-    assert.match(route, /await withinBudgets\(budgets\)/);
     assert.doesNotMatch(route, /storage|report_photos|insert into/i, "the identify route stores something");
   });
 
@@ -109,7 +101,10 @@ describe("the identification, as soon as a photo is added", () => {
     assert.equal((await post("not json")).status, 400);
     assert.equal((await post(JSON.stringify({ page: "nowhere", imageBase64: "AAAA" }))).status, 400);
     assert.equal((await post(JSON.stringify({ page: "wildlife", imageBase64: "not base64!" }))).status, 400);
-    assert.equal((await post(JSON.stringify({ page: "wildlife", imageBase64: "A".repeat(2_000_004) }))).status, 400);
+    // One character past the base64 of the largest upload the route takes.
+    const { MAX_UPLOAD_BYTES } = await import("@conservation/shared");
+    const maxBase64 = Math.ceil(MAX_UPLOAD_BYTES / 3) * 4;
+    assert.equal((await post(JSON.stringify({ page: "wildlife", imageBase64: "A".repeat(maxBase64 + 4) }))).status, 400);
   });
 
   test("a species picked from the photo's suggestions is blurred as a photo identification", async (t) => {

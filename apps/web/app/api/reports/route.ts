@@ -2,7 +2,8 @@ import { after } from "next/server";
 import { sql } from "@/lib/db";
 import { classifyQueued } from "@/lib/report/classifyWorker";
 import { serverSupabase, sessionUser } from "@/lib/supabase/server";
-import { statUploadedPhoto, StorageUnavailable } from "@/lib/supabase/service";
+import { readUploadedPhoto, statUploadedPhoto, StorageUnavailable } from "@/lib/supabase/service";
+import { CONTAINER_TYPE, containerOf, photoMetadata } from "@/lib/report/photoMetadata";
 import {
   verifyTurnstile,
   screenSubmission,
@@ -167,6 +168,37 @@ export async function POST(req: Request) {
     if (stat.bytes > MAX_UPLOAD_BYTES) return Response.json({ error: "photo_too_large", path }, { status: 400 });
     if (!ACCEPTED_IMAGE_TYPES.includes(stat.contentType as (typeof ACCEPTED_IMAGE_TYPES)[number])) {
       return Response.json({ error: "photo_bad_type", path }, { status: 400 });
+    }
+
+    // The bytes, not only what Storage recorded about them. The report form
+    // strips a photo's metadata in the browser, and nothing made any other
+    // client do so: a phone's original of a protected animal holds the very
+    // point its record is blurred to hide. So a photo is read before it is
+    // attached, and one that carries a place, a time or a name besides its
+    // pixels is refused, as are bytes that are not the type they were stored
+    // as (lib/report/photoMetadata.ts). Final for the offline queue, like
+    // every other 4xx about the report: the same photo would be refused again.
+    let bytes: Uint8Array | null;
+    try {
+      bytes = await readUploadedPhoto(path);
+    } catch (e) {
+      if (e instanceof StorageUnavailable) {
+        console.error("[reports] storage unavailable:", e.message);
+        return Response.json({ error: "storage_unavailable" }, { status: 503 });
+      }
+      throw e;
+    }
+    if (!bytes) return Response.json({ error: "photo_missing", path }, { status: 400 });
+    const container = containerOf(bytes);
+    if (!container || CONTAINER_TYPE[container] !== stat.contentType) {
+      return Response.json({ error: "photo_bad_type", path }, { status: 400 });
+    }
+    const metadata = photoMetadata(bytes);
+    if (metadata) {
+      // What kind of thing, never what it said: the finding names a tag or a
+      // block, not its value.
+      console.warn(`[reports] refused a photo carrying ${metadata}`);
+      return Response.json({ error: "photo_has_metadata", path }, { status: 400 });
     }
     photos.push({ path, ...stat });
   }

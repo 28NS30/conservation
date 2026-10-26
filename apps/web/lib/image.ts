@@ -1,6 +1,7 @@
 import exifr from "exifr";
-import { IMAGE_MAX_EDGE, IMAGE_WEBP_QUALITY } from "@conservation/shared";
+import { IMAGE_MAX_EDGE } from "@conservation/shared";
 import { parseExifDateTime } from "./exifTime";
+import { encodePhoto } from "./report/photoEncoding";
 
 export type PreparedPhoto = {
   /** Downscaled, re-encoded, metadata-free image ready to upload. */
@@ -78,12 +79,15 @@ async function readTakenAt(file: File): Promise<Date | null> {
 }
 
 /**
- * Downscale to IMAGE_MAX_EDGE and re-encode as WebP.
+ * Downscale to IMAGE_MAX_EDGE and re-encode as WebP, or as JPEG where the
+ * browser cannot write WebP (encodePhoto: every browser on an iPhone).
  *
  * The canvas round-trip is both the compression step and the metadata-stripping
- * step: a canvas has no concept of EXIF, so nothing survives it. That matters
- * beyond privacy — a 3–8 MB phone original becomes ~250 KB, which is the
- * difference between a submission succeeding and failing on mountain 4G.
+ * step: a canvas has no concept of EXIF, so nothing of the original survives
+ * it. That matters beyond privacy — a 3–8 MB phone original becomes ~250 KB,
+ * which is the difference between a submission succeeding and failing on
+ * mountain 4G. The server reads every photo again before attaching it
+ * (lib/report/photoMetadata.ts), because no other client is bound by this.
  */
 async function stripAndDownscale(file: File): Promise<{ blob: Blob; width: number; height: number }> {
   // `imageOrientation: "from-image"` applies the EXIF rotation while decoding.
@@ -103,11 +107,7 @@ async function stripAndDownscale(file: File): Promise<{ blob: Blob; width: numbe
   ctx.drawImage(bitmap, 0, 0, width, height);
   bitmap.close();
 
-  const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(resolve, "image/webp", IMAGE_WEBP_QUALITY),
-  );
-  if (!blob) throw new Error("image encoding failed");
-
+  const blob = await encodePhoto(canvas);
   return { blob, width, height };
 }
 

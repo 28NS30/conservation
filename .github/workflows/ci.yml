@@ -40,6 +40,11 @@ env:
   # So the server runs a job that is called with it, and the monitoring test
   # can see a run reach job_runs. A placeholder: CI's database is throwaway.
   CRON_SECRET: ci-cron-placeholder
+  # The classifier stand-in started below (apps/web/test/stub-ml.mjs), so the
+  # photo suggestions run here at all. Read by the server and by the tests,
+  # which check it is the stand-in before they send it a photo.
+  ML_ENDPOINT_URL: http://127.0.0.1:54329/
+  ML_ENDPOINT_TOKEN: ci-ml-placeholder
 
 jobs:
   ml:
@@ -179,6 +184,19 @@ jobs:
           for i in $(seq 30); do curl -fs -o /dev/null --max-time 5 http://127.0.0.1:54321/auth/v1/health && break; sleep 1; done
           curl -fsS -o /dev/null --max-time 5 http://127.0.0.1:54321/auth/v1/health
 
+      - name: Start a stand-in for the classifier
+        # The model is BioCLIP on a GPU behind Modal, and CI has neither, so
+        # nothing here ever asked /api/identify for a suggestion: what the
+        # website does with the model's answer, under either of its contracts,
+        # was held only by reading its source. The stand-in answers as
+        # apps/ml/endpoint.py does, with fixed candidates from the fixture;
+        # apps/web/test/stub-ml.mjs says which. The same stand-in for Storage
+        # answers inside the Supabase Auth one above.
+        run: |
+          node apps/web/test/stub-ml.mjs &
+          for i in $(seq 30); do curl -fs -o /dev/null --max-time 5 http://127.0.0.1:54329/health && break; sleep 1; done
+          curl -fsS -o /dev/null --max-time 5 http://127.0.0.1:54329/health
+
       - name: Start server
         run: |
           npm run start --workspace @conservation/web &
@@ -255,6 +273,16 @@ jobs:
         # for the run and removed after), and what the roadkill and invasive
         # pages add to it. It ran nowhere before this step.
         run: npm run test:receipt --workspace @conservation/web
+
+      - name: A photo through the report form
+        # The phone photo in e2e/fixtures carries a GPS position, a capture
+        # time and XMP. The spec adds it to the wildlife page, catches the
+        # upload on its way to Storage and fails on any metadata in it, checks
+        # the place and time came from the photo and the model's suggestions
+        # appeared, picks one, and files the report for real. It also files
+        # one whose identification was refused, which must cost nothing but
+        # the suggestions.
+        run: npm run test:photo --workspace @conservation/web
 
       - name: Every page renders in both locales
         # Catches what HTTP-level checks cannot: next-intl renders a missing

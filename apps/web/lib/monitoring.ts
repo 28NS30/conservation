@@ -218,6 +218,12 @@ export type HealthInput = {
   /** Null if unreadable. */
   queue: { waiting: number; oldestSeconds: number | null } | null;
   storageOk: boolean;
+  /**
+   * What the photo bucket holds, in bytes, counted in the database Storage
+   * keeps its objects' sizes in. The free plan stops at 1 GB. Null if
+   * unreadable, as in CI, whose database has no storage schema.
+   */
+  photoBytes: number | null;
   dbSizeMb: number | null;
   latencyMs: number;
   /** commitOf(VERCEL_GIT_COMMIT_SHA): which build is answering. */
@@ -273,7 +279,7 @@ export function healthResponse(input: HealthInput): HealthResponse {
             input.queue.oldestSeconds === null ? null : Math.round(input.queue.oldestSeconds / 60),
         }
       : null,
-    storage: { ok: input.storageOk },
+    storage: { ok: input.storageOk, photoBytes: input.photoBytes },
     dbSizeMb: input.dbSizeMb,
     dbLatencyMs: input.latencyMs,
     commit: input.commit,

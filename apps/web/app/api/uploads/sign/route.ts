@@ -33,36 +33,12 @@ import { addressKey, clientIp } from "@/lib/request";
 export async function POST(req: Request) {
   const ip = clientIp(req);
 
-  // Signing is itself an abusable endpoint — an unlimited supply of upload URLs
-  // is a way to fill the bucket without ever submitting a report.
-  //
-  // Counted as the report route counts: a signed-in sender's address gets
-  // more room, because a class on one school network signs photos together,
-  // and their account has its own budget beside it; and a burst that is
-  // refused is not counted against the day (withinBudgets). Signing used to
-  // allow a class of twelve eight photos between them while the report route
-  // accepted thirty reports (review of the security fixes, 30 September 2026).
-  const who = addressKey(ip);
-  const userId = await currentUserId();
-  const factor = userId ? SIGNED_IN_ADDRESS_FACTOR : 1;
-  const budgets: Budget[] = [
-    { key: `sign-burst:${who}`, windowSeconds: SIGN_LIMITS.burst.windowSeconds, budget: SIGN_LIMITS.burst.budget * factor },
-    ...(userId
-      ? [{ key: `sign-burst:user:${userId}`, windowSeconds: SIGN_LIMITS.burst.windowSeconds, budget: SIGN_LIMITS.burst.budget }]
-      : []),
-    { key: `sign-daily:${who}`, windowSeconds: SIGN_LIMITS.daily.windowSeconds, budget: SIGN_LIMITS.daily.budget * factor },
-    ...(userId
-      ? [{ key: `sign-daily:user:${userId}`, windowSeconds: SIGN_LIMITS.daily.windowSeconds, budget: SIGN_LIMITS.daily.budget }]
-      : []),
-  ];
-  if (!(await withinBudgets(budgets))) {
-    return Response.json({ error: "rate_limited" }, { status: 429 });
-  }
-
   let count = 1;
-  // What the client is about to upload. The web form always sends WebP, so the
-  // default keeps every existing caller working; an iOS client cannot send
-  // WebP at all, because expo-image-manipulator only writes it on Android.
+  // What the client is about to upload. The web form says WebP, or JPEG where
+  // its browser cannot write WebP (lib/report/photoEncoding.ts: every browser
+  // on an iPhone), and the default keeps a caller that says nothing working;
+  // an iOS app cannot send WebP either, expo-image-manipulator writing it only
+  // on Android.
   let contentType: string = "image/webp";
   try {
     const body = (await req.json()) as { count?: unknown; contentType?: unknown };
@@ -82,6 +58,40 @@ export async function POST(req: Request) {
 
   if (!Number.isInteger(count) || count < 1 || count > MAX_PHOTOS) {
     return Response.json({ error: "bad_count" }, { status: 400 });
+  }
+
+  // Signing is itself an abusable endpoint — an unlimited supply of upload URLs
+  // is a way to fill the bucket without ever submitting a report.
+  //
+  // Counted as the report route counts: a signed-in sender's address gets
+  // more room, because a class on one school network signs photos together,
+  // and their account has its own budget beside it; and a burst that is
+  // refused is not counted against the day (withinBudgets). Signing used to
+  // allow a class of twelve eight photos between them while the report route
+  // accepted thirty reports (review of the security fixes, 30 September 2026).
+  //
+  // Each photo is charged, not each call (SIGN_LIMITS), so the request is read
+  // first: a malformed one is answered without spending anyone's budget.
+  //
+  // No challenge, unlike /api/identify: a report saved on a phone signs its
+  // uploads when the queue sends it, from the banner, with no widget solved
+  // for the photos, and the report itself is challenged when it is posted.
+  const who = addressKey(ip);
+  const userId = await currentUserId();
+  const factor = userId ? SIGNED_IN_ADDRESS_FACTOR : 1;
+  const cost = count;
+  const budgets: Budget[] = [
+    { key: `sign-burst:${who}`, windowSeconds: SIGN_LIMITS.burst.windowSeconds, budget: SIGN_LIMITS.burst.budget * factor, cost },
+    ...(userId
+      ? [{ key: `sign-burst:user:${userId}`, windowSeconds: SIGN_LIMITS.burst.windowSeconds, budget: SIGN_LIMITS.burst.budget, cost }]
+      : []),
+    { key: `sign-daily:${who}`, windowSeconds: SIGN_LIMITS.daily.windowSeconds, budget: SIGN_LIMITS.daily.budget * factor, cost },
+    ...(userId
+      ? [{ key: `sign-daily:user:${userId}`, windowSeconds: SIGN_LIMITS.daily.windowSeconds, budget: SIGN_LIMITS.daily.budget, cost }]
+      : []),
+  ];
+  if (!(await withinBudgets(budgets))) {
+    return Response.json({ error: "rate_limited" }, { status: 429 });
   }
 
   const storage = serviceSupabase().storage.from(PHOTO_BUCKET);

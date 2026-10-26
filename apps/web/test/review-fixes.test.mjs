@@ -77,7 +77,7 @@ describe("budgets are charged in order, after the challenge", () => {
     const [{ n }] = await sql`select coalesce(sum(count), 0)::int as n from rate_limits where key = ${daily}`;
     assert.equal(n, 2, "the day was charged for requests the burst refused");
     const abuse = read("lib", "abuse.ts");
-    assert.match(abuse, /for \(const b of budgets\) \{\s+if \(!\(await withinRateLimit\(b\.key, b\.windowSeconds, b\.budget\)\)\) return false;/);
+    assert.match(abuse, /for \(const b of budgets\) \{\s+if \(!\(await withinRateLimit\(b\.key, b\.windowSeconds, b\.budget, b\.cost\)\)\) return false;/);
   });
 
   test("the report route verifies the challenge before it charges any budget", () => {

@@ -31,6 +31,7 @@ type TurnstileApi = {
       sitekey: string;
       theme?: "light" | "dark" | "auto";
       language?: string;
+      appearance?: "always" | "execute" | "interaction-only";
       callback?: (token: string) => void;
       "expired-callback"?: () => void;
       "error-callback"?: () => void;
@@ -53,6 +54,7 @@ export default function Turnstile({
   onToken,
   locale,
   theme = "dark",
+  appearance,
   onReady,
 }: {
   /** Called with a token when solved, and with null when it expires or errors. */
@@ -60,6 +62,13 @@ export default function Turnstile({
   locale?: string;
   /** Both callers now sit on the light page; `dark` is kept for any other. */
   theme?: "light" | "dark" | "auto";
+  /**
+   * `interaction-only` draws nothing unless Cloudflare needs the visitor to
+   * tick a box: the report form's challenge in front of the model, which
+   * runs as a photo is added rather than beside a button (app/api/identify).
+   * Unset, the widget is always drawn, as Cloudflare's default.
+   */
+  appearance?: "always" | "execute" | "interaction-only";
   /**
    * Hands back a `reset`, which discards the solved token and mints another.
    *
@@ -96,6 +105,7 @@ export default function Turnstile({
         sitekey: SITE_KEY,
         theme,
         language: locale?.startsWith("zh") ? "zh-tw" : "en",
+        ...(appearance ? { appearance } : {}),
         callback: (token) => onTokenRef.current(token),
         // A token is single-use and short-lived. Clearing it on expiry is what
         // stops the form submitting a stale one and getting a 403 the user
@@ -153,7 +163,7 @@ export default function Turnstile({
         widgetId.current = null;
       }
     };
-  }, [locale, theme]);
+  }, [locale, theme, appearance]);
 
   if (!SITE_KEY) return null;
   return <div ref={container} className="mt-1" />;

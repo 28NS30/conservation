@@ -1,5 +1,11 @@
-import { isReportPage } from "@conservation/shared";
-import { IDENTIFY_LIMITS, SIGNED_IN_ADDRESS_FACTOR, withinBudgets, type Budget } from "@/lib/abuse";
+import { isReportPage, MAX_UPLOAD_BYTES } from "@conservation/shared";
+import {
+  IDENTIFY_LIMITS,
+  SIGNED_IN_ADDRESS_FACTOR,
+  verifyTurnstile,
+  withinBudgets,
+  type Budget,
+} from "@/lib/abuse";
 import { addressKey, clientIp } from "@/lib/request";
 import { currentUserId } from "@/lib/supabase/server";
 import { identifyPhoto } from "@/lib/report/identify";
@@ -8,24 +14,41 @@ import { ModelRefused } from "@/lib/report/model";
 /**
  * POST /api/identify — what the model says a photo shows, for the report form.
  *
- *   { imageBase64, page } → { band, suggestions, outsidePage }
+ *   { imageBase64, page, turnstileToken } → { band, suggestions, outsidePage }
  *
  * The team asked for the identification to appear as soon as a photo is added
  * (30 September 2026). The form sends the same downscaled copy it will upload,
  * already stripped of its metadata; nothing here stores it, and nothing here
  * names a species on any report: the reporter chooses.
  *
- * Each call reaches the GPU the project pays for, and this route has no
- * challenge in front of it, so it is rate-limited by address (more room for a
- * signed-in sender, as elsewhere) and capped for the whole site per day. Short
- * windows first, stopping at the first refusal (withinBudgets).
+ * Each call reaches the GPU the project pays for. It had no challenge in front
+ * of it, only budgets, and thirty-eight addresses could spend the whole site's
+ * day of identifications and turn the suggestions off for every student
+ * (photo-pipeline review, 26 October 2026). So a fresh Turnstile token is
+ * required first, before any budget is charged: the form runs an invisible
+ * challenge of its own as a photo is added, one per identification, since a
+ * token is single-use and lasts five minutes. After it the budgets by address
+ * (more room for a signed-in sender, as elsewhere) and the site's daily cap,
+ * which stays as the backstop. Short windows first, stopping at the first
+ * refusal (withinBudgets).
+ *
+ * A refusal here costs the reporter nothing but the suggestions: the form
+ * shows that the model is unavailable and files the report as it always did.
+ * Signing uploads (app/api/uploads/sign) is not challenged, because a report
+ * saved on the phone signs its uploads when the queue sends it.
  */
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/** A downscaled photo is a few hundred KB; base64 of 1.5 MB is the ceiling. */
-const MAX_BASE64 = 2_000_000;
+/**
+ * The base64 of the largest photo the form may upload (MAX_UPLOAD_BYTES, 3 MB).
+ * It was 2,000,000 characters, about 1.46 MB, from when every photo was WebP;
+ * a 2048 px JPEG at 0.85, which iPhone browsers now send, is often larger, and
+ * those were refused as bad_image. About 4.2 MB, inside Vercel's 4.5 MB limit
+ * on a request body.
+ */
+const MAX_BASE64 = Math.ceil(MAX_UPLOAD_BYTES / 3) * 4;
 /** Inside the function's limit, with room for a cold model service. */
 const MODEL_TIMEOUT_MS = 55_000;
 
@@ -36,7 +59,11 @@ export async function POST(req: Request) {
   } catch {
     return Response.json({ error: "bad_json" }, { status: 400 });
   }
-  const { imageBase64, page } = (body ?? {}) as { imageBase64?: unknown; page?: unknown };
+  const { imageBase64, page, turnstileToken } = (body ?? {}) as {
+    imageBase64?: unknown;
+    page?: unknown;
+    turnstileToken?: unknown;
+  };
   if (!isReportPage(page)) return Response.json({ error: "bad_page" }, { status: 400 });
   if (typeof imageBase64 !== "string" || imageBase64.length === 0 || imageBase64.length > MAX_BASE64)
     return Response.json({ error: "bad_image" }, { status: 400 });
@@ -46,7 +73,13 @@ export async function POST(req: Request) {
   if (!process.env.ML_ENDPOINT_URL || !process.env.ML_ENDPOINT_TOKEN)
     return Response.json({ error: "unavailable" }, { status: 503 });
 
-  const who = addressKey(clientIp(req));
+  // The challenge before the budgets, as the report route has it, so a
+  // request that has not passed one spends nobody's budget, and nobody's GPU.
+  const ip = clientIp(req);
+  const token = typeof turnstileToken === "string" && turnstileToken ? turnstileToken : undefined;
+  if (!(await verifyTurnstile(token, ip))) return Response.json({ error: "challenge_failed" }, { status: 403 });
+
+  const who = addressKey(ip);
   const userId = await currentUserId();
   const factor = userId ? SIGNED_IN_ADDRESS_FACTOR : 1;
   const L = IDENTIFY_LIMITS;

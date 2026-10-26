@@ -15,6 +15,9 @@
  * It refuses any address that is not this machine. It keeps everything in
  * memory and checks no keys: it exists only where there is nothing to protect.
  *
+ * Storage lives at the same address in Supabase, so /storage/v1 is handed to
+ * test/stub-storage.mjs, which stands in for the photo bucket.
+ *
  * One deliberate difference from GoTrue: a user whose address begins "hang-"
  * gets no answer from /user, ever. That is how the tests show a page does not
  * wait on a Supabase that has stopped answering (lib/supabase/server.ts). It
@@ -23,6 +26,7 @@
 import { createServer } from "node:http";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
+import { storageHandler } from "./stub-storage.mjs";
 
 export const STUB_NAME = "stub-gotrue";
 
@@ -53,7 +57,11 @@ export async function startStubGoTrue({ host = "127.0.0.1", port = 0 } = {}) {
   };
   const refuse = (res, status, code, msg) => send(res, status, { code: status, error_code: code, msg });
 
+  const storage = storageHandler();
+
   const server = createServer(async (req, res) => {
+    // Before the body is read as JSON: an upload's body is a photograph.
+    if (await storage(req, res)) return;
     const url = new URL(req.url, "http://stub");
     const path = url.pathname.replace(/^\/auth\/v1/, "");
     const bearer = /^Bearer (.+)$/.exec(req.headers.authorization ?? "")?.[1];
