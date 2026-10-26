@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Turnstile, { turnstileEnabled } from "./Turnstile";
 import { withBase } from "@/lib/basePath";
-import SpeciesPicker, { type SpeciesHit } from "./SpeciesPicker";
+import SpeciesPicker, { type SpeciesHit, type SpeciesPickerHandle } from "./SpeciesPicker";
 import { useTranslations, useLocale } from "next-intl";
 import {
   CATEGORIES,
@@ -52,7 +52,7 @@ import {
   type ErrorSlot,
 } from "@/lib/report/errors";
 import { Link } from "@/i18n/navigation";
-import LocationPicker, { useGeolocate, type LatLng } from "./LocationPicker";
+import LocationPicker, { isRoughFix, useGeolocate, type LatLng } from "./LocationPicker";
 import PhotoSuggestions, { type PhotoSuggestionsState } from "./PhotoSuggestions";
 import type { PhotoIdentification } from "@/lib/report/photoSuggestion";
 
@@ -127,6 +127,17 @@ function initialCategoryFor(page: ReportPage): Category | null {
   const categories: readonly Category[] = REPORT_PAGES[page].categories;
   return categories.length === 1 ? categories[0] : null;
 }
+
+/**
+ * The field each typed-field problem is about (lib/report/fieldChecks.ts).
+ * Focus goes to the field itself, which its error line describes, rather
+ * than to the line.
+ */
+const FIELD_OF_SLOT: Partial<Record<ErrorSlot, string>> = {
+  time: "observedAt",
+  contact: "email",
+  credit: "email",
+};
 
 function toLocalInput(d: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -261,6 +272,15 @@ function ReportFormFields({
     null,
   );
 
+  /**
+   * Set by a send that failed, so the failure is brought to the reporter
+   * rather than left where it was written. Someone pressing the button at the
+   * bottom of the form was told a photo had not uploaded beside the photos, a
+   * screen and a half above them; the alert was announced, and nothing on
+   * screen moved.
+   */
+  const revealNext = useRef(false);
+
   /** Show a failure where the reporter can do something about it. */
   const fail = useCallback((code: string | undefined, detail?: unknown) => {
     // The identifier, once, for whoever reads a bug report. Not for the screen.
@@ -342,7 +362,10 @@ function ReportFormFields({
   // When a submission is queued this same value becomes the queue item's id, so
   // every later retry reuses it and the server's duplicate check holds.
   const nonce = useRef<string>(crypto.randomUUID());
-  const { locate, busy: locating } = useGeolocate();
+  const { locate, busy: locating, error: locateError } = useGeolocate();
+  /** The receipt's and the saved card's heading, which focus moves to. */
+  const cardHeading = useRef<HTMLHeadingElement>(null);
+  const speciesPicker = useRef<SpeciesPickerHandle>(null);
 
   /*
    * THE DRAFT (lib/offline/drafts.ts). Android often discards the tab while
@@ -611,6 +634,38 @@ function ReportFormFields({
     return () => window.clearTimeout(id);
   }, [phase, sendNumber]);
 
+  /*
+   * After sending, to the card that says what happened. The form it replaces
+   * was a long page and the card is a short one, so a reporter who pressed
+   * the button at the bottom was left looking at the footer, or at nothing,
+   * with focus on a button that no longer existed. The card is scrolled to
+   * the top of the screen (below the header: scroll-padding-top) and its
+   * heading takes focus, which a screen reader reads out.
+   */
+  useEffect(() => {
+    if (phase !== "done" && phase !== "queued") return;
+    const heading = cardHeading.current;
+    if (!heading) return;
+    (heading.parentElement ?? heading).scrollIntoView({ block: "start" });
+    heading.focus({ preventScroll: true });
+  }, [phase]);
+
+  /** To the problem: the field it is about, or the line that says it. */
+  const revealError = useCallback((slot: ErrorSlot) => {
+    const field = FIELD_OF_SLOT[slot];
+    const target =
+      (field && document.getElementById(field)) || document.getElementById(`${slot}-error`);
+    if (!target) return;
+    target.scrollIntoView({ block: "center" });
+    target.focus({ preventScroll: true });
+  }, []);
+
+  useEffect(() => {
+    if (!error || !revealNext.current) return;
+    revealNext.current = false;
+    revealError(error.slot);
+  }, [error, revealError]);
+
   /**
    * Ask the model about a photo, once per report, with a signal. Offline it
    * is not asked at all: the queue sends the report later, and the model
@@ -767,8 +822,8 @@ function ReportFormFields({
     });
     if (!problem) return true;
     setError(problem);
-    const id = { time: "observedAt", contact: "email", credit: "email" }[problem.slot];
-    document.getElementById(id)?.focus();
+    const id = FIELD_OF_SLOT[problem.slot];
+    if (id) document.getElementById(id)?.focus();
     return false;
   }
 
@@ -936,6 +991,7 @@ function ReportFormFields({
       }
 
       const code = e instanceof ReportError ? e.code : "unknown";
+      revealNext.current = true;
       fail(code, e);
 
       // The token is spent. Turnstile issues single-use tokens, so after any
@@ -1053,9 +1109,11 @@ function ReportFormFields({
   const ALERT =
     "border-l-4 border-ember-700 pl-3 text-sm leading-relaxed text-ink-800";
 
+  // tabIndex -1: not a stop for Tab, but somewhere a failed send can move
+  // focus to (revealError).
   const errorIn = (slot: ErrorSlot) =>
     error?.slot === slot ? (
-      <p id={`${slot}-error`} role="alert" className={`mt-2 ${ALERT}`}>
+      <p id={`${slot}-error`} role="alert" tabIndex={-1} className={`mt-2 ${ALERT}`}>
         {t(`errors.${error.key}`)}
       </p>
     ) : null;
@@ -1109,7 +1167,7 @@ function ReportFormFields({
         role="status"
         className="rounded-xl border border-forest-900/20 bg-paper-100 p-5"
       >
-        <h2 className="text-lg font-semibold text-forest-900">
+        <h2 ref={cardHeading} tabIndex={-1} className="text-lg font-semibold text-forest-900">
           {tOffline("queuedTitle")}
         </h2>
         {unverified && unverifiedTag()}
@@ -1137,7 +1195,7 @@ function ReportFormFields({
         role="status"
         className="rounded-xl border border-ember-500/30 bg-ember-500/10 p-5"
       >
-        <h2 className="text-lg font-semibold text-ember-700">
+        <h2 ref={cardHeading} tabIndex={-1} className="text-lg font-semibold text-ember-700">
           {t(`receipt.${outcome.title}`)}
         </h2>
         {unverified && unverifiedTag()}
@@ -1433,10 +1491,12 @@ function ReportFormFields({
 
         <LocationPicker
           value={location}
+          accuracyM={accuracyM}
           onChange={(v) => {
             setLocation(v);
             setAccuracyM(null);
             setLocationFromPhoto(false);
+            setLocationError(false);
           }}
           maptilerKey={maptilerKey}
         />
@@ -1451,10 +1511,39 @@ function ReportFormFields({
             </span>
           )}
         </p>
-        {locationError && (
+        {/*
+          A fix this rough can put the pin on the wrong road. The circle on the
+          map is what the device claimed; this says what to do about it. A
+          status, not an alert: the reporter asked for the location and got
+          one, and this qualifies it.
+        */}
+        {location && isRoughFix(accuracyM) && (
+          <p role="status" className="mt-2 border-l-4 border-ember-700 pl-3 text-sm leading-relaxed text-ink-800">
+            {t("roughFix", { m: accuracyM })}
+          </p>
+        )}
+        {locationError && locateError !== "denied" && (
           <p role="alert" className="mt-1.5 text-sm text-ember-700">
             {t("locationError")}
           </p>
+        )}
+        {/*
+          Refused, not failed. Once someone has tapped "Don't allow", the
+          browser says no at once to every later request without asking, so
+          "try again" sent them round the same loop for ever. This says the
+          report does not need it, and where the switch is on the three ways
+          the site is mostly opened: Safari, Chrome, and LINE's own browser.
+        */}
+        {locationError && locateError === "denied" && (
+          <div role="alert" className={`mt-2 ${ALERT}`}>
+            <p className="font-semibold text-ink-900">{t("locationDenied.title")}</p>
+            <p className="mt-1">{t("locationDenied.body")}</p>
+            <ul className="mt-1 list-disc space-y-1 ps-5">
+              <li>{t("locationDenied.ios")}</li>
+              <li>{t("locationDenied.android")}</li>
+              <li>{t("locationDenied.line")}</li>
+            </ul>
+          </div>
         )}
       </section>
 
@@ -1502,17 +1591,20 @@ function ReportFormFields({
       {/* Its one link, to the wildlife page, asks for itself before leaving
           (SpeciesPicker), so the form's own question stays out of its way. */}
       <section data-asks-before-leaving>
-        {!species && !unsure && (
-          <PhotoSuggestions
-            state={photoIdea}
-            onPick={(hit) => {
-              setSpecies(hit);
-              setSpeciesFromPhoto(true);
-              setUnsure(false);
-            }}
-          />
-        )}
+        {/* Always mounted, so its live region is in the page before it has
+            anything to say; `hidden` empties it once a species is named. */}
+        <PhotoSuggestions
+          state={photoIdea}
+          hidden={species !== null || unsure}
+          onPick={(hit) => {
+            speciesPicker.current?.pickedElsewhere();
+            setSpecies(hit);
+            setSpeciesFromPhoto(true);
+            setUnsure(false);
+          }}
+        />
         <SpeciesPicker
+          ref={speciesPicker}
           page={page}
           value={species}
           onChange={(hit) => {
@@ -1709,11 +1801,34 @@ function ReportFormFields({
             {t("offlineHint")}
           </p>
         )}
+        {/*
+          The failure again, where the reporter's thumb is. The line beside
+          the field says it in context, and is where focus went; this says it
+          at the button that was pressed, which stays on screen while the field
+          may not, with a way back to it. Not an alert: the line by the field
+          already was one, and saying it twice reads it out twice. The form's
+          own failures are written just above this bar, so are not repeated.
+        */}
+        {error && error.slot !== "form" && (
+          <p id="submit-error" className="text-center text-sm leading-relaxed text-ink-800">
+            {t(`errors.${error.key}`)}{" "}
+            <button
+              type="button"
+              onClick={() => revealError(error.slot)}
+              className="inline-flex min-h-11 items-center font-medium text-forest-900 underline underline-offset-2 hover:text-ink-950"
+            >
+              {t("errorShow")}
+            </button>
+          </p>
+        )}
 
         <button
           type="button"
           onClick={saving ? saveOnPhone : submit}
-          aria-describedby={blocker ? "submit-blocker" : undefined}
+          aria-describedby={describedBy(
+            blocker !== null && "submit-blocker",
+            error !== null && error.slot !== "form" && "submit-error",
+          )}
           disabled={controls.disabled}
           className="min-h-12 w-full rounded-xl bg-ember-500 px-4 py-3 text-base font-semibold text-ink-950 transition hover:bg-ember-400 disabled:cursor-not-allowed disabled:bg-paper-200 disabled:text-ink-700"
         >

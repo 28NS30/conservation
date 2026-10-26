@@ -147,6 +147,19 @@
     "submitting": "送出中…",
     "needLocation": "請先在地圖上點選發現地點",
     "locationError": "拿不到你的位置，請在地圖上點選。",
+    "pinAtCentre": "把標記放在地圖中心",
+    "pickerMap": "選擇發現地點的地圖",
+    "pickerKeys": "用方向鍵移動地圖，按 + 或 − 縮放，按 Enter 把標記放在中間的十字上。",
+    "pickerPin": "你放的標記，可以用方向鍵移動",
+    "roughFix": "定位不太準，可能差到 {m} 公尺。牠可能在地圖上圓圈裡的任何地方，請把標記移到你看到牠的位置。",
+    "locationDenied": {
+      "title": "這個網站沒有取得位置的權限",
+      "body": "沒關係，直接點地圖，或用地圖下面的「把標記放在地圖中心」，一樣可以送出。如果想用目前位置，要先重新允許：",
+      "ios": "iPhone（Safari）：點網址列旁的「大小」或選單按鈕 →「網站設定」→「位置」選「允許」，再重新整理這一頁。",
+      "android": "Android（Chrome）：點網址列左邊的圖示 →「權限」→ 打開「位置」，再重新整理這一頁。",
+      "line": "在 LINE 裡打開的：點右上角的選單，改用 Safari 或 Chrome 開啟這一頁再試。"
+    },
+    "errorShow": "前往查看",
     "errors": {
       "rate_limited": "送出太多次了，請過幾分鐘再試。",
       "challenge_failed": "瀏覽器驗證沒有通過，請再試一次。",

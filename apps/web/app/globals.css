@@ -227,6 +227,17 @@ input[type="time"]:focus {
    single one: maplibre-gl.css is imported from the component and lands after
    this file, so at equal specificity its white background won. Both classes are
    on the element, so this outranks it without an !important. */
+/*
+ * The report form's map canvas takes keyboard focus (the crosshair is aimed by
+ * panning it with the arrow keys), and its container clips everything outside
+ * it, so the ring drawn 2px outside the canvas was drawn nowhere: a keyboard
+ * user on the location picker could not see that they were on it. Inside the
+ * edge instead.
+ */
+[data-location-picker] .maplibregl-canvas:focus-visible {
+  outline-offset: -3px;
+}
+
 .maplibregl-ctrl.maplibregl-ctrl-scale {
   background: color-mix(in srgb, var(--color-bark-900) 85%, transparent);
   border-color: var(--color-parchment-200);

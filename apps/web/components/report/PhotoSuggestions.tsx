@@ -27,35 +27,54 @@ export type PhotoSuggestionsState =
 export default function PhotoSuggestions({
   state,
   onPick,
+  hidden = false,
 }: {
   state: PhotoSuggestionsState;
   onPick: (hit: PhotoSuggestion) => void;
+  /** A species is named, or the reporter said they are not sure: nothing to suggest. */
+  hidden?: boolean;
 }) {
   const t = useTranslations("report");
   const locale = useLocale();
 
-  if (state.status === "idle") return null;
-  if (state.status === "working")
-    return (
-      <p role="status" className="mb-3 text-sm text-ink-700">
-        {t("aiLooking")}
-      </p>
-    );
-  if (state.status === "failed")
-    return (
-      <p role="status" className="mb-3 text-sm text-ink-700">
-        {t("aiUnavailable")}
-      </p>
-    );
+  /*
+   * ONE live region, always in the page, whose words change. There used to be
+   * a new status element for each state, mounted with its text already
+   * inside it, and a region that arrives already speaking is one most screen
+   * readers never announce: "looking at your photo" and then the suggestions
+   * came and went in silence. Only the sentence is in it. The suggestions are
+   * buttons, read when they are reached, not recited every time they change.
+   */
+  const shown = hidden ? null : state;
+  const message =
+    shown?.status === "working"
+      ? t("aiLooking")
+      : shown?.status === "failed"
+        ? t("aiUnavailable")
+        : shown?.status === "done"
+          ? shown.suggestions.length > 0
+            ? t("aiSuggests")
+            : t("aiUnsure")
+          : "";
+  const done = shown?.status === "done" ? shown : null;
+  const outside = done?.outsidePage;
 
-  const outside = state.outsidePage;
   return (
-    <div role="status" className="mb-3">
-      {state.suggestions.length > 0 ? (
+    <div className={message ? "mb-3" : undefined}>
+      <p
+        role="status"
+        className={
+          done && done.suggestions.length > 0
+            ? "mb-1.5 text-sm font-semibold text-forest-900"
+            : "text-sm text-ink-700"
+        }
+      >
+        {message}
+      </p>
+      {done && done.suggestions.length > 0 && (
         <>
-          <p className="mb-1.5 text-sm font-semibold text-forest-900">{t("aiSuggests")}</p>
           <ul className="space-y-1.5">
-            {state.suggestions.map((s) => (
+            {done.suggestions.map((s) => (
               <li key={s.id}>
                 <button
                   type="button"
@@ -79,8 +98,6 @@ export default function PhotoSuggestions({
           </ul>
           <p className="mt-1.5 text-sm text-ink-600">{t("aiPickHint")}</p>
         </>
-      ) : (
-        <p className="text-sm text-ink-700">{t("aiUnsure")}</p>
       )}
       {outside && (
         <p className="mt-2 border-l-4 border-leaf-600 pl-3 text-sm leading-relaxed text-ink-800">
