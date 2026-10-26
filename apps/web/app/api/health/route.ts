@@ -61,11 +61,12 @@ export async function GET(req: Request) {
           )[0],
       ),
       // Species we hold records FOR, which is not the size of the checklist:
-      // 485 against 125,438. The parent site advertises this one, and had it
-      // hardcoded because the taxa count is the checklist. It is the number
-      // every page states, recordedSpeciesCount(): this used to count
-      // `distinct taxon_id` on its own and said 505 or 506 while the pages
-      // said 504, and each same-named subspecies as a species of its own.
+      // 485 against 136,680 on production, 26 October 2026. The parent site
+      // advertises this one, and had it hardcoded because the taxa count is
+      // the checklist. It is the number every page states,
+      // recordedSpeciesCount(): this used to count `distinct taxon_id` on its
+      // own and said 505 while the pages said 504, and counted each
+      // same-named subspecies as a species of its own.
       recordedSpeciesCount(),
     ]).then(([rows, species]) => ({
       counts: { ...rows, species },
