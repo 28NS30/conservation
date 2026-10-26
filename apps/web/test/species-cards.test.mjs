@@ -21,6 +21,8 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { VectorTile } from "@mapbox/vector-tile";
+import { PbfReader } from "pbf";
 import { BASE_URL, sql, inRollback, requireServer } from "./helpers.mjs";
 
 const SWALLOW = { species: 97276, subspecies: [85752, 85753, 85754] };
@@ -330,6 +332,35 @@ describe("the pages", () => {
     const details = body.match(/<details[\s\S]*?<\/details>/)?.[0] ?? "";
     assert.match(details, /資料來源/);
     assert.match(details, /Bird Record Committee, 2022/);
+  });
+
+  test("the species' map draws the records its page counts", async (t) => {
+    if (!(await requireServer(t))) return;
+    // A z6 tile over all of Taiwan, filtered as SpeciesMap filters it. Its
+    // cells' weights are the records under them, so they add up to the card.
+    const weight = async (id) => {
+      const res = await fetch(`${BASE_URL}/api/tiles/6/53/27?taxonId=${id}`);
+      assert.equal(res.status, 200);
+      const buf = new Uint8Array(await res.arrayBuffer());
+      if (buf.length === 0) return 0;
+      const layer = new VectorTile(new PbfReader(buf)).layers.reports;
+      let sum = 0;
+      for (let i = 0; i < (layer?.length ?? 0); i++) sum += layer.feature(i).properties.weight;
+      return sum;
+    };
+    assert.equal(await weight(SWALLOW.species), await cardRecords(SWALLOW.species));
+    // A folded subspecies' own map is its own records.
+    assert.equal(await weight(SWALLOW.subspecies[0]), await cardRecords(SWALLOW.subspecies[0]));
+  });
+
+  test("the record list filtered to the species holds its subspecies' records", async (t) => {
+    if (!(await requireServer(t))) return;
+    const [rec] = await sql`
+      select id::text from reports_public where taxon_id = ${IBIS.subspecies} order by observed_at desc, id limit 1`;
+    assert.ok(rec, "the fixture's ibis records are missing");
+    const { status, body } = await html(`/reports?taxonId=${IBIS.species}`);
+    assert.equal(status, 200);
+    assert.match(body, new RegExp(`href="/reports/${rec.id}"`));
   });
 
   test("a subspecies' page still answers, and links to its species", async (t) => {

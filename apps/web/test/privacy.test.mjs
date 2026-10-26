@@ -292,10 +292,14 @@ describe("a filtered page never names a taxon it holds no records for", () => {
   test("an unrecorded species is not named either", async () => {
     // Same rule, weaker case: the name is in the public checklist, but the
     // list has nothing to say about it, and the filter line is about records.
+    // Unrecorded under every row the list would filter to as well (0040):
+    // 埃及聖䴉's species row holds no record, but its subspecies' records are
+    // listed under it, and it is named over them.
     const [none] = await sql`
       select t.id, t.scientific_name from taxa t
         left join species_report_stats s on s.taxon_id = t.id
-       where s.taxon_id is null and t.is_in_taiwan limit 1`;
+        left join species_card_stats c on c.taxon_id = t.id
+       where s.taxon_id is null and c.taxon_id is null and t.is_in_taiwan limit 1`;
     assert.ok(none, "expected a species with no records");
     const html = await (
       await fetch(`${BASE_URL}/reports?taxonId=${none.id}`)
