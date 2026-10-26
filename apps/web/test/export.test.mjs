@@ -90,6 +90,30 @@ describe("Darwin Core export", () => {
     });
   });
 
+  test("a record held until the model has looked is not exported until it is released", async () => {
+    // Held at 10 km whatever its species (migration 0033), and the model may
+    // then blur it harder: a copy sent to GBIF at the hold's 10 km would
+    // outlive that. It goes in the first export after the release.
+    await inRollback(async (tx) => {
+      const taxonId = await taxonWhere(
+        "is_in_taiwan and sensitivity is null and protected_status is null and rank = 'Species' and taxon_precision(id) = 'exact' and binomial_precision(id) = 'exact'",
+      );
+      const r = await insertReport(tx, { taxonId });
+      await tx`update reports set source = 'user', taxon_source = 'user', license = ${CC0},
+                                  held_for_classification = true
+                where id = ${r.id}::uuid`;
+      const [{ public: shown }] = await tx`
+        select count(*)::int as public from reports_public where id = ${r.id}::uuid`;
+      assert.equal(shown, 1, "fixture: a held record is public");
+      assert.ok(!(await exportable(tx, true)).some((x) => x.id === r.id), "exported while held");
+
+      await tx`update reports set held_for_classification = false where id = ${r.id}::uuid`;
+      const row = (await exportable(tx, true)).find((x) => x.id === r.id);
+      assert.ok(row, "not exported once released");
+      assert.equal(row.location_precision, "exact");
+    });
+  });
+
   test("unidentified records are opt-in", async () => {
     await inRollback(async (tx) => {
       const r = await insertReport(tx, { taxonId: null });
@@ -113,7 +137,7 @@ describe("a licence is the contributor's to grant", () => {
    */
   async function userRecord(tx, { license = null } = {}) {
     const taxonId = await taxonWhere(
-      "is_in_taiwan and sensitivity is null and protected_status is null",
+      "is_in_taiwan and sensitivity is null and protected_status is null and rank = 'Species' and taxon_precision(id) = 'exact'",
     );
     const r = await insertReport(tx, { taxonId });
     await tx`update reports set source = 'user', license = ${license}
@@ -173,7 +197,7 @@ describe("the reporter's notes stay here", () => {
   test("no field of the archive carries them", async () => {
     await inRollback(async (tx) => {
       const taxonId = await taxonWhere(
-        "is_in_taiwan and sensitivity is null and protected_status is null",
+        "is_in_taiwan and sensitivity is null and protected_status is null and rank = 'Species' and taxon_precision(id) = 'exact'",
       );
       const r = await insertReport(tx, { taxonId });
       await tx`update reports set source = 'user', license = ${CC_BY}, notes = ${NOTE}

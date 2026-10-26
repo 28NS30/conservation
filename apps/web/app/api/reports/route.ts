@@ -256,12 +256,31 @@ export async function POST(req: Request) {
   //
   // A reporter who names the species removes the unknown. The trigger derives
   // the blur from that taxon's own sensitivity rating on insert, so a protected
-  // species is blurred before the row is visible to anything — there is nothing
-  // left to wait for, and holding it back would only mean that naming the animal
+  // species is blurred before the row is visible to anything, and the report is
+  // published at once: holding it back would only mean that naming the animal
   // made the report slower to appear.
+  //
+  // But not yet at its species' own blur when it has a photo. The reporter's
+  // word is the only thing that says what the animal is, and a dead 石虎 filed
+  // as 家貓 would be public to the metre, notes and all, until the model had
+  // looked at the photo and said otherwise — and for good, if the model never
+  // answered. So such a report is held at the stricter of its species' rule
+  // and the unidentified blur (10 km) until the classifier has run on it; the
+  // classifier then sets the decided blur, its species' rule or the model's
+  // species' when the model is sure of another, and releases the hold
+  // (lib/report/classificationHold.ts). If the model never answers, the hold
+  // stays. Releasing it is not a loosening of policy: the owner decided where
+  // a named record ends, and this is a few minutes on the way there.
+  //
+  // In its own column, not as a precision_override: an override on a named
+  // record is a decision that outlives every rename (keepDeliberateOverride,
+  // lib/report/precision.ts), and the hold must be released by the classifier
+  // and by nothing else. A report without a photo is not classified, so there
+  // is nothing to wait for and it is not held.
   const identified = Boolean(taxonId);
   const classifiable = requiresClassification(input.category, photos.length);
   const awaitingId = classifiable && !identified;
+  const heldForClassification = classifiable && identified;
   const status = awaitingId || flaggedReason ? "pending" : "published";
   // Keyed on whether the animal has been NAMED, not on whether it can be
   // classified. Those differ by exactly one thing — a photograph — and the
@@ -315,7 +334,7 @@ export async function POST(req: Request) {
           status, source, reporter_id, contact_email, flagged_reason,
           client_nonce, precision_override, taxon_id, taxon_source,
           location_accuracy_m, license, rights_holder, share_partners,
-          consent_version, consent_at, is_test
+          consent_version, consent_at, is_test, held_for_classification
         ) values (
           ${input.category},
           st_setsrid(st_makepoint(${input.lng}, ${input.lat}), 4326)::geography,
@@ -325,7 +344,8 @@ export async function POST(req: Request) {
           ${input.clientNonce}, ${precisionOverride},
           ${taxonId}, ${taxonSource},
           ${input.accuracyM ?? null}, ${license}, ${rightsHolder}, ${sharePartners},
-          ${consentVersion}, ${consentVersion ? tx`now()` : null}, ${isTest}
+          ${consentVersion}, ${consentVersion ? tx`now()` : null}, ${isTest},
+          ${heldForClassification}
         )
         on conflict (client_nonce) where client_nonce is not null do nothing
         returning id, location_precision`;
@@ -382,7 +402,9 @@ export async function POST(req: Request) {
       // Queued even when the reporter named the species: the model's opinion is
       // worth recording next to theirs, and the job no longer overwrites a human
       // identification. It is also what puts candidate rows in `classifications`,
-      // which is the set confirmSpecies is constrained to.
+      // which is the set confirmSpecies is constrained to, and what releases the
+      // hold above. The job and the hold are written together, so a held report
+      // always has a job that can release it.
       if (classifiable) {
         await tx`insert into classification_jobs (report_id) values (${reportId})`;
       }

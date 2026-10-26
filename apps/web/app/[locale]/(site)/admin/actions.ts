@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { sql } from "@/lib/db";
 import { currentRole } from "@/lib/auth";
+import { OFFERED } from "@/lib/species";
+import { flagWhenPublished, requeueClassification } from "@/lib/report/classificationHold";
 import { reportsChanged } from "@/lib/siteFigures";
 import {
   keepDeliberateOverride,
@@ -34,8 +36,13 @@ export async function publishReport(reportId: string) {
   // moderator has already decided still shows its buttons: without this, the
   // last click won, and a report one moderator rejected went back on the map
   // when another published it from a stale screen.
+  //
+  // The flag the queue held it for goes, except on a report held for
+  // classification that the model will not answer for by itself: that one is
+  // published flagged, so the flagged list shows it and offers Classify again
+  // (flagWhenPublished, lib/report/classificationHold.ts).
   await sql.begin(async (tx) => {
-    const done = await tx`update reports set status = 'published', flagged_reason = null
+    const done = await tx`update reports set status = 'published', flagged_reason = ${flagWhenPublished(tx)}
                            where id = ${reportId}::uuid and status = 'pending'
                            returning id`;
     if (done.length === 0) throw new Error("already decided");
@@ -113,6 +120,13 @@ export async function rejectReport(reportId: string, reason: string) {
  * binomial. A moderator works from the same photograph the model did, and the
  * names they can type include subspecies and species rows that need not carry
  * the same rating. Removing a name (null) has no binomial to consult.
+ *
+ * Only a name a report can be filed under (OFFERED, lib/species.ts), as
+ * POST /api/reports accepts. No page calls this today, but an action is a
+ * public endpoint whether or not a page calls it, and this one took any of
+ * the ~136k rows in `taxa`: a retired duplicate, unrated beside the row the
+ * law protects, or a genus, which no rating names. Either could publish a
+ * protected animal more exactly than its own name would.
  */
 export async function setReportTaxon(reportId: string, taxonId: number | null) {
   const actor = await requireModerator();
@@ -120,6 +134,13 @@ export async function setReportTaxon(reportId: string, taxonId: number | null) {
     const [report] = await tx<{ id: string }[]>`
       select id from reports where id = ${reportId}::uuid`;
     if (!report) throw new Error("report not found");
+
+    if (taxonId !== null) {
+      const [taxon] = await tx<{ offered: boolean }[]>`
+        select ${sql.unsafe(OFFERED)} as offered from taxa t where t.id = ${taxonId}`;
+      if (!taxon) throw new Error("taxon not found");
+      if (!taxon.offered) throw new Error("not a name a report can be filed under");
+    }
 
     await tx`update reports
                 set taxon_id = ${taxonId}, taxon_source = 'expert',
@@ -136,4 +157,71 @@ export async function setReportTaxon(reportId: string, taxonId: number | null) {
   // Another species moves the record between species, collections and
   // blurs, all of which the cached figures count.
   reportsChanged();
+}
+
+/**
+ * Say a published record's flag has been looked at, and take it off the list.
+ *
+ * A record can be published and still carry a reason a person should look:
+ * the classifier writes one when it publishes a record unidentified because
+ * the model could only suggest a species, and when the model, confident,
+ * names a different species from the reporter, whose name the record keeps.
+ * Until the queue listed them nobody saw those flags at all.
+ *
+ * It clears the flag and nothing else. The species, the blur and the status
+ * stay as they are, because "this is fine" is not a decision to publish a
+ * location more exactly: a record held at the model's blur stays held, one
+ * the model never answered for stays at 10 km and off the map (classifyAgain
+ * is the way out of that), and a moderator who thinks the species is wrong
+ * corrects it on the record's page.
+ * `flagged_reason` fires no blur trigger, so this cannot move the point.
+ *
+ * Only a published record with a flag, so a stale screen cannot clear one
+ * twice or touch a record that has since been rejected. The reason cleared is
+ * kept in the log, which is the only place it survives. `flag` is the log's
+ * own word for a flag decision (0003), so no migration is needed for it.
+ */
+export async function clearFlag(reportId: string) {
+  const actor = await requireModerator();
+  await sql.begin(async (tx) => {
+    const [row] = await tx<{ flagged_reason: string }[]>`
+      select flagged_reason from reports
+       where id = ${reportId}::uuid
+         and status = 'published'
+         and flagged_reason is not null
+       for update`;
+    if (!row) throw new Error("no flag to clear");
+    await tx`update reports set flagged_reason = null where id = ${reportId}::uuid`;
+    await tx`insert into moderation_actions (report_id, actor_id, action, reason)
+             values (${reportId}::uuid, ${actor}::uuid, 'flag',
+                     ${`cleared: ${row.flagged_reason}`.slice(0, 500)})`;
+  });
+  revalidatePath("/admin");
+}
+
+/**
+ * Have the model try a held record's photo again.
+ *
+ * A record its reporter named, with a photo, is held at 10 km and off the
+ * map until the model has looked (lib/report/classificationHold.ts). When the
+ * model refused the photo or the job ran out of attempts, it stays held for
+ * good and is flagged here; this puts its job back in the queue, with its
+ * attempts and error cleared, for the next run to claim.
+ *
+ * It does not release the hold. The record stays where it is until a run
+ * finishes, which is the only thing that releases it, and a run that gives up
+ * again flags it again. Only a published record that is still held, and only
+ * when no job of its own is waiting already. Logged under `flag`, as OK is:
+ * it is a decision about a flag, and the log's actions are fixed (0003).
+ */
+export async function classifyAgain(reportId: string) {
+  const actor = await requireModerator();
+  await sql.begin(async (tx) => {
+    const queued = await requeueClassification(tx, reportId);
+    if (!queued) throw new Error("nothing to classify again");
+    await tx`insert into moderation_actions (report_id, actor_id, action, reason)
+             values (${reportId}::uuid, ${actor}::uuid, 'flag',
+                     ${`classify again: ${queued.flaggedReason ?? "no flag"}`.slice(0, 500)})`;
+  });
+  revalidatePath("/admin");
 }

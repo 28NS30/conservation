@@ -31,6 +31,13 @@ import { UNIDENTIFIED_PRECISION } from "@conservation/shared";
  *     A protected look-alike is still caught by its own rating once anyone
  *     names it, which re-blurs the record.
  *
+ *   - The model's blur, when it is sure of a different species from the
+ *     reporter, is an override on a named record too, and kept by the same
+ *     rule (settleClassificationHold, classificationHold.ts). The 10 km a
+ *     named report with a photo is held at until the model has looked is NOT
+ *     an override: it is its own column, `held_for_classification`, which
+ *     nothing here reads or clears.
+ *
  *   - On a report with no taxon, only the stamp's own value is a stamp. A hold
  *     STRICTER than the unidentified blur is a decision too: the route writes
  *     one when the reporter named a species we no longer offer and that name

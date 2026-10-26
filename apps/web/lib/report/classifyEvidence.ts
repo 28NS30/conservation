@@ -4,6 +4,7 @@ import {
   photoIdentificationOverride,
   suggestionOverride,
 } from "@/lib/report/precision";
+import { recordBesidePerson, settleClassificationHold } from "@/lib/report/classificationHold";
 import {
   BLUR_OF_SHOWN_SQL,
   RESOLVE_CANDIDATES_SQL,
@@ -27,7 +28,11 @@ import {
  *   assign   the species becomes the record's, and its blur is at least the
  *            strictest of every row sharing its binomial
  *            (photoIdentificationOverride), exactly as before;
- *   record   a person named it; the model's view is noted beside theirs;
+ *   record   a person named it; the model's view is noted beside theirs, and
+ *            when the model is sure of a different species the record is
+ *            blurred at least as that species would be, never looser; and
+ *            the 10 km a named report is held at until the model has looked
+ *            is released (recordBesidePerson, classificationHold.ts);
  *   suggest  the record stays unidentified, blurred at least as hard as the
  *            strictest species it is shown with (suggestionOverride).
  *
@@ -88,13 +93,15 @@ export async function recordEvidence(
       // As the legacy branch: the stamp rule (keepDeliberateOverride) plus the
       // binomial's strictest blur, because a photograph cannot tell which of
       // the rows sharing a name it shows.
-      await tx`
+      const written = await tx`
         update reports
            set taxon_id = ${best.taxonId},
                taxon_source = 'ai',
                ai_confidence = ${best.score},
                ai_band = ${band},
                precision_override = ${photoIdentificationOverride(best.taxonId)},
+               -- The model has looked (lib/report/classificationHold.ts).
+               held_for_classification = false,
                -- Publishing may lift a hold; it may not reverse a decision.
                status = case when status = 'pending' and flagged_reason is null then 'published' else status end
          where id = ${job.report_id}::uuid
@@ -102,25 +109,32 @@ export async function recordEvidence(
            -- classifyWorker.ts).
            and taxon_id is not distinct from ${job.taxon_id}::bigint
            and taxon_source is not distinct from ${job.taxon_source}::text`;
+      // Named by a person while the model ran: the model has looked all the
+      // same, so a hold is released (see classifyWorker.ts).
+      if (written.count === 0) await settleClassificationHold(tx, job.report_id, null, null);
     } else if (decision.action === "record") {
-      await tx`
-        update reports
-           set ai_confidence = ${best?.score ?? null},
-               ai_band = ${band},
-               flagged_reason = coalesce(flagged_reason, ${
-                 disagreesWithPerson(decision, job.taxon_name)
-                   ? "the model and the reporter name different species"
-                   : null
-               })
-         where id = ${job.report_id}::uuid`;
+      // The species stays the person's; the blur follows the model's when it
+      // is sure of another, and the hold a named report was filed under is
+      // released (lib/report/classificationHold.ts). The same write as the
+      // legacy worker's.
+      await recordBesidePerson(tx, {
+        reportId: job.report_id,
+        claimedTaxonId: job.taxon_id,
+        claimedSource: job.taxon_source,
+        score: best?.score ?? null,
+        band,
+        disagreeingTaxonId:
+          best && disagreesWithPerson(decision, job.taxon_name) ? best.taxonId : null,
+      });
     } else {
       // Unidentified, and blurred at least as hard as the strictest species it
       // is shown with. On an invasive report this is every answer: the model
       // suggests, a person confirms.
-      await tx`
+      const written = await tx`
         update reports
            set precision_override = ${suggestionOverride(job.report_id, band !== "low")},
                status = case when status = 'pending' and flagged_reason is null then 'published' else status end,
+               held_for_classification = false,
                ai_band = ${band},
                flagged_reason = coalesce(flagged_reason, ${decision.reason})
          where id = ${job.report_id}::uuid
@@ -128,6 +142,7 @@ export async function recordEvidence(
            -- classifyWorker.ts).
            and taxon_id is not distinct from ${job.taxon_id}::bigint
            and taxon_source is not distinct from ${job.taxon_source}::text`;
+      if (written.count === 0) await settleClassificationHold(tx, job.report_id, null, null);
     }
 
     // In the same transaction as the writes, as the legacy branch does: a job

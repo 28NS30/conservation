@@ -3,12 +3,16 @@
  *
  *   node e2e/moderation.spec.mjs         # TEST_BASE_URL, default localhost:3000
  *
- * A throwaway moderator, two held reports and one unnamed record:
+ * A throwaway moderator, two held reports, two flagged records and an unnamed one:
  *
  *   the reason each was held reads as a sentence, not the stored code;
  *   publishing one publishes it, and logs who did;
  *   rejecting asks why on the page, will not send without a reason,
  *   and stores the reason in the log;
+ *   a published record with a flag is listed below the queue, and OK
+ *   clears the flag without moving the record or loosening its blur;
+ *   a named record the model never answered for says it stays at 10 km,
+ *   and Classify again queues its job without releasing the hold;
  *   on a published record the model could not name, a moderator can
  *   name any species, stored as an expert's, and the blur does not loosen.
  *
@@ -131,6 +135,105 @@ try {
      where report_id = ${ids.reject} and actor_id = ${userId}::uuid and action = 'reject'`;
   check("and the log keeps the reason", rejLog?.reason === "the photo shows a toy, not an animal", rejLog?.reason);
 
+  // -- A published record with a flag ------------------------------------
+  // As the classifier leaves one the model disagreed with: published under
+  // the reporter's species, held at the model's blur, flagged. The queue
+  // lists it below the held reports; OK clears the flag and nothing else.
+  const [plain] = await sql`select id from taxa where scientific_name = 'Paguma larvata' and rank = 'Species' limit 1`;
+  const [cat] = await sql`select id from taxa where scientific_name = 'Prionailurus bengalensis' and rank = 'Species' limit 1`;
+  const [flaggedRecord] = await sql`
+    insert into reports (category, location, location_public, observed_at, status, source,
+                         taxon_id, taxon_source, precision_override, ai_band, flagged_reason)
+    values ('roadkill',
+            st_setsrid(st_makepoint(120.95, 23.9), 4326)::geography,
+            st_setsrid(st_makepoint(120.95, 23.9), 4326)::geography,
+            now(), 'published', 'user', ${plain.id}, 'user', 'coarse_10km', 'high',
+            'the model and the reporter name different species')
+    returning id, location_precision, st_astext(location_public::geometry) as point`;
+  ids.flagged = flaggedRecord.id;
+  await sql`insert into classifications (report_id, taxon_id, score, rank, model_version)
+            values (${ids.flagged}, ${cat.id}, 0.98, 1, 'e2e')`;
+  await page.goto(`${BASE}/en/admin`, { waitUntil: "networkidle" });
+  const flaggedRow = page.locator("li", { has: page.locator(`a[href$="/reports/${ids.flagged}"]`) });
+  check("a published record with a flag is listed", (await flaggedRow.count()) === 1);
+  check(
+    "below the held reports, under its own heading",
+    await page.getByRole("heading", { name: "Published, with a flag" }).isVisible(),
+  );
+  check(
+    "its reason reads as a sentence",
+    await flaggedRow.getByText("The model and the reporter name different species.").isVisible(),
+  );
+  check("and the model's answer is beside the reporter's", (await flaggedRow.getByText(/The model's first answer:/).count()) === 1);
+  await flaggedRow.getByRole("button", { name: "OK" }).click();
+  await flaggedRow.getByText("Marked OK").waitFor({ timeout: 10000 }).catch(() => {});
+  const [cleared] = await sql`
+    select flagged_reason, location_precision, status, st_astext(location_public::geometry) as point
+      from reports where id = ${ids.flagged}`;
+  check("OK clears the flag", cleared.flagged_reason === null, cleared.flagged_reason);
+  check(
+    "and nothing else: the record stays published, where it was, as blurred",
+    cleared.status === "published" &&
+      cleared.location_precision === flaggedRecord.location_precision &&
+      cleared.point === flaggedRecord.point,
+    `${cleared.status} ${cleared.location_precision}`,
+  );
+  const [okLog] = await sql`
+    select reason from moderation_actions
+     where report_id = ${ids.flagged} and actor_id = ${userId}::uuid and action = 'flag'`;
+  check("the log keeps the reason it cleared", okLog?.reason === "cleared: the model and the reporter name different species", okLog?.reason);
+
+  // -- A named record the model never answered for -------------------------
+  // As the give-up path leaves one: published under the reporter's species,
+  // still held at 10 km and off the map, flagged, its job failed for good.
+  // The row says so, its OK says the blur stays, and Classify again queues
+  // the job without releasing the hold.
+  const [stuck] = await sql`
+    insert into reports (category, location, location_public, observed_at, status, source,
+                         taxon_id, taxon_source, held_for_classification, flagged_reason)
+    values ('roadkill',
+            st_setsrid(st_makepoint(120.95, 23.95), 4326)::geography,
+            st_setsrid(st_makepoint(120.95, 23.95), 4326)::geography,
+            now(), 'published', 'user', ${plain.id}, 'user', true, 'classification unavailable')
+    returning id, location_precision`;
+  ids.stuck = stuck.id;
+  await sql`insert into classification_jobs (report_id, status, attempts, last_error)
+            values (${ids.stuck}, 'failed', 5, 'the model refused the photo')`;
+  check("a held record starts at 10 km", stuck.location_precision === "coarse_10km", stuck.location_precision);
+  // "load" and the row itself, not "networkidle": after the OK above, the
+  // header's prefetches of cached pages are left pending in the browser and
+  // the network never goes quiet, though clicking those links still loads
+  // them at once (checked by hand on 26 October).
+  await page.goto(`${BASE}/en/admin`, { waitUntil: "load" });
+  const stuckRow = page.locator("li", { has: page.locator(`a[href$="/reports/${ids.stuck}"]`) });
+  await stuckRow.first().waitFor({ timeout: 15000 }).catch(() => {});
+  check("a record held for good is listed", (await stuckRow.count()) === 1);
+  check(
+    "it says the photo could not be checked and the record stays at 10 km",
+    await stuckRow.getByText(/could not check the photo[\s\S]*10 km and off the map/).isVisible(),
+  );
+  check("its OK says the blur stays", await stuckRow.getByRole("button", { name: "OK, leave it at 10 km" }).isVisible());
+  await stuckRow.getByRole("button", { name: "Classify again" }).click();
+  await stuckRow.getByText(/Back in the model's queue/).waitFor({ timeout: 10000 }).catch(() => {});
+  const [requeued] = await sql`
+    select r.held_for_classification as held, r.location_precision, r.flagged_reason, r.status,
+           j.status as job, j.attempts, j.last_error
+      from reports r join classification_jobs j on j.report_id = r.id
+     where r.id = ${ids.stuck}`;
+  check(
+    "Classify again queues the job afresh",
+    requeued?.job === "queued" && requeued?.attempts === 0 && requeued?.last_error === null,
+    JSON.stringify(requeued),
+  );
+  check(
+    "and releases nothing: still held, at 10 km, published",
+    requeued?.held === true && requeued?.location_precision === "coarse_10km" && requeued?.status === "published",
+  );
+  const [againLog] = await sql`
+    select reason from moderation_actions
+     where report_id = ${ids.stuck} and actor_id = ${userId}::uuid and action = 'flag'`;
+  check("the log says who had it classified again", againLog?.reason === "classify again: classification unavailable", againLog?.reason);
+
   // -- Naming a species the model never offered (#117) -------------------
   // An unidentified record, published, as the classifier leaves one it could
   // not name. The moderator searches, chooses, saves.
@@ -142,8 +245,10 @@ try {
             now(), 'published', 'user')
     returning id`;
   ids.unnamed = unnamed.id;
-  await page.goto(`${BASE}/en/reports/${ids.unnamed}`, { waitUntil: "networkidle" });
+  // "load" and the search box, as for the queue above.
+  await page.goto(`${BASE}/en/reports/${ids.unnamed}`, { waitUntil: "load" });
   const search = page.getByRole("searchbox", { name: /Search by Chinese/ });
+  await search.waitFor({ timeout: 15000 }).catch(() => {});
   check("a moderator can search every species on a record", await search.isVisible());
   await search.fill("石虎");
   await page.getByRole("button", { name: /石虎/ }).first().click();
@@ -160,6 +265,7 @@ try {
 } finally {
   await browser?.close();
   for (const id of Object.values(ids)) {
+    await sql`delete from classifications where report_id = ${id}`.catch(() => {});
     await sql`delete from moderation_actions where report_id = ${id}`.catch(() => {});
     await sql`delete from reports where id = ${id}`.catch(() => {});
   }
