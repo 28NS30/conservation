@@ -666,7 +666,7 @@ function ReportFormFields({
       if (typeof navigator !== "undefined" && navigator.onLine === false) return;
       setPhotoIdea({ status: "working" });
       try {
-        const [imageBase64, turnstileToken] = await Promise.all([
+        const [imageBase64, challenge] = await Promise.all([
           new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(String(reader.result).replace(/^data:[^,]*,/, ""));
@@ -675,11 +675,11 @@ function ReportFormFields({
           }),
           turnstileEnabled ? identifyToken() : Promise.resolve(null),
         ]);
-        if (turnstileEnabled && !turnstileToken) throw new Error("identify: no challenge token");
+        if (turnstileEnabled && !challenge) throw new Error("identify: no challenge token");
         const res = await fetch(withBase("/api/identify"), {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ imageBase64, page, turnstileToken: turnstileToken ?? undefined }),
+          body: JSON.stringify({ imageBase64, page, turnstileToken: challenge ?? undefined }),
           signal: AbortSignal.timeout(60_000),
         });
         if (!res.ok) throw new Error(`identify ${res.status}`);
