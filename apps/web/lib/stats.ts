@@ -174,6 +174,44 @@ export const mapEntrySpecies = siteFigure("mapEntrySpecies", (limit: number = 3)
   ),
 );
 
+export type MonthSpecies = {
+  id: number;
+  scientificName: string;
+  commonNameZh: string | null;
+  commonNameEn: string | null;
+  taicolId: string | null;
+  n: number;
+};
+
+/**
+ * The species found dead on the roads most often in one calendar month,
+ * across every year of records, for the home page: the one part of it that
+ * changes from month to month. On today's data that is TaiRON's 2011–2017.
+ *
+ * Exact records only. A protected or sensitive species' records are all
+ * blurred, so it never appears here, and the front page does not point at
+ * where one is found any more than its map shortcuts do. A record nobody named
+ * has no species to count. The month is Taiwan's, passed in by the page.
+ */
+export const monthRoadkill = siteFigure("monthRoadkill", (month: number, limit: number = 5): Promise<MonthSpecies[]> =>
+  asPublic(
+    (tx) => tx<MonthSpecies[]>`
+      select t.id, t.scientific_name as "scientificName",
+             t.common_name_zh as "commonNameZh", t.common_name_en as "commonNameEn",
+             t.taicol_id as "taicolId", count(*)::int as n
+        from reports_public rp
+        join taxa t on t.id = rp.taxon_id
+       where rp.category = 'roadkill'
+         and rp.location_precision = 'exact'
+         and extract(month from rp.observed_at at time zone 'Asia/Taipei') = ${month}
+         and t.common_name_zh is not null
+       group by t.id
+       -- t.id settles ties, so the list is the same on every load.
+       order by n desc, t.id
+       limit ${limit}`,
+  ),
+);
+
 export type LedgerRow = {
   id: string;
   observedAt: string;

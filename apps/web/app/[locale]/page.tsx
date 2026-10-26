@@ -5,7 +5,8 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import type { ReportPage } from "@conservation/shared";
-import { mapEntrySpecies, overview, recordedSpeciesCount } from "@/lib/stats";
+import { mapEntrySpecies, monthRoadkill, overview, recordedSpeciesCount } from "@/lib/stats";
+import { speciesSlug } from "@/lib/speciesSlug";
 import { PHOTOS, HERO, type PhotoKey } from "@/lib/home/photos";
 import SiteHeader from "@/components/site/SiteHeader";
 import SiteFooter from "@/components/site/SiteFooter";
@@ -114,7 +115,17 @@ export default async function HomePage({
   setRequestLocale(locale);
 
   const t = await getTranslations("home");
-  const [s, entrySpecies] = await Promise.all([getStats(), mapEntrySpecies(3)]);
+  // This month on Taiwan's calendar, so the block below changes with it. The
+  // page is rebuilt every five minutes at most, and the month's list is a
+  // figure cached per month.
+  const now = new Date();
+  const month = Number(now.toLocaleDateString("en-CA", { timeZone: "Asia/Taipei", month: "numeric" }));
+  const monthName = now.toLocaleDateString(locale, { timeZone: "Asia/Taipei", month: "long" });
+  const [s, entrySpecies, thisMonth] = await Promise.all([
+    getStats(),
+    mapEntrySpecies(3),
+    monthRoadkill(month, 5),
+  ]);
   const zh = locale.startsWith("zh");
   const photoBy = t("photoBy");
 
@@ -227,6 +238,52 @@ export default async function HomePage({
           ))}
         </div>
       </section>
+
+      {/* ---------------- this month ----------------
+          The one part of this page that changes from month to month: the
+          animals most often found dead on the roads in this month, in every
+          year of records (lib/stats.ts, monthRoadkill). Hidden in a month
+          with none. */}
+      {thisMonth.length > 0 && (
+        <section aria-labelledby="month-title" className="bg-paper-100 px-5 py-16 sm:px-8 sm:py-20">
+          <SectionTitle
+            id="month-title"
+            title={t("monthTitle", { month: monthName })}
+            hint={t("monthHint")}
+            zh={zh}
+          />
+          <ol className="mx-auto mt-10 grid max-w-3xl gap-3 sm:grid-cols-2">
+            {thisMonth.map((sp, i) => (
+              <li key={sp.id}>
+                {/* Not prefetched, like the species directory's. */}
+                <Link
+                  href={`/species/${speciesSlug(sp)}`}
+                  prefetch={false}
+                  className="group flex min-h-14 items-center gap-4 rounded-lg border border-ink-900/10 bg-paper-50 px-4 py-3 transition hover:border-forest-700"
+                >
+                  <span aria-hidden className="font-display text-2xl font-bold tabular-nums text-forest-700">
+                    {i + 1}
+                  </span>
+                  <span className="min-w-0 flex-1 text-[16px] font-semibold text-ink-950 group-hover:text-leaf-700">
+                    <SpeciesName species={sp} locale={locale} layout="primary" />
+                  </span>
+                  <span className="shrink-0 text-[14px] tabular-nums text-ink-600">
+                    {t("monthCount", { n: sp.n })}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ol>
+          <p className="mx-auto mt-8 max-w-3xl text-center">
+            <Link
+              href="/season"
+              className="inline-flex min-h-11 items-center text-[15px] font-medium text-leaf-700 underline underline-offset-2 hover:text-forest-900"
+            >
+              {t("monthSeason")}
+            </Link>
+          </p>
+        </section>
+      )}
 
       {/* ---------------- explore ---------------- */}
       <section

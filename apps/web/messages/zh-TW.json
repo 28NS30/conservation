@@ -761,7 +761,11 @@
     "exploreHint": "這些紀錄目前呈現了什麼：在地圖上，也依物種整理。",
     "mapPrivacy": "受保護與敏感的物種只會顯示模糊的範圍，不會標出確切位置。",
     "speciesTitle": "已記錄 {count, number} 種",
-    "speciesBody": "這裡記錄到的每一種動物都有自己的頁面：名稱、保育等級，以及曾經在哪裡被看見。"
+    "speciesBody": "這裡記錄到的每一種動物都有自己的頁面：名稱、保育等級，以及曾經在哪裡被看見。",
+    "monthTitle": "每年{month}，路上最常遇見的牠們",
+    "monthHint": "歷年的路殺紀錄裡，這個月最常出現的動物。",
+    "monthCount": "{n, plural, other {# 筆紀錄}}",
+    "monthSeason": "看看這一季的目標"
   },
   "me": {
     "title": "我的通報",
