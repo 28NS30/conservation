@@ -271,7 +271,8 @@ export function speciesMembers(
  * from names that work.
  *
  * Read through asPublic like getSpecies, so a taxon whose coordinates are
- * withheld still reports zero records.
+ * withheld still reports zero records, and counted as its page counts them
+ * (speciesMembers), so the picker says the number the species page does.
  */
 export async function reportableSpecies(id: number): Promise<{
   id: number;
@@ -303,11 +304,14 @@ export async function reportableSpecies(id: number): Promise<{
              t.common_name_zh as "commonNameZh",
              t.common_name_en as "commonNameEn",
              t.is_invasive as "isInvasive",
-             coalesce(s.report_count, 0) as "reportCount",
+             s.report_count as "reportCount",
              ${tx.unsafe(OFFERED)} as offered,
              ${tx.unsafe(scopes)}
         from taxa t
-        left join species_report_stats s on s.taxon_id = t.id
+        cross join lateral (
+          select count(*)::int as report_count
+            from reports_public rp
+           where ${speciesMembers(tx, "rp.taxon_id", id)}) s
        where t.id = ${id}`,
   );
   const row = rows[0];
