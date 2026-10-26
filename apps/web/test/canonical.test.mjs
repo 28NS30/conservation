@@ -21,7 +21,7 @@ const head = async (path) => {
   return { canonical, langs, description };
 };
 
-const PAGES = ["", "/about", "/attribution", "/privacy", "/terms", "/species", "/reports", "/stats", "/map", "/report", "/report/roadkill", "/roadkill", "/invasive", "/wildlife"];
+const PAGES = ["", "/about", "/attribution", "/privacy", "/terms", "/poster", "/species", "/reports", "/stats", "/map", "/report", "/report/roadkill", "/roadkill", "/invasive", "/wildlife"];
 
 describe("canonical and language links", () => {
   for (const path of PAGES)

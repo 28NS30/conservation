@@ -120,6 +120,24 @@ describe("what web_anon may still read", () => {
     assert.match(p.roles, /web_anon/);
   });
 
+  test("and it is the only policy left: none from the REST era survives", async () => {
+    // 0004 wrote four policies for PostgREST's `authenticated` role, and 0039
+    // dropped them. One, profiles_update_own, let a signed-in user update
+    // their own profile with no column list, `role` included: harmless while
+    // `authenticated` holds no grant, and anyone's way to admin the day one
+    // came back. A policy added after this is listed here by somebody who has
+    // to write down why.
+    const rows = await sql`
+      select tablename || '.' || policyname as name
+        from pg_policies where schemaname = 'public'
+       order by 1`;
+    assert.deepEqual(
+      rows.map((r) => r.name),
+      ["taxa.taxa_public_read"],
+      "a row-level-security policy is back; the tables are meant to be closed to all but their owner",
+    );
+  });
+
   test("and nothing else — no policy opens a table to anon", async () => {
     const rows = await sql`
       select tablename, policyname, roles::text as roles
