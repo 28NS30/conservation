@@ -221,6 +221,18 @@ export const ROUTES = [
     full: true,
     why: "Duttaphrynus melanostictus: in the CI fixture and in the full dataset, with enough records to draw every band of the chart.",
   },
+  // Not a page anyone sees: a bare id, /species/28758, is rewritten here
+  // (next.config.ts) and redirected per request to the slug, the row above.
+  // Sweeping it would sweep that page twice.
+  {
+    name: "species-by-id",
+    path: "/species/by-id/28758",
+    settle: 0,
+    skipShots: "A redirect to species-detail's page.",
+    skipAxe: "A redirect to species-detail's page.",
+    skipContrast: "A redirect to species-detail's page.",
+    skipReflow: "A redirect to species-detail's page.",
+  },
   { name: "stats", path: "/stats", settle: 3500 },
   // The three collections, each a page of its own: a statement over a
   // photograph, counts, the newest records and, on /invasive, the 209-row

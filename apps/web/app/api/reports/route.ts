@@ -14,6 +14,7 @@ import {
 } from "@/lib/abuse";
 import { addressKey, clientIp } from "@/lib/request";
 import { OFFERED, inPageScope } from "@/lib/species";
+import { reportsChanged } from "@/lib/siteFigures";
 import {
   reportSubmissionSchema,
   requiresClassification,
@@ -397,6 +398,11 @@ export async function POST(req: Request) {
       };
     });
 
+    // Published on arrival, so it is in the counts every page states, which
+    // are cached for everybody (lib/siteFigures.ts). A test report is in none
+    // of them, and a held one joins them when it is published.
+    if (!result.duplicate && result.status === "published" && !result.test) reportsChanged();
+
     // Identify the photo now, after the reporter has their answer, rather than
     // at 03:00 tomorrow: the daily cron was the only thing that ran the model,
     // three reports a night. The job is committed above, so if this is cut
@@ -410,10 +416,18 @@ export async function POST(req: Request) {
     if ("queued" in result && result.queued && process.env.NEXT_PUBLIC_E2E !== "1") {
       const id = result.id;
       after(async () => {
+        // The model may have published the report or named its animal, if
+        // its job finished; one that failed leaves the report held, and a
+        // held report is on no page (see the cron route). Dropped in
+        // `finally`, from the count the run keeps as it goes, because a run
+        // can throw after its job has committed.
+        const progress = { processed: 0 };
         try {
-          await classifyQueued({ reportId: id });
+          await classifyQueued({ reportId: id, progress });
         } catch (e) {
           console.error(`[reports] classify after submit ${id}:`, (e as Error).message);
+        } finally {
+          if (progress.processed > 0) reportsChanged();
         }
       });
     }

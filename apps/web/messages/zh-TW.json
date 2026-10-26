@@ -407,6 +407,8 @@
     "range": "第 {from}–{to} 種，共 {total} 種",
     "records": "通報紀錄",
     "recordCount": "{count, plural, other {# 筆紀錄}}",
+    "recordsUnavailable": "目前無法載入這些紀錄。",
+    "recordsInList": "到紀錄列表查看",
     "beFirst": "通報這個物種",
     "seenOne": "我也看到了，通報一筆",
     "alsoKnownAs": "也稱作",

@@ -165,11 +165,15 @@ into an issue (below).
 
 ## Monitoring (22 October 2026)
 
-What exists in the repository. None of it had run from GitHub at the time of
-writing; the watch's checks were run once by hand from here
-(`node scripts/production-watch.mjs --dry-run`) and passed for the custom
-domain. Revised on 25 October after review; the revisions have not run from
-GitHub either.
+Live since #162 merged on 25 October 2026. Verified that evening:
+- Production's `/api/health` answered 200 with `ok` and `schemaCurrent` true.
+  The ledger check found a row for every migration file in the deployed build.
+- `jobs` showed no good run for either job yet, because neither had run since
+  0036 was applied. The first evidence will be the 03:00 UTC classify run.
+- The post-deploy runs of the workflow passed after each production deploy.
+- Two runs started by hand both passed. The second one's log reads `previous
+  check passed`, so a run reads the state the last one left and "two in a
+  row" can fire.
 
 - **Every hour,** `.github/workflows/production-watch.yml` asks both addresses
   for `/api/health` (200, `ok` and `schemaCurrent` true, more than 46,000
@@ -513,10 +517,15 @@ October with a ledger row.
 25 October with a ledger row. All 13 are still exact, and the public total did
 not change.
 
+**The /reports list's index (0035)** was built on 25 October with `create
+index concurrently`, which has to run outside a transaction, so it was sent on
+its own. It is valid and 1.9 MB, and its ledger row was added afterwards. The
+code that relies on it (#166) had not merged at the time of writing.
+
 **Counts on 25 October:**
 - 46,305 public records, 0 of them from users;
 - 0 accounts, so 0 moderators;
-- ledger through `0032_floor_renamed_retired_twins.sql`.
+- 35 ledger rows, 0001–0037 except 0033, whose branch is still in review.
 
 ## Known outstanding, on the credential holder
 

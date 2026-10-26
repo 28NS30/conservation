@@ -5,6 +5,7 @@ import { sql } from "@/lib/db";
 import { currentRole } from "@/lib/auth";
 import { withinRateLimit } from "@/lib/abuse";
 import { photoIdentificationOverride } from "@/lib/report/precision";
+import { reportsChanged } from "@/lib/siteFigures";
 
 /**
  * Confirm or correct a report's species.
@@ -129,4 +130,7 @@ export async function confirmSpecies(reportId: string, taxonId: number) {
   });
 
   revalidatePath(`/reports/${reportId}`);
+  // The species counts, and the species and collection a record is in, are
+  // cached for everybody (lib/siteFigures.ts).
+  reportsChanged();
 }

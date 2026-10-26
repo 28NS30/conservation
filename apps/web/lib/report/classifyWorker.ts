@@ -73,7 +73,22 @@ type Job = {
 
 export type ClassifyRun = { claimed: number; processed: number; failed: number; deferred: number };
 
-export async function classifyQueued({ reportId = null }: { reportId?: string | null } = {}): Promise<ClassifyRun> {
+/**
+ * How many of a run's jobs have finished so far, where the caller can read it
+ * even when the run throws part-way through, after jobs it finished have
+ * committed (a failed job's own write, or handing back the deferred ones).
+ *
+ * A finished job may have published its report or named its animal, which
+ * the cached pages show, so both callers drop them (reportsChanged) whenever
+ * this is above nought, the run thrown or not. Anything else in here that
+ * changes what a public page shows has to count here too.
+ */
+export type ClassifyProgress = { processed: number };
+
+export async function classifyQueued({
+  reportId = null,
+  progress = { processed: 0 },
+}: { reportId?: string | null; progress?: ClassifyProgress } = {}): Promise<ClassifyRun> {
   // A job killed during its LAST attempt (the function's time limit, a deploy,
   // a model that hangs) is left 'running' with attempts at the maximum, which
   // the claim below will never take again, so its give-up branch never ran:
@@ -148,7 +163,6 @@ export async function classifyQueued({ reportId = null }: { reportId?: string | 
 
   if (jobs.length === 0) return { claimed: 0, processed: 0, failed: 0, deferred: 0 };
 
-  let succeeded = 0;
   let failed = 0;
   const startedAt = Date.now();
   const contract = mlContract(process.env);
@@ -173,7 +187,7 @@ export async function classifyQueued({ reportId = null }: { reportId?: string | 
         // lib/report/classifyEvidence.ts. Failure takes the catch below, as a
         // legacy failure does.
         await recordEvidence(job, await callEvidenceModel(bytes.toString("base64")));
-        succeeded++;
+        progress.processed++;
         continue;
       }
 
@@ -306,7 +320,7 @@ export async function classifyQueued({ reportId = null }: { reportId?: string | 
                   where id = ${job.job_id}::bigint`;
       });
 
-      succeeded++;
+      progress.processed++;
     } catch (err) {
       failed++;
       const message = (err as Error).message.slice(0, 500);
@@ -366,7 +380,7 @@ export async function classifyQueued({ reportId = null }: { reportId?: string | 
   // body is what made a timeout look like a broken endpoint.
   return {
     claimed: jobs.length,
-    processed: succeeded,
+    processed: progress.processed,
     failed,
     deferred: deferred.length,
   };
