@@ -209,6 +209,20 @@ describe("a card never joins rows blurred differently", () => {
     });
   });
 
+  test("an endemic subspecies of a species that is not keeps its own card, and its badge", async () => {
+    await inRollback(async (tx) => {
+      await tx`update taxa set is_endemic = true where id = ${SWALLOW.subspecies[2]}`;
+      await tx`update taxa set is_endemic = false where id = ${SWALLOW.species}`;
+      const folds = await tx`select 1 from species_folds where taxon_id = ${SWALLOW.subspecies[2]}`;
+      assert.equal(folds.length, 0);
+    });
+    const [crossed] = await sql`
+      select count(*)::int as n from species_folds f
+        join taxa m on m.id = f.taxon_id join taxa s on s.id = f.species_id
+       where m.is_endemic is distinct from s.is_endemic`;
+    assert.equal(crossed.n, 0, "a fold joins an endemic row and one that is not");
+  });
+
   test("the blur check is the public role's alone", async () => {
     const [row] = await sql`
       select has_function_privilege('web_anon', 'public.same_taxon_precision(bigint,bigint)', 'execute') as anon_role,
@@ -242,7 +256,10 @@ describe("0040 changes no record", () => {
                 where id in (select taxon_id from reports where taxon_id is not null)
                    or taicol_id in (select t.species_taicol_id from reports r
                                       join taxa t on t.id = r.taxon_id)`;
-      await tx.unsafe(MIGRATION).simple();
+      // Without its lock_timeout, as species-labels.test.mjs runs 0022: other
+      // test files write taxa at the same time, and five seconds is for
+      // production's one apply, not for a busy suite.
+      await tx.unsafe(MIGRATION.replace(/^set local lock_timeout.*$/m, "")).simple();
       const [{ changed, gone }] = await tx`
         select (select count(*)::int from (
                   select id, taxon_id, location_precision, precision_override, is_obscured,

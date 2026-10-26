@@ -263,6 +263,12 @@ create or replace view species_folds as
          and s.common_name_zh = m.common_name_zh
          and s.is_invasive = m.is_invasive
          and s.kingdom is not distinct from m.kingdom
+         -- An endemic subspecies of a species that is not endemic, such as
+         -- Taiwan's 白頭翁 Pycnonotus sinensis formosae, keeps its own card:
+         -- folded, the card would be the species row's, and the directory's
+         -- 特有 filter and badge would lose it. 46 recorded entries on
+         -- production, 26 October 2026.
+         and s.is_endemic = m.is_endemic
          -- The blur. A subspecies directly under its species, with no rating,
          -- no protection and no floor of its own, takes exactly its species'
          -- rule: taxon_precision() reads those three of each row it climbs
@@ -282,7 +288,7 @@ create or replace view species_folds as
      and m.common_name_zh is not null;
 
 comment on view species_folds is
-  'Each subspecies shown on its species'' card (0040): the same Chinese name, invasive flag, kingdom and taxon_precision(). Display only.';
+  'Each subspecies shown on its species'' card (0040): the same Chinese name, invasive flag, endemic flag, kingdom and taxon_precision(). Display only.';
 
 -- The rows behind each card: the card itself and the subspecies folded into
 -- it. Every taxon is a card of itself here, a folded subspecies included, so
