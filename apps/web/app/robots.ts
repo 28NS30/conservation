@@ -15,6 +15,18 @@ export default function robots(): MetadataRoute.Robots {
         "/login", "/en/login",
         "/me", "/en/me",
         "/api/", "/auth/",
+        // What put this site over Vercel's free allowance of server time on
+        // 28 October 2026, down until the next usage cycle: crawlers walking
+        // these. Each record page is rendered per request, there are 46,000 of
+        // them in two languages, each is one row of a dataset already
+        // published on GBIF, and the species pages already carry their
+        // records. The query strings are filters and page numbers over the
+        // same lists, whose combinations do not end. The first page of each
+        // list, the species pages and the collections stay open.
+        "/reports/", "/en/reports/",
+        "/reports?", "/en/reports?",
+        "/species?", "/en/species?",
+        "/map?", "/en/map?",
       ],
     },
     sitemap: `${BASE}/sitemap.xml`,
