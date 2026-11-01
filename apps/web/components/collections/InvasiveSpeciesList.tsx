@@ -18,7 +18,6 @@ export type InvasiveSpeciesRow = {
   class: string | null;
   protectedStatus: string | null;
   reportCount: number;
-  note: string | null;
 };
 
 /**
@@ -32,6 +31,12 @@ export type InvasiveSpeciesRow = {
  *
  * Each row is one link, to the species page, and at least 44px tall: on a
  * phone the row is the target, not the name inside it.
+ *
+ * Each animal group starts closed, as a heading with its count, and opens on
+ * a tap: 209 rows open at once were a long scroll to the one a reader came
+ * for. A <details>, so it opens with no script too. While the box holds a
+ * search every group with a match is open, since a match nobody can see is
+ * no answer.
  */
 export default function InvasiveSpeciesList({
   species,
@@ -94,55 +99,61 @@ export default function InvasiveSpeciesList({
       </p>
 
       {groups.map((g) => (
-        <section key={g.key} className="mt-10" aria-labelledby={`${inputId}-${g.key}`}>
-          <h3
-            id={`${inputId}-${g.key}`}
-            className={`flex items-baseline justify-between gap-3 border-b-2 border-forest-900 pb-2 font-display text-[22px] font-bold text-forest-900 ${
-              zh ? "tracking-[0.04em]" : "uppercase tracking-[0.02em]"
-            }`}
-          >
-            <span>{t(`group.${g.key}`)}</span>
-            <span className="font-sans text-[14px] font-normal normal-case tracking-normal text-ink-600">
-              {t("invasive.groupCount", { count: g.rows.length })}
-            </span>
-          </h3>
-          <ul className="divide-y divide-ink-900/10">
-            {g.rows.map((s) => (
-              <li key={s.id}>
-                {/* Not prefetched, like the species directory's (see there). */}
-                <Link
-                  href={`/species/${s.slug}`}
-                  prefetch={false}
-                  className="group flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 py-2.5 transition hover:bg-paper-100"
-                >
-                  <span className="min-w-0 flex-1">
-                    <SpeciesName
-                      species={s}
-                      locale={locale}
-                      primaryClassName="break-words text-[16px] font-semibold text-ink-950 group-hover:text-leaf-700"
-                      secondaryClassName="break-words text-[14px] text-ink-600"
-                    />
-                    {s.note && (
-                      <span className="mt-1 block text-[14px] leading-snug text-ink-600">
-                        {t("invasive.taicolNote", { note: s.note })}
+        <section key={g.key} className="mt-6" aria-labelledby={`${inputId}-${g.key}`}>
+          <details open={Boolean(needle)} className="group">
+            <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 border-b-2 border-forest-900 py-2 [&::-webkit-details-marker]:hidden">
+              <span
+                aria-hidden
+                className="shrink-0 text-[18px] leading-none text-forest-900 transition-transform group-open:rotate-90"
+              >
+                ▸
+              </span>
+              <h3
+                id={`${inputId}-${g.key}`}
+                className={`flex min-w-0 flex-1 items-baseline justify-between gap-3 font-display text-[22px] font-bold text-forest-900 ${
+                  zh ? "tracking-[0.04em]" : "uppercase tracking-[0.02em]"
+                }`}
+              >
+                <span>{t(`group.${g.key}`)}</span>
+                <span className="font-sans text-[14px] font-normal normal-case tracking-normal text-ink-600">
+                  {t("invasive.groupCount", { count: g.rows.length })}
+                </span>
+              </h3>
+            </summary>
+            <ul className="divide-y divide-ink-900/10">
+              {g.rows.map((s) => (
+                <li key={s.id}>
+                  {/* Not prefetched, like the species directory's (see there). */}
+                  <Link
+                    href={`/species/${s.slug}`}
+                    prefetch={false}
+                    className="group/row flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 py-2.5 transition hover:bg-paper-100"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <SpeciesName
+                        species={s}
+                        locale={locale}
+                        primaryClassName="break-words text-[16px] font-semibold text-ink-950 group-hover/row:text-leaf-700"
+                        secondaryClassName="break-words text-[14px] text-ink-600"
+                      />
+                    </span>
+                    {/* Protected by law and invasive at once: the cockatoos.
+                        Said so, because the location of each record is
+                        blurred for it, which a reader of an invasive list
+                        would not expect. */}
+                    {s.protectedStatus && (
+                      <span className="rounded-full border border-forest-900/30 px-2.5 py-0.5 text-[14px] text-forest-900">
+                        {t("invasive.protected")}
                       </span>
                     )}
-                  </span>
-                  {/* Protected by law and invasive at once: the cockatoos. Said
-                      so, because the location of each record is blurred for
-                      it, which a reader of an invasive list would not expect. */}
-                  {s.protectedStatus && (
-                    <span className="rounded-full border border-forest-900/30 px-2.5 py-0.5 text-[14px] text-forest-900">
-                      {t("invasive.protected")}
+                    <span className="shrink-0 text-right text-[14px] tabular-nums text-ink-700">
+                      {t("invasive.records", { count: s.reportCount })}
                     </span>
-                  )}
-                  <span className="shrink-0 text-right text-[14px] tabular-nums text-ink-700">
-                    {t("invasive.records", { count: s.reportCount })}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </details>
         </section>
       ))}
     </div>

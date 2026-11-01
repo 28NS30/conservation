@@ -21,6 +21,11 @@ import { REPORT_PAGES, isReportPage } from "@conservation/shared";
  * page, and cannot be pointed at a wider list than the server will accept —
  * which is what the invasive page's old "search all species" button did,
  * filing native animals as invasive ones.
+ *
+ * Results are the directory's cards (listSpecies): a subspecies with its
+ * species' Chinese name is found as the species, so 家燕 is offered once, not
+ * four times under one name. The subspecies are still accepted when a report
+ * names one (OFFERED), for the reports queued before this.
  */
 export async function GET(req: Request) {
   const url = new URL(req.url);

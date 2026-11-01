@@ -8,6 +8,7 @@ import {
   getCachedSpecies,
   isSpeciesAddress,
   monthlyCounts,
+  speciesRelations,
   LIST_MAX_RECORDS,
   speciesSlug,
   parseSpeciesId,
@@ -66,10 +67,12 @@ export const revalidate = 300;
  */
 export async function generateStaticParams() {
   try {
+    // The cards the directory links, by their records: species_card_stats
+    // counts a species with the subspecies shown on its card (0040).
     const rows = await asPublic(
       (tx) => tx<{ id: number; scientific_name: string }[]>`
         select t.id, t.scientific_name
-          from taxa t join species_report_stats s on s.taxon_id = t.id
+          from taxa t join species_card_stats s on s.taxon_id = t.id
          -- t.id settles ties, so the same fifty are chosen on every build.
          order by s.report_count desc, t.id limit 50`,
     );
@@ -184,6 +187,11 @@ export default async function SpeciesPage({
   const blurKm =
     precision === "coarse_50km" ? 50 : precision === "coarse_10km" ? 10 : null;
   const underReview = speciesNotes(s.taicolId).includes("nameUnderReview");
+  // The species above a subspecies, and which rows share this page's card:
+  // the directory shows 家燕 and its same-named subspecies as one card, so
+  // each page says where the others are (lib/species.ts).
+  const rel = await speciesRelations(s.id);
+  const above = rel.species;
   const counts =
     s.reportCount >= HEATMAP_MIN_RECORDS ? await monthlyCounts(s.id) : null;
   const listed =
@@ -212,6 +220,46 @@ export default async function SpeciesPage({
         {s.altNamesZh && s.altNamesZh.length > 0 && (
           <p className="mt-1 text-sm text-ink-600">
             {t("alsoKnownAs")}: {s.altNamesZh.join("、")}
+          </p>
+        )}
+        {above && (
+          <p className="mt-2 text-sm leading-relaxed text-ink-700">
+            {t.rich("subspeciesOf", {
+              name: speciesLabel(above, locale),
+              // The name, then the scientific name: a species and its
+              // subspecies often share a Chinese name and differ only there.
+              link: (chunks) => (
+                <Link
+                  href={`/species/${speciesSlug(above)}`}
+                  className="font-medium text-leaf-700 underline underline-offset-2 hover:text-forest-900"
+                >
+                  {chunks}
+                  {speciesLabel(above, locale) !== above.scientificName && (
+                    <>
+                      {" "}
+                      <i lang="la">{above.scientificName}</i>
+                    </>
+                  )}
+                </Link>
+              ),
+            })}
+            {rel.onSpeciesCard && <> {t("countedOnCard")}</>}
+          </p>
+        )}
+        {rel.folded.length > 0 && (
+          <p className="mt-2 text-sm leading-relaxed text-ink-700">
+            {t("includesFolded")}{" "}
+            {rel.folded.map((f, i) => (
+              <span key={f.id}>
+                {i > 0 && t("listSeparator")}
+                <Link
+                  href={`/species/${speciesSlug(f)}`}
+                  className="text-leaf-700 underline underline-offset-2 hover:text-forest-900"
+                >
+                  <i lang="la">{f.scientificName}</i>
+                </Link>
+              </span>
+            ))}
           </p>
         )}
         {underReview && (
@@ -306,6 +354,41 @@ export default async function SpeciesPage({
         >
           {s.reportCount > 0 ? t("seenOne") : t("beFirst")}
         </Link>
+      )}
+
+      {/* TaiCOL's own note on the animal's alien status, as the checklist
+          words it, one source per line ("invasive: Ding et al., 2023 (臺灣:
+          引進種、不普, ...)"). The invasive list printed it on 117 of its
+          rows; it belongs with the page's sources, closed until asked for. */}
+      {s.alienStatusNote && (
+        <details className="mt-10 border-t border-ink-900/10 pt-4 text-sm text-ink-700">
+          <summary className="flex min-h-11 cursor-pointer items-center font-semibold text-ink-900">
+            {t("sources")}
+          </summary>
+          <p className="mt-2 leading-relaxed">
+            {t.rich("sourcesTaicol", {
+              taicol: (c) => (
+                <a
+                  href="https://taicol.tw"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-leaf-700 underline underline-offset-2 hover:text-forest-900"
+                >
+                  {c}
+                </a>
+              ),
+            })}
+          </p>
+          <ul className="mt-2 space-y-1 leading-relaxed">
+            {s.alienStatusNote
+              .split("|")
+              .map((line) => line.trim())
+              .filter(Boolean)
+              .map((line, i) => (
+                <li key={i}>{t("taicolNote", { note: line })}</li>
+              ))}
+          </ul>
+        </details>
       )}
     </main>
   );

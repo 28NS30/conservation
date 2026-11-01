@@ -89,6 +89,11 @@ export function toRow(t: TaicolTaxon) {
   };
 }
 
+/**
+ * Not species_taicol_id (0040): it is derived from parent_taicol_id across
+ * rows, and a parent can arrive in a later page than its subspecies, so both
+ * writers leave it to resolve_taxa_lineage(), which runs after the last page.
+ */
 export const COLUMNS = [
   "taicol_id", "parent_taicol_id", "taxon_status", "scientific_name", "name_author",
   "common_name_zh", "alt_names_zh", "rank", "kingdom", "is_in_taiwan", "is_endemic",

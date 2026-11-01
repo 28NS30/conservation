@@ -71,7 +71,11 @@ async function main() {
   await finish();
 }
 
-/** Lineage, prompts and a summary, after either kind of import. */
+/**
+ * Lineage, prompts and a summary, after either kind of import. The lineage
+ * function also fills taxa.species_taicol_id (0040), the species each row
+ * belongs to, which the directory shows same-named subspecies under.
+ */
 async function finish() {
   console.log("\nResolving taxonomic lineage (walking parent_taxon_id)...");
   const t0 = Date.now();

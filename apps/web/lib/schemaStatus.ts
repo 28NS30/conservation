@@ -213,6 +213,21 @@ export const REQUIRED_SCHEMA: SchemaCheck[] = [
            where relnamespace = 'public'::regnamespace and relkind = 'r'
              and relname in ('job_runs', 'app_errors')`,
   },
+  {
+    // Read, not written, like 0016's column, and as widely: the directory,
+    // its count on every page, the picker, the invasive list, a species page
+    // and its map's tiles all read these views. Without them they 500
+    // together. Asks for web_anon's grant on the blur check as well, which
+    // the views call on its behalf.
+    name: "0040 the directory shows each species once",
+    sql: `select (select count(*) from pg_views
+                   where schemaname = 'public'
+                     and viewname in ('species_folds', 'species_card_members', 'species_card_stats')) = 3
+             and coalesce((select has_function_privilege('web_anon', p.oid, 'execute')
+                             from pg_proc p
+                            where p.proname = 'same_taxon_precision'
+                              and p.pronamespace = 'public'::regnamespace), false) as ok`,
+  },
 ];
 
 /**

@@ -7,7 +7,8 @@
  * so a refresh reaches it through the Supabase Management API's query
  * endpoint, a statement at a time. This writes numbered files for that: each
  * the same upsert scripts/import-taicol.ts runs, over one slice of the
- * snapshot, and a last one that resolves the lineage. The mapping is
+ * snapshot, and a last one that resolves the lineage (and with it, since
+ * 0040, which species each row belongs to). The mapping is
  * taicol-rows.ts, shared with the importer, so the local check and the
  * production write cannot differ.
  *

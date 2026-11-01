@@ -39,7 +39,8 @@ export const MIGRATIONS: readonly string[] = [
   "0036_job_runs_and_app_errors.sql",
   "0037_hoopoe_to_species.sql",
   "0039_drop_rest_era_policies.sql",
+  "0040_species_key.sql",
 ];
 
 /** The highest-numbered of them, for reading at a glance; nothing is decided by it. */
-export const LATEST_MIGRATION = "0039_drop_rest_era_policies.sql";
+export const LATEST_MIGRATION = "0040_species_key.sql";

@@ -60,13 +60,29 @@ export type SpeciesDetail = SpeciesSummary & {
   isMarine: boolean | null;
   firstSeen: string | null;
   lastSeen: string | null;
+  /** TaiCOL's note on the taxon's alien status, where it has one (0023). */
+  alienStatusNote: string | null;
 };
 
 /**
  * Everything below reads `species_report_stats`, which is built on
- * `reports_public`. Counting from the `reports` base table would leak the record
- * volume of 座標不開放 taxa, which is exactly what the obscuring design exists to
- * prevent.
+ * `reports_public`, or `species_card_stats`, which is built on it. Counting
+ * from the `reports` base table would leak the record volume of 座標不開放
+ * taxa, which is exactly what the obscuring design exists to prevent.
+ *
+ * ONE CARD PER SPECIES AND NAME (migration 0040). TaiCOL keeps 家燕 as a
+ * species row and three subspecies rows, all called 家燕, and the directory
+ * printed each as a card of its own: the same title three times, with the
+ * records split between them. A subspecies that has its species' Chinese name
+ * is now shown on the species' card. A subspecies with a name of its own,
+ * 石虎 under 豹貓, keeps its own card, and so does each of two subspecies that
+ * share a name their species does not use: neither is the other's species.
+ * `species_folds` says which subspecies fold into which species, and never
+ * folds one blurred by a different rule or flagged invasive differently.
+ *
+ * Display only. Every row keeps its own page, and a report is still filed,
+ * blurred and counted under the taxon it names: OFFERED below still offers
+ * every subspecies, so a report queued offline under one still files.
  */
 const SUMMARY_COLS = `
   t.id, t.taicol_id as "taicolId", t.scientific_name as "scientificName", t.name_author as "nameAuthor",
@@ -92,6 +108,11 @@ const SUMMARY_COLS = `
  * or a genus (Felidae, 99 such pages are protected or invasive as a group)
  * showed "be the first to report it" and opened the form on a name nobody
  * could pick.
+ *
+ * Every subspecies stays OFFERED, those shown on their species' card
+ * (species_folds) too. The picker lists cards, so it shows 家燕 once and files
+ * a new report under the species; but a report already queued offline under
+ * a subspecies of the same name must still be filed when it is sent.
  *
  * `t` is `taxa`. `is not distinct from` because `taxon_status` is nullable.
  */
@@ -169,6 +190,12 @@ export function isIndexworthy(s: {
   );
 }
 
+/**
+ * One species, as its page and its share card show it. The records are the
+ * card's (speciesMembers): a species page counts the subspecies shown on its
+ * card too, as the directory does, and a folded subspecies' own page counts
+ * its own.
+ */
 async function readSpecies(id: number): Promise<SpeciesDetail | null> {
   const rows = await asPublic(
     (tx) => tx<SpeciesDetail[]>`
@@ -178,9 +205,15 @@ async function readSpecies(id: number): Promise<SpeciesDetail | null> {
              t.cites, t.iucn, t.redlist, t.alien_type as "alienType",
              t.is_terrestrial as "isTerrestrial", t.is_freshwater as "isFreshwater",
              t.is_brackish as "isBrackish", t.is_marine as "isMarine",
+             nullif(trim(t.alien_status_note), '') as "alienStatusNote",
              s.first_seen as "firstSeen", s.last_seen as "lastSeen"
         from taxa t
-        left join species_report_stats s on s.taxon_id = t.id
+        left join lateral (
+          select nullif(count(*), 0)::int as report_count,
+                 min(rp.observed_at) as first_seen, max(rp.observed_at) as last_seen
+            from reports_public rp
+           where ${speciesMembers(tx, "rp.taxon_id", id)}
+        ) s on true
        where t.id = ${id}`,
   );
   return rows[0] ?? null;
@@ -208,6 +241,27 @@ export const speciesAddressName = cache(async (id: number): Promise<string | nul
   );
   return rows[0]?.name ?? null;
 });
+
+/**
+ * Whether `column` holds one of the taxa the species `taxonId` speaks for: the
+ * taxon, and the subspecies shown on its card (species_card_members, 0040).
+ * A null taxonId matches every row.
+ *
+ * The species page, its map's tiles and the record list all filter through
+ * this, so the records a species' page counts are the ones its map draws and
+ * its list holds. For a subspecies folded into its species it is the
+ * subspecies alone: that page is about the subspecies.
+ *
+ * `column` is spliced into the SQL, so it is a constant at every call.
+ */
+export function speciesMembers(
+  tx: postgres.TransactionSql,
+  column: string,
+  taxonId: number | null,
+) {
+  return tx`(${taxonId}::bigint is null or ${tx.unsafe(column)} in (
+    select m.taxon_id from species_card_members m where m.card_id = ${taxonId}))`;
+}
 
 /**
  * Whether `param`, the species page's address, is the taxon's own: the slug
@@ -246,7 +300,8 @@ export const getCachedSpecies = cache(siteFigure("species", readSpecies));
  * from names that work.
  *
  * Read through asPublic like getSpecies, so a taxon whose coordinates are
- * withheld still reports zero records.
+ * withheld still reports zero records, and counted as its page counts them
+ * (speciesMembers), so the picker says the number the species page does.
  */
 export async function reportableSpecies(id: number): Promise<{
   id: number;
@@ -278,11 +333,14 @@ export async function reportableSpecies(id: number): Promise<{
              t.common_name_zh as "commonNameZh",
              t.common_name_en as "commonNameEn",
              t.is_invasive as "isInvasive",
-             coalesce(s.report_count, 0) as "reportCount",
+             s.report_count as "reportCount",
              ${tx.unsafe(OFFERED)} as offered,
              ${tx.unsafe(scopes)}
         from taxa t
-        left join species_report_stats s on s.taxon_id = t.id
+        cross join lateral (
+          select count(*)::int as report_count
+            from reports_public rp
+           where ${speciesMembers(tx, "rp.taxon_id", id)}) s
        where t.id = ${id}`,
   );
   const row = rows[0];
@@ -310,7 +368,9 @@ export async function reportableSpecies(id: number): Promise<{
  * is empty, or stop the pager one page before the end of the results. Every
  * such bug is invisible until someone reaches the boundary.
  *
- * Both callers join `species_report_stats` as `s` and `taxa` as `t`.
+ * Both callers join `species_report_stats` as `s` and `taxa` as `t`, and
+ * count or list the cards the matching rows are shown on (CARD), so a card is
+ * found by any of its rows: 家燕 by "gutturalis" as well as by its name.
  *
  * Accepted names only. TaiCOL keeps a name it has retired as a row marked
  * `deleted`, often beside the accepted row for the same animal, and this used
@@ -322,6 +382,12 @@ export async function reportableSpecies(id: number): Promise<{
  * nobody is offered one to choose. The rule is OFFERED, which the report form
  * and `POST /api/reports` share.
  */
+/**
+ * The card a directory row is shown on: its own, or for a subspecies in
+ * species_folds its species'. Needs `species_folds` joined as `f`.
+ */
+const CARD = "coalesce(f.species_id, t.id)";
+
 /** The longest search term any caller accepts (as /api/species/search always did). */
 export const MAX_QUERY = 64;
 
@@ -374,7 +440,8 @@ function speciesWhere(
 }
 
 /**
- * How many taxa the same query matches, for the directory's pager.
+ * How many cards the same query matches, for the directory's pager: a species
+ * and the same-named subspecies on its card count once (CARD).
  *
  * `kingdom` narrows it for a caller that needs a checklist total to set beside
  * the recorded count — /season's "of Taiwan's animal species and subspecies".
@@ -403,9 +470,10 @@ export async function countSpecies(opts: {
   );
   const rows = await asPublic(
     (tx) => tx<{ n: number }[]>`
-      select count(*)::int as n
+      select count(distinct ${tx.unsafe(CARD)})::int as n
         from taxa t
         left join species_report_stats s on s.taxon_id = t.id
+        left join species_folds f on f.taxon_id = t.id
        where ${speciesWhere(tx, filter, like)}
          and (${kingdom}::text is null or t.kingdom = ${kingdom})
          and (${collection}::text is null or exists (
@@ -459,47 +527,67 @@ export async function listSpecies(opts: {
 
   return asPublic(
     (tx) => tx<SpeciesSummary[]>`
+      -- The rows that match, each with the card it is shown on and how well it
+      -- matched; then one line per card, as well matched as its best row. The
+      -- card is listed as its own row, with its records counted over the
+      -- rows it covers (species_card_stats).
+      with hit as (
+        select ${tx.unsafe(CARD)} as card_id,
+               -- Relevance first, and it has to be: searching 石虎 returned 豹貓
+               -- (its own alternate name) and 前鰭吻鮋 above the species
+               -- actually called 石虎, because the only ordering was by record
+               -- count. That is tolerable in a directory and useless in a
+               -- picker, where the reporter types the name of the animal in
+               -- front of them and expects it first.
+               case
+                 when ${term}::text is null then 3
+                 when t.common_name_zh = ${term}
+                   or t.scientific_name ilike ${term}
+                   -- An exact alternate name counts as exact, not as a lesser
+                   -- match. 石虎 is the common name of the subspecies
+                   -- euptilurus and an alternate for the species 豹貓. The
+                   -- records sat on the species until migration 0022 moved
+                   -- them to the subspecies, and ranking the exact common name
+                   -- above them sent a reporter to a page with nothing on it.
+                   -- Tie broken by records below, which is the only evidence
+                   -- we have about which name is used for which taxon.
+                   or exists (select 1 from unnest(t.alt_names_zh) a where a = ${term})
+                   -- An exact English name or English alternate, in any case.
+                   or lower(t.common_name_en) = lower(${term})
+                   or exists (select 1 from unnest(t.alt_names_en) a where lower(a) = lower(${term}))
+                   then 0
+                 when t.common_name_zh like ${prefix} or t.scientific_name ilike ${prefix}
+                   -- "leopard" finds Leopard Cat, and "cat" finds it too:
+                   -- English names are several words, and people type any one.
+                   or t.common_name_en ilike ${prefix}
+                   or t.common_name_en ilike ${wordPrefix}
+                   then 1
+                 else 2
+               end as rel,
+               (t.common_name_zh is distinct from ${term}) as named_otherwise
+          from taxa t
+          left join species_report_stats s on s.taxon_id = t.id
+          left join species_folds f on f.taxon_id = t.id
+         where ${speciesWhere(tx, filter, like)}
+           and ${tx.unsafe(inScope)}
+      ),
+      card as (
+        select card_id, min(rel) as rel, bool_and(named_otherwise) as named_otherwise
+          from hit
+         group by card_id
+      )
       select ${tx.unsafe(SUMMARY_COLS)}
-        from taxa t
-        left join species_report_stats s on s.taxon_id = t.id
-       where ${speciesWhere(tx, filter, like)}
-         and ${tx.unsafe(inScope)}
-       -- Relevance first, and it has to be: searching 石虎 returned 豹貓 (its own
-       -- alternate name) and 前鰭吻鮋 above the species actually called 石虎,
-       -- because the only ordering was by record count. That is tolerable in a
-       -- directory and useless in a picker, where the reporter types the name of
-       -- the animal in front of them and expects it first.
+        from card c
+        join taxa t on t.id = c.card_id
+        left join species_card_stats s on s.taxon_id = t.id
        order by
-         case
-           when ${term}::text is null then 3
-           when t.common_name_zh = ${term}
-             or t.scientific_name ilike ${term}
-             -- An exact alternate name counts as exact, not as a lesser match.
-             -- 石虎 is the common name of the subspecies euptilurus and an
-             -- alternate for the species 豹貓. The records sat on the species
-             -- until migration 0022 moved them to the subspecies, and ranking
-             -- the exact common name above them sent a reporter to a page with
-             -- nothing on it. Tie broken by records below, which is the only
-             -- evidence we have about which name is used for which taxon.
-             or exists (select 1 from unnest(t.alt_names_zh) a where a = ${term})
-             -- An exact English name or English alternate, in any case.
-             or lower(t.common_name_en) = lower(${term})
-             or exists (select 1 from unnest(t.alt_names_en) a where lower(a) = lower(${term}))
-             then 0
-           when t.common_name_zh like ${prefix} or t.scientific_name ilike ${prefix}
-             -- "leopard" finds Leopard Cat, and "cat" finds it too: English
-             -- names are several words, and people type any one of them.
-             or t.common_name_en ilike ${prefix}
-             or t.common_name_en ilike ${wordPrefix}
-             then 1
-           else 2
-         end,
+         c.rel,
          (${preferNative}::boolean and t.alien_type is distinct from 'native'),
          (s.report_count is null), s.report_count desc nulls last,
          -- Among equally-exact, equally-recorded matches, the taxon actually
          -- called that comes before one that merely lists it as an alternate:
          -- 石虎 is also an alternate name for 前鰭吻鮋, a scorpionfish.
-         (t.common_name_zh is distinct from ${term}),
+         c.named_otherwise,
          t.common_name_zh nulls last, t.scientific_name,
          -- The tiebreak that makes paging trustworthy. Every key above can be
          -- equal between two rows — 1,295 Taiwanese taxa share a scientific
@@ -514,14 +602,74 @@ export async function listSpecies(opts: {
 }
 
 /**
+ * Where a taxon sits among the cards, for its page: the species a subspecies
+ * belongs to, whether the subspecies is shown on that species' card, and for
+ * a species, the subspecies shown on its own.
+ *
+ * Read through asPublic, and only names: nothing here counts a record.
+ */
+export async function speciesRelations(id: number): Promise<{
+  /** The species above a subspecies, when it is a name the site offers. */
+  species: SpeciesRef | null;
+  /** Whether this subspecies is shown on that species' card (species_folds). */
+  onSpeciesCard: boolean;
+  /** The subspecies shown on this species' card. */
+  folded: SpeciesRef[];
+}> {
+  // `t` is the row named, as OFFERED expects of `taxa`.
+  const REF = `t.id, t.scientific_name as "scientificName",
+               t.common_name_zh as "commonNameZh", t.common_name_en as "commonNameEn"`;
+  return asPublic(async (tx) => {
+    const species = await tx<(SpeciesRef & { onSpeciesCard: boolean })[]>`
+      select ${tx.unsafe(REF)},
+             exists (select 1 from species_folds f
+                      where f.taxon_id = sub.id and f.species_id = t.id) as "onSpeciesCard"
+        from taxa sub
+        join taxa t on t.taicol_id = sub.species_taicol_id
+       where sub.id = ${id} and t.id <> sub.id
+         and ${tx.unsafe(OFFERED)}`;
+    const folded = await tx<SpeciesRef[]>`
+      select ${tx.unsafe(REF)}
+        from species_folds f
+        join taxa t on t.id = f.taxon_id
+       where f.species_id = ${id}
+       order by t.scientific_name, t.id`;
+    const [sp] = species;
+    return {
+      species: sp
+        ? {
+            id: sp.id,
+            scientificName: sp.scientificName,
+            commonNameZh: sp.commonNameZh,
+            commonNameEn: sp.commonNameEn,
+          }
+        : null,
+      onSpeciesCard: sp?.onSpeciesCard ?? false,
+      folded,
+    };
+  });
+}
+
+export type SpeciesRef = {
+  id: number;
+  scientificName: string;
+  commonNameZh: string | null;
+  commonNameEn: string | null;
+};
+
+/**
  * The name of a taxon a list or a map arrived filtered to.
  *
- * Joined to `species_report_stats`, not merely read from `taxa`, and that is the
- * privacy rule rather than a convenience: a taxon rated 座標不開放 has no rows in
- * `reports_public` and therefore none in the view, so naming it above an empty
+ * Checked against `reports_public`, not merely read from `taxa`, and that is
+ * the privacy rule rather than a convenience: a taxon rated 座標不開放 has no
+ * rows in `reports_public`, so naming it above an empty
  * list would be the only thing on the page confirming it had ever been recorded
  * in Taiwan. An unrecorded or withheld id answers null and the page says
  * nothing about it.
+ *
+ * Recorded means recorded under any row the filter covers (speciesMembers):
+ * the map and the list filtered to 埃及聖䴉 draw the subspecies' records, so
+ * they are named over them although the species row itself holds none.
  */
 export async function publicSpeciesName(id: number): Promise<{
   id: number;
@@ -542,22 +690,24 @@ export async function publicSpeciesName(id: number): Promise<{
              t.common_name_zh as "commonNameZh",
              t.common_name_en as "commonNameEn"
         from taxa t
-        join species_report_stats s on s.taxon_id = t.id
-       where t.id = ${id}`,
+       where t.id = ${id}
+         and exists (select 1 from reports_public rp
+                      where ${speciesMembers(tx, "rp.taxon_id", id)})`,
   );
   return rows[0] ?? null;
 }
 
 /**
  * Monthly distribution — roadkill is strongly seasonal, so this is the most
- * scientifically useful chart on the page. Cached for everybody, under the
- * reports' tag, like the figures (lib/siteFigures.ts).
+ * scientifically useful chart on the page. Over the rows the page speaks for
+ * (speciesMembers), as its count is. Cached for everybody, under the reports'
+ * tag, like the figures (lib/siteFigures.ts).
  */
 export const monthlyCounts = siteFigure("monthlyCounts", async (taxonId: number): Promise<number[]> => {
   const rows = await asPublic(
     (tx) => tx<{ month: number; n: number }[]>`
       select extract(month from observed_at at time zone 'Asia/Taipei')::int as month, count(*)::int as n
-        from reports_public where taxon_id = ${taxonId}
+        from reports_public where ${speciesMembers(tx, "taxon_id", taxonId)}
        group by 1 order by 1`,
   );
   const out = Array(12).fill(0);
@@ -587,7 +737,7 @@ export const LIST_MAX_RECORDS = 5;
  * may be no older than the page it is on (lib/siteFigures.ts), and a cached
  * copy could be five minutes old before the page was even made. The species
  * page asks for them per request, through GET /api/species/[id]/records, so
- * that no cached page holds one at all.
+ * that no cached page holds one at all. Over speciesMembers, like the count.
  *
  * From `reports_on_map`, not `reports_public`: a record held at 10 km until
  * the model has looked at its photo (migration 0033) may then be blurred
@@ -602,7 +752,7 @@ export function recentRecords(taxonId: number, limit: number = 12): Promise<Spec
              st_x(location_public::geometry) as lng,
              category, is_obscured as "isObscured"
         from reports_on_map
-       where taxon_id = ${taxonId}
+       where ${speciesMembers(tx, "taxon_id", taxonId)}
        -- id breaks ties, so the same records are shown on every load.
        order by observed_at desc, id
        limit ${limit}`,

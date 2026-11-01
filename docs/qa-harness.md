@@ -188,7 +188,10 @@ Then the fixture, `supabase/seed-test.sql`: a slice of real TaiCOL and GBIF
 rows, every blurred record at the centre of its blur cell. It also holds the
 rows tests name by property: 蒼鷺, 紅耳泥龜 and 日本樹蛙, a species whose
 binomial carries a stricter rule than its own (巨蚺, with its protected
-subspecies), and one record GBIF could not name. The generator's `wanted` list
+subspecies), two species beside subspecies of the same Chinese name that the
+directory shows as one card each (家燕 with three, 埃及聖䴉 with one, migration
+0040), and one record GBIF could not name. It ends by filling the species keys
+0040 adds, since the migrations ran on an empty taxa table. The generator's `wanted` list
 (`scripts/make-test-fixture.ts`) takes the same rows. They were appended to the
 file rather than regenerated into it: `npm run make:fixture` against a local
 database today replaces 591 of the 604 sampled records, because 0022 moved

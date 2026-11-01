@@ -93,6 +93,12 @@ async function main() {
       union (select id from taxa
               where taicol_id in ('t0100094', 't0033457', 't0101610',
                                   't0029886', 't0122243'))
+      -- Two species beside subspecies of the same Chinese name, which the
+      -- directory shows as one card each (migration 0040): 家燕 and its three
+      -- subspecies, and 埃及聖䴉, whose records are all on its subspecies.
+      union (select id from taxa
+              where taicol_id in ('t0097276', 't0085752', 't0085753',
+                                  't0085754', 't0099144', 't0086360'))
       union (select id from taxa where sensitivity = '座標不開放' limit 2)
       union (select id from taxa where sensitivity = '重度' limit 2)
       union (select id from taxa where sensitivity = '輕度' limit 3)
@@ -216,6 +222,10 @@ async function main() {
       .join(",\n") + ";",
     "",
     "select setval(pg_get_serial_sequence('taxa','id'), (select max(id) from taxa));",
+    "",
+    // The migrations ran on an empty taxa table, so the species keys (0040)
+    // are filled here, from the parents just written.
+    "select resolve_species_keys();",
     "",
     "insert into reports (id, category, location, location_public, observed_at, taxon_id,",
     "                     taxon_source, status, source, source_id, license, rights_holder) values",
