@@ -264,6 +264,13 @@ const config: NextConfig = {
       beforeFiles: [
         { source: "/:locale(zh-TW|en)/species/:id(\\d+)", destination: "/:locale/species/by-id/:id" },
         { source: "/species/:id(\\d+)", destination: "/zh-TW/species/by-id/:id" },
+        // The old address moved (proxy.ts): crawlers have nothing to read
+        // there, and each redirect they follow is still a request to serve.
+        {
+          source: "/robots.txt",
+          has: [{ type: "host" as const, value: "preservation-web-one.vercel.app" }],
+          destination: "/robots-old-host.txt",
+        },
       ],
     };
   },

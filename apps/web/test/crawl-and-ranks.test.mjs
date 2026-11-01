@@ -13,6 +13,7 @@
 import { test, describe, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { request as httpRequest } from "node:http";
 import { sql, BASE_URL, requireServer } from "./helpers.mjs";
 
 after(() => sql.end());
@@ -33,6 +34,37 @@ describe("robots.txt", () => {
     const txt = await (await fetch(`${BASE_URL}/robots.txt`)).text();
     for (const path of ["/admin", "/en/admin", "/login", "/en/login", "/me", "/en/me", "/api/"])
       assert.match(txt, new RegExp(`^Disallow: ${path.replace(/\//g, "\\/")}$`, "m"), path);
+  });
+
+  test("keeps crawlers off the record pages and the lists' endless query strings", async (t) => {
+    // Crawlers walking these used up Vercel's free allowance on 28 October 2026.
+    if (!(await requireServer(t))) return;
+    const txt = await (await fetch(`${BASE_URL}/robots.txt`)).text();
+    const rules = txt.split("\n").filter((l) => l.startsWith("Disallow: ")).map((l) => l.slice(10).trim());
+    for (const path of ["/reports/", "/en/reports/", "/reports?", "/en/reports?", "/species?", "/en/species?", "/map?", "/en/map?"])
+      assert.ok(rules.includes(path), `${path} is not disallowed`);
+    // What people search for stays open: a rule that is a prefix of any of
+    // these would hide it.
+    for (const open of ["/", "/en", "/species", "/species/32116-prionailurus-bengalensis", "/en/species/32116-prionailurus-bengalensis", "/reports", "/roadkill", "/invasive", "/wildlife", "/stats", "/about", "/map"])
+      assert.deepEqual(rules.filter((r) => open.startsWith(r)), [], `${open} is blocked`);
+  });
+
+  test("sends crawlers away from the old address altogether, and only there", async (t) => {
+    if (!(await requireServer(t))) return;
+    const askedAs = (host) =>
+      new Promise((resolve, reject) => {
+        const u = new URL(`${BASE_URL}/robots.txt`);
+        httpRequest({ hostname: u.hostname, port: u.port, path: u.pathname, headers: { host } }, (res) => {
+          let body = "";
+          res.on("data", (c) => (body += c));
+          res.on("end", () => resolve({ status: res.statusCode, body }));
+        }).on("error", reject).end();
+      });
+    const old = await askedAs("preservation-web-one.vercel.app");
+    assert.equal(old.status, 200);
+    assert.match(old.body, /^Disallow: \/$/m);
+    const here = await askedAs("formosawatch.biowatchitnl.org");
+    assert.doesNotMatch(here.body, /^Disallow: \/$/m);
   });
 });
 
